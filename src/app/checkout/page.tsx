@@ -1,0 +1,713 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useCartStore } from '@/lib/stores/cart'
+import { StoreLayout } from '@/components/layout/store-layout'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import Link from 'next/link'
+import {
+  Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
+  Building2, Smartphone, PackageCheck, ArrowLeftRight,
+  Lock, ChevronRight, Pencil, Truck,
+} from 'lucide-react'
+import type { Address } from '@/types'
+
+const DELIVERY_FEE = 8.00
+const FREE_DELIVERY_MIN = 80.00
+
+// payment step UI: icon + sublabel for each method — large card design
+const paymentOptions = [
+  {
+    value: 'fpx',
+    label: 'FPX Online Banking',
+    sublabel: 'Semua bank Malaysia',
+    icon: Building2,
+  },
+  {
+    value: 'ewallet',
+    label: 'E-Wallet',
+    sublabel: 'Touch n Go · Boost · GrabPay',
+    icon: Smartphone,
+  },
+  {
+    value: 'cod',
+    label: 'Bayar Semasa Terima',
+    sublabel: 'Bayar tunai ketika barang tiba',
+    icon: PackageCheck,
+  },
+  {
+    value: 'bank_transfer',
+    label: 'Pindahan Bank',
+    sublabel: 'Transfer terus ke akaun kami',
+    icon: ArrowLeftRight,
+  },
+]
+
+function getDeliverySlots() {
+  const now = new Date()
+  const hour = now.getHours()
+  const slots = []
+
+  const todaySlots = [
+    { start: 10, end: 14, label: '10am – 2pm' },
+    { start: 14, end: 18, label: '2pm – 6pm' },
+    { start: 18, end: 21, label: '6pm – 9pm' },
+  ]
+  for (const s of todaySlots) {
+    if (hour + 2 <= s.start) {
+      slots.push({ value: `today-${s.start}`, label: `Hari ini, ${s.label}` })
+    }
+  }
+
+  const tmrSlots = [
+    { start: 8, end: 12, label: '8am – 12pm' },
+    { start: 12, end: 16, label: '12pm – 4pm' },
+    { start: 16, end: 20, label: '4pm – 8pm' },
+  ]
+  for (const s of tmrSlots) {
+    slots.push({ value: `tomorrow-${s.start}`, label: `Esok, ${s.label}` })
+  }
+
+  return slots
+}
+
+export default function CheckoutPage() {
+  const router = useRouter()
+  const { items, getTotal, clearCart } = useCartStore()
+  const subtotal = getTotal()
+  const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE
+
+  const slots = getDeliverySlots()
+  const [loading, setLoading] = useState(false)
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  // payment step UI: show collapsed address by default, expand only when editing
+  const [editingAddress, setEditingAddress] = useState(false)
+  const [promoInput, setPromoInput] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
+  const [appliedPromo, setAppliedPromo] = useState<{
+    id: string; code: string; type: 'percentage' | 'fixed'; value: number
+  } | null>(null)
+  const [userPoints, setUserPoints] = useState(0)
+  const [usePoints, setUsePoints] = useState(false)
+  const [form, setForm] = useState({
+    full_address: '',
+    delivery_slot: slots[0]?.value ?? '',
+    notes: '',
+    payment_method: 'fpx',
+  })
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      Promise.all([
+        supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
+        supabase.from('profiles').select('total_points').eq('id', user.id).single(),
+      ]).then(([addressRes, profileRes]) => {
+        const data = addressRes.data
+        if (data && data.length > 0) {
+          setSavedAddresses(data as Address[])
+          const def = data.find((a: Address) => a.is_default) ?? data[0]
+          setSelectedAddressId(def.id)
+          setForm((prev) => ({ ...prev, full_address: buildAddressString(def as Address) }))
+        } else {
+          // No saved addresses — open editor immediately
+          setEditingAddress(true)
+        }
+        if (profileRes.data) setUserPoints(profileRes.data.total_points ?? 0)
+      })
+    })
+  }, [])
+
+  function buildAddressString(addr: Address) {
+    const parts = [addr.full_address]
+    if (addr.postcode || addr.city || addr.state) {
+      parts.push([addr.postcode, addr.city, addr.state].filter(Boolean).join(', '))
+    }
+    return parts.join('\n')
+  }
+
+  function handleSelectAddress(id: string) {
+    setSelectedAddressId(id)
+    if (id === '__manual__') {
+      setForm((prev) => ({ ...prev, full_address: '' }))
+      return
+    }
+    const addr = savedAddresses.find((a) => a.id === id)
+    if (addr) {
+      setForm((prev) => ({ ...prev, full_address: buildAddressString(addr) }))
+      setEditingAddress(false)
+    }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  async function handleApplyPromo() {
+    const code = promoInput.trim().toUpperCase()
+    if (!code) return
+    setPromoLoading(true)
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('promo_codes')
+      .select('id, code, type, value, min_order, max_uses, uses_count, expires_at')
+      .eq('code', code).eq('active', true).single()
+
+    if (error || !data) { toast.error('Kod promosi tidak sah atau tidak aktif'); setPromoLoading(false); return }
+    if (data.expires_at && new Date(data.expires_at) < new Date()) { toast.error('Kod promosi sudah tamat tempoh'); setPromoLoading(false); return }
+    if (data.max_uses !== null && data.uses_count >= data.max_uses) { toast.error('Kod promosi sudah mencapai had penggunaan'); setPromoLoading(false); return }
+    if (subtotal < Number(data.min_order)) { toast.error(`Min. pesanan RM${Number(data.min_order).toFixed(2)} untuk kod ini`); setPromoLoading(false); return }
+
+    setAppliedPromo({ id: data.id, code: data.code, type: data.type, value: Number(data.value) })
+    toast.success(`Kod ${data.code} berjaya digunakan!`)
+    setPromoLoading(false)
+  }
+
+  const POINTS_RATE = 100
+  const pointsDiscount = usePoints ? Math.min(userPoints / POINTS_RATE, subtotal + deliveryFee) : 0
+  const pointsUsed = usePoints ? Math.min(userPoints, Math.floor((subtotal + deliveryFee) * POINTS_RATE)) : 0
+
+  function calcDiscount() {
+    let discount = 0
+    if (appliedPromo) {
+      discount += appliedPromo.type === 'percentage'
+        ? Math.min((subtotal * appliedPromo.value) / 100, subtotal)
+        : Math.min(appliedPromo.value, subtotal)
+    }
+    discount += pointsDiscount
+    return discount
+  }
+
+  const finalTotal = subtotal + deliveryFee - calcDiscount()
+  const selectedAddr = savedAddresses.find((a) => a.id === selectedAddressId)
+  const selectedSlot = slots.find((s) => s.value === form.delivery_slot)
+
+  if (items.length === 0) {
+    return (
+      <StoreLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <p className="text-gray-400 mb-4">Troli kosong</p>
+          <Link href="/products" className="text-brand-fresh-600 font-semibold">Kembali beli-belah</Link>
+        </div>
+      </StoreLayout>
+    )
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
+
+    const discount = calcDiscount()
+    const total = subtotal + deliveryFee - discount
+    setLoading(true)
+    const supabase = createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { toast.error('Sila log masuk dahulu'); router.push('/login?redirect=/checkout'); setLoading(false); return }
+
+    const productIds = items.map(({ product }) => product.id)
+    const { data: stockData } = await supabase.from('products').select('id, name, available_stock').in('id', productIds)
+    if (stockData) {
+      for (const { product, quantity } of items) {
+        const stock = stockData.find((p) => p.id === product.id)
+        if (!stock || (stock.available_stock ?? 0) < quantity) {
+          toast.error(`Stok tidak mencukupi untuk ${product.name}`)
+          setLoading(false)
+          return
+        }
+      }
+    }
+
+    const { data: order, error: orderError } = await supabase.from('orders').insert({
+      user_id: user.id, order_number: 'TEMP', status: 'pending',
+      subtotal, delivery_fee: deliveryFee,
+      discount: appliedPromo ? calcDiscount() - pointsDiscount : 0,
+      points_used: pointsUsed, points_discount: pointsDiscount,
+      total, payment_method: form.payment_method, payment_status: 'unpaid',
+      delivery_address: form.full_address,
+      notes: [
+        form.delivery_slot ? `Slot: ${slots.find(s => s.value === form.delivery_slot)?.label}` : null,
+        form.notes || null,
+      ].filter(Boolean).join(' | ') || null,
+    }).select().single()
+
+    if (orderError || !order) { toast.error('Gagal buat pesanan. Cuba lagi.'); setLoading(false); return }
+
+    const orderItems = items.map(({ product, quantity }) => ({
+      order_id: order.id, product_id: product.id, product_name: product.name,
+      product_image: product.image_url ?? null, quantity,
+      unit_price: product.price, subtotal: product.price * quantity,
+    }))
+    const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
+    if (itemsError) { toast.error('Gagal simpan item pesanan'); setLoading(false); return }
+
+    await Promise.all(items.map(({ product, quantity }) =>
+      supabase.rpc('deduct_inventory', { p_product_id: product.id, p_quantity: quantity })
+    ))
+
+    if (pointsUsed > 0) {
+      await supabase.from('loyalty_transactions').insert({
+        user_id: user.id, order_id: order.id, points: -pointsUsed, type: 'redeem',
+        description: `Redeem ${pointsUsed} mata untuk ${order.order_number}`,
+      })
+      await supabase.rpc('increment_points', { uid: user.id, pts: -pointsUsed })
+    }
+
+    const earnedPoints = Math.floor(total)
+    await supabase.from('loyalty_transactions').insert({
+      user_id: user.id, order_id: order.id, points: earnedPoints, type: 'earn',
+      description: `Pembelian ${order.order_number}`,
+    })
+    await Promise.all([
+      supabase.rpc('increment_points', { uid: user.id, pts: earnedPoints }),
+      supabase.rpc('increment_spend', { uid: user.id, amount: total }),
+    ])
+    if (appliedPromo) await supabase.rpc('increment_promo_uses', { promo_id: appliedPromo.id })
+
+    fetch('/api/notify-order', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id }),
+    }).catch(() => {})
+
+    clearCart()
+    router.push(`/orders/${order.id}?new=1`)
+  }
+
+  // payment step UI: consistent section card
+  const card = 'bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.06)] overflow-hidden'
+
+  return (
+    <StoreLayout>
+      <form id="checkout-form" onSubmit={handleSubmit} className="bg-gray-50 min-h-screen px-4 pt-4 pb-44 space-y-3">
+
+        <h1 className="text-lg font-bold text-gray-900 px-0.5">Checkout</h1>
+
+        {/* ── 1. DELIVERY ADDRESS ──────────────────────────── */}
+        {/* payment step UI: show clean selected address card by default, expand to edit */}
+        <div className={card}>
+          <div className="flex items-center justify-between px-4 pt-4 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-brand-fresh-100 flex items-center justify-center shrink-0">
+                <MapPin className="h-4 w-4 text-brand-fresh-600" />
+              </div>
+              <h2 className="text-sm font-bold text-gray-900">Alamat Penghantaran</h2>
+            </div>
+            {savedAddresses.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setEditingAddress(!editingAddress)}
+                className="flex items-center gap-1 text-xs font-semibold text-brand-fresh-600 active:opacity-70"
+              >
+                <Pencil className="h-3 w-3" />
+                {editingAddress ? 'Selesai' : 'Tukar'}
+              </button>
+            )}
+          </div>
+
+          <div className="px-4 pb-4">
+            {/* final polish: confirmed address feels like a destination, not a form field */}
+            {!editingAddress && selectedAddr && (
+              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-extrabold text-brand-fresh-700 uppercase tracking-widest">
+                        {selectedAddr.label}
+                      </span>
+                      {selectedAddr.recipient_name && (
+                        <span className="text-[11px] text-gray-400">· {selectedAddr.recipient_name}</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-800 leading-snug">{selectedAddr.full_address}</p>
+                    {(selectedAddr.postcode || selectedAddr.city) && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {[selectedAddr.postcode, selectedAddr.city, selectedAddr.state].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  {/* final polish: checkmark chip reinforces "this is confirmed" */}
+                  <span className="shrink-0 flex items-center gap-1 bg-brand-fresh-100 text-brand-fresh-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5">
+                    <CheckCircle2 className="h-3 w-3" /> Disahkan
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Expanded: address picker */}
+            {(editingAddress || savedAddresses.length === 0) && (
+              <div className="space-y-2">
+                {savedAddresses.map((addr) => (
+                  <button
+                    key={addr.id}
+                    type="button"
+                    onClick={() => handleSelectAddress(addr.id)}
+                    className={`w-full text-left px-3.5 py-3 rounded-xl border-2 transition-all active:scale-[0.99] ${
+                      selectedAddressId === addr.id
+                        ? 'border-brand-fresh-400 bg-brand-fresh-50'
+                        : 'border-gray-100 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide">
+                          {addr.label}
+                        </span>
+                        {addr.recipient_name && (
+                          <span className="text-[11px] text-gray-400">· {addr.recipient_name}</span>
+                        )}
+                      </div>
+                      {selectedAddressId === addr.id && (
+                        <CheckCircle2 className="h-4 w-4 text-brand-fresh-500 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-700 line-clamp-1">{addr.full_address}</p>
+                    {(addr.postcode || addr.city) && (
+                      <p className="text-xs text-gray-400">{[addr.postcode, addr.city].filter(Boolean).join(' ')}</p>
+                    )}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => handleSelectAddress('__manual__')}
+                  className={`w-full text-left px-3.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all ${
+                    selectedAddressId === '__manual__'
+                      ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700'
+                      : 'border-dashed border-gray-200 text-gray-400'
+                  }`}
+                >
+                  + Taip alamat lain
+                </button>
+              </div>
+            )}
+
+            {/* Manual address textarea */}
+            {(savedAddresses.length === 0 || selectedAddressId === '__manual__') && (
+              <textarea
+                name="full_address"
+                value={form.full_address}
+                onChange={handleChange}
+                required
+                rows={3}
+                placeholder="No. rumah, jalan, kawasan, poskod, bandar, negeri..."
+                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ── 2. DELIVERY TIME ─────────────────────────────── */}
+        {/* payment step UI: slot picker + delivery info in one section */}
+        <div className={card}>
+          <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <Clock className="h-4 w-4 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Masa Penghantaran</h2>
+              <p className="text-[11px] text-gray-400 mt-0.5">Anggaran 2–4 jam selepas pesanan disahkan</p>
+            </div>
+          </div>
+
+          <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+            {slots.map((slot) => (
+              <button
+                key={slot.value}
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, delivery_slot: slot.value }))}
+                className={`px-3 py-3 rounded-xl text-xs font-semibold border-2 transition-all active:scale-[0.97] text-left ${
+                  form.delivery_slot === slot.value
+                    ? 'bg-brand-fresh-500 text-white border-brand-fresh-500 shadow-[0_2px_8px_rgba(34,197,94,0.3)]'
+                    : 'bg-white text-gray-600 border-gray-100'
+                }`}
+              >
+                {slot.label}
+              </button>
+            ))}
+          </div>
+
+          {/* payment step UI: delivery fee nudge inline with slot */}
+          <div className="mx-4 mb-4 flex items-center justify-between bg-gray-50 rounded-xl px-3.5 py-2.5">
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4 text-gray-400" />
+              <span className="text-xs text-gray-500">Yuran penghantaran</span>
+            </div>
+            <span className={`text-xs font-bold ${deliveryFee === 0 ? 'text-brand-fresh-600' : 'text-gray-900'}`}>
+              {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
+            </span>
+          </div>
+        </div>
+
+        {/* ── 3. PAYMENT METHOD ────────────────────────────── */}
+        {/* payment step UI: large icon cards — each method is a distinct tappable block */}
+        <div className={card}>
+          <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center shrink-0">
+              <Lock className="h-4 w-4 text-purple-500" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Kaedah Bayaran</h2>
+              {/* final polish: "selamat" reassures user before they see payment options */}
+              <p className="text-[11px] text-gray-400 mt-0.5">Selamat & disulitkan · Pilih yang sesuai</p>
+            </div>
+          </div>
+
+          <div className="px-4 pb-3 space-y-2.5">
+            {paymentOptions.map((opt) => {
+              const selected = form.payment_method === opt.value
+              return (
+                // payment step UI: full card tap target, icon changes on select
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, payment_method: opt.value }))}
+                  className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.98] will-change-transform text-left ${
+                    selected
+                      ? 'border-brand-fresh-400 bg-brand-fresh-50 shadow-[0_2px_10px_rgba(34,197,94,0.12)]'
+                      : 'border-gray-100 bg-white'
+                  }`}
+                >
+                  {/* payment step UI: icon pill changes color when selected */}
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    selected ? 'bg-brand-fresh-500' : 'bg-gray-100'
+                  }`}>
+                    <opt.icon className={`h-5 w-5 transition-colors ${selected ? 'text-white' : 'text-gray-500'}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm font-bold leading-snug ${selected ? 'text-gray-900' : 'text-gray-700'}`}>
+                        {opt.label}
+                      </p>
+                      {/* final polish: social proof badge on most-used method */}
+                      {opt.value === 'fpx' && (
+                        <span className="text-[9px] font-extrabold bg-brand-yellow-100 text-brand-yellow-700 px-1.5 py-0.5 rounded-full leading-none">
+                          POPULAR
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{opt.sublabel}</p>
+                  </div>
+                  {/* payment step UI: checkmark confirms selection */}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                    selected ? 'border-brand-fresh-500 bg-brand-fresh-500' : 'border-gray-200'
+                  }`}>
+                    {selected && <CheckCircle2 className="h-3.5 w-3.5 text-white fill-white" />}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {/* final polish: trust footer under payment methods — reduces hesitation at critical moment */}
+          <p className="px-4 pb-4 text-[11px] text-gray-400 flex items-center gap-1.5">
+            <Lock className="h-3 w-3 shrink-0" />
+            Maklumat pembayaran anda selamat & tidak disimpan oleh kami
+          </p>
+        </div>
+
+        {/* ── 4. SAVINGS: PROMO + LOYALTY ──────────────────── */}
+        {/* payment step UI: grouped into one "jimat" section to reduce visual noise */}
+        <div className={card}>
+          <div className="px-4 pt-4 pb-2">
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Jimat Lebih</h2>
+
+            {/* final polish: "Ada kod?" framing feels like an offer, not a chore */}
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5">
+                <Tag className="h-3.5 w-3.5" /> Ada kod promosi?
+              </p>
+              {appliedPromo ? (
+                <div className="flex items-center justify-between bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-brand-fresh-500 shrink-0" />
+                    <span className="text-sm font-mono font-bold text-brand-fresh-700">{appliedPromo.code}</span>
+                    <span className="text-xs text-brand-fresh-600">
+                      {appliedPromo.type === 'percentage' ? `${appliedPromo.value}% off` : `RM${appliedPromo.value.toFixed(2)} off`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setAppliedPromo(null); setPromoInput('') }}
+                    className="text-xs text-gray-400 hover:text-red-400 font-medium"
+                  >
+                    Buang
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      placeholder="Contoh: FRESH10, JIMAT5..."
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplyPromo())}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || !promoInput.trim()}
+                      className="px-4 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl disabled:opacity-40"
+                    >
+                      {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Guna'}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5">
+                    Semak kod di Instagram atau channel WhatsApp kami 🎁
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Loyalty points */}
+            {userPoints >= 100 && (
+              <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-3.5 w-3.5 text-brand-yellow-500" />
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">
+                        Mata Loyalty
+                        {usePoints && <span className="text-brand-fresh-600"> — jimat RM{pointsDiscount.toFixed(2)}</span>}
+                      </p>
+                      <p className="text-[10px] text-gray-400">{userPoints.toLocaleString()} mata tersedia</p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="sr-only peer" />
+                    <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-fresh-500 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="h-4" />
+        </div>
+
+        {/* ── 5. ORDER SUMMARY ─────────────────────────────── */}
+        {/* payment step UI: final cost breakdown before payment — total is dominant */}
+        <div className={card}>
+          <div className="px-4 pt-4 pb-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Ringkasan Pesanan</h2>
+
+            <div className="space-y-2">
+              {items.map(({ product, quantity }) => (
+                <div key={product.id} className="flex justify-between items-start gap-2">
+                  <span className="text-sm text-gray-500 line-clamp-1 flex-1">
+                    {product.name} <span className="text-gray-400">× {quantity}</span>
+                  </span>
+                  <span className="text-sm font-semibold text-gray-900 shrink-0 tabular-nums">
+                    RM{(Number(product.price) * quantity).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-100 mt-3 pt-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Subtotal</span>
+                <span className="text-gray-700 tabular-nums">RM{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Penghantaran</span>
+                <span className={`tabular-nums ${deliveryFee === 0 ? 'text-brand-fresh-600 font-semibold' : 'text-gray-700'}`}>
+                  {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
+                </span>
+              </div>
+              {subtotal < FREE_DELIVERY_MIN && (
+                <p className="text-[11px] text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                  Tambah RM{(FREE_DELIVERY_MIN - subtotal).toFixed(2)} untuk penghantaran percuma
+                </p>
+              )}
+              {appliedPromo && (
+                <div className="flex justify-between text-sm text-brand-fresh-600">
+                  <span>Diskaun ({appliedPromo.code})</span>
+                  <span className="tabular-nums">
+                    -RM{(appliedPromo.type === 'percentage'
+                      ? Math.min((subtotal * appliedPromo.value) / 100, subtotal)
+                      : Math.min(appliedPromo.value, subtotal)).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {usePoints && pointsDiscount > 0 && (
+                <div className="flex justify-between text-sm text-brand-fresh-600">
+                  <span>Mata ({pointsUsed.toLocaleString()} pts)</span>
+                  <span className="tabular-nums">-RM{pointsDiscount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* payment step UI: TOTAL row — largest, most dominant element on the page */}
+              <div className="flex justify-between items-center pt-2 mt-1 border-t border-gray-100">
+                <span className="text-sm font-semibold text-gray-600">Jumlah Bayaran</span>
+                <span className="text-2xl font-black text-gray-900 tabular-nums">
+                  RM{finalTotal.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 6. NOTES (minimal) ───────────────────────────── */}
+        <div className={card}>
+          <div className="px-4 pt-4 pb-4">
+            <h2 className="text-sm font-semibold text-gray-700 mb-2">Nota untuk rider (pilihan)</h2>
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              rows={2}
+              placeholder="Cth: Tinggal di pintu, hubungi jika tiada orang..."
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+            />
+          </div>
+        </div>
+      </form>
+
+      {/* ── STICKY CTA BAR ───────────────────────────────── */}
+      {/* payment step UI: the most important element — total + pay button, lock icon = safe */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 pt-3.5 pb-[calc(env(safe-area-inset-bottom)+4.25rem)]">
+
+        {/* Summary row */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-[10px] text-gray-400 leading-none mb-1 uppercase tracking-wider">Jumlah bayaran</p>
+            <p className="text-2xl font-black text-gray-900 leading-none tabular-nums">
+              RM{finalTotal.toFixed(2)}
+            </p>
+          </div>
+          {/* Selected slot preview */}
+          {selectedSlot && (
+            <div className="text-right">
+              <p className="text-[10px] text-gray-400">Slot dipilih</p>
+              <p className="text-xs font-semibold text-gray-600 mt-0.5">{selectedSlot.label}</p>
+            </div>
+          )}
+        </div>
+
+        {/* payment step UI: "Bayar Sekarang" — clear, final, safe */}
+        <button
+          form="checkout-form"
+          type="submit"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2.5 bg-brand-fresh-500 text-white font-bold py-4 rounded-2xl text-base shadow-[0_4px_18px_rgba(34,197,94,0.38)] disabled:opacity-60 active:scale-[0.98] transition-all will-change-transform"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Memproses pesanan...
+            </>
+          ) : (
+            <>
+              <Lock className="h-4 w-4 opacity-80" />
+              Bayar Sekarang
+              <ChevronRight className="h-4 w-4 opacity-70" />
+            </>
+          )}
+        </button>
+      </div>
+    </StoreLayout>
+  )
+}

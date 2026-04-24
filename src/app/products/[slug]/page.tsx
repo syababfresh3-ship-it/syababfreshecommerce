@@ -1,0 +1,286 @@
+import type { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
+import { StoreLayout } from '@/components/layout/store-layout'
+import { notFound } from 'next/navigation'
+import Image from 'next/image'
+import Link from 'next/link'
+import { Tag, Truck, ShieldCheck, RotateCcw, Clock } from 'lucide-react'
+import { AddToCartButton } from './add-to-cart-button'
+import { RelatedCard } from './related-card'
+import { ProductReviews } from './reviews'
+
+async function getProduct(slug: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('products')
+    .select('*, categories(name, slug)')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+  return data
+}
+
+async function getStock(productId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('product_stock')
+    .select('available_stock')
+    .eq('product_id', productId)
+    .single()
+  // null = no stock record → treat as available (not out-of-stock)
+  // 0 = explicit zero stock → out-of-stock
+  return data?.available_stock ?? null
+}
+
+async function getReviews(productId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('product_reviews')
+    .select('id, rating, comment, created_at, profiles(full_name)')
+    .eq('product_id', productId)
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+async function getCanReview(productId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { canReview: false, orderId: undefined }
+
+  // Check if user has a delivered order containing this product
+  const { data } = await supabase
+    .from('order_items')
+    .select('order_id, orders!inner(status, user_id)')
+    .eq('product_id', productId)
+    .eq('orders.user_id', user.id)
+    .eq('orders.status', 'delivered')
+    .limit(1)
+    .single()
+
+  if (!data) return { canReview: false, orderId: undefined }
+
+  // Check hasn't already reviewed
+  const { data: existing } = await supabase
+    .from('product_reviews')
+    .select('id')
+    .eq('product_id', productId)
+    .eq('user_id', user.id)
+    .limit(1)
+    .single()
+
+  return { canReview: !existing, orderId: data.order_id }
+}
+
+async function getRelated(productId: string, categoryId: string | null) {
+  if (!categoryId) return []
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('products')
+    .select('id, name, slug, price, compare_price, image_url, unit')
+    .eq('category_id', categoryId)
+    .eq('is_active', true)
+    .neq('id', productId)
+    .order('sort_order')
+    .limit(6)
+  return data ?? []
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const supabase = await createClient()
+  const { data: product } = await supabase
+    .from('products')
+    .select('name, description, image_url, price, unit')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+
+  if (!product) return { title: 'Produk Tidak Dijumpai' }
+
+  const title = product.name
+  const description = product.description
+    ?? `Beli ${product.name} segar online — RM${Number(product.price).toFixed(2)}/${product.unit}. Penghantaran 2–4 jam Klang Valley.`
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: product.image_url ? [{ url: product.image_url }] : [],
+    },
+  }
+}
+
+function getDeliveryInfo() {
+  const now = new Date()
+  const hour = now.getHours()
+
+  if (hour < 12) {
+    return { label: 'Sampai hari ini', sub: 'Order sebelum 12 tengahari', color: 'text-brand-fresh-600' }
+  } else if (hour < 16) {
+    return { label: 'Sampai hari ini', sub: 'Order sebelum 4 petang', color: 'text-brand-fresh-600' }
+  } else {
+    return { label: 'Sampai esok pagi', sub: 'Slot 8am–12pm', color: 'text-orange-500' }
+  }
+}
+
+export default async function ProductDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const product = await getProduct(slug)
+  if (!product) notFound()
+
+  const [stock, related, reviews, { canReview, orderId }] = await Promise.all([
+    getStock(product.id),
+    getRelated(product.id, product.category_id ?? null),
+    getReviews(product.id),
+    getCanReview(product.id),
+  ])
+  const delivery = getDeliveryInfo()
+
+  const discount = product.compare_price
+    ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
+    : null
+
+  // final product polish
+  return (
+    <StoreLayout>
+      <div className="pb-44">
+        {/* Product Image */}
+        <div className="aspect-square bg-gradient-to-b from-[#fdf8f2] to-[#f0e8dc] relative overflow-hidden">
+          {product.image_url ? (
+            <Image
+              src={product.image_url}
+              alt={product.name}
+              fill
+              className="object-cover scale-[1.06] transition-transform duration-200"
+              sizes="(max-width: 768px) 100vw, 500px"
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-8xl">🛒</div>
+          )}
+          {/* depth gradient — bottom fade for image grounding */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/25 to-transparent" />
+          {discount && (
+            <span className="absolute top-4 left-4 bg-red-500 text-white text-xs font-extrabold px-3 py-1 rounded-full shadow-[0_2px_10px_rgba(239,68,68,0.45)]">
+              -{discount}%
+            </span>
+          )}
+        </div>
+
+        <div className="px-4 pt-6 space-y-5">
+
+          {/* Category */}
+          {product.categories && (
+            <Link
+              href={`/products?category=${(product.categories as any).slug}`}
+              className="inline-flex items-center gap-1 text-xs text-brand-fresh-600 font-semibold"
+            >
+              <Tag className="h-3 w-3" />
+              {(product.categories as any).name}
+            </Link>
+          )}
+
+          {/* Name & Price */}
+          <div className="space-y-3">
+            <h1 className="text-[22px] font-extrabold text-gray-900 leading-snug">{product.name}</h1>
+            <div className="flex items-baseline gap-2">
+              <span className="text-[32px] font-black text-brand-fresh-600 leading-none">
+                RM{Number(product.price).toFixed(2)}
+              </span>
+              <span className="text-sm text-gray-400 font-medium">/ {product.unit}</span>
+              {product.compare_price && (
+                <span className="text-sm text-gray-400 line-through">
+                  RM{Number(product.compare_price).toFixed(2)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Stock */}
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full shrink-0 ${stock > 10 ? 'bg-green-500' : stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            <span className={`text-sm font-medium ${stock === 0 ? 'text-red-500 font-semibold' : 'text-gray-600'}`}>
+              {stock > 10 ? 'Stok tersedia' : stock > 0 ? `Hanya ${stock} tinggal!` : 'Stok Habis'}
+            </span>
+          </div>
+
+          {/* Trust Signals Row */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-brand-fresh-50 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 text-center">
+              <Truck className="h-4 w-4 text-brand-fresh-600" />
+              <span className={`text-[10px] font-bold leading-tight ${delivery.color}`}>{delivery.label}</span>
+              <span className="text-[9px] text-gray-400 leading-tight">{delivery.sub}</span>
+            </div>
+            <div className="bg-red-50 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 text-center">
+              <RotateCcw className="h-4 w-4 text-red-500" />
+              <span className="text-[10px] font-bold text-red-500 leading-tight">Jaminan Segar</span>
+              <span className="text-[9px] text-gray-400 leading-tight">Ganti atau refund</span>
+            </div>
+            <div className="bg-gray-50 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 text-center">
+              <Clock className="h-4 w-4 text-gray-500" />
+              <span className="text-[10px] font-bold text-gray-700 leading-tight">2–4 Jam</span>
+              <span className="text-[9px] text-gray-400 leading-tight">Klang Valley</span>
+            </div>
+          </div>
+
+          {/* Description */}
+          {product.description && (
+            <div>
+              <h2 className="text-sm font-bold text-gray-900 mb-2">Penerangan</h2>
+              <p className="text-sm text-gray-500 leading-[1.75]">{product.description}</p>
+            </div>
+          )}
+
+          {/* Freshness Guarantee */}
+          <div className="bg-brand-fresh-50 border border-brand-fresh-200/60 rounded-2xl p-5 flex gap-3 items-start">
+            <ShieldCheck className="h-5 w-5 text-brand-fresh-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-gray-900">Jaminan Kesegaran 100%</p>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                Tak segar? Kami ganti produk baru atau pulang wang penuh. Tanpa soal jawab.
+              </p>
+            </div>
+          </div>
+
+          {/* Reviews */}
+          <ProductReviews
+            productId={product.id}
+            reviews={reviews as any}
+            canReview={canReview}
+            orderId={orderId}
+          />
+
+          {/* Related Products */}
+          {related.length > 0 && (
+            <div className="pt-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                Produk Berkaitan
+              </p>
+              <div className="flex gap-2.5 overflow-x-auto no-scrollbar scroll-touch pb-1">
+                {related.map((p: any) => (
+                  <RelatedCard key={p.id} product={p} />
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* Sticky Add to Cart */}
+      <div className="fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-gray-100/70 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 max-w-lg mx-auto">
+        <AddToCartButton product={product as any} stock={stock} />
+      </div>
+    </StoreLayout>
+  )
+}

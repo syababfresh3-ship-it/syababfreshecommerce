@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# accidental duplicate files (macOS copy artifacts)
+* 2.*
+* 3.*
+* 4.*
+* 5.*
+package-lock 2.json

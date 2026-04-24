@@ -1,0 +1,178 @@
+// ============================================
+// SYABABFRESH — Database Types
+// ============================================
+
+export interface Profile {
+  id: string
+  full_name: string | null
+  phone: string | null
+  email: string | null
+  avatar_url: string | null
+  tier_id: string | null
+  total_points: number
+  total_spend: number
+  is_admin: boolean
+  created_at: string
+  updated_at: string
+  // Joined
+  loyalty_tier?: LoyaltyTier
+}
+
+export interface Category {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  image_url: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface Product {
+  id: string
+  category_id: string | null
+  name: string
+  slug: string
+  description: string | null
+  price: number
+  compare_price: number | null
+  unit: string
+  image_url: string | null
+  images: string[] | null
+  is_active: boolean
+  is_featured: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+  // Joined
+  category?: Category
+  available_stock?: number
+}
+
+export interface InventoryBatch {
+  id: string
+  product_id: string
+  quantity: number
+  batch_date: string
+  expiry_date: string
+  supplier: string | null
+  cost_price: number | null
+  notes: string | null
+  created_at: string
+  // Joined
+  product?: Product
+}
+
+export interface Address {
+  id: string
+  user_id: string
+  label: string
+  recipient_name: string | null
+  recipient_phone: string | null
+  full_address: string
+  city: string | null
+  postcode: string | null
+  state: string | null
+  is_default: boolean
+  created_at: string
+}
+
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'preparing'
+  | 'delivering'
+  | 'delivered'
+  | 'cancelled'
+  | 'refunded'
+
+export type PaymentMethod = 'fpx' | 'ewallet' | 'cod' | 'bank_transfer'
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded'
+
+export interface Order {
+  id: string
+  order_number: string
+  user_id: string
+  status: OrderStatus
+  subtotal: number
+  delivery_fee: number
+  discount: number
+  points_used: number
+  points_discount: number
+  total: number
+  payment_method: PaymentMethod
+  payment_status: PaymentStatus
+  payment_ref: string | null
+  address_id: string | null
+  delivery_address: string | null
+  notes: string | null
+  admin_notes: string | null
+  confirmed_at: string | null
+  delivered_at: string | null
+  cancelled_at: string | null
+  created_at: string
+  updated_at: string
+  // Joined
+  items?: OrderItem[]
+  profile?: Profile
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  product_name: string
+  product_image: string | null
+  quantity: number
+  unit_price: number
+  subtotal: number
+  created_at: string
+}
+
+export interface CartItem {
+  id: string
+  user_id: string
+  product_id: string
+  quantity: number
+  created_at: string
+  updated_at: string
+  // Joined
+  product?: Product
+}
+
+export interface LoyaltyTier {
+  id: string
+  name: string
+  min_spend: number
+  multiplier: number
+  perks: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface LoyaltyTransaction {
+  id: string
+  user_id: string
+  order_id: string | null
+  points: number
+  type: 'earn' | 'redeem' | 'bonus' | 'adjustment'
+  description: string | null
+  created_at: string
+}
+
+// Cart store type (client-side with Zustand)
+export interface CartStore {
+  items: CartItemLocal[]
+  addItem: (product: Product, quantity?: number) => void
+  removeItem: (productId: string) => void
+  updateQuantity: (productId: string, quantity: number) => void
+  clearCart: () => void
+  getTotal: () => number
+  getItemCount: () => number
+}
+
+export interface CartItemLocal {
+  product: Product
+  quantity: number
+}
