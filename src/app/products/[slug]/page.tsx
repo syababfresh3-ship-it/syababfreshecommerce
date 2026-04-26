@@ -242,11 +242,21 @@ export default async function ProductDetailPage({
 
           {/* Delivery scope badge */}
           {product.is_shippable ? (
-            <div className="flex items-center gap-2 bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-2.5">
-              <span className="text-base leading-none">📦</span>
-              <div>
-                <p className="text-xs font-bold text-brand-fresh-700">Penghantaran ke Seluruh Malaysia</p>
-                <p className="text-[10px] text-brand-fresh-600 mt-0.5">Dihantar melalui Pos Laju atau kurier dalam 1–3 hari bekerja</p>
+            <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm leading-none">📍</span>
+                <div>
+                  <p className="text-xs font-bold text-brand-fresh-700">Lembah Klang: 2–4 jam</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Order sebelum 2 petang, sampai petang ini</p>
+                </div>
+              </div>
+              <div className="border-t border-brand-fresh-100" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm leading-none">📦</span>
+                <div>
+                  <p className="text-xs font-bold text-brand-fresh-700">Seluruh Malaysia: 1–3 hari bekerja</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Dihantar dengan lori sejuk beku</p>
+                </div>
               </div>
             </div>
           ) : (
@@ -275,8 +285,8 @@ export default async function ProductDetailPage({
               <Clock className="h-4 w-4 text-gray-500" />
               {product.is_shippable ? (
                 <>
-                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Seluruh Malaysia</span>
-                  <span className="text-[9px] text-gray-400 leading-tight">Pos / Kurier</span>
+                  <span className="text-[10px] font-bold text-gray-700 leading-tight">1–3 Hari</span>
+                  <span className="text-[9px] text-gray-400 leading-tight">Lori Sejuk</span>
                 </>
               ) : (
                 <>
