@@ -128,10 +128,7 @@ export async function generateMetadata({
   }
 }
 
-function getDeliveryInfo(isShippable: boolean) {
-  if (isShippable) {
-    return { label: '1–3 Hari Bekerja', sub: 'Pos Laju / Kurier', color: 'text-brand-fresh-600' }
-  }
+function getDeliveryInfo(_isShippable: boolean) {
   const now = new Date()
   const hour = now.getHours()
   if (hour < 12) {
