@@ -235,6 +235,8 @@ export default function CheckoutPage() {
   const finalTotal = subtotal + deliveryFee - calcDiscount()
   const selectedAddr = savedAddresses.find((a) => a.id === selectedAddressId)
   const selectedSlot = slots.find((s) => s.value === form.delivery_slot)
+  // Nationwide = luar KV tapi semua item boleh pos → delivery 1–3 hari lori sejuk
+  const isNationwide = postcodeValid === false && localOnlyItems.length === 0 && items.length > 0
 
   if (items.length === 0) {
     return (
@@ -540,8 +542,42 @@ export default function CheckoutPage() {
                 )}
                 {postcodeValid === false && (
                   <div className="space-y-1.5">
+                    {isNationwide ? (
+                      <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Boleh dihantar ke seluruh Malaysia — anggaran 1–3 hari bekerja
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-xs text-red-500 font-semibold">
+                          ⚠ Maaf, kawasan ini belum diliputi penghantaran kami
+                        </p>
+                        {localOnlyItems.length > 0 && (
+                          <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+                            <p className="text-xs font-bold text-orange-700 mb-1">📍 Item berikut Klang Valley sahaja:</p>
+                            {localOnlyItems.map(name => (
+                              <p key={name} className="text-xs text-orange-600">• {name}</p>
+                            ))}
+                            <p className="text-[10px] text-orange-500 mt-1.5">Buang item ini atau gunakan alamat dalam Klang Valley.</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Saved address postcode status */}
+            {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === false && (
+              <div className="mt-2 space-y-1.5">
+                {isNationwide ? (
+                  <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Boleh dihantar ke seluruh Malaysia — anggaran 1–3 hari bekerja
+                  </p>
+                ) : (
+                  <>
                     <p className="text-xs text-red-500 font-semibold">
-                      ⚠ Maaf, kawasan ini belum diliputi penghantaran kami
+                      ⚠ Maaf, poskod {savedAddresses.find(a => a.id === selectedAddressId)?.postcode} belum diliputi penghantaran kami
                     </p>
                     {localOnlyItems.length > 0 && (
                       <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
@@ -552,25 +588,7 @@ export default function CheckoutPage() {
                         <p className="text-[10px] text-orange-500 mt-1.5">Buang item ini atau gunakan alamat dalam Klang Valley.</p>
                       </div>
                     )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Saved address postcode status */}
-            {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === false && (
-              <div className="mt-2 space-y-1.5">
-                <p className="text-xs text-red-500 font-semibold">
-                  ⚠ Maaf, poskod {savedAddresses.find(a => a.id === selectedAddressId)?.postcode} belum diliputi penghantaran kami
-                </p>
-                {localOnlyItems.length > 0 && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-                    <p className="text-xs font-bold text-orange-700 mb-1">📍 Item berikut Klang Valley sahaja:</p>
-                    {localOnlyItems.map(name => (
-                      <p key={name} className="text-xs text-orange-600">• {name}</p>
-                    ))}
-                    <p className="text-[10px] text-orange-500 mt-1.5">Buang item ini atau gunakan alamat dalam Klang Valley.</p>
-                  </div>
+                  </>
                 )}
               </div>
             )}
@@ -583,7 +601,6 @@ export default function CheckoutPage() {
         </div>
 
         {/* ── 2. DELIVERY TIME ─────────────────────────────── */}
-        {/* payment step UI: slot picker + delivery info in one section */}
         <div className={card}>
           <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
             <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
@@ -591,28 +608,42 @@ export default function CheckoutPage() {
             </div>
             <div>
               <h2 className="text-sm font-bold text-gray-900">Masa Penghantaran</h2>
-              <p className="text-[11px] text-gray-400 mt-0.5">Anggaran 2–4 jam selepas pesanan disahkan</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {isNationwide ? 'Dihantar dengan lori sejuk beku' : 'Anggaran 2–4 jam selepas pesanan disahkan'}
+              </p>
             </div>
           </div>
 
-          <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-            {slots.map((slot) => (
-              <button
-                key={slot.value}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, delivery_slot: slot.value }))}
-                className={`px-3 py-3 rounded-xl text-xs font-semibold border-2 transition-all active:scale-[0.97] text-left ${
-                  form.delivery_slot === slot.value
-                    ? 'bg-brand-fresh-500 text-white border-brand-fresh-500 shadow-[0_2px_8px_rgba(34,197,94,0.3)]'
-                    : 'bg-white text-gray-600 border-gray-100'
-                }`}
-              >
-                {slot.label}
-              </button>
-            ))}
-          </div>
+          {isNationwide ? (
+            <div className="px-4 pb-4">
+              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-4 py-3.5 flex items-start gap-3">
+                <Truck className="h-4 w-4 text-brand-fresh-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-brand-fresh-700">1–3 Hari Bekerja</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Penghantaran lori sejuk beku ke seluruh Malaysia. Anda akan dihubungi untuk pengesahan tarikh.</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+              {slots.map((slot) => (
+                <button
+                  key={slot.value}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, delivery_slot: slot.value }))}
+                  className={`px-3 py-3 rounded-xl text-xs font-semibold border-2 transition-all active:scale-[0.97] text-left ${
+                    form.delivery_slot === slot.value
+                      ? 'bg-brand-fresh-500 text-white border-brand-fresh-500 shadow-[0_2px_8px_rgba(34,197,94,0.3)]'
+                      : 'bg-white text-gray-600 border-gray-100'
+                  }`}
+                >
+                  {slot.label}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* payment step UI: delivery fee nudge inline with slot */}
+          {/* delivery fee nudge */}
           <div className="mx-4 mb-4 flex items-center justify-between bg-gray-50 rounded-xl px-3.5 py-2.5">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-gray-400" />

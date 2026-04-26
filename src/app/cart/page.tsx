@@ -182,9 +182,9 @@ export default function CartPage() {
               <Truck className="h-4 w-4 text-brand-fresh-600" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Penghantaran 2–4 jam</p>
+              <p className="text-sm font-semibold text-gray-900">Penghantaran Pantas</p>
               <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                Order sebelum 12 tengahari, sampai petang ini.
+                Lembah Klang: 2–4 jam · Seluruh Malaysia: 1–3 hari lori sejuk
               </p>
             </div>
           </div>
