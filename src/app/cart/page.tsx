@@ -62,14 +62,16 @@ export default function CartPage() {
         <h1 className="text-lg font-bold text-gray-900 mb-4">Troli Saya</h1>
 
         <div className="space-y-3.5">
-          {items.map(({ product, quantity }) => {
-            const availStock = liveStock[product.id]
+          {items.map(({ product, variant, quantity }) => {
+            const unitPrice = variant ? Number(variant.price) : Number(product.price)
+            const availStock = variant ? variant.stock : liveStock[product.id]
             const isOutOfStock = availStock !== undefined && availStock === 0
             const exceedsStock = availStock !== undefined && quantity > availStock
+            const itemKey = `${product.id}-${variant?.id ?? ''}`
 
             return (
               <div
-                key={product.id}
+                key={itemKey}
                 className={`bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.08)] p-4 flex gap-3.5 ${
                   isOutOfStock ? 'ring-1 ring-red-200 bg-red-50/50' :
                   exceedsStock  ? 'ring-1 ring-yellow-200 bg-yellow-50/50' : ''
@@ -94,9 +96,12 @@ export default function CartPage() {
                 <div className="flex-1 min-w-0">
                   <h3 className="text-[13px] font-semibold text-gray-900 line-clamp-2 leading-snug">
                     {product.name}
+                    {variant && (
+                      <span className="ml-1 text-[11px] font-normal text-gray-400">({variant.name})</span>
+                    )}
                   </h3>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    RM{Number(product.price).toFixed(2)} / {product.unit}
+                    RM{unitPrice.toFixed(2)}{!variant ? ` / ${product.unit}` : ''}
                   </p>
 
                   {/* Stock warnings */}
@@ -117,7 +122,7 @@ export default function CartPage() {
                     {/* qty controls */}
                     <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => updateQuantity(product.id, quantity - 1)}
+                        onClick={() => updateQuantity(product.id, quantity - 1, variant?.id ?? null)}
                         className="w-9 h-9 rounded-xl border border-gray-200 bg-white flex items-center justify-center text-gray-500 active:scale-90 active:bg-gray-100 transition-all will-change-transform"
                         aria-label="Kurang"
                       >
@@ -128,14 +133,10 @@ export default function CartPage() {
                       </span>
                       <button
                         onClick={() => {
-                          const max = availStock ?? product.available_stock
-                          if (max !== undefined && quantity >= max) return
-                          updateQuantity(product.id, quantity + 1)
+                          if (availStock !== undefined && quantity >= availStock) return
+                          updateQuantity(product.id, quantity + 1, variant?.id ?? null)
                         }}
-                        disabled={
-                          (availStock ?? product.available_stock) !== undefined &&
-                          quantity >= (availStock ?? product.available_stock ?? Infinity)
-                        }
+                        disabled={availStock !== undefined && quantity >= availStock}
                         className="w-9 h-9 rounded-xl bg-brand-fresh-500 flex items-center justify-center text-white shadow-[0_2px_8px_rgba(34,197,94,0.35)] active:scale-90 active:shadow-none transition-all will-change-transform disabled:opacity-30 disabled:shadow-none"
                         aria-label="Tambah"
                       >
@@ -145,10 +146,10 @@ export default function CartPage() {
 
                     <div className="flex items-center gap-2">
                       <span className="text-[15px] font-black text-gray-900">
-                        RM{(Number(product.price) * quantity).toFixed(2)}
+                        RM{(unitPrice * quantity).toFixed(2)}
                       </span>
                       <button
-                        onClick={() => removeItem(product.id)}
+                        onClick={() => removeItem(product.id, variant?.id ?? null)}
                         className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-300 hover:text-red-400 hover:bg-red-50 active:scale-90 transition-all will-change-transform"
                         aria-label="Buang item"
                       >
