@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Truck, ChevronDown, ChevronRight, Copy, CheckCheck, RefreshCw,
   Phone, MapPin, Clock, Package, AlertCircle, User, StickyNote,
-  Printer, Filter, Calendar,
+  Printer, Filter, Calendar, Save, CheckCircle2, Loader2, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { KV_ZONES, getZone, extractPostcode, ZONE_COLORS, type ZoneConfig } from './zone-config'
@@ -21,29 +21,39 @@ export interface LalamoveOrder {
   delivery_slot: string | null
   notes: string | null
   created_at: string
-  // joined
   full_name: string | null
   phone: string | null
-  postcode: string | null     // from addresses table
+  postcode: string | null
   city: string | null
   recipient_name: string | null
   recipient_phone: string | null
   items: { product_name: string; quantity: number; variant_name: string | null }[]
 }
 
-type BatchStatus = 'draft' | 'ready' | 'booked' | 'delivered'
+export type BatchStatus = 'draft' | 'ready' | 'booked' | 'delivered'
 
 interface ZoneGroup {
   zone: ZoneConfig
   orders: LalamoveOrder[]
   status: BatchStatus
+  savedId?: string   // delivery_batches.id if saved to DB
+}
+
+interface SavedBatch {
+  id: string
+  zone_id: string
+  zone_name: string
+  status: BatchStatus
+  batch_code: string
+  stop_count: number
+  delivery_batch_orders: { order_id: string; stop_sequence: number }[]
 }
 
 const STATUS_LABELS: Record<BatchStatus, { label: string; color: string }> = {
-  draft:     { label: 'Draft',           color: 'bg-gray-100 text-gray-600' },
+  draft:     { label: 'Draft',              color: 'bg-gray-100 text-gray-600' },
   ready:     { label: 'Ready for Lalamove', color: 'bg-yellow-100 text-yellow-700' },
-  booked:    { label: 'Booked',          color: 'bg-blue-100 text-blue-700' },
-  delivered: { label: 'Selesai',         color: 'bg-green-100 text-green-700' },
+  booked:    { label: 'Booked',             color: 'bg-blue-100 text-blue-700' },
+  delivered: { label: 'Selesai',            color: 'bg-green-100 text-green-700' },
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -65,18 +75,15 @@ function formatCopyList(orders: LalamoveOrder[]): string {
       const phone = o.phone ?? o.recipient_phone ?? '—'
       const address = o.delivery_address ?? '—'
       const items = getItemsSummary(o.items)
-      return `${idx + 1}. ${name} – ${phone}\nAlamat: ${address}\nItem: ${items}\nBayaran: ${o.payment_status === 'paid' ? '✓ Dah bayar' : '⚡ COD'}\n${o.notes ? `Nota: ${o.notes}\n` : ''}`
+      return `${idx + 1}. ${name} – ${phone}\nAlamat: ${address}\nItem: ${items}\nBayaran: ${o.payment_status === 'paid' ? '✓ Dah bayar' : '⚡ COD'}${o.notes ? `\nNota: ${o.notes}` : ''}`
     })
-    .join('\n')
+    .join('\n\n')
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── OrderCard ────────────────────────────────────────────────────────────────
 
 function OrderCard({
-  order,
-  zones,
-  currentZoneId,
-  onMove,
+  order, zones, currentZoneId, onMove,
 }: {
   order: LalamoveOrder
   zones: ZoneGroup[]
@@ -88,7 +95,6 @@ function OrderCard({
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-3.5 space-y-2.5 shadow-sm">
-      {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -107,7 +113,6 @@ function OrderCard({
             </span>
           </div>
         </div>
-        {/* Move to zone */}
         <select
           value={currentZoneId}
           onChange={(e) => onMove(order.id, currentZoneId, e.target.value)}
@@ -119,18 +124,13 @@ function OrderCard({
         </select>
       </div>
 
-      {/* Phone */}
       {(order.phone ?? order.recipient_phone) && (
-        <a
-          href={`tel:${order.phone ?? order.recipient_phone}`}
-          className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold"
-        >
+        <a href={`tel:${order.phone ?? order.recipient_phone}`} className="flex items-center gap-1.5 text-xs text-blue-600 font-semibold">
           <Phone className="h-3 w-3" />
           {order.phone ?? order.recipient_phone}
         </a>
       )}
 
-      {/* Address */}
       {order.delivery_address && (
         <div className="flex items-start gap-1.5">
           <MapPin className="h-3 w-3 text-gray-400 shrink-0 mt-0.5" />
@@ -138,14 +138,12 @@ function OrderCard({
         </div>
       )}
 
-      {/* Postcode pill */}
       {postcode && (
         <span className="inline-block text-[10px] font-mono font-bold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
           {postcode}
         </span>
       )}
 
-      {/* Items */}
       {order.items.length > 0 && (
         <div className="flex items-start gap-1.5">
           <Package className="h-3 w-3 text-gray-400 shrink-0 mt-0.5" />
@@ -153,18 +151,15 @@ function OrderCard({
         </div>
       )}
 
-      {/* Slot + Notes */}
       <div className="flex flex-wrap gap-2 pt-0.5">
         {order.delivery_slot && (
           <div className="flex items-center gap-1 text-[10px] text-gray-500 bg-gray-50 rounded-full px-2 py-0.5">
-            <Clock className="h-2.5 w-2.5" />
-            {order.delivery_slot}
+            <Clock className="h-2.5 w-2.5" />{order.delivery_slot}
           </div>
         )}
         {order.notes && (
           <div className="flex items-center gap-1 text-[10px] text-orange-600 bg-orange-50 rounded-full px-2 py-0.5">
-            <StickyNote className="h-2.5 w-2.5" />
-            {order.notes}
+            <StickyNote className="h-2.5 w-2.5" />{order.notes}
           </div>
         )}
       </div>
@@ -172,11 +167,10 @@ function OrderCard({
   )
 }
 
+// ─── ZoneGroupCard ────────────────────────────────────────────────────────────
+
 function ZoneGroupCard({
-  group,
-  zones,
-  onMove,
-  onStatusChange,
+  group, zones, onMove, onStatusChange,
 }: {
   group: ZoneGroup
   zones: ZoneGroup[]
@@ -185,7 +179,6 @@ function ZoneGroupCard({
 }) {
   const [expanded, setExpanded] = useState(true)
   const [copied, setCopied] = useState(false)
-
   const colorClass = ZONE_COLORS[group.zone.color] ?? ZONE_COLORS.gray
   const statusInfo = STATUS_LABELS[group.status]
 
@@ -201,8 +194,7 @@ function ZoneGroupCard({
   function handlePrint() {
     const win = window.open('', '_blank')
     if (!win) return
-    const html = `
-      <html><head><title>${group.zone.name}</title>
+    const html = `<html><head><title>${group.zone.name}</title>
       <style>body{font-family:sans-serif;padding:20px}h2{margin-bottom:16px}.order{border:1px solid #ddd;padding:12px;margin-bottom:12px;border-radius:8px}p{margin:3px 0;font-size:13px}</style>
       </head><body>
       <h2>${group.zone.emoji} ${group.zone.name} — ${group.orders.length} order</h2>
@@ -213,10 +205,8 @@ function ZoneGroupCard({
           <p>📍 ${o.delivery_address ?? '—'}</p>
           <p>📦 ${getItemsSummary(o.items)}</p>
           ${o.notes ? `<p>📝 ${o.notes}</p>` : ''}
-        </div>
-      `).join('')}
-      </body></html>
-    `
+        </div>`).join('')}
+      </body></html>`
     win.document.write(html)
     win.document.close()
     win.print()
@@ -226,7 +216,6 @@ function ZoneGroupCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden">
-      {/* Group Header */}
       <div
         className="flex items-center justify-between px-4 py-3.5 cursor-pointer select-none hover:bg-gray-50 transition-colors"
         onClick={() => setExpanded((v) => !v)}
@@ -237,10 +226,14 @@ function ZoneGroupCard({
             {group.zone.emoji} {group.zone.name}
           </span>
           <span className="text-sm font-bold text-gray-900">{group.orders.length} order</span>
+          {group.savedId && (
+            <span className="text-[10px] text-brand-fresh-600 font-semibold flex items-center gap-0.5">
+              <CheckCircle2 className="h-3 w-3" /> Tersimpan
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-          {/* Status badge */}
           <select
             value={group.status}
             onChange={(e) => onStatusChange(group.zone.id, e.target.value as BatchStatus)}
@@ -250,8 +243,6 @@ function ZoneGroupCard({
               <option key={val} value={val}>{label}</option>
             ))}
           </select>
-
-          {/* Copy */}
           <button
             onClick={handleCopy}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-[11px] font-bold rounded-xl hover:bg-gray-700 transition-colors"
@@ -259,29 +250,16 @@ function ZoneGroupCard({
             {copied ? <CheckCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? 'Disalin!' : 'Copy'}
           </button>
-
-          {/* Print */}
-          <button
-            onClick={handlePrint}
-            className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
-            title="Print"
-          >
+          <button onClick={handlePrint} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors" title="Print">
             <Printer className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {/* Orders */}
       {expanded && (
         <div className="px-4 pb-4 space-y-2.5 border-t border-gray-100 pt-3">
           {group.orders.map((order) => (
-            <OrderCard
-              key={order.id}
-              order={order}
-              zones={zones}
-              currentZoneId={group.zone.id}
-              onMove={onMove}
-            />
+            <OrderCard key={order.id} order={order} zones={zones} currentZoneId={group.zone.id} onMove={onMove} />
           ))}
         </div>
       )}
@@ -298,62 +276,166 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
   const [statusFilter, setStatusFilter] = useState<string[]>(['confirmed', 'preparing'])
   const [groups, setGroups] = useState<ZoneGroup[] | null>(null)
   const [generated, setGenerated] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [loadingExisting, setLoadingExisting] = useState(false)
 
-  // Filter orders by cutoff time
+  // Load existing saved batches for selected date
+  async function loadExistingBatches() {
+    setLoadingExisting(true)
+    try {
+      const res = await fetch(`/api/admin/delivery-batches?date=${date}`)
+      const { batches } = await res.json() as { batches: SavedBatch[] }
+      if (!batches || batches.length === 0) {
+        toast('Tiada batch tersimpan untuk tarikh ini')
+        setLoadingExisting(false)
+        return
+      }
+
+      // Rebuild groups from saved batches
+      const orderIdSet = new Set(batches.flatMap((b) => b.delivery_batch_orders.map((bo) => bo.order_id)))
+      const ordersMap = new Map(orders.map((o) => [o.id, o]))
+
+      const restoredGroups: ZoneGroup[] = KV_ZONES.map((zone) => ({
+        zone,
+        orders: [],
+        status: 'draft',
+        savedId: undefined,
+      }))
+
+      for (const batch of batches) {
+        const group = restoredGroups.find((g) => g.zone.id === batch.zone_id)
+        if (!group) continue
+        group.status = batch.status
+        group.savedId = batch.id
+        const sortedOrderIds = [...batch.delivery_batch_orders]
+          .sort((a, b) => a.stop_sequence - b.stop_sequence)
+          .map((bo) => bo.order_id)
+        for (const oid of sortedOrderIds) {
+          const o = ordersMap.get(oid)
+          if (o) group.orders.push(o)
+        }
+      }
+
+      // Put unassigned orders into Lain-lain
+      for (const order of orders) {
+        if (!orderIdSet.has(order.id)) {
+          const othersGroup = restoredGroups.find((g) => g.zone.id === 'others')
+          if (othersGroup) othersGroup.orders.push(order)
+        }
+      }
+
+      setGroups(restoredGroups.filter((g) => g.orders.length > 0 || g.zone.id === 'others'))
+      setGenerated(true)
+      setSaved(true)
+      toast.success(`${batches.length} batch dimuatkan semula`)
+    } catch {
+      toast.error('Gagal muatkan batch tersimpan')
+    }
+    setLoadingExisting(false)
+  }
+
+  // Filter orders by cutoff
   const filteredOrders = useMemo(() => {
     const cutoffMs = new Date(`${date}T${cutoff}:00+08:00`).getTime()
     return orders.filter((o) => {
       const orderMs = new Date(o.created_at).getTime()
-      const matchStatus = statusFilter.includes(o.status)
-      const beforeCutoff = orderMs <= cutoffMs
-      return matchStatus && beforeCutoff
+      return statusFilter.includes(o.status) && orderMs <= cutoffMs
     })
   }, [orders, date, cutoff, statusFilter])
 
   function generateGroups() {
     const groupMap = new Map<string, ZoneGroup>()
-
-    // Initialize all zones
     for (const zone of KV_ZONES) {
       groupMap.set(zone.id, { zone, orders: [], status: 'draft' })
     }
-
     for (const order of filteredOrders) {
       const postcode = getPostcode(order)
       const zone = getZone(postcode)
-      const group = groupMap.get(zone.id)!
-      group.orders.push(order)
+      groupMap.get(zone.id)!.orders.push(order)
     }
-
-    // Keep only non-empty zones (+ Lain-lain always)
-    const result = Array.from(groupMap.values()).filter(
-      (g) => g.orders.length > 0 || g.zone.id === 'others'
-    )
+    const result = Array.from(groupMap.values()).filter((g) => g.orders.length > 0 || g.zone.id === 'others')
     setGroups(result)
     setGenerated(true)
-    toast.success(`${filteredOrders.length} order dibahagikan kepada ${result.filter(g => g.orders.length > 0).length} zon`)
+    setSaved(false)
+    toast.success(`${filteredOrders.length} order dibahagikan kepada ${result.filter((g) => g.orders.length > 0).length} zon`)
   }
 
-  const handleMove = useCallback((orderId: string, fromZoneId: string, toZoneId: string) => {
-    if (fromZoneId === toZoneId) return
-    setGroups((prev) => {
-      if (!prev) return prev
-      const next = prev.map((g) => ({ ...g, orders: [...g.orders] }))
-      const fromGroup = next.find((g) => g.zone.id === fromZoneId)
-      const toGroup = next.find((g) => g.zone.id === toZoneId)
-      if (!fromGroup || !toGroup) return prev
-      const orderIdx = fromGroup.orders.findIndex((o) => o.id === orderId)
-      if (orderIdx === -1) return prev
-      const [moved] = fromGroup.orders.splice(orderIdx, 1)
-      toGroup.orders.push(moved)
-      return next
-    })
-  }, [])
+  // Save all groups to DB
+  async function saveBatches() {
+    if (!groups) return
+    setSaving(true)
+    try {
+      const payload = {
+        date,
+        cutoff_time: cutoff,
+        groups: groups
+          .filter((g) => g.orders.length > 0)
+          .map((g) => ({
+            zone_id: g.zone.id,
+            zone_name: g.zone.name,
+            status: g.status,
+            order_ids: g.orders.map((o) => o.id),
+          })),
+      }
 
-  const handleStatusChange = useCallback((zoneId: string, status: BatchStatus) => {
+      const res = await fetch('/api/admin/delivery-batches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error(err.error ?? 'Gagal simpan batch')
+        setSaving(false)
+        return
+      }
+
+      setSaved(true)
+      toast.success('Batch berjaya disimpan!')
+
+      // Reload to get savedIds
+      await loadExistingBatches()
+    } catch {
+      toast.error('Ralat rangkaian')
+    }
+    setSaving(false)
+  }
+
+  // Update single batch status in DB + local state
+  const handleStatusChange = useCallback(async (zoneId: string, status: BatchStatus) => {
     setGroups((prev) =>
       prev ? prev.map((g) => g.zone.id === zoneId ? { ...g, status } : g) : prev
     )
+
+    // If saved, push to DB immediately
+    const group = groups?.find((g) => g.zone.id === zoneId)
+    if (group?.savedId) {
+      const res = await fetch(`/api/admin/delivery-batches/${group.savedId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) toast.error('Gagal kemaskini status')
+    }
+  }, [groups])
+
+  const handleMove = useCallback((orderId: string, fromZoneId: string, toZoneId: string) => {
+    if (fromZoneId === toZoneId) return
+    setSaved(false)
+    setGroups((prev) => {
+      if (!prev) return prev
+      const next = prev.map((g) => ({ ...g, orders: [...g.orders] }))
+      const from = next.find((g) => g.zone.id === fromZoneId)
+      const to = next.find((g) => g.zone.id === toZoneId)
+      if (!from || !to) return prev
+      const idx = from.orders.findIndex((o) => o.id === orderId)
+      if (idx === -1) return prev
+      const [moved] = from.orders.splice(idx, 1)
+      to.orders.push(moved)
+      return next
+    })
   }, [])
 
   function copyAll() {
@@ -362,9 +444,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       .filter((g) => g.orders.length > 0)
       .map((g) => `=== ${g.zone.emoji} ${g.zone.name} (${g.orders.length} order) ===\n${formatCopyList(g.orders)}`)
       .join('\n\n')
-    navigator.clipboard.writeText(allText).then(() => {
-      toast.success('Semua batch disalin!')
-    })
+    navigator.clipboard.writeText(allText).then(() => toast.success('Semua batch disalin!'))
   }
 
   const totalOrders = orders.length
@@ -375,10 +455,8 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
 
       {/* ── Controls ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-          {/* Date */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
               <Calendar className="h-3 w-3 inline mr-1" />Tarikh
@@ -386,12 +464,11 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             <input
               type="date"
               value={date}
-              onChange={(e) => { setDate(e.target.value); setGenerated(false) }}
+              onChange={(e) => { setDate(e.target.value); setGenerated(false); setSaved(false) }}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
             />
           </div>
 
-          {/* Cutoff */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
               <Clock className="h-3 w-3 inline mr-1" />Cutoff Order
@@ -399,13 +476,12 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             <input
               type="time"
               value={cutoff}
-              onChange={(e) => { setCutoff(e.target.value); setGenerated(false) }}
+              onChange={(e) => { setCutoff(e.target.value); setGenerated(false); setSaved(false) }}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
             />
             <p className="text-[10px] text-gray-400 mt-1">Order sebelum {cutoff} sahaja</p>
           </div>
 
-          {/* Status filter */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
               <Filter className="h-3 w-3 inline mr-1" />Status Pesanan
@@ -416,9 +492,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
                   key={s}
                   type="button"
                   onClick={() => {
-                    setStatusFilter((prev) =>
-                      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
-                    )
+                    setStatusFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s])
                     setGenerated(false)
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border-2 transition-all ${
@@ -434,11 +508,11 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
           </div>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats */}
         <div className="flex items-center gap-4 pt-2 border-t border-gray-100 flex-wrap">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Package className="h-4 w-4" />
-            <span><strong className="text-gray-900">{totalOrders}</strong> order hari ini</span>
+            <span><strong className="text-gray-900">{totalOrders}</strong> order dimuatkan</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Clock className="h-4 w-4" />
@@ -446,61 +520,90 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
           </div>
           {filteredCount === 0 && (
             <div className="flex items-center gap-1.5 text-xs text-orange-500">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Tiada order dalam kriteria ini
+              <AlertCircle className="h-3.5 w-3.5" />Tiada order dalam kriteria ini
             </div>
           )}
         </div>
 
-        {/* Generate button */}
-        <button
-          onClick={generateGroups}
-          disabled={filteredCount === 0}
-          className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-gray-700 disabled:opacity-40 transition-colors"
-        >
-          <Truck className="h-4 w-4" />
-          Generate Delivery Groups ({filteredCount} order)
-          <RefreshCw className="h-3.5 w-3.5 opacity-60" />
-        </button>
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={generateGroups}
+            disabled={filteredCount === 0}
+            className="flex-1 flex items-center justify-center gap-2 bg-gray-900 text-white font-bold py-3 rounded-2xl text-sm hover:bg-gray-700 disabled:opacity-40 transition-colors"
+          >
+            <Truck className="h-4 w-4" />
+            Generate Groups ({filteredCount} order)
+            <RefreshCw className="h-3.5 w-3.5 opacity-60" />
+          </button>
+
+          <button
+            onClick={loadExistingBatches}
+            disabled={loadingExisting}
+            className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-2xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            title="Muatkan batch tersimpan"
+          >
+            {loadingExisting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            Muatkan Tersimpan
+          </button>
+        </div>
       </div>
 
       {/* ── Groups ── */}
       {generated && groups && (
         <>
-          {/* Summary + Copy All */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-sm font-bold text-gray-900">
                 {groups.filter((g) => g.orders.length > 0).length} zon · {filteredCount} order
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">Drag dropdown di setiap order untuk pindah zon</p>
+              <p className="text-xs text-gray-400 mt-0.5">Gunakan dropdown di setiap order untuk pindah zon</p>
             </div>
-            <button
-              onClick={copyAll}
-              className="flex items-center gap-1.5 px-4 py-2 bg-brand-fresh-500 text-white text-xs font-bold rounded-xl hover:bg-brand-fresh-600 transition-colors shadow-sm"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copy Semua
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Save badge */}
+              {saved && (
+                <span className="flex items-center gap-1 text-xs text-brand-fresh-600 font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Tersimpan
+                </span>
+              )}
+              {!saved && generated && (
+                <span className="text-xs text-orange-500 font-semibold">● Belum disimpan</span>
+              )}
+
+              {/* Copy All */}
+              <button
+                onClick={copyAll}
+                className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <Copy className="h-3.5 w-3.5" />Copy Semua
+              </button>
+
+              {/* Save to DB */}
+              <button
+                onClick={saveBatches}
+                disabled={saving}
+                className="flex items-center gap-1.5 px-4 py-2 bg-brand-fresh-500 text-white text-xs font-bold rounded-xl hover:bg-brand-fresh-600 disabled:opacity-50 transition-colors shadow-sm"
+              >
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {saving ? 'Menyimpan...' : 'Simpan Batch'}
+              </button>
+            </div>
           </div>
 
-          {/* Zone cards */}
           <div className="space-y-3.5">
-            {groups
-              .filter((g) => g.orders.length > 0)
-              .map((group) => (
-                <ZoneGroupCard
-                  key={group.zone.id}
-                  group={group}
-                  zones={groups}
-                  onMove={handleMove}
-                  onStatusChange={handleStatusChange}
-                />
-              ))}
+            {groups.filter((g) => g.orders.length > 0).map((group) => (
+              <ZoneGroupCard
+                key={group.zone.id}
+                group={group}
+                zones={groups}
+                onMove={handleMove}
+                onStatusChange={handleStatusChange}
+              />
+            ))}
             {groups.every((g) => g.orders.length === 0) && (
               <div className="text-center py-12 text-gray-400">
                 <Truck className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-semibold">Tiada order untuk zon ini</p>
+                <p className="font-semibold">Tiada order untuk dikumpulkan</p>
               </div>
             )}
           </div>
