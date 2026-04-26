@@ -10,6 +10,7 @@ import {
 import { ReorderButton } from './reorder-button'
 import { CancelButton } from './cancel-button'
 import { BankTransferInfo } from './bank-transfer-info'
+import { PurchaseTracker } from '@/components/analytics/purchase-tracker'
 
 // success page optimization: timeline step — used in returning (non-success) view only
 function TimelineItem({
@@ -135,6 +136,18 @@ export default async function OrderDetailPage({
         {/* ══════════════════════════════════════════════════════
             SUCCESS VIEW (isNew=true)
             ══════════════════════════════════════════════════════ */}
+        {isNew && !isBankTransfer && (
+          <PurchaseTracker
+            orderId={order.id}
+            total={Number(order.total)}
+            items={(order.order_items ?? []).map((i: any) => ({
+              product_name: i.product_name,
+              unit_price: Number(i.unit_price),
+              quantity: i.quantity,
+            }))}
+          />
+        )}
+
         {isNew ? (
           <>
             {/* ── 1. HERO ──────────────────────────────────────────

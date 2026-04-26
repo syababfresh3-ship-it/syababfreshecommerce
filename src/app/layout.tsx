@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
+import { PixelScripts } from "@/components/analytics/pixel-scripts";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,11 +66,32 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+async function getPixelConfig() {
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['meta_pixel_id', 'google_ads_id', 'google_ads_label', 'gtm_id'])
+    const map: Record<string, string> = {}
+    for (const row of data ?? []) map[row.key] = row.value
+    return {
+      metaPixelId: map['meta_pixel_id'] ?? '',
+      googleAdsId: map['google_ads_id'] ?? '',
+      googleAdsLabel: map['google_ads_label'] ?? '',
+      gtmId: map['gtm_id'] ?? '',
+    }
+  } catch {
+    return { metaPixelId: '', googleAdsId: '', googleAdsLabel: '', gtmId: '' }
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pixels = await getPixelConfig()
   return (
     <html lang="ms" suppressHydrationWarning>
       <head>
@@ -99,6 +122,9 @@ export default function RootLayout({
         <div className="min-h-screen flex flex-col">
           {children}
         </div>
+
+        {/* Pixel tracking scripts */}
+        <PixelScripts {...pixels} />
 
         {/* Toast notifications */}
         <Toaster

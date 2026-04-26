@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartStore, Product, ProductVariant } from '@/types'
+import { trackAddToCart } from '@/lib/tracking'
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -8,6 +9,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
 
       addItem: (product: Product, quantity: number = 1, variant: ProductVariant | null = null) => {
+        const price = variant ? Number(variant.price) : Number(product.price)
+        trackAddToCart(product.name, price, quantity)
         set((state) => {
           const existing = state.items.find(
             (item) => item.product.id === product.id && (item.variant?.id ?? null) === (variant?.id ?? null)

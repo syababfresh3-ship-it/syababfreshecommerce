@@ -6,6 +6,7 @@ import { useCartStore } from '@/lib/stores/cart'
 import { StoreLayout } from '@/components/layout/store-layout'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { trackInitiateCheckout } from '@/lib/tracking'
 import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
@@ -83,6 +84,11 @@ export default function CheckoutPage() {
     notes: '',
     payment_method: '',
   })
+
+  useEffect(() => {
+    if (items.length > 0) trackInitiateCheckout(getTotal())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
