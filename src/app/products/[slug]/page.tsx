@@ -238,6 +238,17 @@ export default async function ProductDetailPage({
             </div>
           )}
 
+          {/* Local-only badge */}
+          {!product.is_shippable && (
+            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3.5 py-2.5">
+              <span className="text-base leading-none">📍</span>
+              <div>
+                <p className="text-xs font-bold text-orange-700">Klang Valley sahaja</p>
+                <p className="text-[10px] text-orange-500 mt-0.5">Produk ini hanya tersedia untuk penghantaran dalam Lembah Klang</p>
+              </div>
+            </div>
+          )}
+
           {/* Trust Signals Row */}
           <div className="grid grid-cols-3 gap-2">
             <div className="bg-brand-fresh-50 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 text-center">

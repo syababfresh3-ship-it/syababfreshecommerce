@@ -27,6 +27,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     category_id: product?.category_id ?? '',
     is_active: product?.is_active ?? true,
     is_featured: product?.is_featured ?? false,
+    is_shippable: product?.is_shippable ?? false,
     sort_order: product?.sort_order?.toString() ?? '0',
   })
 
@@ -76,6 +77,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       image_url: imageUrl,
       is_active: form.is_active,
       is_featured: form.is_featured,
+      is_shippable: form.is_shippable,
       sort_order: parseInt(form.sort_order) || 0,
     }
 
@@ -268,6 +270,47 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <label htmlFor="is_featured" className="text-sm font-medium text-gray-700">Featured (di halaman utama)</label>
+          </div>
+        </div>
+
+        {/* Delivery scope */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3">Skop Penghantaran</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setForm(p => ({ ...p, is_shippable: false }))}
+              className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                !form.is_shippable
+                  ? 'border-orange-400 bg-orange-50'
+                  : 'border-gray-100 bg-gray-50'
+              }`}
+            >
+              <span className="text-base">📍</span>
+              <span className={`text-xs font-bold ${!form.is_shippable ? 'text-orange-700' : 'text-gray-500'}`}>
+                Klang Valley sahaja
+              </span>
+              <span className="text-[10px] text-gray-400 leading-tight">
+                Buah potong, produk mudah rosak
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm(p => ({ ...p, is_shippable: true }))}
+              className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+                form.is_shippable
+                  ? 'border-brand-fresh-400 bg-brand-fresh-50'
+                  : 'border-gray-100 bg-gray-50'
+              }`}
+            >
+              <span className="text-base">📦</span>
+              <span className={`text-xs font-bold ${form.is_shippable ? 'text-brand-fresh-700' : 'text-gray-500'}`}>
+                Boleh dipos (seluruh Malaysia)
+              </span>
+              <span className="text-[10px] text-gray-400 leading-tight">
+                Buah utuh, produk kering
+              </span>
+            </button>
           </div>
         </div>
       </div>

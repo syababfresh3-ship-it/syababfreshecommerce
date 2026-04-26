@@ -77,6 +77,7 @@ export default function CheckoutPage() {
   const [postcodeValid, setPostcodeValid] = useState<boolean | null>(null)
   const [postcodeArea, setPostcodeArea] = useState('')
   const [manualPostcode, setManualPostcode] = useState('')
+  const [localOnlyItems, setLocalOnlyItems] = useState<string[]>([])
   const [paymentOptions, setPaymentOptions] = useState<{ value: string; label: string; sublabel: string; icon: React.ElementType }[]>([])
   const [form, setForm] = useState({
     full_address: '',
@@ -149,6 +150,7 @@ export default function CheckoutPage() {
       setPostcodeValid(null)
       setPostcodeArea('')
       setZoneBaseFee(DEFAULT_DELIVERY_FEE)
+      setLocalOnlyItems([])
       return
     }
     const res = await fetch(`/api/delivery/check?postcode=${postcode}`)
@@ -156,6 +158,22 @@ export default function CheckoutPage() {
     setPostcodeValid(data.covered)
     setPostcodeArea(data.covered ? `${data.area}, ${data.city}` : '')
     if (data.fee !== undefined) setZoneBaseFee(data.fee)
+
+    // Luar Klang Valley — semak jika ada item local-only dalam cart
+    if (!data.covered && items.length > 0) {
+      const supabase = createClient()
+      const productIds = [...new Set(items.map(i => i.product.id))]
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, is_shippable')
+        .in('id', productIds)
+      const blocked = (products ?? [])
+        .filter(p => !p.is_shippable)
+        .map(p => p.name)
+      setLocalOnlyItems(blocked)
+    } else {
+      setLocalOnlyItems([])
+    }
   }
 
   function handleSelectAddress(id: string) {
@@ -232,6 +250,11 @@ export default function CheckoutPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
+
+    if (localOnlyItems.length > 0) {
+      toast.error(`Item berikut hanya boleh dihantar dalam Klang Valley: ${localOnlyItems.join(', ')}`)
+      return
+    }
 
     const discount = calcDiscount()
     const total = subtotal + deliveryFee - discount
@@ -516,18 +539,40 @@ export default function CheckoutPage() {
                   </p>
                 )}
                 {postcodeValid === false && (
-                  <p className="text-xs text-red-500 font-semibold">
-                    ⚠ Maaf, kawasan ini belum diliputi penghantaran kami
-                  </p>
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-red-500 font-semibold">
+                      ⚠ Maaf, kawasan ini belum diliputi penghantaran kami
+                    </p>
+                    {localOnlyItems.length > 0 && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+                        <p className="text-xs font-bold text-orange-700 mb-1">📍 Item berikut Klang Valley sahaja:</p>
+                        {localOnlyItems.map(name => (
+                          <p key={name} className="text-xs text-orange-600">• {name}</p>
+                        ))}
+                        <p className="text-[10px] text-orange-500 mt-1.5">Buang item ini atau gunakan alamat dalam Klang Valley.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
 
             {/* Saved address postcode status */}
             {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === false && (
-              <p className="mt-2 text-xs text-red-500 font-semibold">
-                ⚠ Maaf, poskod {savedAddresses.find(a => a.id === selectedAddressId)?.postcode} belum diliputi penghantaran kami
-              </p>
+              <div className="mt-2 space-y-1.5">
+                <p className="text-xs text-red-500 font-semibold">
+                  ⚠ Maaf, poskod {savedAddresses.find(a => a.id === selectedAddressId)?.postcode} belum diliputi penghantaran kami
+                </p>
+                {localOnlyItems.length > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
+                    <p className="text-xs font-bold text-orange-700 mb-1">📍 Item berikut Klang Valley sahaja:</p>
+                    {localOnlyItems.map(name => (
+                      <p key={name} className="text-xs text-orange-600">• {name}</p>
+                    ))}
+                    <p className="text-[10px] text-orange-500 mt-1.5">Buang item ini atau gunakan alamat dalam Klang Valley.</p>
+                  </div>
+                )}
+              </div>
             )}
             {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === true && (
               <p className="mt-2 text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
