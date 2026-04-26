@@ -106,8 +106,10 @@ export interface Order {
   payment_ref: string | null
   address_id: string | null
   delivery_address: string | null
+  delivery_slot: string | null
   notes: string | null
   admin_notes: string | null
+  promo_code_id: string | null
   confirmed_at: string | null
   delivered_at: string | null
   cancelled_at: string | null
@@ -116,6 +118,20 @@ export interface Order {
   // Joined
   items?: OrderItem[]
   profile?: Profile
+}
+
+export interface ProductVariant {
+  id: string
+  product_id: string
+  name: string
+  price: number
+  compare_price: number | null
+  weight_grams: number | null
+  stock: number
+  sku: string | null
+  is_active: boolean
+  sort_order: number
+  created_at: string
 }
 
 export interface OrderItem {
@@ -127,6 +143,9 @@ export interface OrderItem {
   quantity: number
   unit_price: number
   subtotal: number
+  variant_id: string | null
+  variant_name: string | null
+  weight_grams: number | null
   created_at: string
 }
 
@@ -164,9 +183,9 @@ export interface LoyaltyTransaction {
 // Cart store type (client-side with Zustand)
 export interface CartStore {
   items: CartItemLocal[]
-  addItem: (product: Product, quantity?: number) => void
-  removeItem: (productId: string) => void
-  updateQuantity: (productId: string, quantity: number) => void
+  addItem: (product: Product, quantity?: number, variant?: ProductVariant | null) => void
+  removeItem: (productId: string, variantId?: string | null) => void
+  updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void
   clearCart: () => void
   getTotal: () => number
   getItemCount: () => number
@@ -174,5 +193,41 @@ export interface CartStore {
 
 export interface CartItemLocal {
   product: Product
+  variant: ProductVariant | null
   quantity: number
+}
+
+export type ShipmentStatus =
+  | 'pending'
+  | 'picked_up'
+  | 'in_transit'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'failed'
+
+export interface ShippingCarrier {
+  id: string
+  name: string
+  is_active: boolean
+  config: Record<string, string>
+  tracking_url_template: string | null
+  sort_order: number
+  created_at: string
+}
+
+export interface OrderShipment {
+  id: string
+  order_id: string
+  carrier_id: string
+  tracking_number: string | null
+  tracking_url: string | null
+  status: ShipmentStatus
+  notes: string | null
+  shipped_at: string | null
+  estimated_delivery: string | null
+  delivered_at: string | null
+  created_at: string
+  updated_at: string
+  // Joined
+  shipping_carriers?: ShippingCarrier
 }

@@ -1,20 +1,27 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { OrderStatusUpdater } from './order-status-updater'
 import { PaymentToggle } from './payment-toggle'
+import { RefundButton } from './refund-button'
+import { ShipmentPanel } from './shipment-panel'
 
 async function getOrder(id: string) {
-  const supabase = await createClient()
-  const { data } = await supabase
+  const supabase = createClient()
+  const { data: order } = await supabase
     .from('orders')
-    .select(`
-      *,
-      profiles(full_name, phone, email),
-      order_items(*)
-    `)
+    .select('*, order_items(*)')
     .eq('id', id)
     .single()
-  return data
+  if (!order) return null
+
+  const [{ data: profile }, { data: shipment }, { data: carriers }] = await Promise.all([
+    supabase.from('profiles').select('full_name, phone, email').eq('id', order.user_id).single(),
+    supabase.from('order_shipments').select('*, shipping_carriers(*)').eq('order_id', id).maybeSingle(),
+    supabase.from('shipping_carriers').select('*').eq('is_active', true).order('sort_order'),
+  ])
+
+  return { ...order, profiles: profile ?? null, shipment: shipment ?? null, carriers: carriers ?? [] }
 }
 
 const statusLabel: Record<string, string> = {
@@ -49,7 +56,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {new Date(order.created_at).toLocaleString('ms-MY')}
           </p>
         </div>
-        <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} />
+        <div className="flex items-center gap-2">
+          {order.payment_status === 'paid' && order.status !== 'refunded' && (
+            <RefundButton orderId={order.id} amount={order.total} />
+          )}
+          <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
@@ -83,7 +95,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div className="flex justify-between items-center">
               <dt className="text-gray-500">Status Bayaran</dt>
               <dd>
-                <PaymentToggle orderId={order.id} currentStatus={order.payment_status} />
+                <PaymentToggle
+                  orderId={order.id}
+                  currentStatus={order.payment_status}
+                  paymentMethod={order.payment_method}
+                  currentRef={order.payment_ref}
+                />
               </dd>
             </div>
             {order.payment_ref && (
@@ -96,13 +113,25 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Delivery Address */}
-      {order.delivery_address && (
+      {/* Delivery Address + Slot */}
+      {(order.delivery_address || order.delivery_slot) && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-4">
-          <h2 className="font-semibold text-gray-900 mb-2">Alamat Penghantaran</h2>
-          <p className="text-sm text-gray-700">{order.delivery_address}</p>
+          <h2 className="font-semibold text-gray-900 mb-2">Penghantaran</h2>
+          {order.delivery_slot && (
+            <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">🕐 {order.delivery_slot}</p>
+          )}
+          {order.delivery_address && (
+            <p className="text-sm text-gray-700 whitespace-pre-line">{order.delivery_address}</p>
+          )}
         </div>
       )}
+
+      {/* Shipment panel */}
+      <ShipmentPanel
+        orderId={order.id}
+        initialShipment={(order as any).shipment}
+        carriers={(order as any).carriers}
+      />
 
       {/* Order Items */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm mb-4">

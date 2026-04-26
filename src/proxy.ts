@@ -29,37 +29,31 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Refresh session
   const { data: { user } } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
 
-  // Auth routes — skip protection
+  // Auth callback & reset-password must never be blocked
   if (pathname.startsWith('/auth') || pathname === '/reset-password') {
     return supabaseResponse
   }
 
-  // Logged-in users yang cuba buka login/daftar — redirect ke home
+  // Logged-in users shouldn't see login/daftar
   if (user && (pathname === '/login' || pathname === '/daftar')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   // Protected routes — redirect to login if not authenticated
-  const protectedPaths = ['/checkout', '/orders', '/profile', '/loyalty']
+  const protectedPaths = ['/checkout', '/orders', '/profile', '/loyalty', '/wishlist', '/notifications']
   const isProtected = protectedPaths.some(path => pathname.startsWith(path))
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    // Sanitize: only allow internal paths (start with /)
-    const redirectTo = pathname.startsWith('/') ? pathname : '/'
-    url.searchParams.set('redirect', redirectTo)
+    url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
 
-  // Admin routes — check auth + is_admin flag
+  // Admin routes — must be logged in AND is_admin
   if (pathname.startsWith('/admin')) {
     if (!user) {
       const url = request.nextUrl.clone()
@@ -75,9 +69,7 @@ export async function proxy(request: NextRequest) {
       .single()
 
     if (!profile?.is_admin) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      return NextResponse.redirect(new URL('/', request.url))
     }
   }
 

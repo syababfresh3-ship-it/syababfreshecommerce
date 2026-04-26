@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { CustomersClient } from './customers-client'
 
 async function getCustomers() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data } = await supabase
     .from('profiles')
     .select('*, loyalty_tiers(name)')

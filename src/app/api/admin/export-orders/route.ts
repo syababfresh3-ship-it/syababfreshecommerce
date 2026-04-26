@@ -1,10 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const supabase = await createClient()
 
-  // Verify admin
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -16,15 +15,27 @@ export async function GET() {
 
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: orders } = await supabase
+  const url = req.nextUrl
+  const from = url.searchParams.get('from')
+  const to = url.searchParams.get('to')
+  const page = Math.max(0, parseInt(url.searchParams.get('page') ?? '0', 10))
+  const PAGE_SIZE = 500
+
+  let query = supabase
     .from('orders')
     .select(`
       order_number, status, payment_status, payment_method,
       subtotal, delivery_fee, discount, points_discount, total,
-      delivery_address, notes, created_at,
+      delivery_address, delivery_slot, notes, created_at,
       profiles(full_name, phone, email)
     `)
     .order('created_at', { ascending: false })
+    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+
+  if (from) query = query.gte('created_at', from)
+  if (to) query = query.lte('created_at', to)
+
+  const { data: orders } = await query
 
   if (!orders) return NextResponse.json({ error: 'No data' }, { status: 500 })
 
@@ -32,7 +43,7 @@ export async function GET() {
     'No. Pesanan', 'Tarikh', 'Nama', 'Telefon', 'Email',
     'Status', 'Bayaran', 'Kaedah Bayaran',
     'Subtotal', 'Penghantaran', 'Diskaun', 'Diskaun Mata', 'Jumlah',
-    'Alamat', 'Nota',
+    'Slot Penghantaran', 'Alamat', 'Nota',
   ]
 
   const rows = orders.map((o: any) => [
@@ -49,6 +60,7 @@ export async function GET() {
     Number(o.discount).toFixed(2),
     Number(o.points_discount).toFixed(2),
     Number(o.total).toFixed(2),
+    o.delivery_slot ?? '',
     (o.delivery_address ?? '').replace(/\n/g, ' '),
     o.notes ?? '',
   ])
@@ -63,7 +75,7 @@ export async function GET() {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="orders-${date}.csv"`,
+      'Content-Disposition': `attachment; filename="orders-${date}-p${page + 1}.csv"`,
     },
   })
 }

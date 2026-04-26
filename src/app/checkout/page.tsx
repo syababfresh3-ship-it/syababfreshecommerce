@@ -10,40 +10,19 @@ import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
-  Lock, ChevronRight, Pencil, Truck,
+  Lock, ChevronRight, Pencil, Truck, XCircle,
 } from 'lucide-react'
 import type { Address } from '@/types'
 
-const DELIVERY_FEE = 8.00
+const DEFAULT_DELIVERY_FEE = 15.00
 const FREE_DELIVERY_MIN = 80.00
 
-// payment step UI: icon + sublabel for each method — large card design
-const paymentOptions = [
-  {
-    value: 'fpx',
-    label: 'FPX Online Banking',
-    sublabel: 'Semua bank Malaysia',
-    icon: Building2,
-  },
-  {
-    value: 'ewallet',
-    label: 'E-Wallet',
-    sublabel: 'Touch n Go · Boost · GrabPay',
-    icon: Smartphone,
-  },
-  {
-    value: 'cod',
-    label: 'Bayar Semasa Terima',
-    sublabel: 'Bayar tunai ketika barang tiba',
-    icon: PackageCheck,
-  },
-  {
-    value: 'bank_transfer',
-    label: 'Pindahan Bank',
-    sublabel: 'Transfer terus ke akaun kami',
-    icon: ArrowLeftRight,
-  },
-]
+const PAYMENT_ICONS: Record<string, React.ElementType> = {
+  fpx:          Building2,
+  ewallet:      Smartphone,
+  cod:          PackageCheck,
+  bank_transfer:ArrowLeftRight,
+}
 
 function getDeliverySlots() {
   const now = new Date()
@@ -77,7 +56,8 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { items, getTotal, clearCart } = useCartStore()
   const subtotal = getTotal()
-  const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : DELIVERY_FEE
+  const [zoneBaseFee, setZoneBaseFee] = useState<number>(DEFAULT_DELIVERY_FEE)
+  const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : zoneBaseFee
 
   const slots = getDeliverySlots()
   const [loading, setLoading] = useState(false)
@@ -91,21 +71,46 @@ export default function CheckoutPage() {
     id: string; code: string; type: 'percentage' | 'fixed'; value: number
   } | null>(null)
   const [userPoints, setUserPoints] = useState(0)
+  const [userMultiplier, setUserMultiplier] = useState(1)
   const [usePoints, setUsePoints] = useState(false)
+  const [postcodeValid, setPostcodeValid] = useState<boolean | null>(null)
+  const [postcodeArea, setPostcodeArea] = useState('')
+  const [manualPostcode, setManualPostcode] = useState('')
+  const [paymentOptions, setPaymentOptions] = useState<{ value: string; label: string; sublabel: string; icon: React.ElementType }[]>([])
   const [form, setForm] = useState({
     full_address: '',
     delivery_slot: slots[0]?.value ?? '',
     notes: '',
-    payment_method: 'fpx',
+    payment_method: '',
   })
 
   useEffect(() => {
     const supabase = createClient()
+
+    // Load active payment methods
+    supabase
+      .from('payment_methods')
+      .select('id, label, sublabel')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        const opts = (data ?? []).map(m => ({
+          value: m.id,
+          label: m.label,
+          sublabel: m.sublabel ?? '',
+          icon: PAYMENT_ICONS[m.id] ?? Building2,
+        }))
+        setPaymentOptions(opts)
+        if (opts.length > 0) {
+          setForm(prev => ({ ...prev, payment_method: prev.payment_method || opts[0].value }))
+        }
+      })
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       Promise.all([
         supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
-        supabase.from('profiles').select('total_points').eq('id', user.id).single(),
+        supabase.from('profiles').select('total_points, loyalty_tiers(multiplier)').eq('id', user.id).single(),
       ]).then(([addressRes, profileRes]) => {
         const data = addressRes.data
         if (data && data.length > 0) {
@@ -117,7 +122,10 @@ export default function CheckoutPage() {
           // No saved addresses — open editor immediately
           setEditingAddress(true)
         }
-        if (profileRes.data) setUserPoints(profileRes.data.total_points ?? 0)
+        if (profileRes.data) {
+          setUserPoints(profileRes.data.total_points ?? 0)
+          setUserMultiplier((profileRes.data.loyalty_tiers as any)?.multiplier ?? 1)
+        }
       })
     })
   }, [])
@@ -130,16 +138,34 @@ export default function CheckoutPage() {
     return parts.join('\n')
   }
 
+  async function checkPostcode(postcode: string) {
+    if (!postcode || !/^\d{5}$/.test(postcode)) {
+      setPostcodeValid(null)
+      setPostcodeArea('')
+      setZoneBaseFee(DEFAULT_DELIVERY_FEE)
+      return
+    }
+    const res = await fetch(`/api/delivery/check?postcode=${postcode}`)
+    const data = await res.json()
+    setPostcodeValid(data.covered)
+    setPostcodeArea(data.covered ? `${data.area}, ${data.city}` : '')
+    if (data.fee !== undefined) setZoneBaseFee(data.fee)
+  }
+
   function handleSelectAddress(id: string) {
     setSelectedAddressId(id)
+    setPostcodeValid(null)
+    setPostcodeArea('')
     if (id === '__manual__') {
       setForm((prev) => ({ ...prev, full_address: '' }))
+      setManualPostcode('')
       return
     }
     const addr = savedAddresses.find((a) => a.id === id)
     if (addr) {
       setForm((prev) => ({ ...prev, full_address: buildAddressString(addr) }))
       setEditingAddress(false)
+      if (addr.postcode) checkPostcode(addr.postcode)
     }
   }
 
@@ -167,7 +193,7 @@ export default function CheckoutPage() {
     setPromoLoading(false)
   }
 
-  const POINTS_RATE = 100
+  const POINTS_RATE = 10
   const pointsDiscount = usePoints ? Math.min(userPoints / POINTS_RATE, subtotal + deliveryFee) : 0
   const pointsUsed = usePoints ? Math.min(userPoints, Math.floor((subtotal + deliveryFee) * POINTS_RATE)) : 0
 
@@ -209,15 +235,40 @@ export default function CheckoutPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { toast.error('Sila log masuk dahulu'); router.push('/login?redirect=/checkout'); setLoading(false); return }
 
-    const productIds = items.map(({ product }) => product.id)
-    const { data: stockData } = await supabase.from('products').select('id, name, available_stock').in('id', productIds)
-    if (stockData) {
-      for (const { product, quantity } of items) {
-        const stock = stockData.find((p) => p.id === product.id)
-        if (!stock || (stock.available_stock ?? 0) < quantity) {
-          toast.error(`Stok tidak mencukupi untuk ${product.name}`)
+    // Stock check — variant items check variant.stock, others check product_stock
+    const variantItems = items.filter(i => i.variant)
+    const nonVariantItems = items.filter(i => !i.variant)
+
+    if (variantItems.length > 0) {
+      const variantIds = variantItems.map(i => i.variant!.id)
+      const { data: variantStock } = await supabase
+        .from('product_variants')
+        .select('id, stock')
+        .in('id', variantIds)
+      for (const { product, variant, quantity } of variantItems) {
+        const vs = variantStock?.find(v => v.id === variant!.id)
+        if (vs && vs.stock < quantity) {
+          toast.error(`Stok tidak mencukupi untuk ${product.name} (${variant!.name})`)
           setLoading(false)
           return
+        }
+      }
+    }
+
+    if (nonVariantItems.length > 0) {
+      const productIds = nonVariantItems.map(i => i.product.id)
+      const { data: stockData } = await supabase
+        .from('product_stock')
+        .select('product_id, available_stock')
+        .in('product_id', productIds)
+      if (stockData) {
+        for (const { product, quantity } of nonVariantItems) {
+          const stock = stockData.find((s) => s.product_id === product.id)
+          if (stock && stock.available_stock < quantity) {
+            toast.error(`Stok tidak mencukupi untuk ${product.name}`)
+            setLoading(false)
+            return
+          }
         }
       }
     }
@@ -229,25 +280,66 @@ export default function CheckoutPage() {
       points_used: pointsUsed, points_discount: pointsDiscount,
       total, payment_method: form.payment_method, payment_status: 'unpaid',
       delivery_address: form.full_address,
-      notes: [
-        form.delivery_slot ? `Slot: ${slots.find(s => s.value === form.delivery_slot)?.label}` : null,
-        form.notes || null,
-      ].filter(Boolean).join(' | ') || null,
+      promo_code_id: appliedPromo?.id ?? null,
+      delivery_slot: slots.find(s => s.value === form.delivery_slot)?.label ?? null,
+      notes: form.notes || null,
     }).select().single()
 
     if (orderError || !order) { toast.error('Gagal buat pesanan. Cuba lagi.'); setLoading(false); return }
 
-    const orderItems = items.map(({ product, quantity }) => ({
-      order_id: order.id, product_id: product.id, product_name: product.name,
-      product_image: product.image_url ?? null, quantity,
-      unit_price: product.price, subtotal: product.price * quantity,
-    }))
+    const orderItems = items.map(({ product, variant, quantity }) => {
+      const unitPrice = variant ? Number(variant.price) : Number(product.price)
+      return {
+        order_id: order.id,
+        product_id: product.id,
+        product_name: product.name,
+        product_image: product.image_url ?? null,
+        quantity,
+        unit_price: unitPrice,
+        subtotal: unitPrice * quantity,
+        variant_id: variant?.id ?? null,
+        variant_name: variant?.name ?? null,
+        weight_grams: variant?.weight_grams ?? null,
+      }
+    })
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
     if (itemsError) { toast.error('Gagal simpan item pesanan'); setLoading(false); return }
 
-    await Promise.all(items.map(({ product, quantity }) =>
-      supabase.rpc('deduct_inventory', { p_product_id: product.id, p_quantity: quantity })
+    // For FPX/e-wallet — points and promo handled in webhook AFTER payment confirmed.
+    // Do NOT deduct here — if payment fails, points would be lost with no recourse.
+    if (form.payment_method === 'fpx' || form.payment_method === 'ewallet') {
+      const chipRes = await fetch('/api/checkout/chip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      })
+
+      if (!chipRes.ok) {
+        toast.error('Gagal sambung ke payment gateway. Cuba lagi.')
+        setLoading(false)
+        return
+      }
+
+      const { checkoutUrl } = await chipRes.json()
+      clearCart()
+      window.location.href = checkoutUrl
+      return
+    }
+
+    // COD / bank_transfer — deduct inventory immediately
+    const deductResults = await Promise.all(items.map(({ product, variant, quantity }) =>
+      variant
+        ? supabase.rpc('deduct_variant_stock', { p_variant_id: variant.id, p_quantity: quantity })
+        : supabase.rpc('deduct_inventory', { p_product_id: product.id, p_quantity: quantity })
     ))
+    const oversoldIndex = deductResults.findIndex((r) => r.error)
+    if (oversoldIndex !== -1) {
+      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
+      const failedItem = items[oversoldIndex]
+      toast.error(`Stok tidak mencukupi untuk ${failedItem.product.name}${failedItem.variant ? ` (${failedItem.variant.name})` : ''}. Sila semak troli anda.`)
+      setLoading(false)
+      return
+    }
 
     if (pointsUsed > 0) {
       await supabase.from('loyalty_transactions').insert({
@@ -257,7 +349,7 @@ export default function CheckoutPage() {
       await supabase.rpc('increment_points', { uid: user.id, pts: -pointsUsed })
     }
 
-    const earnedPoints = Math.floor(total)
+    const earnedPoints = Math.floor(total * userMultiplier)
     await supabase.from('loyalty_transactions').insert({
       user_id: user.id, order_id: order.id, points: earnedPoints, type: 'earn',
       description: `Pembelian ${order.order_number}`,
@@ -384,17 +476,57 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Manual address textarea */}
+            {/* Manual address textarea + postcode check */}
             {(savedAddresses.length === 0 || selectedAddressId === '__manual__') && (
-              <textarea
-                name="full_address"
-                value={form.full_address}
-                onChange={handleChange}
-                required
-                rows={3}
-                placeholder="No. rumah, jalan, kawasan, poskod, bandar, negeri..."
-                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
-              />
+              <div className="mt-2 space-y-2">
+                <textarea
+                  name="full_address"
+                  value={form.full_address}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  placeholder="No. rumah, jalan, kawasan, bandar..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={5}
+                    value={manualPostcode}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '')
+                      setManualPostcode(v)
+                      setPostcodeValid(null)
+                      if (v.length === 5) checkPostcode(v)
+                    }}
+                    placeholder="Poskod (5 digit)"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                  />
+                </div>
+                {postcodeValid === true && (
+                  <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
+                  </p>
+                )}
+                {postcodeValid === false && (
+                  <p className="text-xs text-red-500 font-semibold">
+                    ⚠ Maaf, kawasan ini belum diliputi penghantaran kami
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Saved address postcode status */}
+            {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === false && (
+              <p className="mt-2 text-xs text-red-500 font-semibold">
+                ⚠ Maaf, poskod {savedAddresses.find(a => a.id === selectedAddressId)?.postcode} belum diliputi penghantaran kami
+              </p>
+            )}
+            {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === true && (
+              <p className="mt-2 text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
+              </p>
             )}
           </div>
         </div>
@@ -433,7 +565,7 @@ export default function CheckoutPage() {
           <div className="mx-4 mb-4 flex items-center justify-between bg-gray-50 rounded-xl px-3.5 py-2.5">
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-gray-400" />
-              <span className="text-xs text-gray-500">Yuran penghantaran</span>
+              <span className="text-xs text-gray-500">Kos penghantaran</span>
             </div>
             <span className={`text-xs font-bold ${deliveryFee === 0 ? 'text-brand-fresh-600' : 'text-gray-900'}`}>
               {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
@@ -612,7 +744,7 @@ export default function CheckoutPage() {
                 <span className="text-gray-700 tabular-nums">RM{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Penghantaran</span>
+                <span className="text-gray-400">Kos penghantaran</span>
                 <span className={`tabular-nums ${deliveryFee === 0 ? 'text-brand-fresh-600 font-semibold' : 'text-gray-700'}`}>
                   {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
                 </span>

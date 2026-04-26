@@ -10,7 +10,7 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error(error)
+    // error boundary — intentionally silent in production
   }, [error])
 
   return (

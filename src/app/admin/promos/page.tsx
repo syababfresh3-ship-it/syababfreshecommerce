@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { PromoManager } from './promo-manager'
 
 async function getPromos() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data } = await supabase
     .from('promo_codes')
     .select('*')

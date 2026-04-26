@@ -2,11 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
-// success page optimization: compact=true renders as quiet text link instead of red card
 export function CancelButton({
   orderId,
   createdAt,
@@ -27,15 +25,12 @@ export function CancelButton({
   async function handleCancel() {
     if (!confirm('Batalkan pesanan ini?')) return
     setLoading(true)
-    const supabase = createClient()
 
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
-      .eq('id', orderId)
+    const res = await fetch(`/api/orders/${orderId}/cancel`, { method: 'POST' })
+    const data = await res.json()
 
-    if (error) {
-      toast.error('Gagal batalkan pesanan')
+    if (!res.ok || !data.ok) {
+      toast.error(data.error ?? 'Gagal batalkan pesanan')
     } else {
       toast.success('Pesanan dibatalkan')
       router.refresh()
@@ -43,7 +38,6 @@ export function CancelButton({
     setLoading(false)
   }
 
-  // success page optimization: two-line compact cancel — info text then quiet action link
   if (compact) {
     return (
       <div className="flex flex-col items-center gap-1">

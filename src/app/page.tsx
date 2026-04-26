@@ -4,6 +4,7 @@ import { StoreLayout } from '@/components/layout/store-layout'
 import Link from 'next/link'
 import { ArrowRight, Truck, ShieldCheck, Leaf, Clock, RotateCcw, Star } from 'lucide-react'
 import { ProductCard } from '@/components/store/product-card'
+import { PostcodeChecker } from '@/components/store/postcode-checker'
 import type { Category, Product } from '@/types'
 
 async function getHomeData() {
@@ -13,7 +14,7 @@ async function getHomeData() {
     supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
     supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).eq('is_featured', true).order('sort_order').limit(6),
     supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).not('compare_price', 'is', null).order('sort_order').limit(4),
-    supabase.from('banners').select('*').eq('is_active', true).order('sort_order').limit(1).single(),
+    supabase.from('banners').select('*').eq('is_active', true).order('sort_order').limit(1).maybeSingle(),
   ])
 
   return {
@@ -57,6 +58,9 @@ export default async function HomePage() {
         </p>
         <Truck className="h-3.5 w-3.5 shrink-0" />
       </div>
+
+      {/* Postcode checker */}
+      <PostcodeChecker />
 
       {/* Promo Banner — dynamic */}
       {banner && (

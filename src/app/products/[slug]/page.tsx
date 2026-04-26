@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Tag, Truck, ShieldCheck, RotateCcw, Clock } from 'lucide-react'
 import { AddToCartButton } from './add-to-cart-button'
+import { VariantPicker } from './variant-picker'
 import { RelatedCard } from './related-card'
 import { ProductReviews } from './reviews'
 
@@ -18,6 +19,17 @@ async function getProduct(slug: string) {
     .eq('is_active', true)
     .single()
   return data
+}
+
+async function getVariants(productId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('product_variants')
+    .select('*')
+    .eq('product_id', productId)
+    .eq('is_active', true)
+    .order('sort_order')
+  return data ?? []
 }
 
 async function getStock(productId: string) {
@@ -138,12 +150,14 @@ export default async function ProductDetailPage({
   const product = await getProduct(slug)
   if (!product) notFound()
 
-  const [stock, related, reviews, { canReview, orderId }] = await Promise.all([
+  const [variants, stock, related, reviews, { canReview, orderId }] = await Promise.all([
+    getVariants(product.id),
     getStock(product.id),
     getRelated(product.id, product.category_id ?? null),
     getReviews(product.id),
     getCanReview(product.id),
   ])
+  const hasVariants = variants.length > 0
   const delivery = getDeliveryInfo()
 
   const discount = product.compare_price
@@ -193,26 +207,36 @@ export default async function ProductDetailPage({
           {/* Name & Price */}
           <div className="space-y-3">
             <h1 className="text-[22px] font-extrabold text-gray-900 leading-snug">{product.name}</h1>
-            <div className="flex items-baseline gap-2">
-              <span className="text-[32px] font-black text-brand-fresh-600 leading-none">
-                RM{Number(product.price).toFixed(2)}
-              </span>
-              <span className="text-sm text-gray-400 font-medium">/ {product.unit}</span>
-              {product.compare_price && (
-                <span className="text-sm text-gray-400 line-through">
-                  RM{Number(product.compare_price).toFixed(2)}
+            {!hasVariants && (
+              <div className="flex items-baseline gap-2">
+                <span className="text-[32px] font-black text-brand-fresh-600 leading-none">
+                  RM{Number(product.price).toFixed(2)}
                 </span>
-              )}
-            </div>
+                <span className="text-sm text-gray-400 font-medium">/ {product.unit}</span>
+                {product.compare_price && (
+                  <span className="text-sm text-gray-400 line-through">
+                    RM{Number(product.compare_price).toFixed(2)}
+                  </span>
+                )}
+              </div>
+            )}
+            {hasVariants && (
+              <p className="text-sm text-gray-400">
+                Dari <span className="font-bold text-gray-700">RM{Math.min(...variants.map(v => Number(v.price))).toFixed(2)}</span>
+                {' '}· {variants.length} pilihan
+              </p>
+            )}
           </div>
 
-          {/* Stock */}
-          <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full shrink-0 ${stock > 10 ? 'bg-green-500' : stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
-            <span className={`text-sm font-medium ${stock === 0 ? 'text-red-500 font-semibold' : 'text-gray-600'}`}>
-              {stock > 10 ? 'Stok tersedia' : stock > 0 ? `Hanya ${stock} tinggal!` : 'Stok Habis'}
-            </span>
-          </div>
+          {/* Stock — only for non-variant products */}
+          {!hasVariants && (
+            <div className="flex items-center gap-2">
+              <div className={`h-2 w-2 rounded-full shrink-0 ${stock === null || stock > 10 ? 'bg-green-500' : stock > 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
+              <span className={`text-sm font-medium ${stock === 0 ? 'text-red-500 font-semibold' : 'text-gray-600'}`}>
+                {stock === null || stock > 10 ? 'Stok tersedia' : stock > 0 ? `Hanya ${stock} tinggal!` : 'Stok Habis'}
+              </span>
+            </div>
+          )}
 
           {/* Trust Signals Row */}
           <div className="grid grid-cols-3 gap-2">
@@ -277,9 +301,12 @@ export default async function ProductDetailPage({
         </div>
       </div>
 
-      {/* Sticky Add to Cart */}
+      {/* Sticky Add to Cart / Variant Picker */}
       <div className="fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-gray-100/70 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 max-w-lg mx-auto">
-        <AddToCartButton product={product as any} stock={stock} />
+        {hasVariants
+          ? <VariantPicker product={product as any} variants={variants as any} />
+          : <AddToCartButton product={product as any} stock={stock} />
+        }
       </div>
     </StoreLayout>
   )

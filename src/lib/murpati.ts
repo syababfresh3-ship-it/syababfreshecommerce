@@ -4,7 +4,6 @@ const SESSION_ID = process.env.MURPATI_SESSION_ID ?? ''
 
 export async function sendWhatsApp(to: string, message: string) {
   if (!API_KEY || !SESSION_ID) {
-    console.warn('[murpati] MURPATI_API_KEY or MURPATI_SESSION_ID not set — skipping')
     return { skipped: true }
   }
 
@@ -29,8 +28,7 @@ export async function sendWhatsApp(to: string, message: string) {
 
     const data = await res.json()
     return { success: res.ok, murpati: data }
-  } catch (err) {
-    console.error('[murpati] Failed to send:', err)
+  } catch {
     return { error: 'Failed to send WhatsApp' }
   }
 }

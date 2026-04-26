@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
-export default function DaftarPage() {
+function DaftarForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
@@ -33,11 +33,11 @@ export default function DaftarPage() {
     setLoading(true)
     const supabase = createClient()
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
-        data: { full_name: form.full_name },
+        data: { full_name: form.full_name, phone: form.phone || null },
       },
     })
 
@@ -45,11 +45,6 @@ export default function DaftarPage() {
       toast.error(error.message)
       setLoading(false)
       return
-    }
-
-    // Update phone if provided — use user from signUp response, not getUser()
-    if (form.phone && data.user) {
-      await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
     }
 
     toast.success('Akaun berjaya dibuat! Selamat datang 🎉')
@@ -138,5 +133,13 @@ export default function DaftarPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DaftarPage() {
+  return (
+    <Suspense>
+      <DaftarForm />
+    </Suspense>
   )
 }

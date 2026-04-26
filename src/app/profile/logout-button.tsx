@@ -2,14 +2,17 @@
 
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useCartStore } from '@/lib/stores/cart'
 import { LogOut } from 'lucide-react'
 
 export function LogoutButton() {
   const router = useRouter()
+  const clearCart = useCartStore((s) => s.clearCart)
 
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
+    clearCart()
     router.push('/')
     router.refresh()
   }

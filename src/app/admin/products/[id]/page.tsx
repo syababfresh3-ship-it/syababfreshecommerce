@@ -1,9 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { ProductForm } from '../product-form'
+import { VariantManager } from '../variant-manager'
 import { notFound } from 'next/navigation'
 
 async function getProduct(id: string) {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data } = await supabase
     .from('products')
     .select('*')
@@ -13,7 +15,7 @@ async function getProduct(id: string) {
 }
 
 async function getCategories() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data } = await supabase
     .from('categories')
     .select('*')
@@ -31,6 +33,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     <div className="p-6 max-w-2xl">
       <h1 className="text-xl font-bold text-gray-900 mb-6">Edit Produk</h1>
       <ProductForm categories={categories} product={product} />
+      <VariantManager productId={id} />
     </div>
   )
 }

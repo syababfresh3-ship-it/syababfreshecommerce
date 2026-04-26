@@ -1,92 +1,179 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Search, GripVertical, Star, ImageOff } from 'lucide-react'
 import { ProductToggle } from './product-toggle'
 import { FeaturedToggle } from './featured-toggle'
+import { Pagination } from '@/components/admin/pagination'
 
-async function getProducts() {
-  const supabase = await createClient()
-  const { data } = await supabase
+const PAGE_SIZE = 20
+
+async function getProducts(page: number, q?: string) {
+  const supabase = createClient()
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
+
+  let query = supabase
     .from('products')
-    .select('*, categories(name)')
+    .select('*, categories(name)', { count: 'exact' })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
-  return data ?? []
+    .range(from, to)
+
+  if (q) query = query.ilike('name', `%${q}%`)
+
+  const { data, count } = await query
+  return { products: data ?? [], total: count ?? 0 }
 }
 
-export default async function AdminProductsPage() {
-  const products = await getProducts()
+const categoryColors: Record<string, string> = {
+  default: 'bg-gray-100 text-gray-600',
+}
+
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; q?: string }>
+}) {
+  const { page: pageStr, q } = await searchParams
+  const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
+  const { products, total } = await getProducts(page, q)
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Produk</h1>
-        <Link
-          href="/admin/products/new"
-          className="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Tambah Produk
-        </Link>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Produk</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{total} produk{q ? ` · cari "${q}"` : ''}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/sort"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            <GripVertical className="h-4 w-4" />
+            Urus Urutan
+          </Link>
+          <Link
+            href="/admin/products/new"
+            className="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Produk
+          </Link>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Search */}
+      <form method="GET" className="mb-4">
+        <div className="relative w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Cari nama produk..."
+            className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
+          />
+        </div>
+      </form>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produk</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
-              <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Harga</th>
-              <th className="px-5 py-3 text-center text-xs font-medium text-gray-500 uppercase">Featured</th>
-              <th className="px-5 py-3 text-center text-xs font-medium text-gray-500 uppercase">Aktif</th>
-              <th className="px-5 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tindakan</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Produk</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Harga</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Featured</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktif</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-gray-400">
-                  Tiada produk. <Link href="/admin/products/new" className="text-red-600 font-medium">Tambah sekarang</Link>
+                <td colSpan={6} className="px-5 py-12 text-center text-gray-400">
+                  {q ? `Tiada produk sepadan "${q}"` : (
+                    <>Tiada produk. <Link href="/admin/products/new" className="text-red-600 font-semibold hover:underline">Tambah sekarang</Link></>
+                  )}
                 </td>
               </tr>
             ) : (
-              products.map((product: any) => (
-                <tr key={product.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="font-medium text-gray-900">{product.name}</div>
-                    <div className="text-xs text-gray-400 font-mono">{product.slug}</div>
-                  </td>
-                  <td className="px-5 py-3 text-gray-600">
-                    {product.categories?.name ?? <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <span className="font-semibold text-gray-900">RM{Number(product.price).toFixed(2)}</span>
-                    {product.compare_price && (
-                      <span className="block text-xs text-gray-400 line-through">
-                        RM{Number(product.compare_price).toFixed(2)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <FeaturedToggle id={product.id} isFeatured={product.is_featured ?? false} />
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <ProductToggle id={product.id} isActive={product.is_active} />
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <Link
-                      href={`/admin/products/${product.id}`}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-red-600 transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Link>
-                  </td>
-                </tr>
-              ))
+              products.map((product: any) => {
+                const hasDiscount = product.compare_price && Number(product.compare_price) > Number(product.price)
+                const discountPct = hasDiscount
+                  ? Math.round((1 - Number(product.price) / Number(product.compare_price)) * 100)
+                  : 0
+                return (
+                  <tr key={product.id} className={`hover:bg-gray-50/80 transition-colors group ${!product.is_active ? 'opacity-60' : ''}`}>
+                    {/* Product */}
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        {/* Image thumbnail */}
+                        <div className="h-10 w-10 rounded-lg border border-gray-100 overflow-hidden bg-gray-50 shrink-0 flex items-center justify-center">
+                          {product.image_url ? (
+                            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <ImageOff className="h-4 w-4 text-gray-300" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900 leading-tight">{product.name}</div>
+                          <div className="text-[11px] text-gray-400 font-mono mt-0.5">{product.slug}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {/* Category */}
+                    <td className="px-5 py-3">
+                      {product.categories?.name ? (
+                        <span className="text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-lg">
+                          {product.categories.name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+                    {/* Price */}
+                    <td className="px-5 py-3 text-right">
+                      <div className="font-bold text-gray-900">RM{Number(product.price).toFixed(2)}</div>
+                      {hasDiscount && (
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-gray-400 line-through">RM{Number(product.compare_price).toFixed(2)}</span>
+                          <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1 rounded">-{discountPct}%</span>
+                        </div>
+                      )}
+                    </td>
+                    {/* Featured */}
+                    <td className="px-5 py-3 text-center">
+                      <FeaturedToggle id={product.id} isFeatured={product.is_featured ?? false} />
+                    </td>
+                    {/* Active */}
+                    <td className="px-5 py-3 text-center">
+                      <ProductToggle id={product.id} isActive={product.is_active} />
+                    </td>
+                    {/* Action */}
+                    <td className="px-5 py-3 text-right">
+                      <Link
+                        href={`/admin/products/${product.id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          total={total}
+          pageSize={PAGE_SIZE}
+          basePath="/admin/products"
+          params={q ? { q } : {}}
+        />
       </div>
     </div>
   )

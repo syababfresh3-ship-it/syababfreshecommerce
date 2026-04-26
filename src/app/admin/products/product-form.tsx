@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { ImageUploader } from '@/components/admin/image-uploader'
 import type { Category, Product } from '@/types'
@@ -14,7 +13,6 @@ interface ProductFormProps {
 
 export function ProductForm({ categories, product }: ProductFormProps) {
   const router = useRouter()
-  const supabase = createClient()
   const isEdit = !!product
 
   const [loading, setLoading] = useState(false)
@@ -81,12 +79,13 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       sort_order: parseInt(form.sort_order) || 0,
     }
 
-    const { error } = isEdit
-      ? await supabase.from('products').update(payload).eq('id', product.id)
-      : await supabase.from('products').insert(payload)
+    const res = isEdit
+      ? await fetch(`/api/admin/products/${product.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      : await fetch('/api/admin/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
 
-    if (error) {
-      toast.error(error.message)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.error ?? 'Gagal simpan produk')
     } else {
       toast.success(isEdit ? 'Produk dikemaskini' : 'Produk ditambah')
       router.push('/admin/products')
@@ -101,9 +100,9 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     if (!confirm(`Padam "${product.name}"? Tindakan ini tidak boleh diundur.`)) return
 
     setLoading(true)
-    const { error } = await supabase.from('products').delete().eq('id', product.id)
-    if (error) {
-      toast.error(error.message)
+    const res = await fetch(`/api/admin/products/${product.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      toast.error('Gagal padam produk')
     } else {
       toast.success('Produk dipadam')
       router.push('/admin/products')

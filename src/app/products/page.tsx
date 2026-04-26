@@ -9,6 +9,7 @@ import { CategoryFilter } from './category-filter'
 import { SearchBar } from './search-bar'
 import { SortFilter } from './sort-filter'
 import Link from 'next/link'
+import { Suspense } from 'react'
 import type { Category, Product } from '@/types'
 
 const POPULAR_SEARCHES = ['Durian', 'Mangga', 'Strawberry', 'Anggur', 'Tembikai', 'Harumanis', 'Limau', 'Betik']
@@ -120,11 +121,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <div className="sticky top-0 z-30 bg-white shadow-[0_1px_0_rgba(0,0,0,0.06)] px-4 pt-3 pb-2.5">
 
         {/* Search */}
-        <SearchBar defaultValue={q} />
+        <Suspense><SearchBar defaultValue={q} /></Suspense>
 
         {/* Category filter chips — horizontal scroll */}
         <div className="mt-2.5">
-          <CategoryFilter categories={categories} activeSlug={category} showPromo />
+          <Suspense><CategoryFilter categories={categories} activeSlug={category} showPromo /></Suspense>
         </div>
       </div>
 
@@ -137,7 +138,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             {/* conversion improvement: quantity cue reassures buyer there's good selection */}
             <p className="text-[10px] text-gray-400 mt-0.5">{products.length} produk segar tersedia</p>
           </div>
-          <SortFilter activeSort={sort} />
+          <Suspense><SortFilter activeSort={sort} /></Suspense>
         </div>
 
         {/* conversion improvement: fast delivery urgency strip */}

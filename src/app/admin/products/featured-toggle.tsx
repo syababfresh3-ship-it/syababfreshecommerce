@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 interface FeaturedToggleProps {
@@ -15,13 +14,12 @@ export function FeaturedToggle({ id, isFeatured }: FeaturedToggleProps) {
 
   async function toggle() {
     setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('products')
-      .update({ is_featured: !featured })
-      .eq('id', id)
-
-    if (error) {
+    const res = await fetch(`/api/admin/products/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_featured: !featured }),
+    })
+    if (!res.ok) {
       toast.error('Gagal kemaskini')
     } else {
       setFeatured(!featured)

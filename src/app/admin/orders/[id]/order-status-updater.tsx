@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 const statusOptions = [
@@ -39,22 +38,13 @@ export function OrderStatusUpdater({ orderId, userId, currentStatus }: OrderStat
     if (newStatus === status) return
 
     setLoading(true)
-    const supabase = createClient()
+    const res = await fetch(`/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    })
 
-    const now = new Date().toISOString()
-    const update: Record<string, string | null> = { status: newStatus }
-    if (newStatus === 'confirmed')  update.confirmed_at  = now
-    if (newStatus === 'preparing')  update.preparing_at  = now
-    if (newStatus === 'delivering') update.delivering_at = now
-    if (newStatus === 'delivered')  update.delivered_at  = now
-    if (newStatus === 'cancelled')  update.cancelled_at  = now
-
-    const { error } = await supabase
-      .from('orders')
-      .update(update)
-      .eq('id', orderId)
-
-    if (error) {
+    if (!res.ok) {
       toast.error('Gagal kemaskini status')
     } else {
       setStatus(newStatus)

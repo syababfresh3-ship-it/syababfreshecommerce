@@ -5,10 +5,11 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   CheckCircle2, Clock, Package, Truck, XCircle,
-  MapPin, CreditCard, ChevronRight, Home,
+  MapPin, CreditCard, ChevronRight, Home, ExternalLink,
 } from 'lucide-react'
 import { ReorderButton } from './reorder-button'
 import { CancelButton } from './cancel-button'
+import { BankTransferInfo } from './bank-transfer-info'
 
 // success page optimization: timeline step — used in returning (non-success) view only
 function TimelineItem({
@@ -85,7 +86,15 @@ async function getOrder(id: string) {
     .eq('user_id', user.id)
     .single()
 
-  return data
+  if (!data) return null
+
+  const { data: shipment } = await supabase
+    .from('order_shipments')
+    .select('*, shipping_carriers(id, name)')
+    .eq('order_id', id)
+    .maybeSingle()
+
+  return { ...data, shipment: shipment ?? null }
 }
 
 export default async function OrderDetailPage({
@@ -103,12 +112,21 @@ export default async function OrderDetailPage({
   const config = statusConfig[order.status] ?? statusConfig.pending
   const StatusIcon = config.icon
 
-  // success page optimization: extract delivery slot from notes ("Slot: Hari ini, 2pm – 6pm | notes")
   const slotMatch = order.notes?.match(/^Slot:\s*([^|]+)/)
   const slotLabel = slotMatch ? slotMatch[1].trim() : null
 
-  // success page optimization: shared card style
   const card = 'bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.06)] overflow-hidden'
+
+  const isBankTransfer = order.payment_method === 'bank_transfer'
+  const isUnpaidBankTransfer = isBankTransfer && order.payment_status === 'unpaid'
+  const bankProps = {
+    bankName: process.env.BANK_NAME ?? 'Maybank',
+    accountName: process.env.BANK_ACCOUNT_NAME ?? 'Syabab Trading Sdn Bhd',
+    accountNumber: process.env.BANK_ACCOUNT_NUMBER ?? '',
+    amount: Number(order.total).toFixed(2),
+    orderNumber: order.order_number,
+    adminWhatsapp: process.env.ADMIN_WHATSAPP ?? '',
+  }
 
   return (
     <StoreLayout>
@@ -122,7 +140,7 @@ export default async function OrderDetailPage({
             {/* ── 1. HERO ──────────────────────────────────────────
                 success page optimization: green gradient hero — emotionally reassuring
                 before any information is presented */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-brand-fresh-500 to-brand-fresh-600 px-6 pt-10 pb-9 text-center">
+            <div className={`relative overflow-hidden rounded-3xl px-6 pt-10 pb-9 text-center bg-gradient-to-b ${isBankTransfer ? 'from-amber-400 to-amber-500' : 'from-brand-fresh-500 to-brand-fresh-600'}`}>
 
               {/* Ambient decorative dots */}
               <div className="pointer-events-none absolute inset-0">
@@ -145,15 +163,14 @@ export default async function OrderDetailPage({
               </div>
 
               <h1 className="text-2xl font-black text-white tracking-tight mb-2">
-                Pesanan Berjaya!
+                {isBankTransfer ? 'Pesanan Dibuat!' : 'Pesanan Berjaya!'}
               </h1>
 
-              {/* success page optimization: warmer, more personal tone — "dapur" creates vivid reassurance */}
               <p className="text-sm font-semibold text-white leading-snug max-w-[230px] mx-auto mb-1">
-                Order anda dah masuk dapur 🍓
+                {isBankTransfer ? 'Sila buat pindahan bank sekarang ⬇️' : 'Order anda dah masuk dapur 🍓'}
               </p>
               <p className="text-xs text-white/65 mb-5 leading-relaxed max-w-[220px] mx-auto">
-                Kami tengah siapkan buah fresh khas untuk anda.
+                {isBankTransfer ? 'Pesanan akan disahkan selepas bayaran diterima.' : 'Kami tengah siapkan buah fresh khas untuk anda.'}
               </p>
 
               {/* Order number chip */}
@@ -173,13 +190,13 @@ export default async function OrderDetailPage({
               {/* success page optimization: total hero — largest, boldest, undeniable */}
               <div className="px-4 pt-4 pb-3 border-b border-gray-50">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-1">
-                  Jumlah Dibayar
+                  {isBankTransfer ? 'Jumlah untuk Transfer' : 'Jumlah Dibayar'}
                 </p>
                 <p className="text-4xl font-black text-gray-900 tabular-nums leading-none">
                   RM{Number(order.total).toFixed(2)}
                 </p>
-                <p className="text-[11px] text-brand-fresh-600 font-medium mt-2 flex items-center gap-1">
-                  📦 Sedang disiapkan sekarang di dapur kami
+                <p className={`text-[11px] font-medium mt-2 flex items-center gap-1 ${isBankTransfer ? 'text-amber-600' : 'text-brand-fresh-600'}`}>
+                  {isBankTransfer ? '⏳ Menunggu pengesahan bayaran' : '📦 Sedang disiapkan sekarang di dapur kami'}
                 </p>
               </div>
 
@@ -229,6 +246,12 @@ export default async function OrderDetailPage({
                 </div>
               )}
             </div>
+
+            {/* ── 2b. BANK TRANSFER INSTRUCTIONS ───────────────────
+                Only shown when payment_method is bank_transfer */}
+            {isBankTransfer && (
+              <BankTransferInfo {...bankProps} />
+            )}
 
             {/* ── 3. WHAT HAPPENS NEXT ──────────────────────────────
                 success page optimization: 3-step progress strip — replaces full timeline.
@@ -347,10 +370,10 @@ export default async function OrderDetailPage({
             <div className="space-y-2.5 pt-1">
               <Link
                 href={`/orders/${order.id}`}
-                className="w-full flex items-center justify-center gap-2 bg-brand-fresh-500 text-white font-bold py-4 rounded-2xl text-base shadow-[0_4px_16px_rgba(34,197,94,0.35)] active:scale-[0.98] transition-transform"
+                className={`w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl text-base active:scale-[0.98] transition-transform ${isBankTransfer ? 'bg-amber-500 shadow-[0_4px_16px_rgba(245,158,11,0.35)]' : 'bg-brand-fresh-500 shadow-[0_4px_16px_rgba(34,197,94,0.35)]'}`}
               >
                 <Package className="h-4 w-4 opacity-80" />
-                Jejak Pesanan Sekarang
+                {isBankTransfer ? 'Semak Status Pesanan' : 'Jejak Pesanan Sekarang'}
                 <ChevronRight className="h-4 w-4 opacity-70" />
               </Link>
               <Link
@@ -391,6 +414,11 @@ export default async function OrderDetailPage({
              RETURNING VIEW (no ?new — order tracking page)
              ══════════════════════════════════════════════════════ */
           <>
+            {/* Bank transfer reminder — shown when still unpaid */}
+            {isUnpaidBankTransfer && (
+              <BankTransferInfo {...bankProps} />
+            )}
+
             {/* Status header */}
             <div className={`${card} p-5 text-center`}>
               <div className={`w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center ${
@@ -429,6 +457,53 @@ export default async function OrderDetailPage({
                 )}
               </div>
             </div>
+
+            {/* Tracking info — shown when tracking number is available */}
+            {(order as any).shipment?.tracking_number && (
+              <div className={card}>
+                <div className="px-4 pt-4 pb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Truck className="h-4 w-4 text-orange-400" />
+                    <h2 className="text-sm font-bold text-gray-900">Maklumat Penghantaran</h2>
+                  </div>
+                  <dl className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <dt className="text-gray-400">Kurier</dt>
+                      <dd className="font-semibold text-gray-700">
+                        {(order as any).shipment.shipping_carriers?.name ?? '—'}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <dt className="text-gray-400">No. Tracking</dt>
+                      <dd className="font-mono text-xs font-bold text-gray-900">
+                        {(order as any).shipment.tracking_number}
+                      </dd>
+                    </div>
+                    {(order as any).shipment.estimated_delivery && (
+                      <div className="flex justify-between">
+                        <dt className="text-gray-400">Anggaran Tiba</dt>
+                        <dd className="text-gray-700">
+                          {new Date((order as any).shipment.estimated_delivery).toLocaleDateString('ms-MY', {
+                            day: 'numeric', month: 'long', year: 'numeric',
+                          })}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {(order as any).shipment.tracking_url && (
+                    <a
+                      href={(order as any).shipment.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 bg-orange-50 text-orange-700 font-semibold text-sm rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Jejak Penghantaran
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Order items */}
             <div className={card}>

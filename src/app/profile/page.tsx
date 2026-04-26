@@ -26,6 +26,22 @@ async function getProfile() {
     .eq('id', user.id)
     .single()
 
+  // Trigger may have failed at signup — ensure profile row exists
+  if (!data) {
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      email: user.email ?? null,
+      full_name: user.user_metadata?.full_name ?? null,
+      phone: user.user_metadata?.phone ?? null,
+    })
+    const { data: retry } = await supabase
+      .from('profiles')
+      .select('*, loyalty_tiers(name, multiplier)')
+      .eq('id', user.id)
+      .single()
+    return retry
+  }
+
   return data
 }
 

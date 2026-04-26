@@ -1,8 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+export const dynamic = 'force-dynamic'
+import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { ProductForm } from '../product-form'
 
 async function getCategories() {
-  const supabase = await createClient()
+  const supabase = createClient()
   const { data } = await supabase
     .from('categories')
     .select('*')

@@ -1,6 +1,7 @@
 import { MobileHeader } from './mobile-header'
 import { BottomNav } from './bottom-nav'
 import { WhatsAppButton } from './whatsapp-button'
+import { CartSync } from '@/components/store/cart-sync'
 
 interface StoreLayoutProps {
   children: React.ReactNode
@@ -9,6 +10,7 @@ interface StoreLayoutProps {
 export function StoreLayout({ children }: StoreLayoutProps) {
   return (
     <>
+      <CartSync />
       <MobileHeader />
 
       {/* Main content — padded for bottom nav + safe area */}

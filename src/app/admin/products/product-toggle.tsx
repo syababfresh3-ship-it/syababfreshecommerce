@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 interface ProductToggleProps {
@@ -15,13 +14,12 @@ export function ProductToggle({ id, isActive }: ProductToggleProps) {
 
   async function toggle() {
     setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('products')
-      .update({ is_active: !active })
-      .eq('id', id)
-
-    if (error) {
+    const res = await fetch(`/api/admin/products/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !active }),
+    })
+    if (!res.ok) {
       toast.error('Gagal kemaskini status')
     } else {
       setActive(!active)

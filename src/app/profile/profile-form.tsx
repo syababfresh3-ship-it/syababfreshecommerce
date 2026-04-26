@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
@@ -8,6 +9,7 @@ import type { Profile } from '@/types'
 
 export function ProfileForm({ profile }: { profile: Profile }) {
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
   const [form, setForm] = useState({
     full_name: profile.full_name ?? '',
     phone: profile.phone ?? '',
@@ -22,15 +24,29 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     setLoading(true)
     const supabase = createClient()
 
+    // Get current auth user to sync email
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      toast.error('Sesi tamat. Sila log masuk semula.')
+      setLoading(false)
+      return
+    }
+
+    // Upsert — handles edge case where profile row was never created
     const { error } = await supabase
       .from('profiles')
-      .update({ full_name: form.full_name, phone: form.phone })
-      .eq('id', profile.id)
+      .upsert({
+        id: user.id,
+        email: user.email ?? null,
+        full_name: form.full_name,
+        phone: form.phone,
+      })
 
     if (error) {
-      toast.error('Gagal kemaskini profil')
+      toast.error('Gagal kemaskini profil: ' + error.message)
     } else {
       toast.success('Profil dikemaskini')
+      router.refresh()
     }
     setLoading(false)
   }

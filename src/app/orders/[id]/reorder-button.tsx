@@ -11,6 +11,7 @@ interface OrderItem {
   product_image: string | null
   unit_price: number
   quantity: number
+  unit?: string
 }
 
 // success page optimization: variant controls visual weight without touching logic
@@ -33,6 +34,8 @@ export function ReorderButton({
           name: item.product_name,
           price: item.unit_price,
           image_url: item.product_image,
+          unit: item.unit ?? 'unit',
+          available_stock: null,
         } as any,
         item.quantity
       )
