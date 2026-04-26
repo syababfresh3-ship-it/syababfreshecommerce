@@ -111,6 +111,8 @@ export interface Order {
   admin_notes: string | null
   promo_code_id: string | null
   confirmed_at: string | null
+  preparing_at: string | null
+  delivering_at: string | null
   delivered_at: string | null
   cancelled_at: string | null
   created_at: string

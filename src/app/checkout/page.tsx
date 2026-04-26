@@ -726,13 +726,15 @@ export default function CheckoutPage() {
             <h2 className="text-sm font-bold text-gray-900 mb-3">Ringkasan Pesanan</h2>
 
             <div className="space-y-2">
-              {items.map(({ product, quantity }) => (
-                <div key={product.id} className="flex justify-between items-start gap-2">
+              {items.map(({ product, variant, quantity }) => (
+                <div key={`${product.id}-${variant?.id ?? ''}`} className="flex justify-between items-start gap-2">
                   <span className="text-sm text-gray-500 line-clamp-1 flex-1">
-                    {product.name} <span className="text-gray-400">× {quantity}</span>
+                    {product.name}
+                    {variant && <span className="text-gray-400"> ({variant.name})</span>}
+                    <span className="text-gray-400"> × {quantity}</span>
                   </span>
                   <span className="text-sm font-semibold text-gray-900 shrink-0 tabular-nums">
-                    RM{(Number(product.price) * quantity).toFixed(2)}
+                    RM{(Number(variant?.price ?? product.price) * quantity).toFixed(2)}
                   </span>
                 </div>
               ))}

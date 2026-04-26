@@ -12,7 +12,8 @@ async function adminCheck() {
 }
 
 export async function GET() {
-  const supabase = createAdminClient()
+  const supabase = await adminCheck()
+  if (!supabase) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const [{ data: areas }, { data: setting }, { data: carriers }] = await Promise.all([
     supabase
