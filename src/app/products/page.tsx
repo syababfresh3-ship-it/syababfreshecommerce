@@ -34,7 +34,7 @@ interface ProductsPageProps {
 async function getData(category?: string, q?: string, sort?: string, promo?: string) {
   const supabase = await createClient()
 
-  const [categoriesRes, productsRes, stockRes] = await Promise.all([
+  const [categoriesRes, productsRes, stockRes, variantsRes] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
@@ -47,12 +47,18 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
     supabase
       .from('product_stock')
       .select('product_id, available_stock'),
+    supabase
+      .from('product_variants')
+      .select('product_id')
+      .eq('is_active', true),
   ])
 
   const stockMap: Record<string, number> = {}
   for (const s of stockRes.data ?? []) {
     stockMap[s.product_id] = s.available_stock
   }
+
+  const variantProductIds = new Set((variantsRes.data ?? []).map((v) => v.product_id))
 
   let products = (productsRes.data ?? []) as Product[]
 
@@ -91,13 +97,14 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
     categories: (categoriesRes.data ?? []) as Category[],
     products,
     stockMap,
+    variantProductIds,
   }
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const { category, q, sort, promo, page: pageStr } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
-  const { categories, products, stockMap } = await getData(category, q, sort, promo)
+  const { categories, products, stockMap, variantProductIds } = await getData(category, q, sort, promo)
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE)
   const pagedProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -208,6 +215,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   key={product.id}
                   product={product}
                   stock={stockMap[product.id] ?? null}
+                  hasVariants={variantProductIds.has(product.id)}
                 />
               ))}
             </div>

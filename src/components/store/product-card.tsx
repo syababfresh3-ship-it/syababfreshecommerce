@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Plus } from 'lucide-react'
+import { Plus, ChevronRight } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cart'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import type { Product } from '@/types'
 import { WishlistButton } from './wishlist-button'
@@ -11,13 +12,19 @@ import { WishlistButton } from './wishlist-button'
 interface ProductCardProps {
   product: Product
   stock?: number | null
+  hasVariants?: boolean
 }
 
-export function ProductCard({ product, stock }: ProductCardProps) {
+export function ProductCard({ product, stock, hasVariants }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
+  const router = useRouter()
 
   function handleAddToCart(e: React.MouseEvent) {
     e.stopPropagation()
+    if (hasVariants) {
+      router.push(`/products/${product.slug}`)
+      return
+    }
     if (stock === 0) return
     addItem(product, 1)
     toast.success(`${product.name} ditambah ke troli`)
@@ -108,27 +115,44 @@ export function ProductCard({ product, stock }: ProductCardProps) {
         {/* Price row — full width, no competition from button */}
         <div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-[16px] font-black text-brand-fresh-600 leading-none">
-              RM{Number(product.price).toFixed(2)}
-            </span>
-            {product.compare_price && (
-              <span className="text-[11px] text-gray-400 line-through leading-none">
-                RM{Number(product.compare_price).toFixed(2)}
+            {hasVariants ? (
+              <span className="text-[13px] font-semibold text-gray-500 leading-none">
+                Dari <span className="text-[16px] font-black text-brand-fresh-600">RM{Number(product.price).toFixed(2)}</span>
               </span>
+            ) : (
+              <>
+                <span className="text-[16px] font-black text-brand-fresh-600 leading-none">
+                  RM{Number(product.price).toFixed(2)}
+                </span>
+                {product.compare_price && (
+                  <span className="text-[11px] text-gray-400 line-through leading-none">
+                    RM{Number(product.compare_price).toFixed(2)}
+                  </span>
+                )}
+              </>
             )}
           </div>
-          <span className="text-[10px] text-gray-400 mt-0.5 block">/{product.unit}</span>
+          {!hasVariants && <span className="text-[10px] text-gray-400 mt-0.5 block">/{product.unit}</span>}
         </div>
 
         {/* Add button — full width below price, NOT inside a Link */}
         <button
           onClick={handleAddToCart}
-          disabled={outOfStock}
+          disabled={outOfStock && !hasVariants}
           className="w-full h-9 rounded-xl bg-brand-fresh-500 flex items-center justify-center gap-1 text-white shadow-[0_4px_14px_rgba(34,197,94,0.48)] active:scale-[0.88] active:shadow-[0_1px_4px_rgba(34,197,94,0.25)] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
-          aria-label={`Tambah ${product.name} ke troli`}
+          aria-label={hasVariants ? `Pilih saiz ${product.name}` : `Tambah ${product.name} ke troli`}
         >
-          <Plus className="h-4 w-4" strokeWidth={3} />
-          <span className="text-[11px] font-bold">Add</span>
+          {hasVariants ? (
+            <>
+              <span className="text-[11px] font-bold">Pilih Saiz</span>
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" strokeWidth={3} />
+              <span className="text-[11px] font-bold">Add</span>
+            </>
+          )}
         </button>
       </div>
     </div>

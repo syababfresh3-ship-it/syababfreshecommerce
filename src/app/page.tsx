@@ -10,18 +10,22 @@ import type { Category, Product } from '@/types'
 async function getHomeData() {
   const supabase = await createClient()
 
-  const [categoriesRes, featuredRes, promoRes, bannerRes] = await Promise.all([
+  const [categoriesRes, featuredRes, promoRes, bannerRes, variantsRes] = await Promise.all([
     supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
     supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).eq('is_featured', true).order('sort_order').limit(6),
     supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).not('compare_price', 'is', null).order('sort_order').limit(4),
     supabase.from('banners').select('*').eq('is_active', true).order('sort_order').limit(1).maybeSingle(),
+    supabase.from('product_variants').select('product_id').eq('is_active', true),
   ])
+
+  const variantProductIds = new Set((variantsRes.data ?? []).map((v) => v.product_id))
 
   return {
     categories: (categoriesRes.data ?? []) as Category[],
     featured: (featuredRes.data ?? []) as Product[],
     promo: (promoRes.data ?? []) as Product[],
     banner: bannerRes.data ?? null,
+    variantProductIds,
   }
 }
 
@@ -42,7 +46,7 @@ const QUICK_BUY_CHIPS = [
 ]
 
 export default async function HomePage() {
-  const { categories, featured, promo, banner } = await getHomeData()
+  const { categories, featured, promo, banner, variantProductIds } = await getHomeData()
 
   return (
     <StoreLayout>
@@ -203,7 +207,7 @@ export default async function HomePage() {
           <p className="text-[11px] text-gray-400 font-medium mb-3">500+ order minggu ni</p>
           <div className="grid grid-cols-2 gap-4">
             {featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} hasVariants={variantProductIds.has(product.id)} />
             ))}
           </div>
         </section>
@@ -220,7 +224,7 @@ export default async function HomePage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             {promo.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} hasVariants={variantProductIds.has(product.id)} />
             ))}
           </div>
         </section>
