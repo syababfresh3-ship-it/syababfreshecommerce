@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -15,11 +15,12 @@ const sections = [
   {
     label: 'OPERASI',
     items: [
-      { href: '/admin/fulfillment', label: 'Fulfillment', icon: ClipboardList, badge: 'fulfillment' },
-      { href: '/admin/orders',      label: 'Pesanan',     icon: ShoppingBag },
-      { href: '/admin/inventory',   label: 'Inventori',   icon: Boxes },
-      { href: '/admin/refunds',     label: 'Refund',      icon: RotateCcw,   badge: 'refunds' },
-      { href: '/admin/shipping',    label: 'Penghantaran', icon: Truck },
+      { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
+      { href: '/admin/orders',             label: 'Pesanan',          icon: ShoppingBag },
+      { href: '/admin/inventory',          label: 'Inventori',        icon: Boxes },
+      { href: '/admin/refunds',            label: 'Refund',           icon: RotateCcw,   badge: 'refunds' },
+      { href: '/admin/shipping',           label: 'Penghantaran',     icon: Truck },
+      { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
     ],
   },
   {
