@@ -128,10 +128,12 @@ export async function generateMetadata({
   }
 }
 
-function getDeliveryInfo() {
+function getDeliveryInfo(isShippable: boolean) {
+  if (isShippable) {
+    return { label: '1–3 Hari Bekerja', sub: 'Pos Laju / Kurier', color: 'text-brand-fresh-600' }
+  }
   const now = new Date()
   const hour = now.getHours()
-
   if (hour < 12) {
     return { label: 'Sampai hari ini', sub: 'Order sebelum 12 tengahari', color: 'text-brand-fresh-600' }
   } else if (hour < 16) {
@@ -158,7 +160,7 @@ export default async function ProductDetailPage({
     getCanReview(product.id),
   ])
   const hasVariants = variants.length > 0
-  const delivery = getDeliveryInfo()
+  const delivery = getDeliveryInfo(product.is_shippable)
 
   const discount = product.compare_price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
@@ -238,13 +240,21 @@ export default async function ProductDetailPage({
             </div>
           )}
 
-          {/* Local-only badge */}
-          {!product.is_shippable && (
+          {/* Delivery scope badge */}
+          {product.is_shippable ? (
+            <div className="flex items-center gap-2 bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-2.5">
+              <span className="text-base leading-none">📦</span>
+              <div>
+                <p className="text-xs font-bold text-brand-fresh-700">Penghantaran ke Seluruh Malaysia</p>
+                <p className="text-[10px] text-brand-fresh-600 mt-0.5">Dihantar melalui Pos Laju atau kurier dalam 1–3 hari bekerja</p>
+              </div>
+            </div>
+          ) : (
             <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3.5 py-2.5">
               <span className="text-base leading-none">📍</span>
               <div>
-                <p className="text-xs font-bold text-orange-700">Klang Valley sahaja</p>
-                <p className="text-[10px] text-orange-500 mt-0.5">Produk ini hanya tersedia untuk penghantaran dalam Lembah Klang</p>
+                <p className="text-xs font-bold text-orange-700">Lembah Klang Sahaja</p>
+                <p className="text-[10px] text-orange-500 mt-0.5">Penghantaran 2–4 jam — order sebelum 2 petang</p>
               </div>
             </div>
           )}
@@ -263,8 +273,17 @@ export default async function ProductDetailPage({
             </div>
             <div className="bg-gray-50 rounded-2xl p-3.5 flex flex-col items-center gap-1.5 text-center">
               <Clock className="h-4 w-4 text-gray-500" />
-              <span className="text-[10px] font-bold text-gray-700 leading-tight">2–4 Jam</span>
-              <span className="text-[9px] text-gray-400 leading-tight">Klang Valley</span>
+              {product.is_shippable ? (
+                <>
+                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Seluruh Malaysia</span>
+                  <span className="text-[9px] text-gray-400 leading-tight">Pos / Kurier</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-[10px] font-bold text-gray-700 leading-tight">2–4 Jam</span>
+                  <span className="text-[9px] text-gray-400 leading-tight">Lembah Klang</span>
+                </>
+              )}
             </div>
           </div>
 
