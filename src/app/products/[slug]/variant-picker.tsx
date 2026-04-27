@@ -44,6 +44,7 @@ export function VariantPicker({ product, variants }: Props) {
                 type="button"
                 onClick={() => { setSelected(v); setQty(1) }}
                 disabled={outOfStock}
+                suppressHydrationWarning
                 className={`relative px-4 py-2.5 rounded-2xl border text-sm font-semibold transition-all active:scale-95 ${
                   isSelected
                     ? 'bg-gray-900 text-white border-gray-900 shadow-md'
@@ -83,7 +84,7 @@ export function VariantPicker({ product, variants }: Props) {
       {/* Add to cart */}
       {selected ? (
         isOutOfStock ? (
-          <button disabled className="w-full py-4 rounded-2xl bg-red-50 text-red-400 font-bold text-sm border border-red-100 opacity-70">
+          <button disabled suppressHydrationWarning className="w-full py-4 rounded-2xl bg-red-50 text-red-400 font-bold text-sm border border-red-100 opacity-70">
             Stok Habis
           </button>
         ) : (
@@ -91,6 +92,7 @@ export function VariantPicker({ product, variants }: Props) {
             <div className="flex items-center gap-1 bg-gray-100 rounded-2xl px-1.5 py-1.5">
               <button
                 onClick={() => setQty(q => Math.max(1, q - 1))}
+                suppressHydrationWarning
                 className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-200 active:scale-90 transition-all duration-150"
               >
                 <Minus className="h-4 w-4 text-gray-600" strokeWidth={2.5} />
@@ -98,6 +100,7 @@ export function VariantPicker({ product, variants }: Props) {
               <span className="w-8 text-center text-[15px] font-black text-gray-900">{qty}</span>
               <button
                 onClick={() => setQty(q => Math.min(maxQty, q + 1))}
+                suppressHydrationWarning
                 className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-200 active:scale-90 transition-all duration-150"
               >
                 <Plus className="h-4 w-4 text-gray-600" strokeWidth={2.5} />
@@ -105,6 +108,7 @@ export function VariantPicker({ product, variants }: Props) {
             </div>
             <button
               onClick={handleAdd}
+              suppressHydrationWarning
               className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl bg-brand-fresh-500 text-white font-bold text-sm shadow-[0_6px_22px_rgba(34,197,94,0.52),0_0_0_1px_rgba(34,197,94,0.12)] active:scale-[0.97] transition-all duration-150"
             >
               <ShoppingCart className="h-4 w-4" />
@@ -115,6 +119,7 @@ export function VariantPicker({ product, variants }: Props) {
       ) : (
         <button
           onClick={() => toast.error('Sila pilih variasi terlebih dahulu')}
+          suppressHydrationWarning
           className="w-full py-4 rounded-2xl bg-gray-100 text-gray-400 font-bold text-sm border border-gray-200"
         >
           Pilih variasi dahulu

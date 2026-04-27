@@ -51,6 +51,7 @@ export function WishlistButton({ productId, className }: { productId: string; cl
     <button
       onClick={toggle}
       disabled={loading}
+      suppressHydrationWarning
       className={`p-1.5 rounded-full transition-colors ${saved ? 'text-red-500' : 'text-gray-300 hover:text-red-400'} ${className ?? ''}`}
       aria-label={saved ? 'Buang dari senarai simpan' : 'Simpan produk'}
     >

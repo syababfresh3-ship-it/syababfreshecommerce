@@ -37,6 +37,7 @@ export function SearchBar({ defaultValue }: { defaultValue?: string }) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Cari buah segar, contoh: mangga, durian"
         className="w-full bg-gray-100 rounded-2xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400 focus:bg-white transition-all placeholder:text-gray-400/80"
+        suppressHydrationWarning
       />
       {value && (
         <button
