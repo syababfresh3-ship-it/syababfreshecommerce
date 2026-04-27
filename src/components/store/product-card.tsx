@@ -141,6 +141,7 @@ export function ProductCard({ product, stock, hasVariants }: ProductCardProps) {
           disabled={outOfStock && !hasVariants}
           className="w-full h-9 rounded-xl bg-brand-fresh-500 flex items-center justify-center gap-1 text-white shadow-[0_4px_14px_rgba(34,197,94,0.48)] active:scale-[0.88] active:shadow-[0_1px_4px_rgba(34,197,94,0.25)] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
           aria-label={hasVariants ? `Pilih saiz ${product.name}` : `Tambah ${product.name} ke troli`}
+          suppressHydrationWarning
         >
           {hasVariants ? (
             <>
