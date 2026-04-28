@@ -14,7 +14,10 @@ const backPages: Record<string, { title: string; back: string }> = {
   '/profile':       { title: 'Akaun Saya',      back: '/' },
   '/loyalty':       { title: 'Loyalty Points',  back: '/' },
   '/orders':        { title: 'Pesanan Saya',    back: '/' },
-  '/notifications': { title: 'Notifikasi',      back: '/' },
+  '/notifications':  { title: 'Notifikasi',         back: '/' },
+  '/affiliate':      { title: 'Dashboard Affiliate', back: '/profile' },
+  '/jadi-affiliate': { title: 'Sertai Affiliate',    back: '/' },
+  '/wishlist':       { title: 'Senarai Simpan',      back: '/profile' },
 }
 
 export function MobileHeader() {

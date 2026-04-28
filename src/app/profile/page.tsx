@@ -10,7 +10,7 @@ import { LogoutButton } from './logout-button'
 import { AddressList } from './addresses'
 import { PushSubscribeButton } from '@/components/store/push-subscribe'
 import {
-  ShoppingBag, Heart, ChevronRight, Star, Zap, Bell,
+  ShoppingBag, Heart, ChevronRight, Star, Zap, Bell, Gift, DollarSign,
 } from 'lucide-react'
 
 // ── data fetching — unchanged ──────────────────────────────────────────────
@@ -63,7 +63,9 @@ export default async function ProfilePage() {
 
   const addresses = await getAddresses(profile.id)
 
-  const tierName = (profile as any).loyalty_tiers?.name ?? 'Hijau'
+  const tierName    = (profile as any).loyalty_tiers?.name ?? 'Hijau'
+  const isAffiliate = (profile as any).is_affiliate === true
+  const refCode     = (profile as any).referral_code as string | null
 
   // account page v3 conversion polish: loyalty progress toward 500pt milestone
   const loyaltyProgress    = Math.min(100, Math.round((profile.total_points / 500) * 100))
@@ -204,6 +206,43 @@ export default async function ProfilePage() {
               </p>
             </Link>
           </div>
+
+          {/* ── 2b. AFFILIATE DASHBOARD — hanya untuk affiliate ──────────── */}
+          {isAffiliate && (
+            <Link
+              href="/affiliate"
+              className="flex items-center gap-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl px-4 py-4 active:scale-[0.97] transition-all shadow-[0_6px_24px_rgba(124,58,237,0.35)]"
+            >
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-white">Dashboard Affiliate</p>
+                <p className="text-[11px] text-white/65 mt-0.5">Semak komisyen & keluarkan duit</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-white/40 shrink-0" />
+            </Link>
+          )}
+
+          {/* ── 2c. JEMPUT RAKAN — referral card ─────────────────────────── */}
+          {refCode && (
+            <Link
+              href="/loyalty"
+              className="flex items-center gap-3.5 bg-white rounded-2xl shadow-[0_3px_18px_rgba(0,0,0,0.07)] px-4 py-4 active:scale-[0.97] transition-all"
+            >
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                <Gift className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900">Jemput Rakan, Dapat Ganjaran</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Kod anda: <span className="font-mono font-black text-green-600">{refCode}</span>
+                  {' · '}Rakan dapat 50 mata percuma
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-300 shrink-0" />
+            </Link>
+          )}
 
           {/* ── 3. STOK CEPAT HABIS — conversion driver ──────────────────── */}
           {/* account v4 conversion polish: pulsing icon glow + action CTA line */}

@@ -53,9 +53,12 @@ export default function AdminNotificationsPage() {
       body: JSON.stringify({ title: form.title, body: form.body, url: form.url }),
     })
 
-    const data = await res.json()
+    const text = await res.text()
+    let data: any = {}
+    try { data = JSON.parse(text) } catch { /* empty body */ }
+
     if (!res.ok) {
-      toast.error('Gagal hantar notifikasi')
+      toast.error(data.error ?? 'Gagal hantar notifikasi')
     } else if (data.skipped) {
       toast.info('Tiada pelanggan yang langgan notifikasi')
     } else {

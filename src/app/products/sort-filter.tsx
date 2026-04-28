@@ -31,6 +31,7 @@ export function SortFilter({ activeSort }: { activeSort?: string }) {
         value={activeSort ?? ''}
         onChange={handleChange}
         className="text-xs text-gray-600 bg-transparent focus:outline-none cursor-pointer"
+        suppressHydrationWarning
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

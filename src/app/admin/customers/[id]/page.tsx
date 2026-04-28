@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ShoppingBag, Star, MapPin, Mail, Phone, Crown, Leaf, Calendar } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, Star, MapPin, Mail, Phone, Crown, Leaf, Calendar, TrendingUp, Clock } from 'lucide-react'
 import { LoyaltyAdjust } from '../loyalty-adjust'
+import { getSegment, SEGMENT_CONFIG } from '../segment-utils'
 
 async function getCustomer(id: string) {
   const supabase = createClient()
 
-  const [profileRes, ordersRes, addressesRes] = await Promise.all([
+  const [profileRes, ordersRes, addressesRes, loyaltyRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('*, loyalty_tiers(name, multiplier)')
@@ -25,6 +26,12 @@ async function getCustomer(id: string) {
       .select('*')
       .eq('user_id', id)
       .order('is_default', { ascending: false }),
+    supabase
+      .from('loyalty_transactions')
+      .select('id, points, type, description, created_at')
+      .eq('user_id', id)
+      .order('created_at', { ascending: false })
+      .limit(30),
   ])
 
   if (!profileRes.data) return null
@@ -33,6 +40,7 @@ async function getCustomer(id: string) {
     profile: profileRes.data,
     orders: ordersRes.data ?? [],
     addresses: addressesRes.data ?? [],
+    loyaltyTx: loyaltyRes.data ?? [],
   }
 }
 
@@ -57,6 +65,13 @@ const TIER_CONFIG: Record<string, { cls: string; icon: typeof Leaf }> = {
   'Platinum': { cls: 'bg-purple-50 text-purple-700 border-purple-200', icon: Crown },
 }
 
+const TX_TYPE_CONFIG: Record<string, { label: string; cls: string; sign: string }> = {
+  earn:       { label: 'Diperoleh',  cls: 'text-green-600',  sign: '+' },
+  redeem:     { label: 'Ditukar',    cls: 'text-orange-600', sign: '-' },
+  adjustment: { label: 'Laras',      cls: 'text-blue-600',   sign: '' },
+  expire:     { label: 'Luput',      cls: 'text-red-500',    sign: '-' },
+}
+
 const AVATAR_COLORS = [
   'bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600',
   'bg-orange-100 text-orange-600', 'bg-purple-100 text-purple-600', 'bg-teal-100 text-teal-600',
@@ -71,14 +86,33 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const data = await getCustomer(id)
   if (!data) notFound()
 
-  const { profile, orders, addresses } = data
+  const { profile, orders, addresses, loyaltyTx } = data
   const tierName = (profile.loyalty_tiers as any)?.name ?? 'Hijau'
   const multiplier = (profile.loyalty_tiers as any)?.multiplier ?? 1
+  const completedOrders = orders.filter((o: any) => o.status === 'delivered')
   const totalOrders = orders.length
-  const completedOrders = orders.filter((o: any) => o.status === 'delivered').length
   const tierConfig = TIER_CONFIG[tierName] ?? TIER_CONFIG['Hijau']
   const TierIcon = tierConfig.icon
   const initials = (profile.full_name ?? '?').charAt(0).toUpperCase()
+
+  // Metrics
+  const deliveredOrders = orders.filter((o: any) => ['confirmed', 'preparing', 'delivering', 'delivered'].includes(o.status))
+  const lastOrderAt = orders[0]?.created_at ?? null
+  const avgOrderValue = completedOrders.length > 0
+    ? completedOrders.reduce((sum: number, o: any) => sum + Number(o.total), 0) / completedOrders.length
+    : null
+  const daysSinceJoin = Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86_400_000)
+  const orderFreq = deliveredOrders.length > 0 && daysSinceJoin > 0
+    ? (deliveredOrders.length / (daysSinceJoin / 30)).toFixed(1)
+    : null
+
+  const segment = getSegment({
+    totalSpend: Number(profile.total_spend ?? 0),
+    createdAt: profile.created_at,
+    lastOrderAt,
+    orderCount: deliveredOrders.length,
+  })
+  const segCfg = SEGMENT_CONFIG[segment]
 
   return (
     <div className="p-6 max-w-5xl">
@@ -98,6 +132,51 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <TierIcon className="h-3 w-3" />
           Tier {tierName}
         </span>
+        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${segCfg.color}`}>
+          {segCfg.emoji} {segCfg.label}
+        </span>
+      </div>
+
+      {/* Metrics bar */}
+      <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <ShoppingBag className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Pesanan</span>
+          </div>
+          <span className="text-xl font-black text-gray-900">{deliveredOrders.length}</span>
+          <span className="text-xs text-gray-400 ml-1">/ {totalOrders} total</span>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Avg Pesanan</span>
+          </div>
+          <span className="text-xl font-black text-gray-900">
+            {avgOrderValue !== null ? `RM${avgOrderValue.toFixed(0)}` : '—'}
+          </span>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Clock className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Order Terakhir</span>
+          </div>
+          <span className="text-sm font-bold text-gray-900">
+            {lastOrderAt
+              ? new Date(lastOrderAt).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+              : '—'}
+          </span>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Calendar className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500">Frekuensi</span>
+          </div>
+          <span className="text-xl font-black text-gray-900">
+            {orderFreq ?? '—'}
+          </span>
+          {orderFreq && <span className="text-xs text-gray-400 ml-1">pesanan/bulan</span>}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -117,7 +196,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               </div>
               <div className="flex items-center gap-2.5 text-sm">
                 <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <span className="text-gray-700 text-xs">Daftar {new Date(profile.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <span className="text-gray-700 text-xs">
+                  Daftar {new Date(profile.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <span className="text-gray-400"> · {daysSinceJoin} hari lepas</span>
+                </span>
               </div>
             </div>
           </div>
@@ -140,13 +222,42 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-500">Pesanan selesai</span>
-                <span className="text-sm font-bold text-gray-900">{completedOrders} / {totalOrders}</span>
+                <span className="text-sm font-bold text-gray-900">{completedOrders.length} / {totalOrders}</span>
               </div>
             </div>
           </div>
 
           {/* Loyalty adjustment */}
           <LoyaltyAdjust userId={id} currentPoints={profile.total_points ?? 0} />
+
+          {/* Loyalty transactions */}
+          {loyaltyTx.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+                <Star className="h-3.5 w-3.5 text-amber-400" /> Transaksi Mata
+              </h2>
+              <div className="space-y-2">
+                {loyaltyTx.map((tx: any) => {
+                  const cfg = TX_TYPE_CONFIG[tx.type] ?? { label: tx.type, cls: 'text-gray-600', sign: '' }
+                  const sign = tx.points > 0 ? '+' : ''
+                  return (
+                    <div key={tx.id} className="flex items-start justify-between gap-2 py-2 border-b border-gray-50 last:border-0">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-700 truncate">{tx.description}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {new Date(tx.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <span className={`ml-2 font-semibold ${cfg.cls}`}>{cfg.label}</span>
+                        </p>
+                      </div>
+                      <span className={`text-sm font-black shrink-0 ${tx.points >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {sign}{tx.points}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Addresses */}
           {addresses.length > 0 && (

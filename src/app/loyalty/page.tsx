@@ -7,6 +7,7 @@ import {
   Star, TrendingUp, ArrowUpRight, ArrowDownLeft,
   ShoppingBag, RefreshCcw, Zap, ChevronRight,
 } from 'lucide-react'
+import { ReferralCodeCard } from '@/app/referral/referral-card'
 
 async function getLoyaltyData() {
   const supabase = await createClient()
@@ -16,7 +17,7 @@ async function getLoyaltyData() {
   const [profileRes, tiersRes, txRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('total_points, total_spend, loyalty_tiers(name, min_spend, multiplier)')
+      .select('total_points, total_spend, referral_code, loyalty_tiers(name, min_spend, multiplier)')
       .eq('id', user.id)
       .single(),
     supabase
@@ -271,6 +272,30 @@ export default async function LoyaltyPage() {
               <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
+
+          {/* ── REFERRAL ─────────────────────────────────────────────────────── */}
+          {profile?.referral_code && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-sm font-bold text-gray-900">Jemput Rakan, Dapat Ganjaran</span>
+              </div>
+              <ReferralCodeCard code={profile.referral_code} />
+              <div className="bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.07)] p-4 flex gap-6">
+                <div className="text-center flex-1">
+                  <p className="text-2xl font-black text-brand-fresh-600">+50</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">mata untuk rakan</p>
+                </div>
+                <div className="w-px bg-gray-100" />
+                <div className="text-center flex-1">
+                  <p className="text-2xl font-black text-amber-500">+100</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">mata untuk anda</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 text-center px-2">
+                Rakan dapat 50 mata terus selepas daftar. Anda dapat 100 mata bila rakan buat pesanan pertama.
+              </p>
+            </div>
+          )}
 
           {/* ── TRANSACTION HISTORY ──────────────────────────────────────────── */}
           <div className="bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.07)] overflow-hidden">

@@ -5,12 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Gift } from 'lucide-react'
 
 function DaftarForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
+  const refCode = searchParams.get('ref') ?? ''
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     full_name: '',
@@ -33,7 +34,7 @@ function DaftarForm() {
     setLoading(true)
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
@@ -45,6 +46,19 @@ function DaftarForm() {
       toast.error(error.message)
       setLoading(false)
       return
+    }
+
+    // Track referral if signup came via referral link
+    if (refCode && data.user) {
+      try {
+        await fetch('/api/referrals/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref_code: refCode }),
+        })
+      } catch {
+        // silent — don't block signup if referral tracking fails
+      }
     }
 
     toast.success('Akaun berjaya dibuat! Selamat datang 🎉')
@@ -59,6 +73,15 @@ function DaftarForm() {
           <h1 className="text-2xl font-bold text-gray-900">SyababFresh</h1>
           <p className="text-gray-500 text-sm mt-1">Buat akaun baru</p>
         </div>
+
+        {refCode && (
+          <div className="mb-4 flex items-center gap-2.5 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+            <Gift className="h-4 w-4 text-green-600 shrink-0" />
+            <p className="text-sm text-green-700 font-medium">
+              Anda dijemput oleh rakan — dapat <span className="font-black">50 mata</span> percuma selepas daftar!
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <form onSubmit={handleSubmit} className="space-y-4">

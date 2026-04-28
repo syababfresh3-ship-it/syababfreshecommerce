@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Users, Star, Crown, Leaf, ChevronRight } from 'lucide-react'
 import { CreateUserForm } from './create-user-form'
+import { SEGMENT_CONFIG, type Segment } from './segment-utils'
 
 interface Customer {
   id: string
@@ -13,6 +14,9 @@ interface Customer {
   total_points: number
   total_spend: number
   created_at: string
+  last_order_at: string | null
+  order_count: number
+  segment: Segment
   loyalty_tiers?: { name: string } | null
 }
 
@@ -47,22 +51,45 @@ function TierBadge({ name }: { name: string }) {
   )
 }
 
+function SegmentBadge({ segment }: { segment: Segment }) {
+  const cfg = SEGMENT_CONFIG[segment]
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border ${cfg.color}`}>
+      {cfg.emoji} {cfg.label}
+    </span>
+  )
+}
+
+const SEGMENT_ORDER: Array<Segment | 'all'> = ['all', 'vip', 'active', 'new', 'at_risk', 'inactive', 'no_orders']
+
 export function CustomersClient({ customers }: { customers: Customer[] }) {
   const [showForm, setShowForm] = useState(false)
   const [q, setQ] = useState('')
+  const [activeSegment, setActiveSegment] = useState<Segment | 'all'>('all')
+
+  const segmentCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: customers.length }
+    for (const c of customers) {
+      counts[c.segment] = (counts[c.segment] ?? 0) + 1
+    }
+    return counts
+  }, [customers])
 
   const filtered = useMemo(() => {
-    if (!q.trim()) return customers
-    const lower = q.toLowerCase()
-    return customers.filter(c =>
-      (c.full_name ?? '').toLowerCase().includes(lower) ||
-      (c.email ?? '').toLowerCase().includes(lower) ||
-      (c.phone ?? '').includes(lower)
-    )
-  }, [customers, q])
+    let list = activeSegment === 'all' ? customers : customers.filter(c => c.segment === activeSegment)
+    if (q.trim()) {
+      const lower = q.toLowerCase()
+      list = list.filter(c =>
+        (c.full_name ?? '').toLowerCase().includes(lower) ||
+        (c.email ?? '').toLowerCase().includes(lower) ||
+        (c.phone ?? '').includes(lower)
+      )
+    }
+    return list
+  }, [customers, q, activeSegment])
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -83,6 +110,36 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
       {/* Create form */}
       {showForm && <CreateUserForm onClose={() => setShowForm(false)} />}
 
+      {/* Segment filter chips */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {SEGMENT_ORDER.map(seg => {
+          const count = segmentCounts[seg] ?? 0
+          const isAll = seg === 'all'
+          const cfg = isAll ? null : SEGMENT_CONFIG[seg]
+          const isActive = activeSegment === seg
+          return (
+            <button
+              key={seg}
+              onClick={() => setActiveSegment(seg)}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                isActive
+                  ? isAll
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : `${cfg!.color} ring-2 ring-offset-1 ring-current`
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {isAll ? '👥' : cfg!.emoji} {isAll ? 'Semua' : cfg!.label}
+              <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                isActive ? 'bg-white/20 text-inherit' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* Search */}
       <div className="relative mb-4 w-80">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
@@ -101,21 +158,21 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Telefon</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Segmen</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Tier</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Mata</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Pesanan</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah Belanja</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Daftar</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Order Terakhir</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-16 text-center">
+                <td colSpan={8} className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-3 text-gray-400">
                     <Users className="h-10 w-10 text-gray-200" />
-                    <p className="font-medium">{q ? `Tiada hasil untuk "${q}"` : 'Tiada pelanggan lagi'}</p>
-                    {!q && <p className="text-xs">Tambah pelanggan pertama menggunakan butang di atas</p>}
+                    <p className="font-medium">{q ? `Tiada hasil untuk "${q}"` : 'Tiada pelanggan dalam segmen ini'}</p>
                   </div>
                 </td>
               </tr>
@@ -123,6 +180,9 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
               filtered.map((customer) => {
                 const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
                 const initials = (customer.full_name ?? '?').charAt(0).toUpperCase()
+                const lastOrder = customer.last_order_at
+                  ? new Date(customer.last_order_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+                  : '—'
                 return (
                   <tr
                     key={customer.id}
@@ -143,23 +203,24 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
                     </td>
                     {/* Phone */}
                     <td className="px-5 py-3.5 text-gray-600 text-sm">{customer.phone ?? '—'}</td>
+                    {/* Segment */}
+                    <td className="px-5 py-3.5 text-center">
+                      <SegmentBadge segment={customer.segment} />
+                    </td>
                     {/* Tier */}
                     <td className="px-5 py-3.5 text-center">
                       <TierBadge name={tierName} />
                     </td>
-                    {/* Points */}
+                    {/* Order count */}
                     <td className="px-5 py-3.5 text-right">
-                      <span className="font-bold text-gray-900">{customer.total_points.toLocaleString()}</span>
-                      <span className="text-xs text-gray-400 ml-1">mata</span>
+                      <span className="font-bold text-gray-900">{customer.order_count}</span>
                     </td>
                     {/* Spend */}
                     <td className="px-5 py-3.5 text-right">
                       <span className="font-bold text-gray-900">RM{Number(customer.total_spend).toFixed(2)}</span>
                     </td>
-                    {/* Date */}
-                    <td className="px-5 py-3.5 text-right text-xs text-gray-400">
-                      {new Date(customer.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </td>
+                    {/* Last order */}
+                    <td className="px-5 py-3.5 text-right text-xs text-gray-400">{lastOrder}</td>
                     {/* Arrow */}
                     <td className="px-4 py-3.5 text-right">
                       <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
