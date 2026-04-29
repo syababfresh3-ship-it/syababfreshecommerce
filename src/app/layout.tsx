@@ -81,7 +81,8 @@ async function getPixelConfig() {
       googleAdsLabel: map['google_ads_label'] ?? '',
       gtmId: map['gtm_id'] ?? '',
     }
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV === 'development') console.error('[layout] Pixel config load failed:', err)
     return { metaPixelId: '', googleAdsId: '', googleAdsLabel: '', gtmId: '' }
   }
 }

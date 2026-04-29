@@ -9,6 +9,17 @@ export function CartSync() {
   const initRef = useRef<'idle' | 'loading' | 'done'>('idle')
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
+  // Sync cart across tabs — when another tab modifies localStorage, rehydrate this tab
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'syababfresh-cart') {
+        useCartStore.persist.rehydrate()
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
   // Load server cart once on mount and merge into local store
   useEffect(() => {
     if (initRef.current !== 'idle') return

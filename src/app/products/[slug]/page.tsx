@@ -9,6 +9,7 @@ import { AddToCartButton } from './add-to-cart-button'
 import { VariantPicker } from './variant-picker'
 import { RelatedCard } from './related-card'
 import { ProductReviews } from './reviews'
+import { SocialProof } from './social-proof'
 
 async function getProduct(slug: string) {
   const supabase = await createClient()
@@ -83,6 +84,20 @@ async function getCanReview(productId: string) {
   return { canReview: !existing, orderId: data.order_id }
 }
 
+async function getSoldToday(productId: string) {
+  const supabase = await createClient()
+  const now = new Date()
+  // Start of today in MYT (UTC+8)
+  const mytOffset = 8 * 60 * 60 * 1000
+  const startOfDayMYT = new Date(Math.floor((now.getTime() + mytOffset) / 86400000) * 86400000 - mytOffset)
+  const { count } = await supabase
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId)
+    .gte('created_at', startOfDayMYT.toISOString())
+  return count ?? 0
+}
+
 async function getRelated(productId: string, categoryId: string | null) {
   if (!categoryId) return []
   const supabase = await createClient()
@@ -149,12 +164,13 @@ export default async function ProductDetailPage({
   const product = await getProduct(slug)
   if (!product) notFound()
 
-  const [variants, stock, related, reviews, { canReview, orderId }] = await Promise.all([
+  const [variants, stock, related, reviews, { canReview, orderId }, soldToday] = await Promise.all([
     getVariants(product.id),
     getStock(product.id),
     getRelated(product.id, product.category_id ?? null),
     getReviews(product.id),
     getCanReview(product.id),
+    getSoldToday(product.id),
   ])
   const hasVariants = variants.length > 0
   const delivery = getDeliveryInfo(product.is_shippable)
@@ -226,6 +242,9 @@ export default async function ProductDetailPage({
               </p>
             )}
           </div>
+
+          {/* Social Proof */}
+          <SocialProof soldToday={soldToday} />
 
           {/* Stock — only for non-variant products */}
           {!hasVariants && (

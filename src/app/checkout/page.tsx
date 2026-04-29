@@ -27,7 +27,8 @@ const PAYMENT_ICONS: Record<string, React.ElementType> = {
 
 function getDeliverySlots() {
   const now = new Date()
-  const hour = now.getHours()
+  // Use Malaysia timezone (UTC+8) regardless of user's device timezone
+  const hour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur', hour: 'numeric', hour12: false }))
   const slots = []
 
   const todaySlots = [
@@ -212,6 +213,18 @@ export default function CheckoutPage() {
     if (data.max_uses !== null && data.uses_count >= data.max_uses) { toast.error('Kod promosi sudah mencapai had penggunaan'); setPromoLoading(false); return }
     if (subtotal < Number(data.min_order)) { toast.error(`Min. pesanan RM${Number(data.min_order).toFixed(2)} untuk kod ini`); setPromoLoading(false); return }
 
+    // Per-user limit — check if this user already used this promo in a non-cancelled order
+    const { data: { user: currentUser } } = await supabase.auth.getUser()
+    if (currentUser) {
+      const { count } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id)
+        .eq('promo_code_id', data.id)
+        .neq('status', 'cancelled')
+      if (count && count > 0) { toast.error('Anda sudah menggunakan kod ini sebelum ini'); setPromoLoading(false); return }
+    }
+
     setAppliedPromo({ id: data.id, code: data.code, type: data.type, value: Number(data.value) })
     toast.success(`Kod ${data.code} berjaya digunakan!`)
     setPromoLoading(false)
@@ -266,43 +279,8 @@ export default function CheckoutPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { toast.error('Sila log masuk dahulu'); router.push('/login?redirect=/checkout'); setLoading(false); return }
 
-    // Stock check — variant items check variant.stock, others check product_stock
-    const variantItems = items.filter(i => i.variant)
-    const nonVariantItems = items.filter(i => !i.variant)
-
-    if (variantItems.length > 0) {
-      const variantIds = variantItems.map(i => i.variant!.id)
-      const { data: variantStock } = await supabase
-        .from('product_variants')
-        .select('id, stock')
-        .in('id', variantIds)
-      for (const { product, variant, quantity } of variantItems) {
-        const vs = variantStock?.find(v => v.id === variant!.id)
-        if (vs && vs.stock < quantity) {
-          toast.error(`Stok tidak mencukupi untuk ${product.name} (${variant!.name})`)
-          setLoading(false)
-          return
-        }
-      }
-    }
-
-    if (nonVariantItems.length > 0) {
-      const productIds = nonVariantItems.map(i => i.product.id)
-      const { data: stockData } = await supabase
-        .from('product_stock')
-        .select('product_id, available_stock')
-        .in('product_id', productIds)
-      if (stockData) {
-        for (const { product, quantity } of nonVariantItems) {
-          const stock = stockData.find((s) => s.product_id === product.id)
-          if (stock && stock.available_stock < quantity) {
-            toast.error(`Stok tidak mencukupi untuk ${product.name}`)
-            setLoading(false)
-            return
-          }
-        }
-      }
-    }
+    // Note: stock is enforced atomically by deduct_inventory / deduct_variant_stock RPCs below.
+    // No pre-check here — pre-checks create a race window and false sense of safety.
 
     const { data: order, error: orderError } = await supabase.from('orders').insert({
       user_id: user.id, order_number: 'TEMP', status: 'pending',
@@ -380,7 +358,8 @@ export default function CheckoutPage() {
       await supabase.rpc('increment_points', { uid: user.id, pts: -pointsUsed })
     }
 
-    const earnedPoints = Math.floor(total * userMultiplier)
+    const MAX_POINTS_PER_ORDER = 5000
+    const earnedPoints = Math.min(Math.floor(total * userMultiplier), MAX_POINTS_PER_ORDER)
     await supabase.from('loyalty_transactions').insert({
       user_id: user.id, order_id: order.id, points: earnedPoints, type: 'earn',
       description: `Pembelian ${order.order_number}`,

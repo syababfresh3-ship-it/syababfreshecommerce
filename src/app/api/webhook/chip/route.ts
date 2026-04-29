@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
+import { createHmac } from 'crypto'
 
 export async function POST(req: NextRequest) {
+  let rawBody: string
   let body: any
   try {
-    body = await req.json()
+    rawBody = await req.text()
+    body = JSON.parse(rawBody)
   } catch {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  // Verify CHIP webhook signature
+  const signature = req.headers.get('x-signature')
+  const secret = process.env.CHIP_SECRET_KEY
+  if (secret) {
+    if (!signature) {
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+    }
+    const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
+    if (signature !== expected) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
   }
 
   const { event_type, purchase } = body
@@ -77,7 +93,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Award earned loyalty points
-  const earnedPoints = Math.floor(Number(total) * multiplier)
+  const MAX_POINTS_PER_ORDER = 5000
+  const earnedPoints = Math.min(Math.floor(Number(total) * multiplier), MAX_POINTS_PER_ORDER)
   await supabase.from('loyalty_transactions').insert({
     user_id,
     order_id: orderId,

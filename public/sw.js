@@ -1,4 +1,4 @@
-const CACHE_NAME = 'syababfresh-v2'
+const CACHE_NAME = 'syababfresh-v3'
 
 const STATIC_ASSETS = ['/', '/products', '/manifest.json']
 
@@ -18,18 +18,33 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
-  if (event.request.url.includes('/api/') || event.request.url.includes('supabase')) return
+  if (event.request.url.includes('/api/') || event.request.url.includes('supabase') || event.request.url.includes('/auth/')) return
+  // Don't cache chrome-extension or non-http requests
+  if (!event.request.url.startsWith('http')) return
+
+  const url = new URL(event.request.url)
+
+  // Only cache static assets and the shell — not dynamic pages like /products/[slug]
+  const isCacheable = STATIC_ASSETS.includes(url.pathname) || url.pathname.startsWith('/_next/static/')
 
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        if (response.status === 200) {
+        if (response.status === 200 && isCacheable) {
           const clone = response.clone()
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone))
         }
         return response
       })
-      .catch(() => caches.match(event.request).then(cached => cached || caches.match('/')))
+      .catch(() => {
+        // Only serve cache for the exact matching URL — never serve / for other routes
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached
+          // For navigation requests that fail offline, show a proper offline page
+          if (event.request.mode === 'navigate') return caches.match('/')
+          return new Response('', { status: 503 })
+        })
+      })
   )
 })
 
