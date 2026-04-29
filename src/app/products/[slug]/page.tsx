@@ -98,6 +98,45 @@ async function getSoldToday(productId: string) {
   return count ?? 0
 }
 
+async function getFrequentlyBought(productId: string) {
+  const supabase = await createClient()
+  // Get orders containing this product
+  const { data: orderItems } = await supabase
+    .from('order_items')
+    .select('order_id')
+    .eq('product_id', productId)
+    .limit(200)
+
+  if (!orderItems?.length) return []
+
+  const orderIds = [...new Set(orderItems.map(o => o.order_id))]
+
+  // Find other products in those orders
+  const { data: coItems } = await supabase
+    .from('order_items')
+    .select('product_id, products!inner(id, name, slug, price, compare_price, image_url, unit, is_active)')
+    .in('order_id', orderIds)
+    .neq('product_id', productId)
+    .eq('products.is_active', true)
+
+  if (!coItems?.length) return []
+
+  // Count frequency per product
+  const freq = new Map<string, { product: any; count: number }>()
+  for (const item of coItems) {
+    const p = item.products as any
+    if (!p) continue
+    const entry = freq.get(p.id)
+    if (entry) entry.count++
+    else freq.set(p.id, { product: p, count: 1 })
+  }
+
+  return [...freq.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6)
+    .map(e => e.product)
+}
+
 async function getRelated(productId: string, categoryId: string | null) {
   if (!categoryId) return []
   const supabase = await createClient()
@@ -164,13 +203,14 @@ export default async function ProductDetailPage({
   const product = await getProduct(slug)
   if (!product) notFound()
 
-  const [variants, stock, related, reviews, { canReview, orderId }, soldToday] = await Promise.all([
+  const [variants, stock, related, reviews, { canReview, orderId }, soldToday, frequentlyBought] = await Promise.all([
     getVariants(product.id),
     getStock(product.id),
     getRelated(product.id, product.category_id ?? null),
     getReviews(product.id),
     getCanReview(product.id),
     getSoldToday(product.id),
+    getFrequentlyBought(product.id),
   ])
   const hasVariants = variants.length > 0
   const delivery = getDeliveryInfo(product.is_shippable)
@@ -339,6 +379,20 @@ export default async function ProductDetailPage({
             canReview={canReview}
             orderId={orderId}
           />
+
+          {/* Frequently Bought Together */}
+          {frequentlyBought.length > 0 && (
+            <div className="pt-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                Selalu Dibeli Bersama
+              </p>
+              <div className="flex gap-2.5 overflow-x-auto no-scrollbar scroll-touch pb-1">
+                {frequentlyBought.map((p: any) => (
+                  <RelatedCard key={p.id} product={p} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Related Products */}
           {related.length > 0 && (

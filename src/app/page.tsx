@@ -5,7 +5,21 @@ import Link from 'next/link'
 import { ArrowRight, Truck, ShieldCheck, Leaf, Clock, RotateCcw, Star } from 'lucide-react'
 import { ProductCard } from '@/components/store/product-card'
 import { PostcodeChecker } from '@/components/store/postcode-checker'
+import { FlashSaleBanner } from '@/components/store/flash-sale-banner'
 import type { Category, Product } from '@/types'
+
+async function getFlashSale() {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['flash_sale_label', 'flash_sale_ends_at', 'flash_sale_promo_code'])
+  const map: Record<string, string> = {}
+  for (const row of data ?? []) map[row.key] = row.value
+  if (!map.flash_sale_label || !map.flash_sale_ends_at) return null
+  if (new Date(map.flash_sale_ends_at) < new Date()) return null
+  return { label: map.flash_sale_label, endsAt: map.flash_sale_ends_at, promoCode: map.flash_sale_promo_code || undefined }
+}
 
 async function getHomeData() {
   const supabase = await createClient()
@@ -46,7 +60,10 @@ const QUICK_BUY_CHIPS = [
 ]
 
 export default async function HomePage() {
-  const { categories, featured, promo, banner, variantProductIds } = await getHomeData()
+  const [{ categories, featured, promo, banner, variantProductIds }, flashSale] = await Promise.all([
+    getHomeData(),
+    getFlashSale(),
+  ])
 
   return (
     <StoreLayout>
@@ -65,6 +82,11 @@ export default async function HomePage() {
 
       {/* Postcode checker */}
       <PostcodeChecker />
+
+      {/* Flash Sale Countdown Banner */}
+      {flashSale && (
+        <FlashSaleBanner label={flashSale.label} endsAt={flashSale.endsAt} promoCode={flashSale.promoCode} />
+      )}
 
       {/* Promo Banner — dynamic */}
       {banner && (

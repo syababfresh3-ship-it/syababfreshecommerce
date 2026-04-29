@@ -2,16 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, Save, BarChart2, Tag, ExternalLink, Megaphone } from 'lucide-react'
+import { Loader2, Save, BarChart2, Tag, ExternalLink, Megaphone, Zap } from 'lucide-react'
 
 interface Settings {
   meta_pixel_id: string
   google_ads_id: string
   google_ads_label: string
   gtm_id: string
+  flash_sale_label: string
+  flash_sale_ends_at: string
+  flash_sale_promo_code: string
 }
 
-const EMPTY: Settings = { meta_pixel_id: '', google_ads_id: '', google_ads_label: '', gtm_id: '' }
+const EMPTY: Settings = {
+  meta_pixel_id: '', google_ads_id: '', google_ads_label: '', gtm_id: '',
+  flash_sale_label: '', flash_sale_ends_at: '', flash_sale_promo_code: '',
+}
 
 export default function MarketingPage() {
   const [settings, setSettings] = useState<Settings>(EMPTY)
@@ -75,6 +81,47 @@ export default function MarketingPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-5">
+
+        {/* Flash Sale */}
+        <div className={card}>
+          <div className="flex items-center gap-2.5 pb-2 border-b border-gray-50">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-white fill-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Flash Sale Countdown</p>
+              <p className="text-xs text-gray-400">Banner countdown muncul di homepage secara automatik</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tajuk Flash Sale</label>
+            <input type="text" value={settings.flash_sale_label} onChange={set('flash_sale_label')}
+              placeholder="Flash Sale! Diskaun 30% untuk semua buah" suppressHydrationWarning
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Tarikh Tamat</label>
+            <input type="datetime-local" value={settings.flash_sale_ends_at} onChange={set('flash_sale_ends_at')}
+              suppressHydrationWarning
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+            <p className="text-xs text-gray-400 mt-1">Banner hilang otomatik bila masa tamat</p>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Kod Promo (pilihan)</label>
+            <input type="text" value={settings.flash_sale_promo_code} onChange={set('flash_sale_promo_code')}
+              placeholder="FLASH30" suppressHydrationWarning
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-400" />
+          </div>
+          {settings.flash_sale_ends_at && !settings.flash_sale_label && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">⚠️ Isi tajuk untuk banner muncul</p>
+          )}
+          {settings.flash_sale_label && (
+            <button type="button" onClick={() => setSettings(p => ({ ...p, flash_sale_ends_at: '', flash_sale_label: '', flash_sale_promo_code: '' }))}
+              className="text-xs text-red-500 hover:underline">
+              × Padamkan flash sale
+            </button>
+          )}
+        </div>
 
         {/* Meta Pixel */}
         <div className={card}>

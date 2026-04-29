@@ -12,6 +12,7 @@ export interface Profile {
   total_points: number
   total_spend: number
   is_admin: boolean
+  whatsapp_optin: boolean
   created_at: string
   updated_at: string
   // Joined

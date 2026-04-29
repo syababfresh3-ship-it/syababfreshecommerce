@@ -13,6 +13,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const [form, setForm] = useState({
     full_name: profile.full_name ?? '',
     phone: profile.phone ?? '',
+    whatsapp_optin: profile.whatsapp_optin ?? true,
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -40,6 +41,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         email: user.email ?? null,
         full_name: form.full_name,
         phone: form.phone,
+        whatsapp_optin: form.whatsapp_optin,
       })
 
     if (error) {
@@ -80,6 +82,19 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         {!form.phone && (
           <p className="text-xs text-yellow-600 mt-1">Wajib untuk notifikasi WhatsApp</p>
         )}
+      </div>
+      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-800">Promosi WhatsApp</p>
+          <p className="text-xs text-gray-500 mt-0.5">Terima tawaran eksklusif & diskaun via WhatsApp</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setForm(p => ({ ...p, whatsapp_optin: !p.whatsapp_optin }))}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form.whatsapp_optin ? 'bg-green-500' : 'bg-gray-300'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.whatsapp_optin ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
       </div>
       <button
         type="submit"
