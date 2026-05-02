@@ -471,8 +471,8 @@ export default async function OrderDetailPage({
               </div>
             </div>
 
-            {/* Tracking info — shown when tracking number is available */}
-            {(order as any).shipment?.tracking_number && (
+            {/* Tracking info — shown when tracking number or delivery link is available */}
+            {((order as any).shipment?.tracking_number || (order as any).shipment?.tracking_url) && (
               <div className={card}>
                 <div className="px-4 pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -486,12 +486,14 @@ export default async function OrderDetailPage({
                         {(order as any).shipment.shipping_carriers?.name ?? '—'}
                       </dd>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <dt className="text-gray-400">No. Tracking</dt>
-                      <dd className="font-mono text-xs font-bold text-gray-900">
-                        {(order as any).shipment.tracking_number}
-                      </dd>
-                    </div>
+                    {(order as any).shipment.tracking_number && (
+                      <div className="flex justify-between items-center">
+                        <dt className="text-gray-400">No. Tracking</dt>
+                        <dd className="font-mono text-xs font-bold text-gray-900">
+                          {(order as any).shipment.tracking_number}
+                        </dd>
+                      </div>
+                    )}
                     {(order as any).shipment.estimated_delivery && (
                       <div className="flex justify-between">
                         <dt className="text-gray-400">Anggaran Tiba</dt>

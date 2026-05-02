@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendWhatsApp } from '@/lib/murpati'
 
 export async function GET(request: Request) {
   const userClient = await createClient()
@@ -55,15 +56,15 @@ export async function POST(request: Request) {
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { order_id, carrier_id, tracking_number, estimated_delivery, notes, status } = body
+  const { order_id, carrier_id, tracking_number, direct_url, estimated_delivery, notes, status } = body
 
   if (!order_id || !carrier_id) {
     return NextResponse.json({ error: 'order_id dan carrier_id diperlukan' }, { status: 400 })
   }
 
-  // Auto-generate tracking URL from carrier template
-  let tracking_url: string | null = null
-  if (tracking_number) {
+  // Determine tracking URL: direct_url (Lalamove) takes priority, else auto-generate from template
+  let tracking_url: string | null = direct_url ?? null
+  if (!tracking_url && tracking_number) {
     const { data: carrier } = await supabase
       .from('shipping_carriers')
       .select('tracking_url_template')
@@ -105,6 +106,35 @@ export async function POST(request: Request) {
       .update({ status: 'delivered', delivered_at: now })
       .eq('id', order_id)
       .neq('status', 'cancelled')
+  }
+
+  // Notify customer via WhatsApp if tracking info available
+  if (tracking_url || tracking_number) {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('order_number, profiles(full_name, phone)')
+      .eq('id', order_id)
+      .single()
+
+    const phone = (order?.profiles as any)?.phone
+    const name  = (order?.profiles as any)?.full_name ?? 'Pelanggan'
+    if (phone && order) {
+      const trackingLine = tracking_url
+        ? `🔗 *Link Penghantaran:*\n${tracking_url}`
+        : `📦 *No. Tracking:* ${tracking_number}`
+
+      const msg = [
+        `🚚 *Pesanan ${order.order_number} Dalam Penghantaran!*`,
+        ``,
+        `Hai ${name}, pesanan anda sedang dalam perjalanan.`,
+        ``,
+        trackingLine,
+        ``,
+        `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
+      ].join('\n')
+
+      sendWhatsApp(phone, msg).catch(() => {})
+    }
   }
 
   return NextResponse.json(shipment)

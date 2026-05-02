@@ -34,11 +34,15 @@ export async function PATCH(
   if (body.notes !== undefined) update.notes = body.notes
   if (body.estimated_delivery !== undefined) update.estimated_delivery = body.estimated_delivery
 
-  // Auto-generate tracking URL from carrier template
-  const trackingNum = body.tracking_number ?? existing.tracking_number
-  const template = (existing.shipping_carriers as any)?.tracking_url_template
-  if (trackingNum && template) {
-    update.tracking_url = template.replace('{number}', trackingNum)
+  // Tracking URL: direct_url (Lalamove) takes priority, else auto-generate from carrier template
+  if (body.direct_url !== undefined) {
+    update.tracking_url = body.direct_url || null
+  } else {
+    const trackingNum = body.tracking_number ?? existing.tracking_number
+    const template = (existing.shipping_carriers as any)?.tracking_url_template
+    if (trackingNum && template) {
+      update.tracking_url = template.replace('{number}', trackingNum)
+    }
   }
 
   // Timestamps for status transitions

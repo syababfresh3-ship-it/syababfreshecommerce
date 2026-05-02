@@ -38,12 +38,14 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
   const [carrierId, setCarrierId] = useState(initialShipment?.carrier_id ?? '')
   const [trackingNumber, setTrackingNumber] = useState(initialShipment?.tracking_number ?? '')
+  const [directUrl, setDirectUrl] = useState(initialShipment?.tracking_url ?? '')
   const [estimatedDelivery, setEstimatedDelivery] = useState(initialShipment?.estimated_delivery ?? '')
   const [notes, setNotes] = useState(initialShipment?.notes ?? '')
   const [status, setStatus] = useState<ShipmentStatus>(initialShipment?.status ?? 'pending')
 
   const activeCarriers = carriers.filter(c => c.is_active)
   const selectedCarrier = carriers.find(c => c.id === (shipment?.carrier_id ?? carrierId))
+  const isLalamove = (shipment?.carrier_id ?? carrierId) === 'lalamove'
 
   async function save() {
     if (!shipment && !carrierId) {
@@ -58,8 +60,22 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       : `/api/admin/shipping/shipments`
 
     const body = shipment
-      ? { tracking_number: trackingNumber || null, estimated_delivery: estimatedDelivery || null, notes: notes || null, status }
-      : { order_id: orderId, carrier_id: carrierId, tracking_number: trackingNumber || null, estimated_delivery: estimatedDelivery || null, notes: notes || null, status }
+      ? {
+          tracking_number: isLalamove ? null : (trackingNumber || null),
+          direct_url: isLalamove ? (directUrl || null) : null,
+          estimated_delivery: estimatedDelivery || null,
+          notes: notes || null,
+          status,
+        }
+      : {
+          order_id: orderId,
+          carrier_id: carrierId,
+          tracking_number: isLalamove ? null : (trackingNumber || null),
+          direct_url: isLalamove ? (directUrl || null) : null,
+          estimated_delivery: estimatedDelivery || null,
+          notes: notes || null,
+          status,
+        }
 
     const res = await fetch(url, {
       method: shipment ? 'PATCH' : 'POST',
@@ -77,7 +93,14 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
         const newShipment = await res.json()
         setShipment(newShipment)
       } else {
-        setShipment(prev => prev ? { ...prev, tracking_number: trackingNumber || null, estimated_delivery: estimatedDelivery || null, notes: notes || null, status } : prev)
+        setShipment(prev => prev ? {
+        ...prev,
+        tracking_number: isLalamove ? null : (trackingNumber || null),
+        tracking_url: isLalamove ? (directUrl || null) : prev.tracking_url,
+        estimated_delivery: estimatedDelivery || null,
+        notes: notes || null,
+        status,
+      } : prev)
       }
       router.refresh()
     }
@@ -88,6 +111,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
     if (shipment) {
       setCarrierId(shipment.carrier_id)
       setTrackingNumber(shipment.tracking_number ?? '')
+      setDirectUrl(shipment.tracking_url ?? '')
       setEstimatedDelivery(shipment.estimated_delivery ?? '')
       setNotes(shipment.notes ?? '')
       setStatus(shipment.status)
@@ -118,7 +142,21 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
             <dt className="text-gray-500">Kurier</dt>
             <dd className="font-semibold text-gray-900">{selectedCarrier?.name ?? shipment.carrier_id}</dd>
           </div>
-          {shipment.tracking_number && (
+          {shipment.carrier_id === 'lalamove' && shipment.tracking_url ? (
+            <div className="flex justify-between items-center">
+              <dt className="text-gray-500">Link Lalamove</dt>
+              <dd>
+                <a
+                  href={shipment.tracking_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-orange-500 hover:text-orange-700 flex items-center gap-1 text-xs font-semibold"
+                >
+                  Buka Link <ExternalLink className="h-3 w-3" />
+                </a>
+              </dd>
+            </div>
+          ) : shipment.tracking_number ? (
             <div className="flex justify-between items-center">
               <dt className="text-gray-500">No. Tracking</dt>
               <dd className="flex items-center gap-1.5">
@@ -135,7 +173,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
                 )}
               </dd>
             </div>
-          )}
+          ) : null}
           {shipment.estimated_delivery && (
             <div className="flex justify-between">
               <dt className="text-gray-500">Anggaran Tiba</dt>
@@ -233,15 +271,28 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
             )
           })()}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">No. Tracking</label>
-            <input
-              value={trackingNumber}
-              onChange={e => setTrackingNumber(e.target.value)}
-              placeholder="cth: EE123456789MY"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
+          {isLalamove ? (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Link Penghantaran Lalamove</label>
+              <input
+                value={directUrl}
+                onChange={e => setDirectUrl(e.target.value)}
+                placeholder="https://link.lalamove.com/..."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+              />
+              <p className="text-xs text-gray-400 mt-1">Paste share link dari Lalamove Driver App</p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">No. Tracking</label>
+              <input
+                value={trackingNumber}
+                onChange={e => setTrackingNumber(e.target.value)}
+                placeholder="cth: EE123456789MY"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Status Penghantaran</label>
