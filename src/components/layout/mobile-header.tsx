@@ -21,16 +21,18 @@ const backPages: Record<string, { title: string; back: string }> = {
   '/wishlist':       { title: 'Senarai Simpan',      back: '/profile' },
 }
 
-export function MobileHeader({ logoUrl }: { logoUrl?: string | null }) {
+export function MobileHeader() {
   const pathname = usePathname()
   const itemCount = useCartStore((state) => state.getItemCount())
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
     const onScroll = () => setScrolled(window.scrollY > 4)
     window.addEventListener('scroll', onScroll, { passive: true })
+    fetch('/api/logo').then(r => r.json()).then(d => setLogoUrl(d.logo_url ?? null)).catch(() => {})
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 

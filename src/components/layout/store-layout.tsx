@@ -1,4 +1,4 @@
-import { LogoHeader } from './logo-header'
+import { MobileHeader } from './mobile-header'
 import { BottomNav } from './bottom-nav'
 import { WhatsAppButton } from './whatsapp-button'
 import { CartSync } from '@/components/store/cart-sync'
@@ -11,7 +11,7 @@ export function StoreLayout({ children }: StoreLayoutProps) {
   return (
     <>
       <CartSync />
-      <LogoHeader />
+      <MobileHeader />
 
       {/* Main content — padded for bottom nav + safe area */}
       <main className="flex-1 pb-24 w-full min-h-screen">
