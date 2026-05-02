@@ -7,16 +7,18 @@ import { toast } from 'sonner'
 import { Upload, X, ImageIcon, Loader2 } from 'lucide-react'
 
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
-const BUCKET = 'product-images'
+const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
 
 interface ImageUploaderProps {
   currentUrl?: string | null
   onUpload: (url: string) => void
   onRemove: () => void
+  bucket?: string
+  label?: string
+  aspectRatio?: string
 }
 
-export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderProps) {
+export function ImageUploader({ currentUrl, onUpload, onRemove, bucket = 'product-images', label = 'Gambar Produk', aspectRatio = 'aspect-square' }: ImageUploaderProps) {
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -43,7 +45,7 @@ export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderP
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
     const { error } = await supabase.storage
-      .from(BUCKET)
+      .from(bucket)
       .upload(fileName, file, { upsert: false, contentType: file.type })
 
     if (error) {
@@ -53,7 +55,7 @@ export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderP
       return
     }
 
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName)
+    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName)
     onUpload(data.publicUrl)
     toast.success('Gambar berjaya diupload')
     setUploading(false)
@@ -79,11 +81,11 @@ export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderP
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">Gambar Produk</label>
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
 
       {preview ? (
         /* Preview */
-        <div className="relative w-full aspect-square max-w-[200px] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+        <div className={`relative w-full ${aspectRatio} max-w-[200px] rounded-xl overflow-hidden border border-gray-200 bg-gray-50`}>
           <Image
             src={preview}
             alt="Preview"
@@ -113,7 +115,7 @@ export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderP
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`w-full aspect-square max-w-[200px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+          className={`w-full ${aspectRatio} max-w-[200px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
             dragOver
               ? 'border-brand-red-400 bg-brand-red-50'
               : 'border-gray-300 bg-gray-50 hover:border-brand-red-300 hover:bg-gray-100'
@@ -136,7 +138,7 @@ export function ImageUploader({ currentUrl, onUpload, onRemove }: ImageUploaderP
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/svg+xml"
         onChange={handleInputChange}
         className="hidden"
       />

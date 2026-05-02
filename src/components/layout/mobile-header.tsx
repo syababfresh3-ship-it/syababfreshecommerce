@@ -6,6 +6,7 @@ import { ShoppingCart, Bell, ChevronLeft } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cart'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
 
 // Pages that show back button: title + where back goes
 const backPages: Record<string, { title: string; back: string }> = {
@@ -20,7 +21,7 @@ const backPages: Record<string, { title: string; back: string }> = {
   '/wishlist':       { title: 'Senarai Simpan',      back: '/profile' },
 }
 
-export function MobileHeader() {
+export function MobileHeader({ logoUrl }: { logoUrl?: string | null }) {
   const pathname = usePathname()
   const itemCount = useCartStore((state) => state.getItemCount())
   const [mounted, setMounted] = useState(false)
@@ -56,9 +57,18 @@ export function MobileHeader() {
           </Link>
         ) : (
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl font-bold text-gradient-brand">
-              SyababFresh
-            </span>
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt="SyababFresh"
+                width={120}
+                height={36}
+                className="h-9 w-auto object-contain"
+                priority
+              />
+            ) : (
+              <span className="text-xl font-bold text-gradient-brand">SyababFresh</span>
+            )}
           </Link>
         )}
 
