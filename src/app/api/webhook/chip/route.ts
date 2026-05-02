@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
 import { createHmac } from 'crypto'
+import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 
 export async function POST(req: NextRequest) {
   let rawBody: string
@@ -45,9 +46,9 @@ export async function POST(req: NextRequest) {
     .eq('payment_status', 'unpaid')
     .select(`
       id, user_id, total, order_number, payment_method,
-      delivery_address, notes, points_used, promo_code_id,
-      order_items(product_id, variant_id, product_name, quantity, unit_price),
-      profiles(full_name, phone, loyalty_tiers(multiplier))
+      delivery_address, delivery_slot, notes, points_used, promo_code_id,
+      order_items(product_id, variant_id, product_name, quantity, unit_price, variant_name),
+      profiles(full_name, phone, email, loyalty_tiers(multiplier))
     `)
     .single()
 
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    user_id, total, order_number, payment_method, delivery_address, notes,
+    user_id, total, order_number, payment_method, delivery_address, delivery_slot, notes,
     points_used, promo_code_id, order_items, profiles,
   } = updated as any
 
@@ -110,6 +111,26 @@ export async function POST(req: NextRequest) {
   // Increment promo usage now that payment is confirmed
   if (promo_code_id) {
     await supabase.rpc('increment_promo_uses', { promo_id: promo_code_id })
+  }
+
+  // Send payment confirmed email to customer
+  const customerEmail = profiles?.email
+  if (customerEmail) {
+    sendPaymentConfirmedEmail({
+      to: customerEmail,
+      customerName: profiles?.full_name ?? 'Pelanggan',
+      orderNumber: order_number,
+      items: (order_items ?? []).map((i: any) => ({
+        name: i.product_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        variant_name: i.variant_name ?? null,
+      })),
+      total: Number(total),
+      deliveryAddress: delivery_address ?? null,
+      deliverySlot: delivery_slot ?? null,
+      notes: notes ?? null,
+    }).catch(err => console.error('[chip-webhook] email error:', err))
   }
 
   // Notify admin via WhatsApp

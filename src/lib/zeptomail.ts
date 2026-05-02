@@ -1,0 +1,312 @@
+const ZEPTO_URL = 'https://api.zeptomail.com/v1.1/email'
+const API_KEY   = process.env.ZEPTOMAIL_API_KEY ?? ''
+
+const FROM_ORDER   = process.env.ZEPTOMAIL_FROM_ORDER   ?? 'order@mail.syababfresh.my'
+const FROM_NOREPLY = process.env.ZEPTOMAIL_FROM_NOREPLY ?? 'noreply@mail.syababfresh.my'
+
+// ─── shared helpers ────────────────────────────────────────────────────────────
+
+function layout(title: string, body: string) {
+  return `<!DOCTYPE html>
+<html lang="ms">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+
+        <!-- header -->
+        <tr><td style="background:#16a34a;padding:24px 32px;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">SyababFresh 🌿</p>
+          <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.75);">Buah Segar Setiap Hari</p>
+        </td></tr>
+
+        <!-- body -->
+        <tr><td style="padding:32px;">
+          ${body}
+        </td></tr>
+
+        <!-- footer -->
+        <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#9ca3af;">© 2026 Syabab Trading Sdn Bhd &nbsp;·&nbsp; Klang Valley, Malaysia</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">
+            Sokongan: <a href="https://wa.me/601156816687" style="color:#16a34a;text-decoration:none;">WhatsApp Kami</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+}
+
+function itemsTable(items: Array<{ name: string; quantity: number; unit_price: number; variant_name?: string | null }>) {
+  const rows = items.map(i => {
+    const label = i.variant_name ? `${i.name} <span style="color:#6b7280;font-size:12px;">(${i.variant_name})</span>` : i.name
+    return `<tr>
+      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${label} × ${i.quantity}</td>
+      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#111827;font-weight:600;text-align:right;white-space:nowrap;">
+        RM${(Number(i.unit_price) * i.quantity).toFixed(2)}
+      </td>
+    </tr>`
+  }).join('')
+
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:16px 0;">${rows}</table>`
+}
+
+function badge(text: string, color = '#16a34a') {
+  return `<span style="display:inline-block;background:${color};color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.5px;">${text}</span>`
+}
+
+async function send(opts: {
+  from: string
+  fromName: string
+  to: string
+  toName: string
+  subject: string
+  html: string
+}) {
+  if (!API_KEY) {
+    console.warn('[zeptomail] ZEPTOMAIL_API_KEY not set — skipping email')
+    return
+  }
+
+  try {
+    const res = await fetch(ZEPTO_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: API_KEY,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        from: { address: opts.from, name: opts.fromName },
+        to: [{ email_address: { address: opts.to, name: opts.toName } }],
+        subject: opts.subject,
+        htmlbody: opts.html,
+      }),
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      console.error(`[zeptomail] ${res.status} error:`, text)
+    }
+  } catch (err) {
+    console.error('[zeptomail] fetch failed:', err)
+  }
+}
+
+// ─── email 1: order confirmation (COD / bank transfer) ────────────────────────
+
+export async function sendOrderConfirmationEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  items: Array<{ name: string; quantity: number; unit_price: number; variant_name?: string | null }>
+  total: number
+  deliveryAddress: string | null
+  deliverySlot: string | null
+  paymentMethod: string
+  notes: string | null
+}) {
+  const paymentLabel: Record<string, string> = {
+    fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD (Bayar Semasa Terima)',
+    bank_transfer: 'Pindahan Bank',
+  }
+
+  const html = layout('Pengesahan Pesanan', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Terima kasih, <strong>${params.customerName}</strong>!</p>
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#111827;">Pesanan Anda Diterima ✅</h1>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <tr>
+        <td style="font-size:13px;color:#6b7280;">No. Pesanan</td>
+        <td style="font-size:14px;font-weight:700;color:#111827;text-align:right;">${params.orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#6b7280;padding-top:6px;">Kaedah Bayar</td>
+        <td style="font-size:14px;font-weight:700;color:#111827;text-align:right;padding-top:6px;">${paymentLabel[params.paymentMethod] ?? params.paymentMethod}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Item Pesanan</p>
+    ${itemsTable(params.items)}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+      <tr>
+        <td style="font-size:15px;font-weight:800;color:#111827;padding-top:8px;">Jumlah</td>
+        <td style="font-size:18px;font-weight:800;color:#16a34a;text-align:right;padding-top:8px;">RM${Number(params.total).toFixed(2)}</td>
+      </tr>
+    </table>
+
+    ${params.deliveryAddress ? `
+    <div style="margin-top:20px;padding:14px 16px;background:#f9fafb;border-radius:10px;border-left:3px solid #16a34a;">
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Alamat Penghantaran</p>
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.5;">${params.deliveryAddress}</p>
+      ${params.deliverySlot ? `<p style="margin:6px 0 0;font-size:12px;color:#16a34a;font-weight:600;">🕐 Slot: ${params.deliverySlot}</p>` : ''}
+    </div>` : ''}
+
+    ${params.notes ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">📝 Nota: ${params.notes}</p>` : ''}
+
+    <div style="margin-top:24px;padding:14px 16px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a;">
+      <p style="margin:0;font-size:13px;color:#92400e;line-height:1.6;">
+        ${params.paymentMethod === 'bank_transfer'
+          ? `💳 Sila buat pindahan ke <strong>Maybank 562263630996</strong> (Syabab Trading Sdn Bhd) dan hantar bukti bayaran ke WhatsApp kami.`
+          : `🚚 Pesanan anda sedang kami proses. Anda akan dimaklumkan bila pesanan dalam penghantaran.`
+        }
+      </p>
+    </div>
+  `)
+
+  await send({
+    from: FROM_ORDER,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `Pesanan ${params.orderNumber} Diterima — SyababFresh`,
+    html,
+  })
+}
+
+// ─── email 2: payment confirmed (FPX / e-wallet via Chip webhook) ──────────────
+
+export async function sendPaymentConfirmedEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  items: Array<{ name: string; quantity: number; unit_price: number; variant_name?: string | null }>
+  total: number
+  deliveryAddress: string | null
+  deliverySlot: string | null
+  notes: string | null
+}) {
+  const html = layout('Pembayaran Disahkan', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai, <strong>${params.customerName}</strong>!</p>
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:800;color:#111827;">Pembayaran Berjaya 🎉</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">Terima kasih! Pembayaran anda telah disahkan dan pesanan sedang diproses.</p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <tr>
+        <td style="font-size:13px;color:#6b7280;">No. Pesanan</td>
+        <td style="font-size:14px;font-weight:700;color:#111827;text-align:right;">${params.orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#6b7280;padding-top:6px;">Status Bayaran</td>
+        <td style="text-align:right;padding-top:6px;">${badge('DIBAYAR ✓')}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">Item Pesanan</p>
+    ${itemsTable(params.items)}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+      <tr>
+        <td style="font-size:15px;font-weight:800;color:#111827;padding-top:8px;">Jumlah Dibayar</td>
+        <td style="font-size:18px;font-weight:800;color:#16a34a;text-align:right;padding-top:8px;">RM${Number(params.total).toFixed(2)}</td>
+      </tr>
+    </table>
+
+    ${params.deliveryAddress ? `
+    <div style="margin-top:20px;padding:14px 16px;background:#f9fafb;border-radius:10px;border-left:3px solid #16a34a;">
+      <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Alamat Penghantaran</p>
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.5;">${params.deliveryAddress}</p>
+      ${params.deliverySlot ? `<p style="margin:6px 0 0;font-size:12px;color:#16a34a;font-weight:600;">🕐 Slot: ${params.deliverySlot}</p>` : ''}
+    </div>` : ''}
+
+    ${params.notes ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">📝 Nota: ${params.notes}</p>` : ''}
+
+    <p style="margin:24px 0 0;font-size:13px;color:#6b7280;line-height:1.6;">
+      🚚 Kami akan maklumkan anda bila pesanan dalam penghantaran. Anggaran masa tiba: <strong>2–4 jam</strong> selepas pengesahan.
+    </p>
+  `)
+
+  await send({
+    from: FROM_ORDER,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `Pembayaran ${params.orderNumber} Berjaya — SyababFresh`,
+    html,
+  })
+}
+
+// ─── email 3: delivery status update ──────────────────────────────────────────
+
+export async function sendDeliveryStatusEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  status: string
+  orderId: string
+}) {
+  type StatusConfig = { subject: string; headline: string; message: string; badgeText: string; badgeColor: string }
+
+  const configs: Record<string, StatusConfig> = {
+    preparing: {
+      subject:    `Pesanan ${params.orderNumber} Sedang Disediakan`,
+      headline:   'Pesanan Sedang Disediakan 🧺',
+      message:    'Pasukan kami sedang memilih buah-buahan terbaik untuk anda. Pesanan akan dihantar tidak lama lagi.',
+      badgeText:  'MENYEDIAKAN',
+      badgeColor: '#d97706',
+    },
+    delivering: {
+      subject:    `Pesanan ${params.orderNumber} Dalam Perjalanan!`,
+      headline:   'Pesanan Dalam Perjalanan 🚚',
+      message:    'Penghantar kami sedang dalam perjalanan ke rumah anda. Sila pastikan ada orang di rumah untuk menerima pesanan.',
+      badgeText:  'DALAM PENGHANTARAN',
+      badgeColor: '#2563eb',
+    },
+    delivered: {
+      subject:    `Pesanan ${params.orderNumber} Telah Tiba!`,
+      headline:   'Pesanan Telah Dihantar ✅',
+      message:    'Pesanan anda telah berjaya dihantar. Terima kasih kerana memilih SyababFresh — selamat menikmati buah segar anda!',
+      badgeText:  'SELESAI',
+      badgeColor: '#16a34a',
+    },
+  }
+
+  const cfg = configs[params.status]
+  if (!cfg) return
+
+  const html = layout(cfg.headline, `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai, <strong>${params.customerName}</strong>!</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">${cfg.headline}</h1>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <tr>
+        <td style="font-size:13px;color:#6b7280;">No. Pesanan</td>
+        <td style="font-size:14px;font-weight:700;color:#111827;text-align:right;">${params.orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#6b7280;padding-top:6px;">Status</td>
+        <td style="text-align:right;padding-top:6px;">${badge(cfg.badgeText, cfg.badgeColor)}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 24px;font-size:14px;color:#374151;line-height:1.7;">${cfg.message}</p>
+
+    ${params.status === 'delivered' ? `
+    <div style="background:#f0fdf4;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <p style="margin:0;font-size:13px;color:#166534;line-height:1.6;">
+        ⭐ Puas dengan pesanan anda? <strong>Tinggalkan ulasan</strong> untuk membantu pelanggan lain memilih buah terbaik!
+      </p>
+    </div>` : ''}
+
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.orderId}"
+       style="display:inline-block;background:#16a34a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none;">
+      Lihat Pesanan →
+    </a>
+
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">Ada masalah? Hubungi kami via WhatsApp dan kami akan selesaikan segera.</p>
+  `)
+
+  await send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: cfg.subject,
+    html,
+  })
+}

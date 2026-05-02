@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
+import { sendDeliveryStatusEmail } from '@/lib/zeptomail'
 
 const statusMessage: Record<string, string> = {
   confirmed:  '✅ Pesanan anda telah *disahkan*! Kami sedang menyediakan buah-buahan segar untuk anda.',
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: order } = await supabase
     .from('orders')
-    .select('order_number, profiles(full_name, phone)')
+    .select('order_number, profiles(full_name, phone, email)')
     .eq('id', orderId)
     .single()
 
@@ -42,6 +43,19 @@ export async function POST(request: Request) {
     `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
   ].join('\n')
 
-  const result = await sendWhatsApp(phone, message)
-  return NextResponse.json(result)
+  if (phone) sendWhatsApp(phone, message).catch(() => {})
+
+  // Send delivery status email (preparing / delivering / delivered)
+  const customerEmail = (order.profiles as any)?.email
+  if (customerEmail && ['preparing', 'delivering', 'delivered'].includes(status)) {
+    sendDeliveryStatusEmail({
+      to: customerEmail,
+      customerName: (order.profiles as any)?.full_name ?? 'Pelanggan',
+      orderNumber: order.order_number,
+      status,
+      orderId,
+    }).catch(err => console.error('[notify-customer] email error:', err))
+  }
+
+  return NextResponse.json({ ok: true })
 }

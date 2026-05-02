@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
+import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 
 export async function POST(request: Request) {
   const { orderId } = await request.json()
@@ -9,16 +10,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'orderId required' }, { status: 400 })
   }
 
-  const adminPhone = process.env.ADMIN_WHATSAPP
-  if (!adminPhone) return NextResponse.json({ skipped: true })
-
   // Fetch order details
   const supabase = await createClient()
   const { data: order } = await supabase
     .from('orders')
-    .select('order_number, total, delivery_address, payment_method, notes, profiles(full_name, phone), order_items(product_name, quantity, unit_price)')
+    .select('order_number, total, delivery_address, delivery_slot, payment_method, notes, profiles(full_name, phone, email), order_items(product_name, quantity, unit_price, variant_name)')
     .eq('id', orderId)
     .single()
+
+  const adminPhone = process.env.ADMIN_WHATSAPP
 
   if (!order) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 })
@@ -52,6 +52,29 @@ export async function POST(request: Request) {
     order.notes ? `\n📝 *Nota:* ${order.notes}` : '',
   ].filter((l) => l !== undefined).join('\n')
 
-  const result = await sendWhatsApp(adminPhone, message)
-  return NextResponse.json(result)
+  if (adminPhone) sendWhatsApp(adminPhone, message).catch(() => {})
+
+  // Send order confirmation email to customer
+  const profile = order.profiles as any
+  const customerEmail = profile?.email
+  if (customerEmail) {
+    sendOrderConfirmationEmail({
+      to: customerEmail,
+      customerName: profile?.full_name ?? 'Pelanggan',
+      orderNumber: order.order_number,
+      items: (order.order_items as any[]).map(i => ({
+        name: i.product_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        variant_name: i.variant_name ?? null,
+      })),
+      total: Number(order.total),
+      deliveryAddress: order.delivery_address ?? null,
+      deliverySlot: (order as any).delivery_slot ?? null,
+      paymentMethod: order.payment_method,
+      notes: order.notes ?? null,
+    }).catch(err => console.error('[notify-order] email error:', err))
+  }
+
+  return NextResponse.json({ ok: true })
 }
