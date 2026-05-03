@@ -104,8 +104,56 @@ export async function PATCH(
   if (!profile?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { status, payment_status, payment_ref } = body
+  const { status, payment_status, payment_ref, action } = body
 
+  // ── First-order approval / rejection ─────────────────────────────
+  if (action === 'approve' || action === 'reject') {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, user_id, total, needs_approval, order_items(product_id, variant_id, quantity)')
+      .eq('id', id)
+      .single()
+
+    if (!order || !order.needs_approval) {
+      return NextResponse.json({ error: 'Pesanan tidak memerlukan kelulusan' }, { status: 400 })
+    }
+
+    if (action === 'reject') {
+      await supabase.from('orders').update({
+        status: 'cancelled',
+        needs_approval: false,
+        cancelled_at: new Date().toISOString(),
+      }).eq('id', id)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Approve: deduct inventory then confirm
+    const items = order.order_items as any[]
+    const deductResults = await Promise.all(
+      items.map((item: any) =>
+        item.variant_id
+          ? supabase.rpc('deduct_variant_stock', { p_variant_id: item.variant_id, p_quantity: item.quantity })
+          : supabase.rpc('deduct_inventory', { p_product_id: item.product_id, p_quantity: item.quantity })
+      )
+    )
+
+    const failedItems = items.filter((_: any, i: number) => deductResults[i].error)
+    if (failedItems.length > 0) {
+      await supabase.from('orders').update({
+        admin_notes: `⚠️ STOK TIDAK MENCUKUPI semasa lulus pesanan. Hubungi pelanggan.`,
+      }).eq('id', id)
+    }
+
+    await supabase.from('orders').update({
+      status: 'confirmed',
+      needs_approval: false,
+      confirmed_at: new Date().toISOString(),
+    }).eq('id', id)
+
+    return NextResponse.json({ ok: true })
+  }
+
+  // ── Normal status update ──────────────────────────────────────────
   const now = new Date().toISOString()
   const update: Record<string, string | null> = {}
 

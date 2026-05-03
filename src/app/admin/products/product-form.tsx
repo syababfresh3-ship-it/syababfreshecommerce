@@ -17,6 +17,10 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null)
+  const [extraImages, setExtraImages] = useState<(string | null)[]>(
+    // fill up to 2 slots from existing images[]
+    [product?.images?.[0] ?? null, product?.images?.[1] ?? null]
+  )
   const [form, setForm] = useState({
     name: product?.name ?? '',
     slug: product?.slug ?? '',
@@ -75,6 +79,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       unit: form.unit,
       category_id: form.category_id || null,
       image_url: imageUrl,
+      images: extraImages.filter(Boolean) as string[],
       is_active: form.is_active,
       is_featured: form.is_featured,
       is_shippable: form.is_shippable,
@@ -118,12 +123,33 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
       {/* Gambar Produk */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h2 className="font-semibold text-gray-900 mb-4">Gambar Produk</h2>
-        <ImageUploader
-          currentUrl={imageUrl}
-          onUpload={(url) => setImageUrl(url)}
-          onRemove={() => setImageUrl(null)}
-        />
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-semibold text-gray-900">Gambar Produk</h2>
+          <span className="text-xs text-gray-400">Sehingga 3 gambar · 800×800px</span>
+        </div>
+        <p className="text-xs text-gray-400 mb-4">Gambar 1 dipaparkan di kad produk. Semua gambar boleh dilihat di halaman detail.</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <p className="text-xs font-semibold text-gray-600 mb-1.5">Gambar 1 <span className="text-brand-fresh-500">(Utama)</span></p>
+            <ImageUploader
+              currentUrl={imageUrl}
+              onUpload={(url) => setImageUrl(url)}
+              onRemove={() => setImageUrl(null)}
+              aspectRatio="aspect-square"
+            />
+          </div>
+          {[0, 1].map((i) => (
+            <div key={i}>
+              <p className="text-xs font-semibold text-gray-600 mb-1.5">Gambar {i + 2}</p>
+              <ImageUploader
+                currentUrl={extraImages[i]}
+                onUpload={(url) => setExtraImages(prev => { const next = [...prev]; next[i] = url; return next })}
+                onRemove={() => setExtraImages(prev => { const next = [...prev]; next[i] = null; return next })}
+                aspectRatio="aspect-square"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Basic Info */}

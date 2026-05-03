@@ -14,17 +14,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  // Verify CHIP webhook signature
-  const signature = req.headers.get('x-signature')
+  // Verify CHIP webhook signature — mandatory, no fallback
   const secret = process.env.CHIP_SECRET_KEY
-  if (secret) {
-    if (!signature) {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-    }
-    const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
-    if (signature !== expected) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
+  if (!secret) {
+    console.error('[chip-webhook] CHIP_SECRET_KEY not configured')
+    return NextResponse.json({ error: 'Payment gateway misconfigured' }, { status: 503 })
+  }
+  const signature = req.headers.get('x-signature')
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+  }
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
+  if (signature !== expected) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
   const { event_type, purchase } = body

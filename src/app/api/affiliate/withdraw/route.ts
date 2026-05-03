@@ -18,12 +18,17 @@ export async function POST(request: Request) {
 
     if (!profile?.is_affiliate) return NextResponse.json({ error: 'Bukan affiliate' }, { status: 403 })
 
-    const { amount, bank_name, bank_account, account_name } = await request.json()
+    const body = await request.json()
+    const { bank_name, bank_account, account_name } = body
+    const amount = typeof body.amount === 'number' && isFinite(body.amount) ? body.amount : null
 
     if (!amount || amount <= 0) return NextResponse.json({ error: 'Amaun tidak sah' }, { status: 400 })
     if (amount < 10) return NextResponse.json({ error: 'Minimum pengeluaran RM10' }, { status: 400 })
+    if (amount > 50000) return NextResponse.json({ error: 'Amaun melebihi had' }, { status: 400 })
     if (amount > profile.affiliate_balance) return NextResponse.json({ error: 'Baki tidak mencukupi' }, { status: 400 })
-    if (!bank_name || !bank_account || !account_name) return NextResponse.json({ error: 'Maklumat bank tidak lengkap' }, { status: 400 })
+    if (!bank_name || typeof bank_name !== 'string' || bank_name.trim().length < 2) return NextResponse.json({ error: 'Nama bank tidak sah' }, { status: 400 })
+    if (!bank_account || typeof bank_account !== 'string' || !/^\d{6,20}$/.test(bank_account.trim())) return NextResponse.json({ error: 'No. akaun bank tidak sah' }, { status: 400 })
+    if (!account_name || typeof account_name !== 'string' || account_name.trim().length < 3) return NextResponse.json({ error: 'Nama pemilik akaun tidak lengkap' }, { status: 400 })
 
     // Check no pending withdrawal already
     const { data: pending } = await supabase

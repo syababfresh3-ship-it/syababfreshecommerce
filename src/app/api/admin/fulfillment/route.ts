@@ -21,8 +21,8 @@ export async function GET() {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, order_number, status, total, payment_method, payment_status, created_at, notes, delivery_slot, user_id, order_items(product_name, quantity)')
-    .in('status', ['pending', 'confirmed', 'preparing', 'delivering'])
+    .select('id, order_number, status, total, payment_method, payment_status, created_at, notes, delivery_slot, user_id, needs_approval, order_items(product_name, quantity)')
+    .or('status.in.(pending,confirmed,preparing,delivering),needs_approval.eq.true')
     .order('created_at', { ascending: true })
 
   if (!orders || orders.length === 0) return NextResponse.json([])

@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Plus, Trash2, Loader2, Image, Eye, EyeOff, X, Pencil } from 'lucide-react'
+import { ImageUploader } from '@/components/admin/image-uploader'
+import NextImage from 'next/image'
 
 interface Banner {
   id: string; title: string; subtitle: string | null
   link: string | null; link_label: string | null
-  bg_class: string; is_active: boolean; sort_order: number
+  bg_class: string; image_url: string | null; is_active: boolean; sort_order: number
 }
 
 const bgOptions = [
@@ -42,7 +44,7 @@ export default function AdminBannersPage() {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     title: '', subtitle: '', link: '/products',
-    link_label: 'Beli Sekarang', bg_class: 'gradient-brand',
+    link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '',
   })
 
   function openEdit(b: Banner) {
@@ -53,13 +55,14 @@ export default function AdminBannersPage() {
       link: b.link ?? '/products',
       link_label: b.link_label ?? 'Beli Sekarang',
       bg_class: b.bg_class,
+      image_url: b.image_url ?? '',
     })
     setShowForm(false)
   }
 
   function closeEdit() {
     setEditingBanner(null)
-    setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand' })
+    setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '' })
   }
 
   async function load() {
@@ -78,7 +81,8 @@ export default function AdminBannersPage() {
       body: JSON.stringify({
         title: form.title, subtitle: form.subtitle || null,
         link: form.link, link_label: form.link_label,
-        bg_class: form.bg_class, sort_order: banners.length,
+        bg_class: form.bg_class, image_url: form.image_url || null,
+        sort_order: banners.length,
       }),
     })
     if (!res.ok) {
@@ -86,7 +90,7 @@ export default function AdminBannersPage() {
     } else {
       toast.success('Banner dicipta')
       setShowForm(false)
-      setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand' })
+      setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '' })
       load()
     }
     setLoading(false)
@@ -102,7 +106,7 @@ export default function AdminBannersPage() {
       body: JSON.stringify({
         title: form.title, subtitle: form.subtitle || null,
         link: form.link, link_label: form.link_label,
-        bg_class: form.bg_class,
+        bg_class: form.bg_class, image_url: form.image_url || null,
       }),
     })
     if (!res.ok) {
@@ -190,7 +194,7 @@ export default function AdminBannersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-2">Warna</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-2">Warna (jika tiada gambar)</label>
               <div className="flex gap-2 flex-wrap">
                 {bgOptions.map(o => (
                   <button key={o.value} type="button" onClick={() => setForm(p => ({ ...p, bg_class: o.value }))}
@@ -201,6 +205,20 @@ export default function AdminBannersPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 800×360px)</span></label>
+              <ImageUploader
+                currentUrl={form.image_url || null}
+                onUpload={url => setForm(p => ({ ...p, image_url: url }))}
+                onRemove={() => setForm(p => ({ ...p, image_url: '' }))}
+                bucket="brand-assets"
+                label="Banner (JPG, PNG, WebP · Max 5MB)"
+                aspectRatio="aspect-[2.2/1]"
+              />
+              {form.image_url && (
+                <p className="text-[10px] text-gray-400 mt-1">Gambar akan gantikan warna background</p>
+              )}
             </div>
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={closeEdit}
@@ -272,7 +290,7 @@ export default function AdminBannersPage() {
             </div>
             {/* Color picker */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-2">Warna</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-2">Warna (jika tiada gambar)</label>
               <div className="flex gap-2 flex-wrap">
                 {bgOptions.map(o => (
                   <button
@@ -290,6 +308,20 @@ export default function AdminBannersPage() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 800×360px)</span></label>
+              <ImageUploader
+                currentUrl={form.image_url || null}
+                onUpload={url => setForm(p => ({ ...p, image_url: url }))}
+                onRemove={() => setForm(p => ({ ...p, image_url: '' }))}
+                bucket="brand-assets"
+                label="Banner (JPG, PNG, WebP · Max 5MB)"
+                aspectRatio="aspect-[2.2/1]"
+              />
+              {form.image_url && (
+                <p className="text-[10px] text-gray-400 mt-1">Gambar akan gantikan warna background</p>
+              )}
             </div>
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => setShowForm(false)}
@@ -318,17 +350,28 @@ export default function AdminBannersPage() {
             return (
               <div key={b.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${!b.is_active ? 'opacity-60' : ''}`}>
                 {/* Banner preview strip */}
-                <div className={`${opt?.preview ?? 'bg-gray-800'} px-5 py-3 flex items-center justify-between`}>
-                  <div>
-                    <p className="font-black text-white text-sm">{b.title}</p>
-                    {b.subtitle && <p className="text-white/70 text-xs">{b.subtitle}</p>}
+                {b.image_url ? (
+                  <div className="relative h-24 overflow-hidden">
+                    <NextImage src={b.image_url} alt={b.title} fill className="object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 px-4 pb-2">
+                      <p className="font-black text-white text-sm">{b.title}</p>
+                      {b.subtitle && <p className="text-white/70 text-xs">{b.subtitle}</p>}
+                    </div>
                   </div>
-                  {b.link_label && (
-                    <span className="text-[10px] font-bold text-white bg-white/20 border border-white/30 px-2 py-1 rounded-lg shrink-0">
-                      {b.link_label}
-                    </span>
-                  )}
-                </div>
+                ) : (
+                  <div className={`${opt?.preview ?? 'bg-gray-800'} px-5 py-3 flex items-center justify-between`}>
+                    <div>
+                      <p className="font-black text-white text-sm">{b.title}</p>
+                      {b.subtitle && <p className="text-white/70 text-xs">{b.subtitle}</p>}
+                    </div>
+                    {b.link_label && (
+                      <span className="text-[10px] font-bold text-white bg-white/20 border border-white/30 px-2 py-1 rounded-lg shrink-0">
+                        {b.link_label}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {/* Actions row */}
                 <div className="flex items-center gap-3 px-4 py-2.5">
                   <span className="text-xs text-gray-400 flex-1 truncate">{b.link ?? '—'}</span>

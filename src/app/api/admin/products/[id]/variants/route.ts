@@ -13,7 +13,8 @@ async function adminCheck() {
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = createAdminClient()
+  const supabase = await adminCheck()
+  if (!supabase) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const { data, error } = await supabase
     .from('product_variants')
     .select('*')

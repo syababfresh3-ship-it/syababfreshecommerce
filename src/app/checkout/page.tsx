@@ -15,9 +15,6 @@ import {
 } from 'lucide-react'
 import type { Address } from '@/types'
 
-const DEFAULT_DELIVERY_FEE = 15.00
-const FREE_DELIVERY_MIN = 80.00
-
 const PAYMENT_ICONS: Record<string, React.ElementType> = {
   fpx:          Building2,
   ewallet:      Smartphone,
@@ -25,43 +22,48 @@ const PAYMENT_ICONS: Record<string, React.ElementType> = {
   bank_transfer:ArrowLeftRight,
 }
 
-function getDeliverySlots() {
-  const now = new Date()
-  // Use Malaysia timezone (UTC+8) regardless of user's device timezone
-  const hour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur', hour: 'numeric', hour12: false }))
-  const slots = []
+interface SlotConfig {
+  id: string; day: 'today' | 'tomorrow'; start: number; end: number
+  label: string; lead_hours: number; active: boolean
+}
 
-  const todaySlots = [
-    { start: 10, end: 14, label: '10am – 2pm' },
-    { start: 14, end: 18, label: '2pm – 6pm' },
-    { start: 18, end: 21, label: '6pm – 9pm' },
-  ]
-  for (const s of todaySlots) {
-    if (hour + 2 <= s.start) {
-      slots.push({ value: `today-${s.start}`, label: `Hari ini, ${s.label}` })
+function buildDeliverySlots(configs: SlotConfig[]) {
+  const now = new Date()
+  const hour = Number(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur', hour: 'numeric', hour12: false }))
+  const slots: { value: string; label: string }[] = []
+
+  for (const s of configs.filter(c => c.active)) {
+    if (s.day === 'today') {
+      if (hour + (s.lead_hours ?? 2) <= s.start) {
+        slots.push({ value: `today-${s.start}`, label: `Hari ini, ${s.label}` })
+      }
+    } else {
+      slots.push({ value: `tomorrow-${s.start}`, label: `Esok, ${s.label}` })
     }
   }
-
-  const tmrSlots = [
-    { start: 8, end: 12, label: '8am – 12pm' },
-    { start: 12, end: 16, label: '12pm – 4pm' },
-    { start: 16, end: 20, label: '4pm – 8pm' },
-  ]
-  for (const s of tmrSlots) {
-    slots.push({ value: `tomorrow-${s.start}`, label: `Esok, ${s.label}` })
-  }
-
   return slots
 }
+
+const DEFAULT_SLOTS: SlotConfig[] = [
+  { id: 'today-10',    day: 'today',    start: 10, end: 14, label: '10am – 2pm',  lead_hours: 2, active: true },
+  { id: 'today-14',    day: 'today',    start: 14, end: 18, label: '2pm – 6pm',   lead_hours: 2, active: true },
+  { id: 'today-18',    day: 'today',    start: 18, end: 21, label: '6pm – 9pm',   lead_hours: 2, active: true },
+  { id: 'tomorrow-8',  day: 'tomorrow', start: 8,  end: 12, label: '8am – 12pm',  lead_hours: 0, active: true },
+  { id: 'tomorrow-12', day: 'tomorrow', start: 12, end: 16, label: '12pm – 4pm',  lead_hours: 0, active: true },
+  { id: 'tomorrow-16', day: 'tomorrow', start: 16, end: 20, label: '4pm – 8pm',   lead_hours: 0, active: true },
+]
 
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, getTotal, clearCart } = useCartStore()
   const subtotal = getTotal()
-  const [zoneBaseFee, setZoneBaseFee] = useState<number>(DEFAULT_DELIVERY_FEE)
-  const deliveryFee = subtotal >= FREE_DELIVERY_MIN ? 0 : zoneBaseFee
 
-  const slots = getDeliverySlots()
+  const [freeDeliveryMin, setFreeDeliveryMin] = useState(80)
+  const [zoneBaseFee, setZoneBaseFee] = useState<number>(15)
+  const [slotConfigs, setSlotConfigs] = useState<SlotConfig[]>(DEFAULT_SLOTS)
+  const deliveryFee = subtotal >= freeDeliveryMin ? 0 : zoneBaseFee
+
+  const slots = buildDeliverySlots(slotConfigs)
   const [loading, setLoading] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
@@ -90,6 +92,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (items.length > 0) trackInitiateCheckout(getTotal())
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // Fetch delivery settings from server
+    fetch('/api/settings/delivery')
+      .then(r => r.json())
+      .then(d => {
+        if (d.free_delivery_min != null) setFreeDeliveryMin(d.free_delivery_min)
+        if (d.default_delivery_fee != null) setZoneBaseFee(d.default_delivery_fee)
+        if (Array.isArray(d.slots) && d.slots.length > 0) setSlotConfigs(d.slots)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -150,7 +164,7 @@ export default function CheckoutPage() {
     if (!postcode || !/^\d{5}$/.test(postcode)) {
       setPostcodeValid(null)
       setPostcodeArea('')
-      setZoneBaseFee(DEFAULT_DELIVERY_FEE)
+      setZoneBaseFee(zoneBaseFee)
       setLocalOnlyItems([])
       return
     }
@@ -271,48 +285,57 @@ export default function CheckoutPage() {
       return
     }
 
-    const discount = calcDiscount()
-    const total = subtotal + deliveryFee - discount
     setLoading(true)
     const supabase = createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { toast.error('Sila log masuk dahulu'); router.push('/login?redirect=/checkout'); setLoading(false); return }
 
-    // Note: stock is enforced atomically by deduct_inventory / deduct_variant_stock RPCs below.
-    // No pre-check here — pre-checks create a race window and false sense of safety.
+    // Create order + items via server API — prices recalculated from DB, promo validated server-side
+    const postcode = selectedAddressId !== '__manual__'
+      ? savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode
+      : manualPostcode
 
-    const { data: order, error: orderError } = await supabase.from('orders').insert({
-      user_id: user.id, order_number: 'TEMP', status: 'pending',
-      subtotal, delivery_fee: deliveryFee,
-      discount: appliedPromo ? calcDiscount() - pointsDiscount : 0,
-      points_used: pointsUsed, points_discount: pointsDiscount,
-      total, payment_method: form.payment_method, payment_status: 'unpaid',
-      delivery_address: form.full_address,
-      promo_code_id: appliedPromo?.id ?? null,
-      delivery_slot: slots.find(s => s.value === form.delivery_slot)?.label ?? null,
-      notes: form.notes || null,
-    }).select().single()
-
-    if (orderError || !order) { toast.error('Gagal buat pesanan. Cuba lagi.'); setLoading(false); return }
-
-    const orderItems = items.map(({ product, variant, quantity }) => {
-      const unitPrice = variant ? Number(variant.price) : Number(product.price)
-      return {
-        order_id: order.id,
-        product_id: product.id,
-        product_name: product.name,
-        product_image: product.image_url ?? null,
-        quantity,
-        unit_price: unitPrice,
-        subtotal: unitPrice * quantity,
-        variant_id: variant?.id ?? null,
-        variant_name: variant?.name ?? null,
-        weight_grams: variant?.weight_grams ?? null,
-      }
+    const orderRes = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items.map(({ product, variant, quantity }) => ({
+          product_id: product.id,
+          variant_id: variant?.id ?? null,
+          quantity,
+        })),
+        postcode: postcode || null,
+        payment_method: form.payment_method,
+        delivery_address: form.full_address,
+        delivery_slot: slots.find(s => s.value === form.delivery_slot)?.label ?? null,
+        notes: form.notes || null,
+        promo_code: appliedPromo?.code ?? null,
+        use_points: usePoints,
+      }),
     })
-    const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
-    if (itemsError) { toast.error('Gagal simpan item pesanan'); setLoading(false); return }
+
+    if (!orderRes.ok) {
+      const err = await orderRes.json().catch(() => ({}))
+      toast.error(err.error ?? 'Gagal buat pesanan. Cuba lagi.')
+      setLoading(false)
+      return
+    }
+
+    const { orderId, pointsUsed: serverPointsUsed, multiplier: serverMultiplier, total: serverTotal, needsApproval } = await orderRes.json()
+    const order = { id: orderId }
+    const total = serverTotal
+
+    // First-time COD customer — admin needs to approve before inventory deducted
+    if (needsApproval) {
+      fetch('/api/notify-order', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      }).catch(() => {})
+      clearCart()
+      router.push(`/orders/${order.id}?new=1&approval=1`)
+      return
+    }
 
     // For FPX/e-wallet — points and promo handled in webhook AFTER payment confirmed.
     // Do NOT deduct here — if payment fails, points would be lost with no recourse.
@@ -350,19 +373,19 @@ export default function CheckoutPage() {
       return
     }
 
-    if (pointsUsed > 0) {
+    if (serverPointsUsed > 0) {
       await supabase.from('loyalty_transactions').insert({
-        user_id: user.id, order_id: order.id, points: -pointsUsed, type: 'redeem',
-        description: `Redeem ${pointsUsed} mata untuk ${order.order_number}`,
+        user_id: user.id, order_id: order.id, points: -serverPointsUsed, type: 'redeem',
+        description: `Redeem ${serverPointsUsed} mata untuk pesanan`,
       })
-      await supabase.rpc('increment_points', { uid: user.id, pts: -pointsUsed })
+      await supabase.rpc('increment_points', { uid: user.id, pts: -serverPointsUsed })
     }
 
     const MAX_POINTS_PER_ORDER = 5000
-    const earnedPoints = Math.min(Math.floor(total * userMultiplier), MAX_POINTS_PER_ORDER)
+    const earnedPoints = Math.min(Math.floor(total * serverMultiplier), MAX_POINTS_PER_ORDER)
     await supabase.from('loyalty_transactions').insert({
       user_id: user.id, order_id: order.id, points: earnedPoints, type: 'earn',
-      description: `Pembelian ${order.order_number}`,
+      description: `Pembelian`,
     })
     await Promise.all([
       supabase.rpc('increment_points', { uid: user.id, pts: earnedPoints }),
@@ -812,9 +835,9 @@ export default function CheckoutPage() {
                   {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
                 </span>
               </div>
-              {subtotal < FREE_DELIVERY_MIN && (
+              {subtotal < freeDeliveryMin && (
                 <p className="text-[11px] text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
-                  Tambah RM{(FREE_DELIVERY_MIN - subtotal).toFixed(2)} untuk penghantaran percuma
+                  Tambah RM{(freeDeliveryMin - subtotal).toFixed(2)} untuk penghantaran percuma
                 </p>
               )}
               {appliedPromo && (

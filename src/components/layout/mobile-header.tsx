@@ -63,9 +63,9 @@ export function MobileHeader() {
               <Image
                 src={logoUrl}
                 alt="SyababFresh"
-                width={120}
-                height={36}
-                className="h-9 w-auto object-contain"
+                width={240}
+                height={64}
+                className="h-11 w-auto max-w-[220px] object-contain"
                 priority
               />
             ) : (

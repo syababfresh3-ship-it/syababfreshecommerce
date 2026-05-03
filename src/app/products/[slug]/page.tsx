@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { StoreLayout } from '@/components/layout/store-layout'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Tag, Truck, ShieldCheck, RotateCcw, Clock } from 'lucide-react'
 import { AddToCartButton } from './add-to-cart-button'
@@ -10,6 +9,7 @@ import { VariantPicker } from './variant-picker'
 import { RelatedCard } from './related-card'
 import { ProductReviews } from './reviews'
 import { SocialProof } from './social-proof'
+import { ImageGallery } from './image-gallery'
 
 async function getProduct(slug: string) {
   const supabase = await createClient()
@@ -223,28 +223,12 @@ export default async function ProductDetailPage({
   return (
     <StoreLayout>
       <div className="pb-44">
-        {/* Product Image */}
-        <div className="aspect-square bg-gradient-to-b from-[#fdf8f2] to-[#f0e8dc] relative overflow-hidden">
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.name}
-              fill
-              className="object-cover scale-[1.06] transition-transform duration-200"
-              sizes="(max-width: 768px) 100vw, 500px"
-              priority
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-8xl">🛒</div>
-          )}
-          {/* depth gradient — bottom fade for image grounding */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/25 to-transparent" />
-          {discount && (
-            <span className="absolute top-4 left-4 bg-red-500 text-white text-xs font-extrabold px-3 py-1 rounded-full shadow-[0_2px_10px_rgba(239,68,68,0.45)]">
-              -{discount}%
-            </span>
-          )}
-        </div>
+        {/* Product Image Gallery */}
+        <ImageGallery
+          images={[product.image_url, ...(product.images ?? [])].filter(Boolean) as string[]}
+          name={product.name}
+          discount={discount}
+        />
 
         <div className="px-4 pt-6 space-y-5">
 

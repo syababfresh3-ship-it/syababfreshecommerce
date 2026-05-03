@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { RefreshCw, Clock, Package, Truck, CheckCircle2, AlertCircle, Phone, Calendar } from 'lucide-react'
+import { RefreshCw, Clock, Package, Truck, CheckCircle2, AlertCircle, Phone, Calendar, ShieldAlert } from 'lucide-react'
 
 interface Order {
   id: string
@@ -15,6 +15,7 @@ interface Order {
   created_at: string
   notes: string | null
   delivery_slot: string | null
+  needs_approval: boolean
   profiles: { full_name: string | null; phone: string | null } | null
   order_items: { product_name: string; quantity: number }[]
 }
@@ -109,7 +110,33 @@ export default function FulfillmentPage() {
     setUpdating(null)
   }
 
-  const byStatus = (status: string) => orders.filter(o => o.status === status)
+  async function approveOrder(order: Order) {
+    setUpdating(order.id)
+    const res = await fetch(`/api/admin/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'approve' }),
+    })
+    if (!res.ok) toast.error('Gagal luluskan pesanan')
+    else { toast.success(`${order.order_number} — Diluluskan!`); load() }
+    setUpdating(null)
+  }
+
+  async function rejectOrder(order: Order) {
+    if (!confirm(`Tolak pesanan ${order.order_number}? Pesanan akan dibatalkan.`)) return
+    setUpdating(order.id)
+    const res = await fetch(`/api/admin/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reject' }),
+    })
+    if (!res.ok) toast.error('Gagal tolak pesanan')
+    else { toast.success(`${order.order_number} — Ditolak`); load() }
+    setUpdating(null)
+  }
+
+  const pendingApproval = orders.filter(o => o.needs_approval)
+  const byStatus = (status: string) => orders.filter(o => !o.needs_approval && o.status === status)
   const total = orders.length
 
   return (
@@ -146,6 +173,68 @@ export default function FulfillmentPage() {
           <p className="text-gray-400 text-sm mt-1">Tiada pesanan aktif pada masa ini.</p>
         </div>
       ) : (
+        <>
+        {/* ── Perlu Lulus — First-order approval queue ── */}
+        {pendingApproval.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-amber-500 shadow-sm mb-3">
+              <ShieldAlert className="h-4 w-4 text-white" />
+              <span className="text-sm font-bold text-white flex-1">Perlu Kelulusan — Pelanggan Baru</span>
+              <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingApproval.length}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {pendingApproval.map(order => (
+                <div key={order.id} className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm overflow-hidden">
+                  <div className="bg-amber-50 px-4 py-2 flex items-center gap-2 border-b border-amber-100">
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                    <span className="text-xs font-bold text-amber-700">Pesanan Pertama — Semak Sebelum Lulus</span>
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Link href={`/admin/orders/${order.id}`} className="text-xs font-mono font-bold text-red-600 hover:underline">
+                        {order.order_number}
+                      </Link>
+                      <span className="text-sm font-black text-gray-900">RM{Number(order.total).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">{order.profiles?.full_name ?? '—'}</p>
+                      {order.profiles?.phone && (
+                        <a href={`tel:${order.profiles.phone}`} className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" />{order.profiles.phone}
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 space-y-0.5">
+                      {order.order_items.slice(0, 3).map((item, i) => (
+                        <p key={i}>• {item.product_name} ×{item.quantity}</p>
+                      ))}
+                      {order.order_items.length > 3 && <p className="text-gray-400">+{order.order_items.length - 3} lagi</p>}
+                    </div>
+                    <p className="text-[10px] text-gray-400">{timeAgo(order.created_at)} · {order.payment_method.toUpperCase()}</p>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => rejectOrder(order)}
+                        disabled={updating === order.id}
+                        className="flex-1 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Tolak
+                      </button>
+                      <button
+                        onClick={() => approveOrder(order)}
+                        disabled={updating === order.id}
+                        className="flex-1 py-2 text-xs font-bold text-white bg-amber-500 rounded-xl hover:bg-amber-600 disabled:opacity-50"
+                      >
+                        {updating === order.id ? '...' : '✓ Lulus'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Kanban columns ── */}
         <div className="grid grid-cols-4 gap-4">
           {COLUMNS.map(col => {
             const colOrders = byStatus(col.status)
@@ -279,6 +368,7 @@ export default function FulfillmentPage() {
             )
           })}
         </div>
+        </>
       )}
     </div>
   )

@@ -2,10 +2,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { StoreLayout } from '@/components/layout/store-layout'
 import Link from 'next/link'
-import { ArrowRight, Truck, ShieldCheck, Leaf, Clock, RotateCcw, Star } from 'lucide-react'
+import { Truck, ShieldCheck, Leaf, Clock, RotateCcw, Star } from 'lucide-react'
 import { ProductCard } from '@/components/store/product-card'
 import { PostcodeChecker } from '@/components/store/postcode-checker'
-import { FlashSaleBanner } from '@/components/store/flash-sale-banner'
+import { HomeBanner } from '@/components/store/home-banner'
 import type { Category, Product } from '@/types'
 
 async function getFlashSale() {
@@ -83,30 +83,8 @@ export default async function HomePage() {
       {/* Postcode checker */}
       <PostcodeChecker />
 
-      {/* Flash Sale Countdown Banner */}
-      {flashSale && (
-        <FlashSaleBanner label={flashSale.label} endsAt={flashSale.endsAt} promoCode={flashSale.promoCode} />
-      )}
-
-      {/* Promo Banner — dynamic */}
-      {banner && (
-        <section className={`mx-4 mt-4 rounded-2xl ${banner.bg_class} p-5 text-white`}>
-          <p className="text-xs font-medium opacity-90 uppercase tracking-wide">
-            Promosi Minggu Ini
-          </p>
-          <h2 className="text-xl font-bold mt-1">{banner.title}</h2>
-          {banner.subtitle && (
-            <p className="text-sm opacity-90 mt-1">{banner.subtitle}</p>
-          )}
-          <Link
-            href={banner.link ?? '/products'}
-            className="inline-flex items-center gap-1 mt-3 bg-white text-brand-red-600 text-sm font-semibold px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            {banner.link_label ?? 'Beli Sekarang'}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </section>
-      )}
+      {/* Banner + Flash Sale (combined) */}
+      <HomeBanner banner={banner} flashSale={flashSale} />
 
       {/* Quick Buy Chips — homepage conversion optimization: reduce friction to first tap */}
       <section className="mt-4 px-4">

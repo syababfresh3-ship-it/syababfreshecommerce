@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!referrer) return NextResponse.json({ error: 'Kod tidak sah' }, { status: 404 })
   if (referrer.id === user.id) return NextResponse.json({ error: 'Tidak boleh guna kod sendiri' }, { status: 400 })
 
-  // Check if this user already has a referral record
+  // Check if this user already has a referral record (each user can only be referred once)
   const { data: existing } = await supabase
     .from('referrals')
     .select('id')
@@ -34,6 +34,19 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (existing) return NextResponse.json({ ok: true, skipped: true })
+
+  // Cap referrer rewards: max 20 referrals per month to prevent spam farming
+  const monthStart = new Date()
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+  const { count: monthlyCount } = await supabase
+    .from('referrals')
+    .select('id', { count: 'exact', head: true })
+    .eq('referrer_id', referrer.id)
+    .gte('created_at', monthStart.toISOString())
+
+  if ((monthlyCount ?? 0) >= 20) {
+    return NextResponse.json({ ok: true, skipped: true })
+  }
 
   // Create referral row
   const { error: insErr } = await supabase.from('referrals').insert({
