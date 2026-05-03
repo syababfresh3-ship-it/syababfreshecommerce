@@ -192,6 +192,7 @@ export default function SettingsPage() {
                 step={5}
                 value={freeDeliveryMin}
                 onChange={e => setFreeDeliveryMin(Number(e.target.value))}
+                onFocus={e => e.target.select()}
                 className="flex-1 text-2xl font-black text-gray-900 bg-transparent focus:outline-none w-full"
               />
             </div>
@@ -209,6 +210,7 @@ export default function SettingsPage() {
                 step={1}
                 value={defaultFee}
                 onChange={e => setDefaultFee(Number(e.target.value))}
+                onFocus={e => e.target.select()}
                 className="flex-1 text-2xl font-black text-gray-900 bg-transparent focus:outline-none w-full"
               />
             </div>
