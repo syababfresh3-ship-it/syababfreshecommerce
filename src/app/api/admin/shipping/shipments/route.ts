@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
+import { sendTrackingEmail } from '@/lib/zeptomail'
 
 export async function GET(request: Request) {
   const userClient = await createClient()
@@ -108,32 +109,58 @@ export async function POST(request: Request) {
       .neq('status', 'cancelled')
   }
 
-  // Notify customer via WhatsApp if tracking info available
+  // Notify customer via WhatsApp + Email if tracking info available
   if (tracking_url || tracking_number) {
     const { data: order } = await supabase
       .from('orders')
-      .select('order_number, profiles(full_name, phone)')
+      .select('id, order_number, profiles(full_name, phone, email)')
       .eq('id', order_id)
       .single()
 
+    const { data: carrier } = await supabase
+      .from('shipping_carriers')
+      .select('name')
+      .eq('id', carrier_id)
+      .single()
+
     const phone = (order?.profiles as any)?.phone
+    const email = (order?.profiles as any)?.email
     const name  = (order?.profiles as any)?.full_name ?? 'Pelanggan'
-    if (phone && order) {
-      const trackingLine = tracking_url
-        ? `🔗 *Link Penghantaran:*\n${tracking_url}`
-        : `📦 *No. Tracking:* ${tracking_number}`
+    const carrierName = carrier?.name ?? carrier_id
 
-      const msg = [
-        `🚚 *Pesanan ${order.order_number} Dalam Penghantaran!*`,
-        ``,
-        `Hai ${name}, pesanan anda sedang dalam perjalanan.`,
-        ``,
-        trackingLine,
-        ``,
-        `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
-      ].join('\n')
+    if (order) {
+      // WhatsApp (jika ada phone)
+      if (phone) {
+        const trackingLine = tracking_url
+          ? `🔗 *Link Penghantaran:*\n${tracking_url}`
+          : `📦 *No. Tracking:* ${tracking_number}`
 
-      sendWhatsApp(phone, msg).catch(() => {})
+        const msg = [
+          `🚚 *Pesanan ${order.order_number} Dalam Penghantaran!*`,
+          ``,
+          `Hai ${name}, pesanan anda sedang dalam perjalanan.`,
+          ``,
+          trackingLine,
+          ``,
+          `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
+        ].join('\n')
+
+        sendWhatsApp(phone, msg).catch(() => {})
+      }
+
+      // Email (sentiasa hantar jika ada email)
+      if (email) {
+        sendTrackingEmail({
+          to: email,
+          customerName: name,
+          orderNumber: order.order_number,
+          orderId: order.id,
+          carrierName,
+          trackingNumber: tracking_number ?? null,
+          trackingUrl: tracking_url ?? null,
+          estimatedDelivery: estimated_delivery ?? null,
+        }).catch(err => console.error('[shipment] email error:', err))
+      }
     }
   }
 

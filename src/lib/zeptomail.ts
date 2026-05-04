@@ -310,3 +310,78 @@ export async function sendDeliveryStatusEmail(params: {
     html,
   })
 }
+
+// ─── email 4: tracking notification ───────────────────────────────────────────
+
+export async function sendTrackingEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  orderId: string
+  carrierName: string
+  trackingNumber: string | null
+  trackingUrl: string | null
+  estimatedDelivery: string | null
+}) {
+  const trackingBlock = params.trackingUrl
+    ? `<a href="${params.trackingUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none;margin-bottom:16px;">
+        Jejak Penghantaran →
+      </a>`
+    : params.trackingNumber
+      ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#eff6ff;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+          <tr>
+            <td style="font-size:13px;color:#1d4ed8;">No. Tracking</td>
+            <td style="font-size:15px;font-weight:800;color:#1e40af;text-align:right;font-family:monospace;">${params.trackingNumber}</td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#1d4ed8;padding-top:6px;">Kurier</td>
+            <td style="font-size:14px;font-weight:600;color:#1e40af;text-align:right;padding-top:6px;">${params.carrierName}</td>
+          </tr>
+        </table>`
+      : ''
+
+  const estimatedBlock = params.estimatedDelivery
+    ? `<p style="margin:0 0 20px;font-size:13px;color:#6b7280;">
+        📅 Anggaran tiba: <strong style="color:#111827;">${new Date(params.estimatedDelivery).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+      </p>`
+    : ''
+
+  const html = layout('Pesanan Dalam Perjalanan 🚚', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai, <strong>${params.customerName}</strong>!</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Pesanan Dalam Perjalanan 🚚</h1>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+      <tr>
+        <td style="font-size:13px;color:#6b7280;">No. Pesanan</td>
+        <td style="font-size:14px;font-weight:700;color:#111827;text-align:right;">${params.orderNumber}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#6b7280;padding-top:6px;">Kurier</td>
+        <td style="font-size:14px;font-weight:600;color:#111827;text-align:right;padding-top:6px;">${params.carrierName}</td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7;">
+      Pesanan anda sedang dalam perjalanan! Penghantar kami sedang menuju ke alamat anda.
+    </p>
+
+    ${trackingBlock}
+    ${estimatedBlock}
+
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.orderId}"
+       style="display:inline-block;background:#16a34a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none;">
+      Lihat Status Pesanan →
+    </a>
+
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">Ada masalah? Hubungi kami via WhatsApp dan kami akan selesaikan segera.</p>
+  `)
+
+  await send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `Pesanan ${params.orderNumber} Dalam Perjalanan 🚚`,
+    html,
+  })
+}

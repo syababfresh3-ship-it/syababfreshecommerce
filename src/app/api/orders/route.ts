@@ -234,6 +234,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Gagal simpan item pesanan' }, { status: 500 })
   }
 
+  // Parse nama & phone dari delivery_address ("Nama | Phone\nAlamat")
+  // Update profiles jika field kosong — supaya WhatsApp & notifikasi boleh sampai
+  const firstLine = delivery_address.split('\n')[0] ?? ''
+  const separatorIdx = firstLine.indexOf(' | ')
+  if (separatorIdx > 0) {
+    const parsedName  = firstLine.substring(0, separatorIdx).trim()
+    const parsedPhone = firstLine.substring(separatorIdx + 3).trim()
+    const updates: Record<string, string> = {}
+    if (parsedName  && !(profile as any)?.full_name) updates.full_name = parsedName
+    if (parsedPhone && !(profile as any)?.phone)     updates.phone     = parsedPhone
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('profiles').update(updates).eq('id', user.id)
+    }
+  }
+
   return NextResponse.json({
     orderId: order.id,
     total,
