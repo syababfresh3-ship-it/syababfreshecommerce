@@ -39,10 +39,10 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
       .from('categories')
       .select('*')
       .eq('is_active', true)
-      .order('sort_order'),
+      .order('sort_order', { ascending: true }),
     supabase
       .from('products')
-      .select('*, categories(name, slug)')
+      .select('*, category_id, categories(name, slug)')
       .eq('is_active', true),
     supabase
       .from('product_stock')
@@ -60,11 +60,22 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
 
   const variantProductIds = new Set((variantsRes.data ?? []).map((v) => v.product_id))
 
+  const allCategories = (categoriesRes.data ?? []) as Category[]
   let products = (productsRes.data ?? []) as Product[]
 
-  // Filter by category
+  // Filter by category — support both parent slug (show all children) and child slug
   if (category) {
-    products = products.filter((p: any) => p.categories?.slug === category)
+    const selectedCat = allCategories.find(c => c.slug === category)
+    if (selectedCat && selectedCat.parent_id === null) {
+      // Parent selected: collect all child category IDs
+      const childIds = new Set(
+        allCategories.filter(c => c.parent_id === selectedCat.id).map(c => c.id)
+      )
+      products = products.filter((p: any) => childIds.has(p.category_id))
+    } else {
+      // Child/leaf category selected: filter directly by slug
+      products = products.filter((p: any) => p.categories?.slug === category)
+    }
   }
 
   // Filter by search
@@ -94,7 +105,7 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
   }
 
   return {
-    categories: (categoriesRes.data ?? []) as Category[],
+    categories: allCategories,
     products,
     stockMap,
     variantProductIds,

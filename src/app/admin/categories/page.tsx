@@ -12,6 +12,7 @@ interface Category {
   description: string | null
   sort_order: number
   is_active: boolean
+  parent_id: string | null
 }
 
 function autoSlug(name: string) {
@@ -110,13 +111,29 @@ export default function CategoriesPage() {
     toast.success('Urutan disimpan')
   }
 
+  const parents = categories.filter(c => c.parent_id === null)
+  const children = categories.filter(c => c.parent_id !== null)
+
+  // For display: render parents first, then each parent's children indented
+  const orderedForDisplay: Array<Category & { isParent: boolean }> = []
+  for (const p of parents) {
+    orderedForDisplay.push({ ...p, isParent: true })
+    for (const c of children.filter(ch => ch.parent_id === p.id)) {
+      orderedForDisplay.push({ ...c, isParent: false })
+    }
+  }
+  // Orphan children (no parent match — shouldn't happen but safe fallback)
+  for (const c of children.filter(ch => !parents.some(p => p.id === ch.parent_id))) {
+    orderedForDisplay.push({ ...c, isParent: false })
+  }
+
   return (
     <div className="p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Kategori Produk</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {categories.length} kategori · seret untuk susun semula
+            {parents.length} parent · {children.length} sub-kategori · seret untuk susun semula
             {savingOrder && <span className="ml-2 text-blue-500">Menyimpan urutan...</span>}
           </p>
         </div>
@@ -185,13 +202,13 @@ export default function CategoriesPage() {
       )}
 
       {/* Categories list */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {categories.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-12 text-center text-gray-400">
             Tiada kategori lagi. Tambah kategori pertama.
           </div>
         ) : (
-          categories.map((cat) => (
+          orderedForDisplay.map((cat) => (
             <div
               key={cat.id}
               draggable={editingId !== cat.id}
@@ -200,9 +217,11 @@ export default function CategoriesPage() {
               onDragEnd={onDragEnd}
               onDragOver={e => e.preventDefault()}
               className={`bg-white rounded-2xl border shadow-sm transition-all ${
+                cat.isParent ? 'border-gray-300 bg-gray-50' : 'ml-6 border-gray-100'
+              } ${
                 dragId === cat.id
                   ? 'opacity-40 border-dashed border-gray-400 cursor-grabbing'
-                  : 'border-gray-100 hover:border-gray-200 cursor-grab'
+                  : 'hover:border-gray-200 cursor-grab'
               } ${!cat.is_active ? 'opacity-60' : ''}`}
             >
               {editingId === cat.id ? (
@@ -252,7 +271,10 @@ export default function CategoriesPage() {
                   <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{cat.name}</span>
+                      {cat.isParent && (
+                        <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md">PARENT</span>
+                      )}
+                      <span className={`font-semibold ${cat.isParent ? 'text-gray-900' : 'text-gray-700'}`}>{cat.name}</span>
                       <span className="text-xs text-gray-400 font-mono">{cat.slug}</span>
                     </div>
                     {cat.description && (

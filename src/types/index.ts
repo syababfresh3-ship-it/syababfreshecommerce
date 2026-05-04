@@ -28,6 +28,7 @@ export interface Category {
   sort_order: number
   is_active: boolean
   created_at: string
+  parent_id: string | null
 }
 
 export interface Product {
