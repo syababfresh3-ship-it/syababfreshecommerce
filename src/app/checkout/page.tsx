@@ -426,6 +426,44 @@ export default function CheckoutPage() {
 
         <h1 className="text-lg font-bold text-gray-900 px-0.5">Checkout</h1>
 
+        {/* ── 0. RECIPIENT INFO ────────────────────────────── */}
+        <div className={card}>
+          <div className="px-4 pt-4 pb-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Maklumat Penerima</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                  Nama Penerima <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="recipient_name"
+                  value={form.recipient_name}
+                  onChange={handleChange}
+                  required
+                  placeholder="Nama penuh"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                  No. Telefon <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  required
+                  placeholder="01X-XXXXXXX"
+                  inputMode="tel"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* ── 1. DELIVERY ADDRESS ──────────────────────────── */}
         {/* payment step UI: show clean selected address card by default, expand to edit */}
         <div className={card}>
@@ -530,39 +568,6 @@ export default function CheckoutPage() {
             {/* Manual address textarea + postcode check */}
             {(savedAddresses.length === 0 || selectedAddressId === '__manual__') && (
               <div className="mt-2 space-y-2">
-                {/* Nama & No Fon — wajib diisi untuk penghantaran */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                      Nama Penerima <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="recipient_name"
-                      value={form.recipient_name}
-                      onChange={handleChange}
-                      required
-                      placeholder="Nama penuh"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                      No. Telefon <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={form.phone}
-                      onChange={handleChange}
-                      required
-                      placeholder="01X-XXXXXXX"
-                      inputMode="tel"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
-                    />
-                  </div>
-                </div>
-
                 <textarea
                   name="full_address"
                   value={form.full_address}

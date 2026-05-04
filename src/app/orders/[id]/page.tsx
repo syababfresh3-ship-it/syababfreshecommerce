@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { StoreLayout } from '@/components/layout/store-layout'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -78,7 +78,7 @@ const paymentLabels: Record<string, string> = {
 async function getOrder(id: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  if (!user) return { notAuthed: true as const }
 
   const { data } = await supabase
     .from('orders')
@@ -107,8 +107,10 @@ export default async function OrderDetailPage({
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams])
   const isNew = sp.new === '1'
-  const order = await getOrder(id)
-  if (!order) notFound()
+  const result = await getOrder(id)
+  if (!result) notFound()
+  if ('notAuthed' in result) redirect(`/login?redirect=/orders/${id}${isNew ? '?new=1' : ''}`)
+  const order = result
 
   const config = statusConfig[order.status] ?? statusConfig.pending
   const StatusIcon = config.icon
