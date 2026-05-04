@@ -3,8 +3,19 @@ import { createClient } from '@/lib/supabase/server'
 
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 
+function getAppUrl() {
+  // Explicit env var takes priority
+  const explicit = process.env.NEXT_PUBLIC_APP_URL
+  if (explicit && !explicit.includes('localhost')) return explicit
+  // Fallback to Vercel deployment URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  // Local dev fallback
+  return explicit ?? 'http://localhost:3006'
+}
+
 export async function POST(req: NextRequest) {
-  if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID || !process.env.NEXT_PUBLIC_APP_URL) {
+  if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) {
+    console.error('[chip] Missing CHIP_SECRET_KEY or CHIP_BRAND_ID')
     return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 503 })
   }
 
@@ -18,7 +29,7 @@ export async function POST(req: NextRequest) {
   const [orderRes, profileRes] = await Promise.all([
     supabase
       .from('orders')
-      .select('id, order_number, total, order_items(product_name, unit_price, quantity)')
+      .select('id, order_number, total, delivery_fee, order_items(product_name, unit_price, quantity)')
       .eq('id', orderId)
       .eq('user_id', user.id)
       .single(),
@@ -29,23 +40,39 @@ export async function POST(req: NextRequest) {
       .single(),
   ])
 
-  if (!orderRes.data) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  if (!orderRes.data) {
+    console.error('[chip] Order not found:', orderId)
+    return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  }
 
   const order = orderRes.data
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const appUrl = getAppUrl()
+
+  // Build product line items
+  const products: { name: string; price: number; quantity: number }[] = (order.order_items as any[]).map((item) => ({
+    name: item.product_name,
+    price: Math.round(Number(item.unit_price) * 100), // Chip expects cents
+    quantity: item.quantity,
+  }))
+
+  // Add delivery fee as a line item if applicable
+  const deliveryFee = Number(order.delivery_fee ?? 0)
+  if (deliveryFee > 0) {
+    products.push({
+      name: 'Kos Penghantaran',
+      price: Math.round(deliveryFee * 100),
+      quantity: 1,
+    })
+  }
 
   const body = {
     client: {
       email: user.email!,
-      full_name: profileRes.data?.full_name ?? undefined,
+      ...(profileRes.data?.full_name ? { full_name: profileRes.data.full_name } : {}),
     },
     purchase: {
       currency: 'MYR',
-      products: (order.order_items as any[]).map((item) => ({
-        name: item.product_name,
-        price: Math.round(Number(item.unit_price) * 100),
-        quantity: item.quantity,
-      })),
+      products,
       notes: order.order_number,
     },
     brand_id: process.env.CHIP_BRAND_ID!,
@@ -57,6 +84,8 @@ export async function POST(req: NextRequest) {
     send_receipt: false,
   }
 
+  console.log('[chip] Creating purchase for order', order.order_number, 'appUrl:', appUrl)
+
   const chipRes = await fetch(`${CHIP_API_URL}/purchases/`, {
     method: 'POST',
     headers: {
@@ -67,9 +96,20 @@ export async function POST(req: NextRequest) {
   })
 
   if (!chipRes.ok) {
-    return NextResponse.json({ error: 'Payment gateway error' }, { status: 502 })
+    const errBody = await chipRes.text().catch(() => '(no body)')
+    console.error('[chip] API error', chipRes.status, errBody)
+    return NextResponse.json(
+      { error: 'Payment gateway error', detail: chipRes.status },
+      { status: 502 }
+    )
   }
 
   const chipData = await chipRes.json()
+
+  if (!chipData.checkout_url) {
+    console.error('[chip] No checkout_url in response:', JSON.stringify(chipData))
+    return NextResponse.json({ error: 'No checkout URL from gateway' }, { status: 502 })
+  }
+
   return NextResponse.json({ checkoutUrl: chipData.checkout_url })
 }
