@@ -87,6 +87,8 @@ export default function CheckoutPage() {
     delivery_slot: slots[0]?.value ?? '',
     notes: '',
     payment_method: '',
+    recipient_name: '',
+    phone: '',
   })
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export default function CheckoutPage() {
       if (!user) return
       Promise.all([
         supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
-        supabase.from('profiles').select('total_points, loyalty_tiers(multiplier)').eq('id', user.id).single(),
+        supabase.from('profiles').select('total_points, full_name, phone, loyalty_tiers(multiplier)').eq('id', user.id).single(),
       ]).then(([addressRes, profileRes]) => {
         const data = addressRes.data
         if (data && data.length > 0) {
@@ -147,6 +149,12 @@ export default function CheckoutPage() {
         if (profileRes.data) {
           setUserPoints(profileRes.data.total_points ?? 0)
           setUserMultiplier((profileRes.data.loyalty_tiers as any)?.multiplier ?? 1)
+          // Pre-fill name & phone from profile if available
+          setForm(prev => ({
+            ...prev,
+            recipient_name: prev.recipient_name || (profileRes.data as any).full_name || '',
+            phone: prev.phone || (profileRes.data as any).phone || '',
+          }))
         }
       })
     })
@@ -202,7 +210,12 @@ export default function CheckoutPage() {
     }
     const addr = savedAddresses.find((a) => a.id === id)
     if (addr) {
-      setForm((prev) => ({ ...prev, full_address: buildAddressString(addr) }))
+      setForm((prev) => ({
+        ...prev,
+        full_address: buildAddressString(addr),
+        recipient_name: prev.recipient_name || addr.recipient_name || '',
+        phone: prev.phone || (addr as any).phone || '',
+      }))
       setEditingAddress(false)
       if (addr.postcode) checkPostcode(addr.postcode)
     }
@@ -278,6 +291,8 @@ export default function CheckoutPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.recipient_name.trim()) { toast.error('Sila masukkan nama penerima'); return }
+    if (!form.phone.trim()) { toast.error('Sila masukkan nombor telefon penerima'); return }
     if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
 
     if (localOnlyItems.length > 0) {
@@ -307,7 +322,7 @@ export default function CheckoutPage() {
         })),
         postcode: postcode || null,
         payment_method: form.payment_method,
-        delivery_address: form.full_address,
+        delivery_address: `${form.recipient_name} | ${form.phone}\n${form.full_address}`,
         delivery_slot: slots.find(s => s.value === form.delivery_slot)?.label ?? null,
         notes: form.notes || null,
         promo_code: appliedPromo?.code ?? null,
@@ -444,7 +459,10 @@ export default function CheckoutPage() {
                         {selectedAddr.label}
                       </span>
                       {selectedAddr.recipient_name && (
-                        <span className="text-[11px] text-gray-400">· {selectedAddr.recipient_name}</span>
+                        <span className="text-[11px] text-gray-500 font-medium">{selectedAddr.recipient_name}</span>
+                      )}
+                      {(selectedAddr as any).phone && (
+                        <span className="text-[11px] text-gray-400">· {(selectedAddr as any).phone}</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-800 leading-snug">{selectedAddr.full_address}</p>
@@ -512,6 +530,39 @@ export default function CheckoutPage() {
             {/* Manual address textarea + postcode check */}
             {(savedAddresses.length === 0 || selectedAddressId === '__manual__') && (
               <div className="mt-2 space-y-2">
+                {/* Nama & No Fon — wajib diisi untuk penghantaran */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      Nama Penerima <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="recipient_name"
+                      value={form.recipient_name}
+                      onChange={handleChange}
+                      required
+                      placeholder="Nama penuh"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      No. Telefon <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={form.phone}
+                      onChange={handleChange}
+                      required
+                      placeholder="01X-XXXXXXX"
+                      inputMode="tel"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                    />
+                  </div>
+                </div>
+
                 <textarea
                   name="full_address"
                   value={form.full_address}
