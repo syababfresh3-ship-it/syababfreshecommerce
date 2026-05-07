@@ -154,6 +154,16 @@ export async function PATCH(
   }
 
   // ── Normal status update ──────────────────────────────────────────
+  const VALID_STATUSES = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled', 'refunded']
+  const VALID_PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded', 'failed']
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+  if (payment_status && !VALID_PAYMENT_STATUSES.includes(payment_status)) {
+    return NextResponse.json({ error: 'Invalid payment_status' }, { status: 400 })
+  }
+
   const now = new Date().toISOString()
   const update: Record<string, string | null> = {}
 

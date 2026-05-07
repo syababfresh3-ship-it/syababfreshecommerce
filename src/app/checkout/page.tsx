@@ -373,40 +373,18 @@ export default function CheckoutPage() {
       return
     }
 
-    // COD / bank_transfer — deduct inventory immediately
-    const deductResults = await Promise.all(items.map(({ product, variant, quantity }) =>
-      variant
-        ? supabase.rpc('deduct_variant_stock', { p_variant_id: variant.id, p_quantity: quantity })
-        : supabase.rpc('deduct_inventory', { p_product_id: product.id, p_quantity: quantity })
-    ))
-    const oversoldIndex = deductResults.findIndex((r) => r.error)
-    if (oversoldIndex !== -1) {
-      await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id)
-      const failedItem = items[oversoldIndex]
-      toast.error(`Stok tidak mencukupi untuk ${failedItem.product.name}${failedItem.variant ? ` (${failedItem.variant.name})` : ''}. Sila semak troli anda.`)
+    // COD / bank_transfer — finalize server-side (inventory + points + promo)
+    const finalizeRes = await fetch(`/api/orders/${order.id}/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    if (!finalizeRes.ok) {
+      const err = await finalizeRes.json().catch(() => ({}))
+      toast.error(err.error ?? 'Gagal memproses pesanan. Sila cuba lagi.')
       setLoading(false)
       return
     }
-
-    if (serverPointsUsed > 0) {
-      await supabase.from('loyalty_transactions').insert({
-        user_id: user.id, order_id: order.id, points: -serverPointsUsed, type: 'redeem',
-        description: `Redeem ${serverPointsUsed} mata untuk pesanan`,
-      })
-      await supabase.rpc('increment_points', { uid: user.id, pts: -serverPointsUsed })
-    }
-
-    const MAX_POINTS_PER_ORDER = 5000
-    const earnedPoints = Math.min(Math.floor(total * serverMultiplier), MAX_POINTS_PER_ORDER)
-    await supabase.from('loyalty_transactions').insert({
-      user_id: user.id, order_id: order.id, points: earnedPoints, type: 'earn',
-      description: `Pembelian`,
-    })
-    await Promise.all([
-      supabase.rpc('increment_points', { uid: user.id, pts: earnedPoints }),
-      supabase.rpc('increment_spend', { uid: user.id, amount: total }),
-    ])
-    if (appliedPromo) await supabase.rpc('increment_promo_uses', { promo_id: appliedPromo.id })
 
     fetch('/api/notify-order', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

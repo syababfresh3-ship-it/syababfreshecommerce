@@ -6,6 +6,15 @@ const FROM_NOREPLY = process.env.ZEPTOMAIL_FROM_NOREPLY ?? 'noreply@mail.syababf
 
 // ─── shared helpers ────────────────────────────────────────────────────────────
 
+function esc(s: string | null | undefined): string {
+  if (!s) return ''
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function layout(title: string, body: string) {
   return `<!DOCTYPE html>
 <html lang="ms">
@@ -43,7 +52,7 @@ function layout(title: string, body: string) {
 
 function itemsTable(items: Array<{ name: string; quantity: number; unit_price: number; variant_name?: string | null }>) {
   const rows = items.map(i => {
-    const label = i.variant_name ? `${i.name} <span style="color:#6b7280;font-size:12px;">(${i.variant_name})</span>` : i.name
+    const label = i.variant_name ? `${esc(i.name)} <span style="color:#6b7280;font-size:12px;">(${esc(i.variant_name)})</span>` : esc(i.name)
     return `<tr>
       <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#374151;">${label} × ${i.quantity}</td>
       <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px;color:#111827;font-weight:600;text-align:right;white-space:nowrap;">

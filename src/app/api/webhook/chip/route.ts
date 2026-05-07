@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
-import { createHmac } from 'crypto'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 
 export async function POST(req: NextRequest) {
@@ -25,7 +25,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
   }
   const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
-  if (signature !== expected) {
+  const sigBuf = Buffer.from(signature, 'hex')
+  const expBuf = Buffer.from(expected, 'hex')
+  const valid = sigBuf.length === expBuf.length && timingSafeEqual(sigBuf, expBuf)
+  if (!valid) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 

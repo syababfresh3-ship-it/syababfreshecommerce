@@ -10,8 +10,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'orderId required' }, { status: 400 })
   }
 
-  // Fetch order details
+  // Verify caller is authenticated and owns this order
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: ownership } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('id', orderId)
+    .eq('user_id', user.id)
+    .single()
+  if (!ownership) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
   const { data: order } = await supabase
     .from('orders')
     .select('order_number, total, delivery_address, delivery_slot, payment_method, notes, profiles(full_name, phone, email), order_items(product_name, quantity, unit_price, variant_name)')

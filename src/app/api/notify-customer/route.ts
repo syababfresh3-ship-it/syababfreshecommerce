@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendDeliveryStatusEmail } from '@/lib/zeptomail'
@@ -12,6 +12,9 @@ const statusMessage: Record<string, string> = {
 }
 
 export async function POST(request: Request) {
+  const { supabase, forbidden } = await requireAdmin()
+  if (forbidden) return forbidden
+
   const { orderId, status } = await request.json()
 
   if (!orderId || !status) {
@@ -21,8 +24,7 @@ export async function POST(request: Request) {
   const msg = statusMessage[status]
   if (!msg) return NextResponse.json({ skipped: true })
 
-  const supabase = await createClient()
-  const { data: order } = await supabase
+  const { data: order } = await supabase!
     .from('orders')
     .select('order_number, profiles(full_name, phone, email)')
     .eq('id', orderId)
