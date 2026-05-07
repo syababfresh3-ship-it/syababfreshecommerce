@@ -40,16 +40,35 @@ export async function POST(request: Request) {
 
     if (pending) return NextResponse.json({ error: 'Ada permintaan pengeluaran yang sedang diproses' }, { status: 400 })
 
+    // Atomic balance deduction — WHERE affiliate_balance >= amount prevents race condition
+    const { data: deducted, error: deductErr } = await supabase
+      .from('profiles')
+      .update({ affiliate_balance: profile.affiliate_balance - amount })
+      .eq('id', user.id)
+      .gte('affiliate_balance', amount)
+      .select('id')
+      .single()
+
+    if (deductErr || !deducted) {
+      return NextResponse.json({ error: 'Baki tidak mencukupi' }, { status: 400 })
+    }
+
     const { error } = await supabase.from('affiliate_withdrawals').insert({
       affiliate_id: user.id,
       amount,
-      bank_name,
-      bank_account,
-      account_name,
+      bank_name: bank_name.trim(),
+      bank_account: bank_account.trim(),
+      account_name: account_name.trim(),
       status: 'pending',
     })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      // Rollback balance deduction if withdrawal insert fails
+      await supabase.from('profiles')
+        .update({ affiliate_balance: profile.affiliate_balance })
+        .eq('id', user.id)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {
