@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 
 async function processReferralReward(supabase: ReturnType<typeof createAdminClient>, userId: string, orderId: string) {
   const { data: referral } = await supabase
@@ -110,7 +111,7 @@ export async function PATCH(
   if (action === 'approve' || action === 'reject') {
     const { data: order } = await supabase
       .from('orders')
-      .select('id, user_id, total, needs_approval, order_items(product_id, variant_id, quantity)')
+      .select('id, user_id, total, needs_approval, payment_method, delivery_address, delivery_slot, notes, order_number, order_items(product_id, variant_id, quantity, product_name, unit_price, variant_name), profiles(full_name, email)')
       .eq('id', id)
       .single()
 
@@ -149,6 +150,27 @@ export async function PATCH(
       needs_approval: false,
       confirmed_at: new Date().toISOString(),
     }).eq('id', id)
+
+    // Send confirmation email to customer now that order is approved
+    const profile = (order as any).profiles
+    if (profile?.email) {
+      sendOrderConfirmationEmail({
+        to: profile.email,
+        customerName: profile.full_name ?? 'Pelanggan',
+        orderNumber: (order as any).order_number,
+        items: ((order as any).order_items ?? []).map((i: any) => ({
+          name: i.product_name,
+          quantity: i.quantity,
+          unit_price: i.unit_price,
+          variant_name: i.variant_name ?? null,
+        })),
+        total: Number((order as any).total),
+        deliveryAddress: (order as any).delivery_address ?? null,
+        deliverySlot: (order as any).delivery_slot ?? null,
+        paymentMethod: (order as any).payment_method,
+        notes: (order as any).notes ?? null,
+      }).catch(err => console.error('[admin-approve] email error:', err))
+    }
 
     return NextResponse.json({ ok: true })
   }

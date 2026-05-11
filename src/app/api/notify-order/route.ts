@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
   const { data: order } = await supabase
     .from('orders')
-    .select('order_number, total, delivery_address, delivery_slot, payment_method, notes, profiles(full_name, phone, email), order_items(product_name, quantity, unit_price, variant_name)')
+    .select('order_number, total, delivery_address, delivery_slot, payment_method, notes, needs_approval, profiles(full_name, phone, email), order_items(product_name, quantity, unit_price, variant_name)')
     .eq('id', orderId)
     .single()
 
@@ -65,10 +65,11 @@ export async function POST(request: Request) {
 
   if (adminPhone) sendWhatsApp(adminPhone, message).catch(() => {})
 
-  // Send order confirmation email to customer
+  // For pending-approval orders, skip customer email — admin hasn't confirmed yet.
+  // Email will be sent when admin approves via /api/admin/orders/[id].
   const profile = order.profiles as any
   const customerEmail = profile?.email
-  if (customerEmail) {
+  if (customerEmail && !(order as any).needs_approval) {
     sendOrderConfirmationEmail({
       to: customerEmail,
       customerName: profile?.full_name ?? 'Pelanggan',
