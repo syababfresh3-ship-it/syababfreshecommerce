@@ -84,6 +84,21 @@ export async function POST(req: NextRequest) {
       .from('orders')
       .update({ admin_notes: `⚠️ STOK TIDAK MENCUKUPI: ${names}. Hubungi pelanggan.` })
       .eq('id', orderId)
+
+    // Send urgent separate WhatsApp alert — don't rely on admin noticing the order note
+    const adminPhone = process.env.ADMIN_WHATSAPP
+    if (adminPhone) {
+      const urgentMsg = [
+        `🚨 *STOK TIDAK MENCUKUPI — Tindakan Diperlukan*`,
+        ``,
+        `Pesanan *${order_number}* telah dibayar (RM${Number(total).toFixed(2)}) tetapi stok tidak mencukupi:`,
+        ...oversoldItems.map((i: any) => `• ${i.product_name}`),
+        ``,
+        `Sila hubungi pelanggan: *${profiles?.full_name ?? '—'}* (${profiles?.phone ?? '—'})`,
+        `untuk maklumkan kelewatan / tawaran penggantian.`,
+      ].join('\n')
+      sendWhatsApp(adminPhone, urgentMsg).catch(() => {})
+    }
   }
 
   // Deduct loyalty points used (points_used stored on order, safe to apply now that payment confirmed)
