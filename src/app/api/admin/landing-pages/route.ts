@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await supabase!
     .from('landing_pages')
-    .select('id, slug, title, is_active, created_at, updated_at')
+    .select('id, slug, title, is_active, created_at, updated_at, view_count, meta_pixel_id, google_tag_id, landing_page_leads(count)')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -32,13 +32,18 @@ export async function POST(request: Request) {
   if (typeof html_content !== 'string')
     return NextResponse.json({ error: 'HTML tidak sah' }, { status: 400 })
 
-  const { data, error } = await supabase!.from('landing_pages').insert({
+  const { meta_pixel_id, google_tag_id } = body
+  const insertData: Record<string, unknown> = {
     title: title.trim(),
     slug: slug.trim(),
     html_content,
     is_active: is_active ?? true,
     created_by: user?.id ?? null,
-  }).select().single()
+  }
+  if (meta_pixel_id !== undefined) insertData.meta_pixel_id = meta_pixel_id || null
+  if (google_tag_id !== undefined) insertData.google_tag_id = google_tag_id || null
+
+  const { data, error } = await supabase!.from('landing_pages').insert(insertData).select().single()
 
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Slug sudah digunakan' }, { status: 409 })

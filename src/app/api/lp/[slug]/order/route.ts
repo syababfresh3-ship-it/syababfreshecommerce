@@ -1,0 +1,179 @@
+import { createAdminClient } from '@/lib/supabase/admin'
+import { NextResponse } from 'next/server'
+
+const VALID_PAYMENT = ['cod', 'bank_transfer']
+
+interface OrderItem {
+  product_id: string
+  variant_id?: string | null
+  product_name: string
+  variant_name?: string | null
+  quantity: number
+  unit_price: number
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  if (!slug || !/^[a-z0-9-]+$/.test(slug))
+    return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
+
+  const body = await request.json().catch(() => ({}))
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items } = body
+
+  // Validate required fields
+  if (!name || typeof name !== 'string' || name.trim().length < 2)
+    return NextResponse.json({ error: 'Nama diperlukan' }, { status: 400 })
+  if (!phone || typeof phone !== 'string' || !/^[0-9+\s-]{8,15}$/.test(phone.trim()))
+    return NextResponse.json({ error: 'No. telefon tidak sah' }, { status: 400 })
+  if (!address || typeof address !== 'string' || address.trim().length < 10)
+    return NextResponse.json({ error: 'Alamat terlalu pendek' }, { status: 400 })
+  if (!Array.isArray(items) || items.length === 0)
+    return NextResponse.json({ error: 'Tiada item dalam pesanan' }, { status: 400 })
+  if (items.length > 20)
+    return NextResponse.json({ error: 'Terlalu banyak item' }, { status: 400 })
+  if (!VALID_PAYMENT.includes(payment_method))
+    return NextResponse.json({ error: 'Kaedah bayaran tidak sah' }, { status: 400 })
+
+  for (const item of items as OrderItem[]) {
+    if (!item.product_id || typeof item.product_id !== 'string')
+      return NextResponse.json({ error: 'Item tidak sah' }, { status: 400 })
+    if (typeof item.quantity !== 'number' || item.quantity < 1 || item.quantity > 99)
+      return NextResponse.json({ error: 'Kuantiti tidak sah' }, { status: 400 })
+  }
+
+  const supabase = createAdminClient()
+
+  // Get landing page
+  const { data: page } = await supabase
+    .from('landing_pages')
+    .select('id')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .single()
+  if (!page) return NextResponse.json({ error: 'Halaman tidak dijumpai' }, { status: 404 })
+
+  // Validate all products + get server-side prices
+  const productIds = [...new Set((items as OrderItem[]).filter(i => !i.variant_id).map(i => i.product_id))]
+  const variantIds = [...new Set((items as OrderItem[]).filter(i => i.variant_id).map(i => i.variant_id!))]
+
+  const [productsRes, variantsRes] = await Promise.all([
+    productIds.length > 0
+      ? supabase.from('products').select('id, name, price, is_active').in('id', productIds)
+      : Promise.resolve({ data: [] }),
+    variantIds.length > 0
+      ? supabase.from('product_variants').select('id, product_id, name, price, is_active, products(id, name, is_active)').in('id', variantIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const productMap = new Map((productsRes.data ?? []).map(p => [p.id, p]))
+  const variantMap = new Map((variantsRes.data ?? []).map(v => [v.id, v]))
+
+  let subtotal = 0
+  const validatedItems: OrderItem[] = []
+
+  for (const item of items as OrderItem[]) {
+    if (item.variant_id) {
+      const variant = variantMap.get(item.variant_id)
+      if (!variant || !variant.is_active) return NextResponse.json({ error: `Variant tidak tersedia` }, { status: 400 })
+      const prod = (variant.products as any)
+      if (!prod || !prod.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
+      const unitPrice = Number(variant.price)
+      subtotal += unitPrice * item.quantity
+      validatedItems.push({ ...item, product_name: prod.name, variant_name: variant.name, unit_price: unitPrice })
+    } else {
+      const product = productMap.get(item.product_id)
+      if (!product || !product.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
+      const unitPrice = Number(product.price)
+      subtotal += unitPrice * item.quantity
+      validatedItems.push({ ...item, product_name: product.name, unit_price: unitPrice })
+    }
+  }
+
+  // Delivery fee
+  const { data: settings } = await supabase
+    .from('app_settings').select('key, value').in('key', ['free_delivery_min', 'default_delivery_fee'])
+
+  const settingsMap: Record<string, number> = {}
+  for (const row of settings ?? []) settingsMap[row.key] = Number(row.value)
+
+  const FREE_MIN = settingsMap.free_delivery_min ?? 80
+  let deliveryFee = settingsMap.default_delivery_fee ?? 15
+
+  if (subtotal >= FREE_MIN) {
+    deliveryFee = 0
+  } else if (postcode && /^\d{5}$/.test(postcode)) {
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee').eq('postcode', postcode).maybeSingle()
+    if (zone) deliveryFee = Number(zone.delivery_fee)
+  }
+
+  const total = subtotal + deliveryFee
+
+  // Generate order number
+  const { data: orderNumber } = await supabase.rpc('generate_lp_order_number')
+
+  // First item for backward compat columns (nullable now)
+  const first = validatedItems[0]
+
+  const { data: order, error } = await supabase
+    .from('lp_guest_orders')
+    .insert({
+      order_number: orderNumber,
+      page_id: page.id,
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      postcode: postcode?.trim() || null,
+      notes: notes?.trim() || null,
+      product_id: first.product_id,
+      variant_id: first.variant_id || null,
+      product_name: first.product_name,
+      variant_name: first.variant_name || null,
+      quantity: first.quantity,
+      unit_price: first.unit_price,
+      delivery_fee: deliveryFee,
+      total,
+      payment_method,
+      source: source?.trim().slice(0, 100) || null,
+      items: validatedItems,
+    })
+    .select('id, order_number, total, delivery_fee')
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({
+    ok: true,
+    order_number: order.order_number,
+    total: order.total,
+    delivery_fee: order.delivery_fee,
+    payment_method,
+  })
+}
+
+// Delivery fee preview (GET)
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const postcode = url.searchParams.get('postcode') ?? ''
+  const subtotal = parseFloat(url.searchParams.get('subtotal') ?? '0')
+
+  if (!/^\d{5}$/.test(postcode)) return NextResponse.json({ fee: 15 })
+
+  const supabase = createAdminClient()
+  const { data: settings } = await supabase
+    .from('app_settings').select('key, value').in('key', ['free_delivery_min', 'default_delivery_fee'])
+
+  const settingsMap: Record<string, number> = {}
+  for (const row of settings ?? []) settingsMap[row.key] = Number(row.value)
+
+  const FREE_MIN = settingsMap.free_delivery_min ?? 80
+  let fee = settingsMap.default_delivery_fee ?? 15
+
+  if (subtotal >= FREE_MIN) {
+    fee = 0
+  } else {
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee').eq('postcode', postcode).maybeSingle()
+    if (zone) fee = Number(zone.delivery_fee)
+  }
+
+  return NextResponse.json({ fee })
+}

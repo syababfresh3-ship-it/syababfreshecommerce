@@ -37,6 +37,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   if ('html_content' in body) update.html_content = body.html_content
   if ('is_active' in body) update.is_active = Boolean(body.is_active)
+  if ('meta_pixel_id' in body) update.meta_pixel_id = body.meta_pixel_id || null
+  if ('google_tag_id' in body) update.google_tag_id = body.google_tag_id || null
 
   const { error } = await supabase!.from('landing_pages').update(update).eq('id', id)
   if (error) {

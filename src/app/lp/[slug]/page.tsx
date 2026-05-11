@@ -2,8 +2,12 @@ import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Image from 'next/image'
 import Link from 'next/link'
-import { StickyCartBar } from '@/components/store/sticky-cart-bar'
 import { LpAddToCartBtn } from './lp-add-to-cart'
+import { LpPixels } from './lp-pixels'
+import { LpTracker } from './lp-tracker'
+import { LpLeadForm } from './lp-lead-form'
+import { LpWaShare } from './lp-wa-share'
+import { LpCartBar } from './lp-cart-bar'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +27,7 @@ export default async function LandingPage({ params }: Props) {
 
   const { data: page } = await supabase
     .from('landing_pages')
-    .select('title, html_content')
+    .select('title, html_content, meta_pixel_id, google_tag_id')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -35,10 +39,10 @@ export default async function LandingPage({ params }: Props) {
     [...page.html_content.matchAll(/\{\{product:([a-z0-9-]+)\}\}/g)].map(m => m[1])
   )]
 
-  // Fetch all referenced products + their stock in one query
+  // Fetch products + variants + stock in parallel
   const [productsRes, stockRes] = await Promise.all([
     productSlugs.length > 0
-      ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active').in('slug', productSlugs)
+      ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active, product_variants(id, name, price, compare_price, weight_grams, is_active, sort_order)').in('slug', productSlugs)
       : Promise.resolve({ data: [] }),
     productSlugs.length > 0
       ? supabase.from('product_stock').select('product_id, available_stock')
@@ -48,32 +52,38 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map((productsRes.data ?? []).map(p => [p.slug, p]))
   const stockByProductId = new Map((stockRes.data ?? []).map(s => [s.product_id, s.available_stock]))
 
-  // Split HTML on {{product:slug}} — odd indices are slugs, even are HTML
-  const parts = page.html_content.split(/\{\{product:([a-z0-9-]+)\}\}/g)
+  // Split on {{product:slug}} and {{lead-form}} placeholders
+  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Minimal header */}
+      <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
+      <LpTracker slug={slug} />
+
+      {/* Minimal header — no cart link (standalone LP) */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-lg font-black text-green-600 tracking-tight">SyababFresh</Link>
-        <Link href="/cart" className="text-sm font-semibold text-gray-600 hover:text-gray-900">Troli →</Link>
+        <a href="https://wa.me/60" className="text-sm font-semibold text-gray-500 hover:text-green-600">Hubungi Kami</a>
       </header>
 
       {/* Rendered HTML + injected product cards */}
       <div className="max-w-2xl mx-auto px-4 pb-32">
         {parts.map((part: string, i: number) => {
           if (i % 2 === 0) {
-            // HTML segment
             if (!part.trim()) return null
             return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />
           }
 
-          // Product placeholder
-          const product = productsBySlug.get(part)
+          if (part === '{{lead-form}}') {
+            return <LpLeadForm key={i} slug={slug} />
+          }
+
+          // {{product:slug}}
+          const productSlug = part.slice(10, -2)
+          const product = productsBySlug.get(productSlug)
           if (!product || !product.is_active) return null
 
           const stock = stockByProductId.get(product.id) ?? null
-          const hasVariants = false // landing pages only support simple (non-variant) products
           const images: string[] = Array.isArray(product.images) && product.images.length > 0
             ? product.images
             : product.image_url ? [product.image_url] : []
@@ -99,14 +109,15 @@ export default async function LandingPage({ params }: Props) {
                     <span className="text-sm text-gray-400 line-through">RM{Number(product.compare_price).toFixed(2)}</span>
                   )}
                 </div>
-                <LpAddToCartBtn product={product as any} stock={stock} />
+                <LpAddToCartBtn product={product as any} stock={stock} variants={(product as any).product_variants ?? []} slug={slug} />
               </div>
             </div>
           )
         })}
       </div>
 
-      <StickyCartBar />
+      <LpCartBar slug={slug} />
+      <LpWaShare title={page.title} />
     </div>
   )
 }
