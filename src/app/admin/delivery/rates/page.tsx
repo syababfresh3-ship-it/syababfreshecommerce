@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { ArrowLeft, Save, Loader2, Tag } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Tag, ChevronLeft, ChevronRight, Scale } from 'lucide-react'
+
+const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
 interface AreaRate {
   area_name: string
   fee: number
   carrier_id: string | null
   count: number
+  state: string | null
 }
 
 interface Carrier {
@@ -26,6 +29,9 @@ export default function DeliveryRatesPage() {
   const [editFees, setEditFees] = useState<Record<string, string>>({})
   const [editCarriers, setEditCarriers] = useState<Record<string, string>>({})
   const [search, setSearch] = useState('')
+  const [zone, setZone] = useState<'all' | 'kl' | 'luar'>('all')
+  const [page, setPage] = useState(1)
+  const PER_PAGE = 25
 
   async function load() {
     const res = await fetch('/api/admin/delivery/rates')
@@ -87,9 +93,24 @@ export default function DeliveryRatesPage() {
     setSaving(null)
   }
 
-  const filtered = areas.filter(a =>
-    a.area_name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = areas
+    .filter(a => a.area_name.toLowerCase().includes(search.toLowerCase()))
+    .filter(a => {
+      if (zone === 'kl') return a.state ? KL_STATES.has(a.state) : false
+      if (zone === 'luar') return a.state ? !KL_STATES.has(a.state) : true
+      return true
+    })
+    // LK areas first, then luar KL alphabetically
+    .sort((a, b) => {
+      const aKl = a.state ? KL_STATES.has(a.state) : false
+      const bKl = b.state ? KL_STATES.has(b.state) : false
+      if (aKl && !bKl) return -1
+      if (!aKl && bKl) return 1
+      return a.area_name.localeCompare(b.area_name)
+    })
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE)
 
   // Summary: fee → postcode count
   const feeGroups: Record<number, number> = {}
@@ -170,14 +191,40 @@ export default function DeliveryRatesPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search + Zone filter */}
       <input
         type="text"
         placeholder="Cari kawasan... (cth: Bangi, Kajang, Shah Alam)"
         value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
+        onChange={e => { setSearch(e.target.value); setPage(1) }}
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-red-500"
       />
+
+      <div className="flex gap-1.5 mb-4">
+        {([['all', 'Semua'], ['kl', 'Lembah Klang'], ['luar', 'Luar KL']] as const).map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => { setZone(val); setPage(1) }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              zone === val
+                ? val === 'kl' ? 'bg-orange-500 text-white'
+                : val === 'luar' ? 'bg-blue-600 text-white'
+                : 'bg-gray-900 text-white'
+                : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            {label}
+            {val !== 'all' && (
+              <span className="ml-1.5 opacity-70">
+                ({areas.filter(a => val === 'kl'
+                  ? (a.state ? KL_STATES.has(a.state) : false)
+                  : (a.state ? !KL_STATES.has(a.state) : true)
+                ).length})
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
@@ -199,48 +246,68 @@ export default function DeliveryRatesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map(area => {
+              {paginated.map(area => {
                 const isSaving = saving === area.area_name
+                const isKl = area.state ? KL_STATES.has(area.state) : false
+                const isLuarKl = area.state !== null && !isKl
+
                 return (
-                  <tr key={area.area_name} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 font-medium text-gray-900">
-                      {area.area_name}
-                      <span className="text-xs text-gray-300 ml-1.5">({area.count})</span>
+                  <tr key={area.area_name} className={`transition-colors ${isLuarKl ? 'bg-blue-50/40' : 'hover:bg-gray-50/50'}`}>
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-gray-900">
+                        {area.area_name}
+                        <span className="text-xs text-gray-300 ml-1.5">({area.count})</span>
+                      </p>
+                      {isLuarKl && (
+                        <span className="text-[10px] text-gray-400">{area.state}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={editCarriers[area.area_name] ?? ''}
-                        onChange={e => setEditCarriers(prev => ({ ...prev, [area.area_name]: e.target.value }))}
-                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 w-36"
-                      >
-                        <option value="">— Tiada —</option>
-                        {carriers.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
+                      {isLuarKl ? (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg w-fit">
+                          <Scale className="h-3 w-3" />Kadar Berat
+                        </span>
+                      ) : (
+                        <select
+                          value={editCarriers[area.area_name] ?? ''}
+                          onChange={e => setEditCarriers(prev => ({ ...prev, [area.area_name]: e.target.value }))}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 w-36"
+                        >
+                          <option value="">— Tiada —</option>
+                          {carriers.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <span className="text-xs text-gray-400">RM</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.50"
-                          value={editFees[area.area_name] ?? String(area.fee)}
-                          onChange={e => setEditFees(prev => ({ ...prev, [area.area_name]: e.target.value }))}
-                          className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
-                        />
-                      </div>
+                      {isLuarKl ? (
+                        <span className="text-xs text-gray-400 italic">Auto (Ninja Cold)</span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="text-xs text-gray-400">RM</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.50"
+                            value={editFees[area.area_name] ?? String(area.fee)}
+                            onChange={e => setEditFees(prev => ({ ...prev, [area.area_name]: e.target.value }))}
+                            className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
+                          />
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => saveArea(area.area_name)}
-                        disabled={isSaving}
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors ml-auto"
-                      >
-                        {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                        Simpan
-                      </button>
+                      {!isLuarKl && (
+                        <button
+                          onClick={() => saveArea(area.area_name)}
+                          disabled={isSaving}
+                          className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors ml-auto"
+                        >
+                          {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                          Simpan
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )
@@ -249,6 +316,51 @@ export default function DeliveryRatesPage() {
           </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-xs text-gray-400">
+            {filtered.length} kawasan · halaman {safePage} / {totalPages}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={safePage === 1}
+              className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(n => n === 1 || n === totalPages || Math.abs(n - safePage) <= 1)
+              .reduce<(number | '...')[]>((acc, n, i, arr) => {
+                if (i > 0 && n - (arr[i - 1] as number) > 1) acc.push('...')
+                acc.push(n)
+                return acc
+              }, [])
+              .map((n, i) =>
+                n === '...'
+                  ? <span key={`ellipsis-${i}`} className="px-2 text-gray-300 text-sm">…</span>
+                  : <button
+                      key={n}
+                      onClick={() => setPage(n as number)}
+                      className={`w-8 h-8 rounded-xl text-sm font-semibold transition-colors ${
+                        safePage === n
+                          ? 'bg-gray-900 text-white'
+                          : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >{n}</button>
+              )}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={safePage === totalPages}
+              className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-xs text-gray-400 mt-4 text-center leading-relaxed">
         Semua poskod dalam kawasan yang sama dikemas kini serentak.

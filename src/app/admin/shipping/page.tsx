@@ -6,9 +6,21 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import {
   Package, Zap, Truck, MapPin, Loader2, Settings, Save, Eye, EyeOff,
-  ChevronUp, ArrowRight,
+  ChevronUp, ArrowRight, Scale, Plus, Trash2, Pencil, Check, X,
 } from 'lucide-react'
 import type { ShippingCarrier } from '@/types'
+
+interface WeightTier {
+  id: string
+  carrier_id: string
+  min_kg: number
+  max_kg: number | null
+  fee: number
+}
+
+const TIER_CARRIERS = [
+  { id: 'ninja_cold', label: 'Ninja Van Cold — Luar Lembah Klang' },
+]
 
 const CARRIER_META: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   poslaju:    { icon: Package, color: 'text-red-600',    bg: 'bg-red-100'    },
@@ -52,6 +64,14 @@ export default function ShippingPage() {
   const [saving, setSaving] = useState<string | null>(null)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
 
+  // Weight tiers
+  const [tiers, setTiers] = useState<WeightTier[]>([])
+  const [tiersLoading, setTiersLoading] = useState(true)
+  const [editingTier, setEditingTier] = useState<string | null>(null) // tier id being edited
+  const [editValues, setEditValues] = useState<{ min_kg: string; max_kg: string; fee: string }>({ min_kg: '', max_kg: '', fee: '' })
+  const [newTier, setNewTier] = useState<{ min_kg: string; max_kg: string; fee: string } | null>(null)
+  const [savingTier, setSavingTier] = useState(false)
+
   async function load() {
     const supabase = createClient()
     const { data } = await supabase
@@ -66,7 +86,66 @@ export default function ShippingPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadTiers() }, [])
+
+  async function loadTiers() {
+    setTiersLoading(true)
+    const res = await fetch('/api/admin/shipping/weight-tiers?carrier_id=ninja_cold')
+    const json = await res.json()
+    setTiers(json.tiers ?? [])
+    setTiersLoading(false)
+  }
+
+  function startEdit(tier: WeightTier) {
+    setEditingTier(tier.id)
+    setEditValues({ min_kg: String(tier.min_kg), max_kg: tier.max_kg != null ? String(tier.max_kg) : '', fee: String(tier.fee) })
+  }
+
+  async function saveEdit(tierId: string) {
+    setSavingTier(true)
+    const res = await fetch(`/api/admin/shipping/weight-tiers/${tierId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        min_kg: parseFloat(editValues.min_kg),
+        max_kg: editValues.max_kg.trim() === '' ? null : parseFloat(editValues.max_kg),
+        fee: parseFloat(editValues.fee),
+      }),
+    })
+    if (!res.ok) { toast.error('Gagal simpan'); setSavingTier(false); return }
+    toast.success('Kadar dikemaskini')
+    setEditingTier(null)
+    await loadTiers()
+    setSavingTier(false)
+  }
+
+  async function deleteTier(tierId: string) {
+    if (!confirm('Padam tier ini?')) return
+    const res = await fetch(`/api/admin/shipping/weight-tiers/${tierId}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Gagal padam'); return }
+    toast.success('Tier dipadam')
+    setTiers(prev => prev.filter(t => t.id !== tierId))
+  }
+
+  async function addTier() {
+    if (!newTier) return
+    setSavingTier(true)
+    const res = await fetch('/api/admin/shipping/weight-tiers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        carrier_id: 'ninja_cold',
+        min_kg: parseFloat(newTier.min_kg),
+        max_kg: newTier.max_kg.trim() === '' ? null : parseFloat(newTier.max_kg),
+        fee: parseFloat(newTier.fee),
+      }),
+    })
+    if (!res.ok) { toast.error('Gagal tambah'); setSavingTier(false); return }
+    toast.success('Tier ditambah')
+    setNewTier(null)
+    await loadTiers()
+    setSavingTier(false)
+  }
 
   async function toggle(carrier: ShippingCarrier) {
     setToggling(carrier.id)
@@ -121,13 +200,22 @@ export default function ShippingPage() {
             {carriers.filter(c => c.is_active).length} daripada {carriers.length} kurier aktif
           </p>
         </div>
-        <Link
-          href="/admin/shipping/shipments"
-          className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          Semua Penghantaran
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/shipping/exports"
+            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 px-3 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
+          >
+            Eksport & AWB
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            href="/admin/shipping/shipments"
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Semua Penghantaran
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -259,6 +347,177 @@ export default function ShippingPage() {
       <p className="text-xs text-gray-400 mt-6 text-center leading-relaxed">
         Konfigurasi API akan digunakan apabila integrasi penghantaran automatik diaktifkan.
       </p>
+
+      {/* ── Weight Tiers ── */}
+      <div className="mt-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Scale className="h-4 w-4 text-gray-500" />
+          <h2 className="text-base font-bold text-gray-900">Kadar Penghantaran Mengikut Berat</h2>
+        </div>
+
+        {TIER_CARRIERS.map(carrier => (
+          <div key={carrier.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="font-bold text-gray-900 text-sm">{carrier.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Kadar digunakan untuk pesanan luar Lembah Klang</p>
+              </div>
+              <button
+                onClick={() => setNewTier({ min_kg: '', max_kg: '', fee: '' })}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-xl hover:bg-gray-700 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />Tambah Tier
+              </button>
+            </div>
+
+            {tiersLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <th className="text-left px-5 py-3">Berat (kg)</th>
+                    <th className="text-left px-5 py-3">Kadar (RM)</th>
+                    <th className="w-20 px-5 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {tiers.filter(t => t.carrier_id === carrier.id).map(tier => (
+                    <tr key={tier.id} className={editingTier === tier.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                      <td className="px-5 py-3">
+                        {editingTier === tier.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number" step="0.01" min="0"
+                              value={editValues.min_kg}
+                              onChange={e => setEditValues(v => ({ ...v, min_kg: e.target.value }))}
+                              className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                            <span className="text-gray-400">–</span>
+                            <input
+                              type="number" step="0.01" min="0"
+                              value={editValues.max_kg}
+                              onChange={e => setEditValues(v => ({ ...v, max_kg: e.target.value }))}
+                              placeholder="ke atas"
+                              className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                          </div>
+                        ) : (
+                          <span className="font-mono text-gray-700">
+                            {tier.min_kg} – {tier.max_kg != null ? tier.max_kg : 'ke atas'} kg
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3">
+                        {editingTier === tier.id ? (
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={editValues.fee}
+                            onChange={e => setEditValues(v => ({ ...v, fee: e.target.value }))}
+                            className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                        ) : (
+                          <span className="font-semibold text-gray-800">RM {Number(tier.fee).toFixed(2)}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3">
+                        {editingTier === tier.id ? (
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => saveEdit(tier.id)}
+                              disabled={savingTier}
+                              className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                            >
+                              {savingTier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => setEditingTier(null)}
+                              className="p-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <button onClick={() => startEdit(tier)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => deleteTier(tier.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Add new tier row */}
+                  {newTier && (
+                    <tr className="bg-green-50">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={newTier.min_kg}
+                            onChange={e => setNewTier(v => v ? { ...v, min_kg: e.target.value } : v)}
+                            placeholder="min"
+                            className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                          />
+                          <span className="text-gray-400">–</span>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={newTier.max_kg}
+                            onChange={e => setNewTier(v => v ? { ...v, max_kg: e.target.value } : v)}
+                            placeholder="max (kosong = ke atas)"
+                            className="w-36 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                          />
+                          <span className="text-xs text-gray-400">kg</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-500">RM</span>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={newTier.fee}
+                            onChange={e => setNewTier(v => v ? { ...v, fee: e.target.value } : v)}
+                            placeholder="0.00"
+                            className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={addTier}
+                            disabled={savingTier || !newTier.min_kg || !newTier.fee}
+                            className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-40 transition-colors"
+                          >
+                            {savingTier ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          </button>
+                          <button onClick={() => setNewTier(null)} className="p-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {tiers.filter(t => t.carrier_id === carrier.id).length === 0 && !newTier && (
+                    <tr>
+                      <td colSpan={3} className="px-5 py-8 text-center text-sm text-gray-400">
+                        Tiada tier. Klik "Tambah Tier" untuk mulakan.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

@@ -24,8 +24,8 @@ export default function CategoriesPage() {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', slug: '', description: '' })
-  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '' })
+  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '' })
+  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', parent_id: '' })
   const [dragId, setDragId] = useState<string | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
   const supabase = createClient()
@@ -47,12 +47,13 @@ export default function CategoriesPage() {
       description: form.description || null,
       sort_order: categories.length,
       is_active: true,
+      parent_id: form.parent_id || null,
     })
     if (error) {
       toast.error(error.code === '23505' ? 'Slug sudah wujud' : 'Gagal tambah')
     } else {
       toast.success('Kategori ditambah')
-      setForm({ name: '', slug: '', description: '' })
+      setForm({ name: '', slug: '', description: '', parent_id: '' })
       setShowForm(false)
       load()
     }
@@ -66,6 +67,7 @@ export default function CategoriesPage() {
       name: editForm.name.trim(),
       slug: editForm.slug || autoSlug(editForm.name),
       description: editForm.description || null,
+      parent_id: editForm.parent_id || null,
     }).eq('id', id)
     if (error) toast.error('Gagal kemaskini')
     else { toast.success('Dikemaskini'); setEditingId(null); load() }
@@ -185,6 +187,22 @@ export default function CategoriesPage() {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Kategori</label>
+                <select
+                  value={form.parent_id}
+                  onChange={e => setForm(p => ({ ...p, parent_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
+                >
+                  <option value="">— Tiada (jadikan Parent) —</option>
+                  {parents.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {form.parent_id ? `Akan jadi sub-kategori di bawah "${parents.find(p => p.id === form.parent_id)?.name}"` : 'Akan jadi kategori utama (Parent)'}
+                </p>
+              </div>
             </div>
             <div className="flex gap-2 pt-1">
               <button type="button" onClick={() => setShowForm(false)}
@@ -252,6 +270,19 @@ export default function CategoriesPage() {
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                       />
                     </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Kategori</label>
+                      <select
+                        value={editForm.parent_id}
+                        onChange={e => setEditForm(p => ({ ...p, parent_id: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
+                      >
+                        <option value="">— Tiada (Parent) —</option>
+                        {parents.filter(p => p.id !== cat.id).map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setEditingId(null)}
@@ -294,7 +325,7 @@ export default function CategoriesPage() {
                       {cat.is_active ? 'Aktif' : 'Sembunyi'}
                     </button>
                     <button
-                      onClick={() => { setEditingId(cat.id); setEditForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '' }) }}
+                      onClick={() => { setEditingId(cat.id); setEditForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '' }) }}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     >
                       <Pencil className="h-3 w-3" /> Edit

@@ -1,11 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MessageCircle, Link2, Check } from 'lucide-react'
 
 export function LpWaShare({ title }: { title: string }) {
+  const [mounted, setMounted] = useState(false)
   const [copied, setCopied] = useState(false)
   const [open, setOpen] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
 
   function shareWa() {
     const url = window.location.href

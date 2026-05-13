@@ -2,8 +2,10 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2 } from 'lucide-react'
 import Image from 'next/image'
+import { LpSectionBuilder } from './lp-section-builder'
+import { type Section } from '@/lib/lp-sections'
 
 interface LandingPage {
   id: string
@@ -56,27 +58,8 @@ interface LpOrder {
   landing_pages?: { title: string; slug: string } | null
 }
 
-const SAMPLE_TEMPLATE = `<!-- Tukar teks dan slug produk mengikut kempen anda -->
+interface Framework { id: string; name: string; description: string }
 
-<div style="padding: 24px 0 8px; text-align: center;">
-  <h1 style="font-size: 28px; font-weight: 900; color: #111827; margin: 0 0 8px;">
-    🌴 Kurma Pilihan Kami
-  </h1>
-  <p style="font-size: 15px; color: #6b7280; margin: 0 0 32px;">
-    Dipilih khas oleh team SyababFresh untuk anda
-  </p>
-</div>
-
-{{product:kurma-ajwa}}
-
-<div style="padding: 16px 0; text-align: center;">
-  <p style="font-size: 14px; color: #6b7280; margin: 0;">✨ Penghantaran percuma order RM80 ke atas</p>
-</div>
-
-{{product:kurma-medjool}}
-{{product:kurma-safawi}}
-
-{{lead-form}}`
 
 function slugify(text: string) {
   return text
@@ -117,6 +100,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [leadsLoading, setLeadsLoading] = useState(false)
 
+  // Editor mode toggle
+  const [editorMode, setEditorMode] = useState<'blocks' | 'html'>('blocks')
+  const [sections, setSections] = useState<Section[]>([])
+
   // Textarea ref for cursor insert
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -129,6 +116,50 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   // Image upload
   const imgInputRef = useRef<HTMLInputElement>(null)
   const [uploadingImg, setUploadingImg] = useState(false)
+
+  // AI Generate
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [frameworks, setFrameworks] = useState<Framework[]>([])
+  const [genForm, setGenForm] = useState({
+    framework: 'aida',
+    theme: 'green',
+    product_name: '',
+    product_slug: '',
+    product_price: '',
+    target_audience: '',
+    campaign_goal: '',
+    tone: 'casual',
+  })
+  const [themes, setThemes] = useState<{ id: string; name: string; emoji: string; preview: string; bg: string }[]>([])
+  const [generating, setGenerating] = useState(false)
+
+  async function openGenerate() {
+    setShowGenerate(true)
+    if (frameworks.length > 0) return
+    const res = await fetch('/api/admin/landing-pages/generate')
+    const data = await res.json()
+    setFrameworks(data.frameworks ?? [])
+    setThemes(data.themes ?? [])
+  }
+
+  async function handleGenerate() {
+    if (!genForm.product_name.trim()) { toast.error('Sila masukkan nama produk'); return }
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/admin/landing-pages/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(genForm),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Gagal jana'); return }
+      setForm(f => ({ ...f, html_content: data.html }))
+      setShowGenerate(false)
+      toast.success(`HTML ${data.framework} berjaya dijana!`)
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   const openPicker = useCallback(async () => {
     setShowPicker(true)
@@ -218,6 +249,15 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     if (tab === 'orders' && !ordersFetched) loadOrders()
   }
 
+  async function switchEditorMode(mode: 'blocks' | 'html') {
+    setEditorMode(mode)
+    if (mode === 'blocks' && pickerProducts.length === 0) {
+      // Fetch products for section builder product dropdown
+      const res = await fetch('/api/admin/landing-pages/products')
+      setPickerProducts(await res.json())
+    }
+  }
+
   async function updateOrderStatus(id: string, status: string) {
     setUpdatingOrder(id)
     try {
@@ -235,7 +275,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   function openCreate() {
-    setForm({ title: '', slug: '', html_content: SAMPLE_TEMPLATE, is_active: true, meta_pixel_id: '', google_tag_id: '' })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: '', google_tag_id: '' })
+    setSections([])
+    setEditorMode('blocks')
     setEditing(null)
     setCreating(true)
     setShowTracking(false)
@@ -248,6 +290,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       meta_pixel_id: page.meta_pixel_id ?? '',
       google_tag_id: page.google_tag_id ?? '',
     })
+    setSections([])
+    setEditorMode('html')
     fetch(`/api/admin/landing-pages/${page.id}`)
       .then(r => r.json())
       .then(d => setForm(f => ({ ...f, html_content: d.html_content ?? '' })))
@@ -536,41 +580,62 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             </div>
 
             <div>
-              {/* Toolbar */}
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-gray-600">HTML Content</label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={openPicker}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors"
-                  >
-                    <Package className="h-3.5 w-3.5" />
-                    Pilih Produk
+              {/* Mode toggle */}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+                  <button type="button" onClick={() => switchEditorMode('blocks')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editorMode === 'blocks' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <LayoutTemplate className="h-3.5 w-3.5" /> Blok
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => imgInputRef.current?.click()}
-                    disabled={uploadingImg}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                  >
-                    <ImagePlus className="h-3.5 w-3.5" />
-                    {uploadingImg ? 'Uploading...' : 'Upload Gambar'}
+                  <button type="button" onClick={() => switchEditorMode('html')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${editorMode === 'html' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    <Code2 className="h-3.5 w-3.5" /> HTML
                   </button>
-                  <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  <span className="text-gray-300 text-xs">|</span>
-                  <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded">{'{{lead-form}}'}</code>
                 </div>
+                {editorMode === 'blocks' && (
+                  <p className="text-[11px] text-gray-400">Isi form — HTML jana automatik</p>
+                )}
               </div>
-              <textarea
-                ref={textareaRef}
-                value={form.html_content}
-                onChange={e => setForm(f => ({ ...f, html_content: e.target.value }))}
-                rows={18}
-                spellCheck={false}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-y bg-gray-950 text-green-300 leading-relaxed"
-                placeholder="Tampal HTML yang dijana oleh Claude di sini..."
-              />
+
+              {/* Block editor */}
+              {editorMode === 'blocks' && (
+                <LpSectionBuilder
+                  sections={sections}
+                  pickerProducts={pickerProducts.map(p => ({ id: p.id, name: p.name, slug: p.slug }))}
+                  onChange={(s, html) => { setSections(s); setForm(f => ({ ...f, html_content: html })) }}
+                />
+              )}
+
+              {/* HTML editor toolbar + textarea */}
+              {editorMode === 'html' && (
+                <>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-gray-600">HTML Content</label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button type="button" onClick={openPicker} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors">
+                        <Package className="h-3.5 w-3.5" />Pilih Produk
+                      </button>
+                      <button type="button" onClick={() => imgInputRef.current?.click()} disabled={uploadingImg} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 disabled:opacity-50 transition-colors">
+                        <ImagePlus className="h-3.5 w-3.5" />{uploadingImg ? 'Uploading...' : 'Upload Gambar'}
+                      </button>
+                      <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      <button type="button" onClick={openGenerate} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-100 transition-colors border border-violet-200">
+                        <Sparkles className="h-3.5 w-3.5" />Jana dengan AI
+                      </button>
+                      <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded">{'{{lead-form}}'}</code>
+                    </div>
+                  </div>
+                  <textarea
+                    ref={textareaRef}
+                    value={form.html_content}
+                    onChange={e => setForm(f => ({ ...f, html_content: e.target.value }))}
+                    rows={18}
+                    spellCheck={false}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-y bg-gray-950 text-green-300 leading-relaxed"
+                    placeholder="Tampal HTML yang dijana oleh Claude di sini..."
+                  />
+                </>
+              )}
             </div>
 
             {/* Product Picker Panel */}
@@ -633,6 +698,174 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     <p className="text-[11px] text-gray-400 text-center">
                       Klik produk untuk masukkan <code className="bg-gray-100 px-1 rounded">{'{{product:slug}}'}</code> pada kedudukan kursor
                     </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI Generate Modal */}
+            {showGenerate && (
+              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                <div className="absolute inset-0 bg-black/40" onClick={() => !generating && setShowGenerate(false)} />
+                <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-violet-600" />
+                      <p className="font-bold text-gray-900">Jana Landing Page dengan AI</p>
+                    </div>
+                    <button onClick={() => setShowGenerate(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                      <X className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+                    {/* Framework selector */}
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-2">Pilih Framework Copywriting</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(frameworks.length > 0 ? frameworks : [
+                          { id: 'aida', name: 'AIDA', description: 'Attention → Interest → Desire → Action' },
+                          { id: 'pas', name: 'PAS', description: 'Problem → Agitate → Solution' },
+                          { id: 'bab', name: 'BAB', description: 'Before → After → Bridge' },
+                          { id: 'fab', name: 'FAB', description: 'Features → Advantages → Benefits' },
+                          { id: 'pastor', name: 'PASTOR', description: 'Problem → Story → Transformation' },
+                          { id: '4ps', name: '4Ps', description: 'Promise → Picture → Proof → Push' },
+                        ]).map(fw => (
+                          <button
+                            key={fw.id}
+                            type="button"
+                            onClick={() => setGenForm(f => ({ ...f, framework: fw.id }))}
+                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                              genForm.framework === fw.id
+                                ? 'border-violet-500 bg-violet-50'
+                                : 'border-gray-200 hover:border-violet-300'
+                            }`}
+                          >
+                            <p className="text-sm font-black text-gray-900">{fw.name}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">{fw.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Theme selector */}
+                    <div>
+                      <label className="text-xs font-bold text-gray-600 block mb-2">Pilih Tema Warna</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {(themes.length > 0 ? themes : [
+                          { id: 'green', name: 'Fresh Green', emoji: '💚', preview: '#16a34a', bg: '#f0fdf4' },
+                          { id: 'purple', name: 'Royal Purple', emoji: '💜', preview: '#7c3aed', bg: '#faf5ff' },
+                          { id: 'gold', name: 'Gold Premium', emoji: '✨', preview: '#d97706', bg: '#fffbeb' },
+                          { id: 'red', name: 'Bold Red', emoji: '❤️', preview: '#dc2626', bg: '#fff1f2' },
+                          { id: 'dark', name: 'Dark Minimal', emoji: '🖤', preview: '#171717', bg: '#fafafa' },
+                          { id: 'ocean', name: 'Ocean Blue', emoji: '💙', preview: '#0284c7', bg: '#f0f9ff' },
+                          { id: 'coral', name: 'Coral Warm', emoji: '🧡', preview: '#ea580c', bg: '#fff7ed' },
+                          { id: 'rose', name: 'Rose Pink', emoji: '🌸', preview: '#e11d48', bg: '#fff1f2' },
+                        ]).map(th => (
+                          <button
+                            key={th.id}
+                            type="button"
+                            onClick={() => setGenForm(f => ({ ...f, theme: th.id }))}
+                            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
+                              genForm.theme === th.id
+                                ? 'border-gray-900 shadow-sm'
+                                : 'border-gray-200 hover:border-gray-400'
+                            }`}
+                            style={{ background: genForm.theme === th.id ? th.bg : undefined }}
+                          >
+                            <div
+                              className="w-8 h-8 rounded-full shadow-inner"
+                              style={{ background: th.preview }}
+                            />
+                            <p className="text-[10px] font-bold text-gray-700 text-center leading-tight">{th.name.split(' ')[0]}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Product info */}
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Nama Produk *</label>
+                          <input
+                            value={genForm.product_name}
+                            onChange={e => setGenForm(f => ({ ...f, product_name: e.target.value }))}
+                            placeholder="cth: Buah Tin Turkey"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Slug Produk</label>
+                          <input
+                            value={genForm.product_slug}
+                            onChange={e => setGenForm(f => ({ ...f, product_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                            placeholder="fresh-figs-turkey"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Harga (RM)</label>
+                          <input
+                            value={genForm.product_price}
+                            onChange={e => setGenForm(f => ({ ...f, product_price: e.target.value }))}
+                            placeholder="25.00"
+                            type="number"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Tone</label>
+                          <select
+                            value={genForm.tone}
+                            onChange={e => setGenForm(f => ({ ...f, tone: e.target.value }))}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                          >
+                            <option value="casual">Santai & Mesra</option>
+                            <option value="professional">Profesional</option>
+                            <option value="urgent">Urgent & FOMO</option>
+                            <option value="emotional">Emosional</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-600 block mb-1">Target Pelanggan</label>
+                        <input
+                          value={genForm.target_audience}
+                          onChange={e => setGenForm(f => ({ ...f, target_audience: e.target.value }))}
+                          placeholder="cth: ibu bapa, warga emas, ibu mengandung"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-600 block mb-1">Tujuan Kempen</label>
+                        <input
+                          value={genForm.campaign_goal}
+                          onChange={e => setGenForm(f => ({ ...f, campaign_goal: e.target.value }))}
+                          placeholder="cth: tingkatkan jualan Ramadan, clearance stok"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-5 py-4 border-t border-gray-100 shrink-0">
+                    <button
+                      onClick={handleGenerate}
+                      disabled={generating || !genForm.product_name.trim()}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-violet-600 text-white rounded-xl font-bold text-sm hover:bg-violet-700 disabled:opacity-50 transition-all"
+                    >
+                      {generating ? (
+                        <><span className="animate-spin">⟳</span> AI sedang menulis...</>
+                      ) : (
+                        <><Wand2 className="h-4 w-4" /> Jana HTML Sekarang</>
+                      )}
+                    </button>
+                    {generating && (
+                      <p className="text-[11px] text-gray-400 text-center mt-2">Ambil masa 10-20 saat...</p>
+                    )}
                   </div>
                 </div>
               </div>

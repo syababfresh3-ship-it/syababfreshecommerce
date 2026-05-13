@@ -61,7 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       ? supabase.from('products').select('id, name, price, is_active').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, is_active, products(id, name, is_active)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -99,11 +99,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const FREE_MIN = settingsMap.free_delivery_min ?? 80
   let deliveryFee = settingsMap.default_delivery_fee ?? 15
 
+  const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
+
   if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
-    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee').eq('postcode', postcode).maybeSingle()
-    if (zone) deliveryFee = Number(zone.delivery_fee)
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()
+    if (zone) {
+      const isKl = zone.state ? KL_STATES.has(zone.state) : false
+      if (!isKl) {
+        // Non-KL: weight-based Ninja Cold pricing
+        const totalWeightKg = validatedItems.reduce((sum, i) => {
+          const variant = i.variant_id ? variantMap.get(i.variant_id) : null
+          const wg = (variant as any)?.weight_grams ?? 500
+          return sum + (wg * i.quantity) / 1000
+        }, 0)
+        const { data: tier } = await supabase
+          .from('shipping_weight_tiers')
+          .select('fee')
+          .eq('carrier_id', 'ninja_cold')
+          .lte('min_kg', totalWeightKg)
+          .or(`max_kg.is.null,max_kg.gt.${totalWeightKg}`)
+          .order('min_kg', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        deliveryFee = tier ? Number(tier.fee) : Number(zone.delivery_fee)
+      } else {
+        deliveryFee = Number(zone.delivery_fee)
+      }
+    }
   }
 
   const total = subtotal + deliveryFee
@@ -168,11 +192,31 @@ export async function GET(request: Request) {
   const FREE_MIN = settingsMap.free_delivery_min ?? 80
   let fee = settingsMap.default_delivery_fee ?? 15
 
+  const KL_STATES_GET = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
+  const qty = parseInt(url.searchParams.get('qty') ?? '1', 10)
+
   if (subtotal >= FREE_MIN) {
     fee = 0
   } else {
-    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee').eq('postcode', postcode).maybeSingle()
-    if (zone) fee = Number(zone.delivery_fee)
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()
+    if (zone) {
+      const isKl = zone.state ? KL_STATES_GET.has(zone.state) : false
+      if (!isKl) {
+        const totalWeightKg = Math.max(qty, 1) * 1.0
+        const { data: tier } = await supabase
+          .from('shipping_weight_tiers')
+          .select('fee')
+          .eq('carrier_id', 'ninja_cold')
+          .lte('min_kg', totalWeightKg)
+          .or(`max_kg.is.null,max_kg.gt.${totalWeightKg}`)
+          .order('min_kg', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        fee = tier ? Number(tier.fee) : Number(zone.delivery_fee)
+      } else {
+        fee = Number(zone.delivery_fee)
+      }
+    }
   }
 
   return NextResponse.json({ fee })

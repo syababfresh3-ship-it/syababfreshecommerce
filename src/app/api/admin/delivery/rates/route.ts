@@ -18,7 +18,7 @@ export async function GET() {
   const [{ data: areas }, { data: setting }, { data: carriers }] = await Promise.all([
     supabase
       .from('delivery_zones')
-      .select('area_name, delivery_fee, carrier_id')
+      .select('area_name, delivery_fee, carrier_id, state')
       .eq('is_active', true)
       .order('area_name'),
     supabase
@@ -34,7 +34,7 @@ export async function GET() {
   ])
 
   // Group by area_name
-  const grouped: Record<string, { area_name: string; fee: number; carrier_id: string | null; count: number }> = {}
+  const grouped: Record<string, { area_name: string; fee: number; carrier_id: string | null; count: number; state: string | null }> = {}
   for (const row of areas ?? []) {
     if (!grouped[row.area_name]) {
       grouped[row.area_name] = {
@@ -42,6 +42,7 @@ export async function GET() {
         fee: Number(row.delivery_fee),
         carrier_id: row.carrier_id ?? null,
         count: 0,
+        state: row.state ?? null,
       }
     }
     grouped[row.area_name].count++

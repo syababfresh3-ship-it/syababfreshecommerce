@@ -20,12 +20,15 @@ export function LpCartBar({ slug }: Props) {
 
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<Step>('form')
+  const [mounted, setMounted] = useState(false)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: '' })
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [orderResult, setOrderResult] = useState<{ order_number: string; total: number } | null>(null)
+
+  useEffect(() => setMounted(true), [])
 
   const FREE_MIN = 80
   const sub = subtotal()
@@ -46,7 +49,7 @@ export function LpCartBar({ slug }: Props) {
     if (open) fetchFee(form.postcode)
   }, [form.postcode, open, fetchFee])
 
-  if (count() === 0) return null
+  if (!mounted || count() === 0) return null
 
   async function openDrawer() {
     setStep('form')
@@ -269,7 +272,7 @@ export function LpCartBar({ slug }: Props) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Kaedah Bayar</span>
-                    <span className="font-semibold">{form.payment_method === 'cod' ? 'Bayar Semasa Terima' : 'Pindahan Bank'}</span>
+                    <span className="font-semibold">{paymentMethods.find(pm => pm.id === form.payment_method)?.label ?? form.payment_method}</span>
                   </div>
                   <div className="flex justify-between border-t border-gray-200 pt-1.5 font-black">
                     <span>Jumlah</span>

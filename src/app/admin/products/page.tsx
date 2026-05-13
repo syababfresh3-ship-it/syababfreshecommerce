@@ -8,22 +8,33 @@ import { Pagination } from '@/components/admin/pagination'
 
 const PAGE_SIZE = 20
 
-async function getProducts(page: number, q?: string) {
+async function getProducts(page: number, q?: string, cat?: string) {
   const supabase = createClient()
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
   let query = supabase
     .from('products')
-    .select('*, categories(name)', { count: 'exact' })
+    .select('*, categories(id, name)', { count: 'exact' })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
     .range(from, to)
 
   if (q) query = query.ilike('name', `%${q}%`)
+  if (cat) query = query.eq('category_id', cat)
 
   const { data, count } = await query
   return { products: data ?? [], total: count ?? 0 }
+}
+
+async function getCategories() {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('categories')
+    .select('id, name, parent_id')
+    .eq('is_active', true)
+    .order('sort_order')
+  return data ?? []
 }
 
 const categoryColors: Record<string, string> = {
@@ -33,18 +44,26 @@ const categoryColors: Record<string, string> = {
 export default async function AdminProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>
+  searchParams: Promise<{ page?: string; q?: string; cat?: string }>
 }) {
-  const { page: pageStr, q } = await searchParams
+  const { page: pageStr, q, cat } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
-  const { products, total } = await getProducts(page, q)
+  const [{ products, total }, categories] = await Promise.all([
+    getProducts(page, q, cat),
+    getCategories(),
+  ])
+  const activeCat = categories.find(c => c.id === cat)
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Produk</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{total} produk{q ? ` · cari "${q}"` : ''}</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {total} produk
+            {activeCat ? ` · ${activeCat.name}` : ''}
+            {q ? ` · "${q}"` : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Link
@@ -64,17 +83,44 @@ export default async function AdminProductsPage({
         </div>
       </div>
 
-      {/* Search */}
-      <form method="GET" className="mb-4">
-        <div className="relative w-80">
+      {/* Search + Category filter */}
+      <form method="GET" className="mb-4 flex items-center gap-2 flex-wrap">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
           <input
             name="q"
             defaultValue={q}
             placeholder="Cari nama produk..."
-            className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
+            className="w-64 pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
           />
         </div>
+        <select
+          name="cat"
+          defaultValue={cat ?? ''}
+          className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700 min-w-[180px]"
+        >
+          <option value="">Semua Kategori</option>
+          {categories.filter(c => !c.parent_id).map(parent => (
+            <optgroup key={parent.id} label={parent.name}>
+              <option value={parent.id}>{parent.name} (semua)</option>
+              {categories.filter(c => c.parent_id === parent.id).map(child => (
+                <option key={child.id} value={child.id}>↳ {child.name}</option>
+              ))}
+            </optgroup>
+          ))}
+          {/* Orphan sub-categories without parent in list */}
+          {categories.filter(c => c.parent_id && !categories.find(p => p.id === c.parent_id && !p.parent_id)).map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <button type="submit" className="px-4 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm">
+          Tapis
+        </button>
+        {(q || cat) && (
+          <a href="/admin/products" className="px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">
+            Reset
+          </a>
+        )}
       </form>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

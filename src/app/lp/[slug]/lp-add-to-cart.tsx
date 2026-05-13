@@ -10,7 +10,6 @@ interface Props {
   product: Product
   stock: number | null
   variants: ProductVariant[]
-  slug: string
 }
 
 export function LpAddToCartBtn({ product, stock, variants }: Props) {

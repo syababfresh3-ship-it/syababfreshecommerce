@@ -109,7 +109,7 @@ export default async function LandingPage({ params }: Props) {
                     <span className="text-sm text-gray-400 line-through">RM{Number(product.compare_price).toFixed(2)}</span>
                   )}
                 </div>
-                <LpAddToCartBtn product={product as any} stock={stock} variants={(product as any).product_variants ?? []} slug={slug} />
+                <LpAddToCartBtn product={product as any} stock={stock} variants={(product as any).product_variants ?? []} />
               </div>
             </div>
           )

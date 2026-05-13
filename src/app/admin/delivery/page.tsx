@@ -21,18 +21,23 @@ const malaysiaStates = [
 ]
 
 const FREQ_STYLES: Record<string, string> = {
-  'Daily':          'bg-green-50 text-green-700 border-green-200',
-  'Mon, Wed, Fri':  'bg-blue-50 text-blue-700 border-blue-200',
-  'Tue, Thu, Sat':  'bg-purple-50 text-purple-700 border-purple-200',
-  'Saturday only':  'bg-orange-50 text-orange-700 border-orange-200',
+  'Harian':            'bg-green-50 text-green-700 border-green-200',
+  '1-3 Hari Bekerja':  'bg-blue-50 text-blue-700 border-blue-200',
+  // legacy values
+  'Daily':             'bg-green-50 text-green-700 border-green-200',
+  'Mon, Wed, Fri':     'bg-blue-50 text-blue-700 border-blue-200',
+  'Tue, Thu, Sat':     'bg-blue-50 text-blue-700 border-blue-200',
+  'Saturday only':     'bg-orange-50 text-orange-700 border-orange-200',
 }
 
 export default function DeliveryZonesPage() {
   const [zones, setZones] = useState<Zone[]>([])
   const [search, setSearch] = useState('')
+  const [filterState, setFilterState] = useState('')
+  const [filterFreq, setFilterFreq] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Daily' })
+  const [form, setForm] = useState({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Harian' })
   const [bulkInput, setBulkInput] = useState('')
   const [showBulk, setShowBulk] = useState(false)
 
@@ -43,11 +48,17 @@ export default function DeliveryZonesPage() {
 
   useEffect(() => { load() }, [])
 
-  const filtered = zones.filter(z =>
-    z.postcode.includes(search) ||
-    z.area_name.toLowerCase().includes(search.toLowerCase()) ||
-    z.city.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = zones.filter(z => {
+    const q = search.toLowerCase()
+    const matchSearch = !search ||
+      z.postcode.includes(search) ||
+      z.area_name.toLowerCase().includes(q) ||
+      z.city.toLowerCase().includes(q) ||
+      z.state.toLowerCase().includes(q)
+    const matchState = !filterState || z.state === filterState
+    const matchFreq = !filterFreq || z.frequency === filterFreq
+    return matchSearch && matchState && matchFreq
+  })
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -61,7 +72,7 @@ export default function DeliveryZonesPage() {
     if (!res.ok) toast.error('Gagal tambah kawasan')
     else {
       toast.success('Kawasan ditambah')
-      setForm({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Daily' })
+      setForm({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Harian' })
       setShowForm(false)
       load()
     }
@@ -225,7 +236,14 @@ export default function DeliveryZonesPage() {
                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Negeri *</label>
                 <select
                   value={form.state}
-                  onChange={e => setForm(p => ({ ...p, state: e.target.value }))}
+                  onChange={e => {
+                    const klangValley = ['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya']
+                    setForm(p => ({
+                      ...p,
+                      state: e.target.value,
+                      frequency: klangValley.includes(e.target.value) ? 'Harian' : '1-3 Hari Bekerja'
+                    }))
+                  }}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                 >
                   {malaysiaStates.map(s => <option key={s} value={s}>{s}</option>)}
@@ -239,10 +257,8 @@ export default function DeliveryZonesPage() {
                 onChange={e => setForm(p => ({ ...p, frequency: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
               >
-                <option value="Daily">Daily</option>
-                <option value="Mon, Wed, Fri">Mon, Wed, Fri</option>
-                <option value="Tue, Thu, Sat">Tue, Thu, Sat</option>
-                <option value="Saturday only">Saturday only</option>
+                <option value="Harian">Harian (Lembah Klang)</option>
+                <option value="1-3 Hari Bekerja">1-3 Hari Bekerja (Luar KL)</option>
               </select>
             </div>
             <div className="flex gap-2 pt-1">
@@ -260,20 +276,50 @@ export default function DeliveryZonesPage() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative mb-4 w-80">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Cari poskod atau kawasan..."
-          className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X className="h-3.5 w-3.5" />
+      {/* Search + Filter */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari poskod, kawasan, negeri..."
+            className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <select
+          value={filterState}
+          onChange={e => setFilterState(e.target.value)}
+          className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
+        >
+          <option value="">Semua Negeri</option>
+          {malaysiaStates.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <select
+          value={filterFreq}
+          onChange={e => setFilterFreq(e.target.value)}
+          className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
+        >
+          <option value="">Semua Frekuensi</option>
+          <option value="Harian">Harian (Lembah Klang)</option>
+          <option value="1-3 Hari Bekerja">1-3 Hari Bekerja (Luar KL)</option>
+        </select>
+
+        {(search || filterState || filterFreq) && (
+          <button onClick={() => { setSearch(''); setFilterState(''); setFilterFreq('') }}
+            className="px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">
+            Reset
           </button>
         )}
+
+        <span className="text-xs text-gray-400 ml-1">{filtered.length} kawasan</span>
       </div>
 
       {/* Table */}
