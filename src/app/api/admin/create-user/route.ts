@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { full_name, email, phone, password } = await request.json()
+  const { full_name, email, phone, password, is_admin = false } = await request.json()
 
   if (!email || !full_name) {
     return NextResponse.json({ error: 'Nama dan email wajib' }, { status: 400 })
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
     email,
     password: password || undefined,
-    email_confirm: true, // skip email verification
+    email_confirm: true,
     user_metadata: { full_name },
   })
 
@@ -41,11 +41,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: msg }, { status: 400 })
   }
 
-  // Update profile with phone if provided
-  if (phone && newUser.user) {
+  if (newUser.user) {
     await adminClient
       .from('profiles')
-      .update({ phone, full_name })
+      .update({ phone: phone || null, full_name, is_admin: !!is_admin })
       .eq('id', newUser.user.id)
   }
 

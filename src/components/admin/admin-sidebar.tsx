@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, Settings2, Globe,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, Settings2, Globe, Shield,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -51,6 +51,7 @@ const sections = [
       { href: '/admin/delivery',  label: 'Kawasan Hantar', icon: MapPin },
       { href: '/admin/payments',  label: 'Kaedah Bayar',  icon: CreditCard },
       { href: '/admin/settings',  label: 'Tetapan Kedai',  icon: Settings2 },
+      { href: '/admin/team',      label: 'Pengguna Admin', icon: Shield },
     ],
   },
 ]
