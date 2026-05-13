@@ -111,5 +111,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No checkout URL from gateway' }, { status: 502 })
   }
 
+  // Store Chip purchase ID for later payment verification
+  if (chipData.id) {
+    await supabase
+      .from('orders')
+      .update({ payment_ref: chipData.id })
+      .eq('id', order.id)
+  }
+
   return NextResponse.json({ checkoutUrl: chipData.checkout_url })
 }

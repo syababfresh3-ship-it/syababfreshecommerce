@@ -11,6 +11,7 @@ import { ReorderButton } from './reorder-button'
 import { CancelButton } from './cancel-button'
 import { BankTransferInfo } from './bank-transfer-info'
 import { PurchaseTracker } from '@/components/analytics/purchase-tracker'
+import { PaymentVerifier } from './payment-verifier'
 
 // success page optimization: timeline step — used in returning (non-success) view only
 function TimelineItem({
@@ -122,6 +123,7 @@ export default async function OrderDetailPage({
 
   const isBankTransfer = order.payment_method === 'bank_transfer'
   const isUnpaidBankTransfer = isBankTransfer && order.payment_status === 'unpaid'
+  const isFpxPending = isNew && ['fpx', 'ewallet', 'online'].includes(order.payment_method) && order.payment_status === 'unpaid'
   const bankProps = {
     bankName: process.env.BANK_NAME ?? 'Maybank',
     accountName: process.env.BANK_ACCOUNT_NAME ?? 'Syabab Trading Sdn Bhd',
@@ -138,6 +140,8 @@ export default async function OrderDetailPage({
         {/* ══════════════════════════════════════════════════════
             SUCCESS VIEW (isNew=true)
             ══════════════════════════════════════════════════════ */}
+        {isFpxPending && <PaymentVerifier orderId={order.id} />}
+
         {isNew && !isBankTransfer && (
           <PurchaseTracker
             orderId={order.id}
