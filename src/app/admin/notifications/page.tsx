@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Bell, Send, Loader2, Users, Megaphone, ShoppingBag, Package, X } from 'lucide-react'
+import { PushSubscribeButton } from '@/components/store/push-subscribe'
 
 const TEMPLATES = [
   {
@@ -73,6 +74,15 @@ export default function AdminNotificationsPage() {
       <div>
         <h1 className="text-xl font-bold text-gray-900">Broadcast Notifikasi</h1>
         <p className="text-sm text-gray-400 mt-0.5">Hantar push notification ke semua pelanggan yang aktif</p>
+      </div>
+
+      {/* Admin subscribe panel */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="font-semibold text-blue-900 text-sm">Notifikasi Order Baru untuk Admin</p>
+          <p className="text-xs text-blue-600 mt-0.5">Aktifkan supaya dapat push notification bila ada order masuk atau FPX dibayar</p>
+        </div>
+        <PushSubscribeButton />
       </div>
 
       {/* Templates */}

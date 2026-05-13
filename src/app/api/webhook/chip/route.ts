@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
+import { sendAdminPush } from '@/lib/push'
 
 export async function POST(req: NextRequest) {
   let rawBody: string
@@ -184,6 +185,14 @@ export async function POST(req: NextRequest) {
     ].filter(Boolean).join('\n')
     sendWhatsApp(adminPhone, message).catch(() => {})
   }
+
+  // Push notification to all admin devices
+  sendAdminPush({
+    title: `💳 FPX Dibayar — ${order_number}`,
+    body: `${profiles?.full_name ?? 'Pelanggan'} · RM${Number(total).toFixed(2)}`,
+    url: '/admin/fulfillment',
+    tag: 'payment-confirmed',
+  }).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }

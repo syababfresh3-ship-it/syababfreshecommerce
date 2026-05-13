@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
+import { sendAdminPush } from '@/lib/push'
 
 export async function POST(request: Request) {
   const { orderId } = await request.json()
@@ -64,6 +65,14 @@ export async function POST(request: Request) {
   ].filter((l) => l !== undefined).join('\n')
 
   if (adminPhone) sendWhatsApp(adminPhone, message).catch(() => {})
+
+  // Push notification to all admin devices
+  sendAdminPush({
+    title: `🛒 Pesanan Baru — ${order.order_number}`,
+    body: `${(order.profiles as any)?.full_name ?? 'Pelanggan'} · RM${Number(order.total).toFixed(2)}`,
+    url: '/admin/fulfillment',
+    tag: 'new-order',
+  }).catch(() => {})
 
   // For pending-approval orders, skip customer email — admin hasn't confirmed yet.
   // Email will be sent when admin approves via /api/admin/orders/[id].
