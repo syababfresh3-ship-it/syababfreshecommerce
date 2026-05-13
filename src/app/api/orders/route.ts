@@ -138,7 +138,11 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (zone) {
-      const isKl = zone.state ? KL_STATES.has(zone.state) : false
+      // Fallback: detect KL by postcode range if state is null
+      const pc = parseInt(postcode, 10)
+      const isKlByPostcode = !isNaN(pc) &&
+        ((pc >= 40000 && pc <= 48999) || (pc >= 50000 && pc <= 60000) || (pc >= 62000 && pc <= 64000))
+      const isKl = zone.state ? KL_STATES.has(zone.state) : isKlByPostcode
       if (!isKl) {
         // Non-KL: use Ninja Cold weight-based pricing
         const totalWeightKg = orderItemsPayload.reduce(
