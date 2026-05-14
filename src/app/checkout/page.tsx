@@ -233,7 +233,7 @@ export default function CheckoutPage() {
     const { data, error } = await supabase
       .from('promo_codes')
       .select('id, code, type, value, min_order, max_uses, uses_count, expires_at')
-      .eq('code', code).eq('active', true).single()
+      .eq('code', code).eq('active', true).maybeSingle()
 
     if (error || !data) { toast.error('Kod promosi tidak sah atau tidak aktif'); setPromoLoading(false); return }
     if (data.expires_at && new Date(data.expires_at) < new Date()) { toast.error('Kod promosi sudah tamat tempoh'); setPromoLoading(false); return }

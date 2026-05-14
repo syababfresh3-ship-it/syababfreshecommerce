@@ -16,21 +16,26 @@ export async function GET(req: NextRequest) {
     .eq('is_active', true)
     .single()
 
+  const { data: setting } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'default_delivery_fee')
+    .single()
+  const defaultFee = Number(setting?.value ?? 15)
+
   if (!data) {
-    const { data: setting } = await supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'default_delivery_fee')
-      .single()
-    return NextResponse.json({ covered: false, fee: Number(setting?.value ?? 15) })
+    return NextResponse.json({ covered: false, fee: defaultFee })
   }
 
+  const KV_STATES = ['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya']
+  const isLocal = KV_STATES.includes(data.state ?? '')
+
   return NextResponse.json({
-    covered: true,
+    covered: isLocal,
     area: data.area_name,
     city: data.city,
     state: data.state,
     frequency: data.frequency,
-    fee: Number(data.delivery_fee ?? 15),
+    fee: isLocal ? Number(data.delivery_fee ?? defaultFee) : defaultFee,
   })
 }
