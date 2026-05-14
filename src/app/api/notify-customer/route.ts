@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
 
-  const { orderId, status } = await request.json()
+  const { orderId, status, trackingUrl } = await request.json()
 
   if (!orderId || !status) {
     return NextResponse.json({ error: 'orderId and status required' }, { status: 400 })
@@ -35,15 +35,24 @@ export async function POST(request: Request) {
   const phone = (order.profiles as any)?.phone
   if (!phone) return NextResponse.json({ skipped: true, reason: 'no phone' })
 
-  const message = [
+  const lines = [
     `Hai *${(order.profiles as any)?.full_name ?? 'Pelanggan'}*! 👋`,
     ``,
     msg,
     ``,
     `📦 No. Pesanan: *${order.order_number}*`,
-    ``,
-    `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
-  ].join('\n')
+  ]
+
+  if (status === 'delivering' && trackingUrl) {
+    lines.push(``)
+    lines.push(`🔗 *Link Penghantaran:*`)
+    lines.push(trackingUrl)
+  }
+
+  lines.push(``)
+  lines.push(`_SyababFresh — Buah Segar Setiap Hari_ 🌿`)
+
+  const message = lines.join('\n')
 
   if (phone) sendWhatsApp(phone, message).catch(() => {})
 

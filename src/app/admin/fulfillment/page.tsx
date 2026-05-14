@@ -72,6 +72,7 @@ export default function FulfillmentPage() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [trackingLinks, setTrackingLinks] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
     const res = await fetch('/api/admin/fulfillment')
@@ -100,11 +101,15 @@ export default function FulfillmentPage() {
       toast.error('Gagal kemaskini status')
     } else {
       toast.success(`${order.order_number} — ${action.label}`)
+      const trackingUrl = order.status === 'preparing' ? (trackingLinks[order.id] ?? '').trim() : ''
       fetch('/api/notify-customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, status: action.next }),
+        body: JSON.stringify({ orderId: order.id, status: action.next, trackingUrl: trackingUrl || undefined }),
       }).catch(() => {})
+      if (trackingUrl) {
+        setTrackingLinks(prev => { const next = { ...prev }; delete next[order.id]; return next })
+      }
       load()
     }
     setUpdating(null)
@@ -346,6 +351,22 @@ export default function FulfillmentPage() {
                           {order.notes && (
                             <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                               <p className="text-xs text-amber-800 leading-snug">📝 {order.notes}</p>
+                            </div>
+                          )}
+
+                          {/* Lalamove link input (only for preparing → delivering) */}
+                          {order.status === 'preparing' && (
+                            <div>
+                              <input
+                                type="url"
+                                placeholder="Link Lalamove (pilihan)"
+                                value={trackingLinks[order.id] ?? ''}
+                                onChange={e => setTrackingLinks(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                className="w-full border border-orange-200 bg-orange-50 rounded-xl px-3 py-2 text-xs placeholder:text-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              />
+                              {(trackingLinks[order.id] ?? '').trim() && (
+                                <p className="text-[10px] text-orange-500 mt-1 px-1">✓ Link akan dihantar ke customer dalam WA</p>
+                              )}
                             </div>
                           )}
 
