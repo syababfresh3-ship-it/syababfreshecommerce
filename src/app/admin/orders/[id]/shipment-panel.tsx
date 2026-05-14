@@ -4,25 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Truck, ExternalLink, Loader2 } from 'lucide-react'
-import type { ShippingCarrier, OrderShipment, ShipmentStatus } from '@/types'
-
-const SHIPMENT_STATUSES: { value: ShipmentStatus; label: string }[] = [
-  { value: 'pending',          label: 'Menunggu Pickup'  },
-  { value: 'picked_up',        label: 'Sudah Diambil'    },
-  { value: 'in_transit',       label: 'Dalam Transit'    },
-  { value: 'out_for_delivery', label: 'Keluar Hantar'    },
-  { value: 'delivered',        label: 'Selesai'          },
-  { value: 'failed',           label: 'Gagal'            },
-]
-
-const STATUS_COLORS: Record<string, string> = {
-  pending:          'bg-yellow-50 text-yellow-700 border-yellow-200',
-  picked_up:        'bg-blue-50 text-blue-700 border-blue-200',
-  in_transit:       'bg-purple-50 text-purple-700 border-purple-200',
-  out_for_delivery: 'bg-orange-50 text-orange-700 border-orange-200',
-  delivered:        'bg-green-50 text-green-700 border-green-200',
-  failed:           'bg-red-50 text-red-600 border-red-200',
-}
+import type { ShippingCarrier, OrderShipment } from '@/types'
 
 interface ShipmentPanelProps {
   orderId: string
@@ -39,9 +21,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
   const [carrierId, setCarrierId] = useState(initialShipment?.carrier_id ?? '')
   const [trackingNumber, setTrackingNumber] = useState(initialShipment?.tracking_number ?? '')
   const [directUrl, setDirectUrl] = useState(initialShipment?.tracking_url ?? '')
-  const [estimatedDelivery, setEstimatedDelivery] = useState(initialShipment?.estimated_delivery ?? '')
   const [notes, setNotes] = useState(initialShipment?.notes ?? '')
-  const [status, setStatus] = useState<ShipmentStatus>(initialShipment?.status ?? 'pending')
 
   const activeCarriers = carriers.filter(c => c.is_active)
   const selectedCarrier = carriers.find(c => c.id === (shipment?.carrier_id ?? carrierId))
@@ -63,18 +43,14 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       ? {
           tracking_number: isLalamove ? null : (trackingNumber || null),
           direct_url: isLalamove ? (directUrl || null) : null,
-          estimated_delivery: estimatedDelivery || null,
           notes: notes || null,
-          status,
         }
       : {
           order_id: orderId,
           carrier_id: carrierId,
           tracking_number: isLalamove ? null : (trackingNumber || null),
           direct_url: isLalamove ? (directUrl || null) : null,
-          estimated_delivery: estimatedDelivery || null,
           notes: notes || null,
-          status,
         }
 
     const res = await fetch(url, {
@@ -97,9 +73,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
         ...prev,
         tracking_number: isLalamove ? null : (trackingNumber || null),
         tracking_url: isLalamove ? (directUrl || null) : prev.tracking_url,
-        estimated_delivery: estimatedDelivery || null,
         notes: notes || null,
-        status,
       } : prev)
       }
       router.refresh()
@@ -112,9 +86,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       setCarrierId(shipment.carrier_id)
       setTrackingNumber(shipment.tracking_number ?? '')
       setDirectUrl(shipment.tracking_url ?? '')
-      setEstimatedDelivery(shipment.estimated_delivery ?? '')
       setNotes(shipment.notes ?? '')
-      setStatus(shipment.status)
     }
     setIsEditing(true)
   }
@@ -174,24 +146,6 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
               </dd>
             </div>
           ) : null}
-          {shipment.estimated_delivery && (
-            <div className="flex justify-between">
-              <dt className="text-gray-500">Anggaran Tiba</dt>
-              <dd className="text-gray-900">
-                {new Date(shipment.estimated_delivery).toLocaleDateString('ms-MY', {
-                  day: 'numeric', month: 'long', year: 'numeric',
-                })}
-              </dd>
-            </div>
-          )}
-          <div className="flex justify-between items-center">
-            <dt className="text-gray-500">Status</dt>
-            <dd>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${STATUS_COLORS[shipment.status] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                {SHIPMENT_STATUSES.find(s => s.value === shipment.status)?.label ?? shipment.status}
-              </span>
-            </dd>
-          </div>
           {shipment.notes && (
             <div className="flex justify-between">
               <dt className="text-gray-500">Nota</dt>
@@ -221,55 +175,6 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
             </p>
           )}
 
-          {/* Carrier rate reference box */}
-          {(() => {
-            const cid = shipment?.carrier_id ?? carrierId
-            const cfg = selectedCarrier?.config ?? {}
-            if (!cid || !selectedCarrier) return null
-
-            type RateRow = { label: string; val: string | undefined }
-            let rows: RateRow[] = []
-            let color = { bg: 'bg-gray-50', border: 'border-gray-200', title: 'text-gray-600', label: 'text-gray-500', value: 'text-gray-800' }
-
-            if (cid === 'lalamove') {
-              rows = [
-                { label: 'Lembah Klang',    val: cfg.rate_lembah_klang },
-                { label: 'Kawasan Terdekat', val: cfg.rate_kawasan_terdekat },
-                { label: 'Lain-lain',        val: cfg.rate_lain },
-              ]
-              color = { bg: 'bg-orange-50', border: 'border-orange-100', title: 'text-orange-700', label: 'text-orange-600', value: 'text-orange-800' }
-            } else if (cid === 'ninja_cold') {
-              rows = [
-                { label: 'Kadar Flat',        val: cfg.rate_flat },
-                { label: 'Surcaj Cold Chain', val: cfg.rate_cold_surcharge },
-              ]
-              color = { bg: 'bg-blue-50', border: 'border-blue-100', title: 'text-blue-700', label: 'text-blue-600', value: 'text-blue-800' }
-            } else if (cid === 'line_clear') {
-              rows = [
-                { label: 'Kadar Flat', val: cfg.rate_flat },
-              ]
-              color = { bg: 'bg-green-50', border: 'border-green-100', title: 'text-green-700', label: 'text-green-600', value: 'text-green-800' }
-            }
-
-            const filtered = rows.filter(r => r.val)
-            if (!filtered.length) return null
-
-            return (
-              <div className={`${color.bg} border ${color.border} rounded-lg px-3 py-2.5`}>
-                <p className={`text-xs font-semibold ${color.title} mb-1.5`}>
-                  Kadar {selectedCarrier.name} (rujukan)
-                </p>
-                <div className="space-y-1">
-                  {filtered.map(r => (
-                    <div key={r.label} className="flex justify-between text-xs">
-                      <span className={color.label}>{r.label}</span>
-                      <span className={`font-bold ${color.value}`}>RM {Number(r.val).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
 
           {isLalamove ? (
             <div>
@@ -294,28 +199,6 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Status Penghantaran</label>
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value as ShipmentStatus)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              {SHIPMENT_STATUSES.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Anggaran Tarikh Tiba</label>
-            <input
-              type="date"
-              value={estimatedDelivery}
-              onChange={e => setEstimatedDelivery(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Nota (pilihan)</label>

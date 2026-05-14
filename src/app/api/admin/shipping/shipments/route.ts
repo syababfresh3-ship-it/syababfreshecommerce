@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   if (tracking_url || tracking_number) {
     const { data: order } = await supabase
       .from('orders')
-      .select('id, order_number, profiles(full_name, phone, email)')
+      .select('id, order_number, user_id')
       .eq('id', order_id)
       .single()
 
@@ -123,9 +123,15 @@ export async function POST(request: Request) {
       .eq('id', carrier_id)
       .single()
 
-    const phone = (order?.profiles as any)?.phone
-    const email = (order?.profiles as any)?.email
-    const name  = (order?.profiles as any)?.full_name ?? 'Pelanggan'
+    const { data: customerProfile } = order?.user_id ? await supabase
+      .from('profiles')
+      .select('full_name, phone, email')
+      .eq('id', order.user_id)
+      .single() : { data: null }
+
+    const phone = customerProfile?.phone
+    const email = customerProfile?.email
+    const name  = customerProfile?.full_name ?? 'Pelanggan'
     const carrierName = carrier?.name ?? carrier_id
 
     if (order) {

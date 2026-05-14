@@ -9,7 +9,7 @@ interface Props {
   productId: string
 }
 
-const EMPTY_FORM = { name: '', price: '', compare_price: '', weight_grams: '', stock: '0', sku: '' }
+const EMPTY_FORM = { name: '', price: '', compare_price: '', stock: '0', sku: '' }
 
 export function VariantManager({ productId }: Props) {
   const [variants, setVariants] = useState<ProductVariant[]>([])
@@ -39,7 +39,6 @@ export function VariantManager({ productId }: Props) {
         name: form.name,
         price: parseFloat(form.price),
         compare_price: form.compare_price || null,
-        weight_grams: form.weight_grams || null,
         stock: parseInt(form.stock) || 0,
         sku: form.sku || null,
         sort_order: variants.length,
@@ -123,8 +122,8 @@ export function VariantManager({ productId }: Props) {
       {showAdd && (
         <form onSubmit={handleAdd} className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Variasi Baru</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="space-y-3">
+            <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Nama *</label>
               <input
                 value={form.name}
@@ -133,45 +132,37 @@ export function VariantManager({ productId }: Props) {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Harga (RM) *</label>
-              <input
-                type="number" step="0.01" min="0"
-                value={form.price}
-                onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
-                placeholder="0.00"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Harga Asal (RM)</label>
-              <input
-                type="number" step="0.01" min="0"
-                value={form.compare_price}
-                onChange={e => setForm(p => ({ ...p, compare_price: e.target.value }))}
-                placeholder="optional"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Berat (gram)</label>
-              <input
-                type="number" min="0"
-                value={form.weight_grams}
-                onChange={e => setForm(p => ({ ...p, weight_grams: e.target.value }))}
-                placeholder="cth: 1000"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Stok</label>
-              <input
-                type="number" min="0"
-                value={form.stock}
-                onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
-                placeholder="0"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Harga (RM) *</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={form.price}
+                  onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+                  placeholder="0.00"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Harga Asal (RM)</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  value={form.compare_price}
+                  onChange={e => setForm(p => ({ ...p, compare_price: e.target.value }))}
+                  placeholder="–"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Stok</label>
+                <input
+                  type="number" min="0"
+                  value={form.stock}
+                  onChange={e => setForm(p => ({ ...p, stock: e.target.value }))}
+                  placeholder="0"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
             </div>
           </div>
           <div className="flex gap-2">
@@ -209,48 +200,51 @@ export function VariantManager({ productId }: Props) {
             const isSaving = saving === v.id
             const isDirty = !!editing[v.id]
             return (
-              <div key={v.id} className={`bg-white border rounded-xl px-4 py-3 transition-all ${v.is_active ? 'border-gray-100' : 'border-gray-100 opacity-60'}`}>
-                <div className="flex items-center gap-3">
-                  <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
+              <div key={v.id} className={`bg-white border rounded-xl p-3 transition-all ${v.is_active ? 'border-gray-100' : 'border-gray-100 opacity-50'}`}>
+                <div className="flex items-end gap-2">
+                  <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mb-1.5" />
 
                   {/* Name */}
-                  <input
-                    value={String(getVal(v, 'name'))}
-                    onChange={e => patchEdit(v.id, 'name', e.target.value)}
-                    className="flex-1 min-w-0 text-sm font-semibold text-gray-900 border-0 focus:outline-none focus:ring-0 bg-transparent"
-                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Nama</p>
+                    <input
+                      value={String(getVal(v, 'name'))}
+                      onChange={e => patchEdit(v.id, 'name', e.target.value)}
+                      className="w-full text-sm font-semibold text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
 
                   {/* Price */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs text-gray-400">RM</span>
+                  <div className="shrink-0 w-24">
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Harga (RM)</p>
                     <input
                       type="number" step="0.01" min="0"
                       value={String(getVal(v, 'price'))}
                       onChange={e => patchEdit(v.id, 'price', e.target.value)}
-                      className="w-20 text-sm font-bold text-gray-900 border border-gray-200 rounded-lg px-2 py-1 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full text-sm font-bold text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
 
-                  {/* Weight */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  {/* Compare price */}
+                  <div className="shrink-0 w-24">
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Harga Asal</p>
                     <input
-                      type="number" min="0"
-                      value={String(getVal(v, 'weight_grams') ?? '')}
-                      onChange={e => patchEdit(v.id, 'weight_grams', e.target.value || null)}
-                      placeholder="gram"
-                      className="w-20 text-xs text-gray-600 border border-gray-200 rounded-lg px-2 py-1 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
+                      type="number" step="0.01" min="0"
+                      value={String(getVal(v, 'compare_price') ?? '')}
+                      onChange={e => patchEdit(v.id, 'compare_price', e.target.value || null)}
+                      placeholder="–"
+                      className="w-full text-sm text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
-                    <span className="text-xs text-gray-400">g</span>
                   </div>
 
                   {/* Stock */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs text-gray-400">Stok:</span>
+                  <div className="shrink-0 w-16">
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Stok</p>
                     <input
                       type="number" min="0"
                       value={String(getVal(v, 'stock'))}
                       onChange={e => patchEdit(v.id, 'stock', e.target.value)}
-                      className="w-14 text-xs border border-gray-200 rounded-lg px-2 py-1 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
 
@@ -258,7 +252,7 @@ export function VariantManager({ productId }: Props) {
                   <button
                     type="button"
                     onClick={() => toggleActive(v)}
-                    className={`text-xs px-2 py-1 rounded-lg border font-medium shrink-0 ${v.is_active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}
+                    className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold shrink-0 mb-0.5 transition-colors ${v.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}
                   >
                     {v.is_active ? 'Aktif' : 'Mati'}
                   </button>
@@ -269,7 +263,7 @@ export function VariantManager({ productId }: Props) {
                       type="button"
                       onClick={() => handleSave(v.id)}
                       disabled={isSaving}
-                      className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg disabled:opacity-50 hover:bg-gray-800 transition-colors shrink-0"
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg disabled:opacity-50 hover:bg-gray-800 transition-colors shrink-0 mb-0.5"
                     >
                       {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                       Simpan
@@ -280,7 +274,7 @@ export function VariantManager({ productId }: Props) {
                   <button
                     type="button"
                     onClick={() => handleDelete(v)}
-                    className="p-1.5 text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                    className="p-1.5 text-gray-300 hover:text-red-500 transition-colors shrink-0 mb-0.5"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

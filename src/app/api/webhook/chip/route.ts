@@ -35,14 +35,25 @@ export async function POST(req: NextRequest) {
 
   const { event_type, purchase } = body
 
-  if (event_type !== 'purchase.paid') {
-    return NextResponse.json({ ok: true })
-  }
-
   const orderId = purchase?.reference
   if (!orderId) return NextResponse.json({ ok: true })
 
   const supabase = createAdminClient()
+
+  // Auto-cancel order if payment failed, cancelled, or expired
+  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired']
+  if (FAILURE_EVENTS.includes(event_type)) {
+    await supabase
+      .from('orders')
+      .update({ status: 'cancelled', payment_status: 'failed' })
+      .eq('id', orderId)
+      .eq('payment_status', 'unpaid')
+    return NextResponse.json({ ok: true })
+  }
+
+  if (event_type !== 'purchase.paid') {
+    return NextResponse.json({ ok: true })
+  }
 
   // Idempotency — only process if still unpaid
   const { data: updated } = await supabase

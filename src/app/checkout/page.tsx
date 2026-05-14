@@ -142,6 +142,7 @@ export default function CheckoutPage() {
           const def = data.find((a: Address) => a.is_default) ?? data[0]
           setSelectedAddressId(def.id)
           setForm((prev) => ({ ...prev, full_address: buildAddressString(def as Address) }))
+          if (def.postcode) checkPostcode(def.postcode)
         } else {
           // No saved addresses — open editor immediately
           setEditingAddress(true)
@@ -323,7 +324,7 @@ export default function CheckoutPage() {
         postcode: postcode || null,
         payment_method: form.payment_method,
         delivery_address: `${form.recipient_name} | ${form.phone}\n${form.full_address}`,
-        delivery_slot: slots.find(s => s.value === form.delivery_slot)?.label ?? null,
+        delivery_slot: isNationwide ? null : (slots.find(s => s.value === form.delivery_slot)?.label ?? null),
         notes: form.notes || null,
         promo_code: appliedPromo?.code ?? null,
         use_points: usePoints,
@@ -686,7 +687,7 @@ export default function CheckoutPage() {
               <span className="text-xs text-gray-500">Kos penghantaran</span>
             </div>
             <span className={`text-xs font-bold ${deliveryFee === 0 ? 'text-brand-fresh-600' : 'text-gray-900'}`}>
-              {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
+              {deliveryFee === 0 ? '✓ Percuma' : isNationwide ? 'Ikut berat' : `RM${deliveryFee.toFixed(2)}`}
             </span>
           </div>
         </div>
@@ -866,10 +867,15 @@ export default function CheckoutPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Kos penghantaran</span>
                 <span className={`tabular-nums ${deliveryFee === 0 ? 'text-brand-fresh-600 font-semibold' : 'text-gray-700'}`}>
-                  {deliveryFee === 0 ? '✓ Percuma' : `RM${deliveryFee.toFixed(2)}`}
+                  {deliveryFee === 0 ? '✓ Percuma' : isNationwide ? 'Ikut berat' : `RM${deliveryFee.toFixed(2)}`}
                 </span>
               </div>
-              {subtotal < freeDeliveryMin && (
+              {isNationwide && (
+                <p className="text-[11px] text-blue-500 bg-blue-50 rounded-lg px-2.5 py-1.5">
+                  Kos penghantaran courier dikira berdasarkan berat item
+                </p>
+              )}
+              {!isNationwide && subtotal < freeDeliveryMin && (
                 <p className="text-[11px] text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
                   Tambah RM{(freeDeliveryMin - subtotal).toFixed(2)} untuk penghantaran percuma
                 </p>

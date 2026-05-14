@@ -12,6 +12,14 @@ export default function CartPage() {
   const { items, updateQuantity, removeItem, getTotal } = useCartStore()
   const total = getTotal()
   const [liveStock, setLiveStock] = useState<Record<string, number>>({})
+  const [freeDeliveryMin, setFreeDeliveryMin] = useState<number>(99999)
+
+  useEffect(() => {
+    fetch('/api/settings/delivery')
+      .then(r => r.json())
+      .then(d => { if (d.free_delivery_min != null) setFreeDeliveryMin(d.free_delivery_min) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (items.length === 0) return
@@ -202,15 +210,15 @@ export default function CartPage() {
               RM{total.toFixed(2)}
             </p>
           </div>
-          {total < 80 && (
+          {freeDeliveryMin < 9999 && total < freeDeliveryMin && (
             <div className="text-right">
               <p className="text-[11px] text-brand-fresh-600 font-semibold leading-snug">
-                Tambah RM{(80 - total).toFixed(2)} lagi
+                Tambah RM{(freeDeliveryMin - total).toFixed(2)} lagi
               </p>
               <p className="text-[10px] text-gray-400 mt-0.5">untuk penghantaran percuma</p>
             </div>
           )}
-          {total >= 80 && (
+          {freeDeliveryMin < 9999 && total >= freeDeliveryMin && (
             <p className="text-[11px] text-brand-fresh-600 font-semibold">✓ Penghantaran percuma!</p>
           )}
         </div>

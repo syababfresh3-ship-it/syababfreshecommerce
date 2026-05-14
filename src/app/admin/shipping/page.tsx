@@ -36,22 +36,16 @@ const CARRIER_FIELDS: Record<string, { key: string; label: string; placeholder: 
     { key: 'pickup_point_id', label: 'Pickup Point ID',              placeholder: 'cth: PP001' },
   ],
   ninja_cold: [
-    { key: 'client_id',          label: 'Client ID',                      placeholder: 'Ninja Van Client ID' },
-    { key: 'client_secret',      label: 'Client Secret',                  placeholder: 'Client Secret', secret: true },
-    { key: 'rate_flat',          label: 'Kadar Flat (RM)',                placeholder: 'cth: 18.00' },
-    { key: 'rate_cold_surcharge',label: 'Surcaj Cold Chain (RM)',         placeholder: 'cth: 5.00' },
+    { key: 'client_id',     label: 'Client ID',     placeholder: 'Ninja Van Client ID' },
+    { key: 'client_secret', label: 'Client Secret', placeholder: 'Client Secret', secret: true },
   ],
   line_clear: [
-    { key: 'api_key',     label: 'API Key',          placeholder: 'Line Clear API Key', secret: true },
-    { key: 'branch_code', label: 'Branch Code',      placeholder: 'cth: KUL' },
-    { key: 'rate_flat',   label: 'Kadar Flat (RM)',  placeholder: 'cth: 12.00' },
+    { key: 'api_key',     label: 'API Key',     placeholder: 'Line Clear API Key', secret: true },
+    { key: 'branch_code', label: 'Branch Code', placeholder: 'cth: KUL' },
   ],
   lalamove: [
-    { key: 'app_key',              label: 'App Key',                    placeholder: 'Lalamove App Key' },
-    { key: 'app_secret',           label: 'App Secret',                 placeholder: 'Lalamove App Secret', secret: true },
-    { key: 'rate_lembah_klang',    label: 'Kadar Flat — Lembah Klang (RM)', placeholder: 'cth: 15.00' },
-    { key: 'rate_kawasan_terdekat',label: 'Kadar Flat — Kawasan Terdekat (RM)', placeholder: 'cth: 25.00' },
-    { key: 'rate_lain',            label: 'Kadar Flat — Lain-lain (RM)', placeholder: 'cth: 35.00' },
+    { key: 'app_key',    label: 'App Key',    placeholder: 'Lalamove App Key' },
+    { key: 'app_secret', label: 'App Secret', placeholder: 'Lalamove App Secret', secret: true },
   ],
 }
 
