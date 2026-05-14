@@ -140,7 +140,7 @@ export default function FulfillmentPage() {
   const total = orders.length
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50/80">
+    <div className="p-4 md:p-6 min-h-screen bg-gray-50/80">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -182,7 +182,7 @@ export default function FulfillmentPage() {
               <span className="text-sm font-bold text-white flex-1">Perlu Kelulusan — Pelanggan Baru</span>
               <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingApproval.length}</span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {pendingApproval.map(order => (
                 <div key={order.id} className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm overflow-hidden">
                   <div className="bg-amber-50 px-4 py-2 flex items-center gap-2 border-b border-amber-100">
@@ -235,7 +235,7 @@ export default function FulfillmentPage() {
         )}
 
         {/* ── Kanban columns ── */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {COLUMNS.map(col => {
             const colOrders = byStatus(col.status)
             const Icon = col.icon

@@ -15,7 +15,7 @@ export default async function AdminPromosPage() {
   const promos = await getPromos()
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <PromoManager promos={promos as any} />
     </div>
   )

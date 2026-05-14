@@ -117,14 +117,14 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct }: {
   }
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-4 md:p-6 max-w-6xl">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900">Program Affiliate</h1>
         <p className="text-sm text-gray-400 mt-0.5">Urus affiliate, komisyen, dan pengeluaran</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <Stat icon={Users}        label="Jumlah Affiliate"  value={affiliates.length}          color="text-blue-600" />
         <Stat icon={Clock}        label="Withdraw Pending"  value={pendingWds.length}          color="text-yellow-600" />
         <Stat icon={Wallet}       label="Baki Terkumpul"    value={`RM${totalBalance.toFixed(2)}`} color="text-purple-600" />
@@ -188,7 +188,8 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct }: {
             {affiliates.length === 0 ? (
               <p className="px-5 py-8 text-sm text-gray-400 text-center">Tiada affiliate lagi</p>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[420px]">
                 <thead>
                   <tr className="border-b border-gray-50 bg-gray-50/60">
                     <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</th>
@@ -225,6 +226,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct }: {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 
@@ -234,7 +236,8 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct }: {
               <Users className="h-4 w-4 text-gray-400" />
               <h2 className="font-bold text-gray-900 text-sm">Pelanggan (boleh jadikan affiliate)</h2>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[360px]">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/60">
                   <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</th>
@@ -265,6 +268,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct }: {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

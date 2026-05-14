@@ -58,11 +58,14 @@ const sections = [
 
 type Counts = { fulfillment: number; refunds: number }
 
-export function AdminSidebar() {
+export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const clearCart = useCartStore((s) => s.clearCart)
   const [counts, setCounts] = useState<Counts>({ fulfillment: 0, refunds: 0 })
+
+  // Close drawer when navigating on mobile
+  useEffect(() => { onClose() }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const supabase = createClient()
@@ -100,7 +103,12 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="w-56 min-h-screen bg-gray-950 flex flex-col shrink-0">
+    <aside className={`
+      fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-gray-950
+      transform transition-transform duration-200 ease-in-out
+      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      md:relative md:translate-x-0 md:w-56 md:min-h-screen md:shrink-0
+    `.trim()}>
       {/* Logo */}
       <Link href="/admin" className="px-5 py-4 border-b border-gray-800/60 block hover:bg-gray-900 transition-colors">
         <div className="flex items-center gap-2.5">

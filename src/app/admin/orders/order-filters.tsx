@@ -44,7 +44,7 @@ export function OrderFilters({ activeStatus, activeSearch }: { activeStatus?: st
 
   return (
     <div className="space-y-3 mb-4">
-      <form onSubmit={handleSearch} className="relative max-w-sm">
+      <form onSubmit={handleSearch} className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
         <input
           ref={inputRef}

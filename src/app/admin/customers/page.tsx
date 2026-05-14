@@ -52,7 +52,7 @@ async function getCustomers() {
 export default async function AdminCustomersPage() {
   const customers = await getCustomers()
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <CustomersClient customers={customers as any} />
     </div>
   )

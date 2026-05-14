@@ -70,7 +70,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl space-y-5">
+    <div className="p-4 md:p-6 max-w-2xl space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Broadcast Notifikasi</h1>
         <p className="text-sm text-gray-400 mt-0.5">Hantar push notification ke semua pelanggan yang aktif</p>
@@ -88,7 +88,7 @@ export default function AdminNotificationsPage() {
       {/* Templates */}
       <div>
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Template Pantas</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {TEMPLATES.map(t => {
             const Icon = t.icon
             const isActive = activeTemplate === t.label

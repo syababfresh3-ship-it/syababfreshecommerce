@@ -90,14 +90,14 @@ export default async function AnalyticsPage() {
   const totalStatusOrders = Object.values(statusCount).reduce((s, n) => s + n, 0)
 
   return (
-    <div className="p-6 max-w-5xl space-y-5">
+    <div className="p-4 md:p-6 max-w-5xl space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Analitik</h1>
         <p className="text-sm text-gray-400 mt-0.5">Prestasi 7 hari lepas</p>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-gray-500">Jualan (7 Hari)</span>
@@ -155,7 +155,7 @@ export default async function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top products */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">

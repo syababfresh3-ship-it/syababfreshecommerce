@@ -15,7 +15,7 @@ export default async function NewProductPage() {
   const categories = await getCategories()
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 md:p-6 max-w-2xl">
       <h1 className="text-xl font-bold text-gray-900 mb-6">Tambah Produk</h1>
       <ProductForm categories={categories} />
     </div>

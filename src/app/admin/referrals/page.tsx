@@ -34,14 +34,14 @@ export default async function AdminReferralsPage() {
   }, 0)
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-4 md:p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">Program Rujukan</h1>
         <p className="text-sm text-gray-400 mt-0.5">Semua jemputan dan ganjaran</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <StatCard icon={Users}       label="Jumlah Rujukan" value={total}    color="text-gray-700" />
         <StatCard icon={Clock}       label="Menunggu"       value={pending}  color="text-yellow-600" />
         <StatCard icon={CheckCircle2} label="Diberi Ganjaran" value={rewarded} color="text-green-600" />
@@ -49,8 +49,8 @@ export default async function AdminReferralsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Penjemput</th>

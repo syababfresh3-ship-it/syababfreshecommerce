@@ -130,7 +130,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Kategori Produk</h1>
@@ -159,7 +159,7 @@ export default function CategoriesPage() {
             <h2 className="font-bold text-gray-900">Kategori Baru</h2>
           </div>
           <form onSubmit={handleAdd} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Nama *</label>
                 <input
@@ -245,7 +245,7 @@ export default function CategoriesPage() {
               {editingId === cat.id ? (
                 /* Edit mode */
                 <form onSubmit={e => handleEdit(e, cat.id)} className="p-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1">Nama</label>
                       <input

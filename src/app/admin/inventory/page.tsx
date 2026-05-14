@@ -64,7 +64,7 @@ export default async function InventoryPage({
   const lowStock   = products.filter((p: any) => { const s = stockMap[p.id] ?? 0; return s > 0 && s <= 10 }).length
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <h1 className="text-xl font-bold text-gray-900">Inventori</h1>
 
       {/* Summary pills */}
@@ -111,9 +111,9 @@ export default async function InventoryPage({
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Add Batch Form */}
-        <div className="col-span-1">
+        <div className="lg:col-span-1">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sticky top-6">
             <h2 className="font-bold text-gray-900 mb-4">Tambah Batch Stok</h2>
             <AddBatchForm products={products as any} />
@@ -121,7 +121,7 @@ export default async function InventoryPage({
         </div>
 
         {/* Right column */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Stock per product */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
@@ -164,7 +164,8 @@ export default async function InventoryPage({
               <h2 className="font-bold text-gray-900">Batch Stok</h2>
               <span className="text-xs text-gray-400">{batchTotal} batch</span>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Produk</th>
@@ -205,6 +206,7 @@ export default async function InventoryPage({
                 )}
               </tbody>
             </table>
+            </div>
             <Pagination page={batchPage} total={batchTotal} pageSize={BATCH_PAGE_SIZE} basePath="/admin/inventory" />
           </div>
         </div>

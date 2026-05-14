@@ -89,7 +89,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
   }, [customers, q, activeSegment])
 
   return (
-    <div className="p-6 max-w-6xl">
+    <div className="p-4 md:p-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -141,7 +141,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
       </div>
 
       {/* Search */}
-      <div className="relative mb-4 w-80">
+      <div className="relative mb-4 w-full sm:w-80">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
         <input
           value={q}
@@ -151,8 +151,44 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 text-gray-400 py-16">
+            <Users className="h-10 w-10 text-gray-200" />
+            <p className="font-medium text-sm">{q ? `Tiada hasil untuk "${q}"` : 'Tiada pelanggan dalam segmen ini'}</p>
+          </div>
+        ) : filtered.map((customer) => {
+          const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
+          const initials = (customer.full_name ?? '?').charAt(0).toUpperCase()
+          return (
+            <a
+              key={customer.id}
+              href={`/admin/customers/${customer.id}`}
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center gap-3 block"
+            >
+              <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${avatarColor(customer.id)}`}>
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm leading-tight">{customer.full_name ?? '—'}</p>
+                <p className="text-xs text-gray-400 truncate">{customer.phone ?? customer.email ?? '—'}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <SegmentBadge segment={customer.segment} />
+                  <TierBadge name={tierName} />
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-bold text-gray-900 text-sm">RM{Number(customer.total_spend).toFixed(0)}</p>
+                <p className="text-xs text-gray-400">{customer.order_count} pesanan</p>
+              </div>
+            </a>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
@@ -235,3 +271,4 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
     </div>
   )
 }
+

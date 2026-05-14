@@ -101,7 +101,7 @@ export default async function LalamoveGroupingPage() {
   const orders = await getTodayOrders()
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">

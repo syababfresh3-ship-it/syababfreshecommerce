@@ -92,7 +92,7 @@ export default async function AdminOrdersPage({
   const orders = await getOrders(status, q)
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Pesanan</h1>
@@ -104,13 +104,62 @@ export default async function AdminOrdersPage({
           className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
         >
           <Download className="h-3.5 w-3.5" />
-          Export CSV
+          <span className="hidden sm:inline">Export CSV</span>
         </a>
       </div>
 
       <Suspense><OrderFilters activeStatus={status} activeSearch={q} /></Suspense>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-2">
+        {orders.length === 0 ? (
+          <p className="text-center text-gray-400 text-sm py-14">
+            {q ? `Tiada pesanan sepadan "${q}"` : 'Tiada pesanan'}
+          </p>
+        ) : orders.map((order) => {
+          const sc = statusConfig[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' }
+          const dt = formatDate(order.created_at)
+          const isUnpaid = order.payment_status === 'unpaid' && (order as any).payment_method !== 'cod'
+          return (
+            <div key={order.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <Link href={`/admin/orders/${order.id}`} className="flex items-start gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
+                    {isUnpaid && (
+                      <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Belum Bayar</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900">{order.profiles?.full_name ?? '—'}</p>
+                  {order.profiles?.phone && (
+                    <p className="text-xs text-gray-400">{order.profiles.phone}</p>
+                  )}
+                  {(order as any).delivery_slot && (
+                    <p className="text-[10px] text-blue-600 font-medium mt-0.5">🕐 {(order as any).delivery_slot}</p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-semibold border ${sc.cls}`}>
+                    {sc.label}
+                  </span>
+                  <span className="font-bold text-gray-900 text-sm">RM{Number(order.total).toFixed(2)}</span>
+                  <span className="text-[10px] text-gray-400">{dt.top} {dt.bottom}</span>
+                </div>
+              </Link>
+              <div className="px-4 pb-3 border-t border-gray-50 pt-2">
+                <PaymentToggle
+                  orderId={order.id}
+                  currentStatus={order.payment_status}
+                  paymentMethod={(order as any).payment_method}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">

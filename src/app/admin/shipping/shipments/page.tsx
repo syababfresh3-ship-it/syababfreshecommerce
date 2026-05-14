@@ -76,7 +76,7 @@ export default async function ShipmentsPage({
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center gap-3 mb-5">
         <Link href="/admin/shipping" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
           <ArrowLeft className="h-4 w-4" />

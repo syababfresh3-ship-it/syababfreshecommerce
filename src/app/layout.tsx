@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
+import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
@@ -126,6 +127,9 @@ export default async function RootLayout({
 
         {/* Pixel tracking scripts */}
         <PixelScripts {...pixels} />
+
+        {/* PWA Install Banner */}
+        <PWAInstallBanner />
 
         {/* Toast notifications */}
         <Toaster

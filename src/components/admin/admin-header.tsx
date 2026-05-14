@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Menu } from 'lucide-react'
 
 const pageLabels: Record<string, string> = {
   '/admin':               'Dashboard',
@@ -45,7 +45,7 @@ function getParent(pathname: string): { label: string; href: string } | null {
   return null
 }
 
-export function AdminHeader() {
+export function AdminHeader({ onMenuToggle }: { onMenuToggle: () => void }) {
   const pathname = usePathname()
   const label = getLabel(pathname)
   const parent = getParent(pathname)
@@ -56,7 +56,16 @@ export function AdminHeader() {
   })
 
   return (
-    <header className="h-12 bg-white border-b border-gray-200 flex items-center px-6 shrink-0">
+    <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 shrink-0 gap-3">
+      {/* Hamburger — mobile only */}
+      <button
+        onClick={onMenuToggle}
+        className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors shrink-0"
+        aria-label="Buka menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         {parent ? (
@@ -70,8 +79,8 @@ export function AdminHeader() {
         <span className="text-sm font-semibold text-gray-800 truncate">{label}</span>
       </div>
 
-      {/* Date */}
-      <span className="text-xs text-gray-400 shrink-0">{dateStr}</span>
+      {/* Date — hidden on small screens */}
+      <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{dateStr}</span>
     </header>
   )
 }

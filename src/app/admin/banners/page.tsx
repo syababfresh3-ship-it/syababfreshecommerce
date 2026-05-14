@@ -136,7 +136,7 @@ export default function AdminBannersPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Banner Utama</h1>
@@ -181,7 +181,7 @@ export default function AdminBannersPage() {
               <input value={form.subtitle} onChange={e => setForm(p => ({ ...p, subtitle: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Link</label>
                 <input value={form.link} onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
@@ -274,7 +274,7 @@ export default function AdminBannersPage() {
                 placeholder="Strawberry, Anggur, Epal — semua ada!"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Link</label>
                 <input value={form.link} onChange={e => setForm(p => ({ ...p, link: e.target.value }))}

@@ -13,7 +13,7 @@ export default async function ProductSortPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center gap-3 mb-2">
         <Link href="/admin/products" className="text-gray-400 hover:text-gray-600 transition-colors">
           <ArrowLeft className="h-4 w-4" />

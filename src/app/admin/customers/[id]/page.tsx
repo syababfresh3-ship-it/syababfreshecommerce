@@ -115,9 +115,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const segCfg = SEGMENT_CONFIG[segment]
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-4 md:p-6 max-w-5xl">
       {/* Back + header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <Link href="/admin/customers" className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </Link>
@@ -138,7 +138,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       </div>
 
       {/* Metrics bar */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1">
             <ShoppingBag className="h-3.5 w-3.5 text-gray-400" />
@@ -179,9 +179,9 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left column */}
-        <div className="col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-4">
           {/* Profile info */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="text-sm font-bold text-gray-900 mb-3">Maklumat</h2>
@@ -284,7 +284,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </div>
 
         {/* Orders */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <ShoppingBag className="h-4 w-4 text-gray-400" />
@@ -298,7 +298,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 Tiada pesanan lagi
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Pesanan</th>
@@ -337,6 +338,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
