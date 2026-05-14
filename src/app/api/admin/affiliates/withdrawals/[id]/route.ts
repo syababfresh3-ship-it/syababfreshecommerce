@@ -36,16 +36,9 @@ export async function PATCH(
     const { error } = await supabase.from('affiliate_withdrawals').update(update).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    // Deduct balance when paid (balance is source of truth)
-    if (status === 'paid' && wd.status !== 'paid') {
-      await supabase.rpc('increment_affiliate_balance', {
-        uid: wd.affiliate_id,
-        amt: -wd.amount,
-      })
-    }
-
-    // Restore balance if rejected after already paid
-    if (status === 'rejected' && wd.status === 'paid') {
+    // Balance was already deducted when affiliate submitted the withdrawal request.
+    // Only touch balance on rejection — restore what was deducted at request time.
+    if (status === 'rejected' && wd.status !== 'rejected') {
       await supabase.rpc('increment_affiliate_balance', {
         uid: wd.affiliate_id,
         amt: wd.amount,
