@@ -12,10 +12,13 @@ const statusMessage: Record<string, string> = {
 }
 
 export async function POST(request: Request) {
+  console.log('[notify-customer] POST received')
   const { supabase, forbidden } = await requireAdmin()
+  console.log('[notify-customer] auth:', forbidden ? 'FAILED' : 'OK')
   if (forbidden) return forbidden
 
   const { orderId, status, trackingUrl } = await request.json()
+  console.log('[notify-customer] body:', { orderId, status, trackingUrl })
 
   if (!orderId || !status) {
     return NextResponse.json({ error: 'orderId and status required' }, { status: 400 })
@@ -26,17 +29,24 @@ export async function POST(request: Request) {
 
   const { data: order } = await supabase!
     .from('orders')
-    .select('order_number, profiles(full_name, phone, email)')
+    .select('order_number, user_id')
     .eq('id', orderId)
     .single()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-  const phone = (order.profiles as any)?.phone
+  const { data: profile } = await supabase!
+    .from('profiles')
+    .select('full_name, phone, email')
+    .eq('id', order.user_id)
+    .single()
+
+  const phone = profile?.phone
+  console.log('[notify-customer] orderId:', orderId, 'status:', status, 'phone:', phone ? 'ada' : 'TIADA')
   if (!phone) return NextResponse.json({ skipped: true, reason: 'no phone' })
 
   const lines = [
-    `Hai *${(order.profiles as any)?.full_name ?? 'Pelanggan'}*! 👋`,
+    `Hai *${profile?.full_name ?? 'Pelanggan'}*! 👋`,
     ``,
     msg,
     ``,
@@ -54,14 +64,14 @@ export async function POST(request: Request) {
 
   const message = lines.join('\n')
 
-  if (phone) sendWhatsApp(phone, message).catch(() => {})
+  if (phone) sendWhatsApp(phone, message).then(r => console.log('[notify-customer] murpati:', JSON.stringify(r))).catch(err => console.error('[notify-customer] murpati error:', err))
 
   // Send delivery status email (preparing / delivering / delivered)
-  const customerEmail = (order.profiles as any)?.email
+  const customerEmail = profile?.email
   if (customerEmail && ['preparing', 'delivering', 'delivered'].includes(status)) {
     sendDeliveryStatusEmail({
       to: customerEmail,
-      customerName: (order.profiles as any)?.full_name ?? 'Pelanggan',
+      customerName: profile?.full_name ?? 'Pelanggan',
       orderNumber: order.order_number,
       status,
       orderId,

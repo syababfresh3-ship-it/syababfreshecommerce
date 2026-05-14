@@ -106,7 +106,11 @@ export default function FulfillmentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order.id, status: action.next, trackingUrl: trackingUrl || undefined }),
-      }).catch(() => {})
+      }).then(async r => {
+        const body = await r.json().catch(() => ({}))
+        if (!r.ok) console.error('[notify-customer] failed:', r.status, body)
+        else console.log('[notify-customer] ok:', body)
+      }).catch(err => console.error('[notify-customer] fetch error:', err))
       if (trackingUrl) {
         setTrackingLinks(prev => { const next = { ...prev }; delete next[order.id]; return next })
       }
