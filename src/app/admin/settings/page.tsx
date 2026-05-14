@@ -40,6 +40,7 @@ export default function SettingsPage() {
   const [savingLogo, setSavingLogo] = useState(false)
 
   const [freeDeliveryMin, setFreeDeliveryMin] = useState(80)
+  const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true)
   const [defaultFee, setDefaultFee] = useState(15)
   const [slots, setSlots] = useState<DeliverySlot[]>([])
   const [savingDelivery, setSavingDelivery] = useState(false)
@@ -51,7 +52,10 @@ export default function SettingsPage() {
     ]).then(([logo, delivery]) => {
       setLogoUrl(logo.logo_url ?? null)
       setPendingUrl(logo.logo_url ?? null)
-      setFreeDeliveryMin(delivery.free_delivery_min ?? 80)
+      const min = delivery.free_delivery_min ?? 80
+      const enabled = min < 9999
+      setFreeDeliveryEnabled(enabled)
+      setFreeDeliveryMin(enabled ? min : 80)
       setDefaultFee(delivery.default_delivery_fee ?? 15)
       setSlots(delivery.slots ?? [])
       setLoading(false)
@@ -75,7 +79,7 @@ export default function SettingsPage() {
     const res = await fetch('/api/admin/settings/delivery', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ free_delivery_min: freeDeliveryMin, default_delivery_fee: defaultFee, slots }),
+      body: JSON.stringify({ free_delivery_min: freeDeliveryEnabled ? freeDeliveryMin : 99999, default_delivery_fee: defaultFee, slots }),
     })
     setSavingDelivery(false)
     if (res.ok) toast.success('Tetapan penghantaran disimpan')
@@ -181,22 +185,41 @@ export default function SettingsPage() {
 
         {/* Fee cards */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
-            <p className="text-xs font-bold text-green-700 mb-1">🎁 Penghantaran Percuma</p>
-            <p className="text-[11px] text-green-600 mb-3">Customer jimat kos bila order mencapai had ini</p>
-            <div className="flex items-center gap-2 bg-white border border-green-200 rounded-xl px-3 py-2">
-              <span className="text-sm font-bold text-gray-500">RM</span>
-              <input
-                type="number"
-                min={0}
-                step={5}
-                value={freeDeliveryMin}
-                onChange={e => setFreeDeliveryMin(Number(e.target.value))}
-                onFocus={e => e.target.select()}
-                className="flex-1 text-2xl font-black text-gray-900 bg-transparent focus:outline-none w-full"
-              />
+          <div className={`border rounded-2xl p-4 transition-colors ${freeDeliveryEnabled ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
+            <div className="flex items-center justify-between mb-1">
+              <p className={`text-xs font-bold ${freeDeliveryEnabled ? 'text-green-700' : 'text-gray-500'}`}>🎁 Penghantaran Percuma</p>
+              <button
+                type="button"
+                onClick={() => setFreeDeliveryEnabled(v => !v)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${freeDeliveryEnabled ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${freeDeliveryEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+              </button>
             </div>
-            <p className="text-[10px] text-green-600 mt-2">Order ≥ RM{freeDeliveryMin} = percuma</p>
+            <p className={`text-[11px] mb-3 ${freeDeliveryEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+              {freeDeliveryEnabled ? 'Customer jimat kos bila order mencapai had ini' : 'Penghantaran percuma dimatikan'}
+            </p>
+            {freeDeliveryEnabled ? (
+              <>
+                <div className="flex items-center gap-2 bg-white border border-green-200 rounded-xl px-3 py-2">
+                  <span className="text-sm font-bold text-gray-500">RM</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={freeDeliveryMin}
+                    onChange={e => setFreeDeliveryMin(Number(e.target.value))}
+                    onFocus={e => e.target.select()}
+                    className="flex-1 text-2xl font-black text-gray-900 bg-transparent focus:outline-none w-full"
+                  />
+                </div>
+                <p className="text-[10px] text-green-600 mt-2">Order ≥ RM{freeDeliveryMin} = percuma</p>
+              </>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 opacity-40">
+                <p className="text-2xl font-black text-gray-300">—</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
