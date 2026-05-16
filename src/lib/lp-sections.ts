@@ -11,6 +11,10 @@ export type SectionType =
   | 'urgency'
   | 'lead-form'
   | 'image'
+  | 'cta-button'
+  | 'faq'
+  | 'stats'
+  | 'countdown'
 
 export interface Section {
   id: string
@@ -96,6 +100,49 @@ export const SECTION_META: Record<SectionType, { label: string; icon: string; de
     defaultData: {
       alt: '',
       caption: '',
+    },
+  },
+  'cta-button': {
+    label: 'CTA Button',
+    icon: '🔘',
+    defaultData: {
+      text: 'Beli Sekarang',
+      link: '/products',
+      style: 'green',
+      size: 'large',
+      sub: '',
+    },
+  },
+  faq: {
+    label: 'Soalan Lazim (FAQ)',
+    icon: '❓',
+    defaultData: {
+      title: 'Soalan Lazim',
+      q1: '', a1: '',
+      q2: '', a2: '',
+      q3: '', a3: '',
+      q4: '', a4: '',
+      q5: '', a5: '',
+    },
+  },
+  stats: {
+    label: 'Statistik / Nombor',
+    icon: '📊',
+    defaultData: {
+      title: '',
+      stat1_num: '', stat1_label: '',
+      stat2_num: '', stat2_label: '',
+      stat3_num: '', stat3_label: '',
+      stat4_num: '', stat4_label: '',
+    },
+  },
+  countdown: {
+    label: 'Countdown Timer',
+    icon: '⏱️',
+    defaultData: {
+      title: 'Tawaran tamat dalam:',
+      end_datetime: '',
+      expired_text: 'Tawaran telah tamat',
     },
   },
 }
@@ -203,6 +250,65 @@ function sectionImage(d: Record<string, string>): string {
   return `<img src="UPLOAD_GAMBAR_DI_SINI" alt="${escHtml(d.alt || '')}" style="width:100%; border-radius:16px; margin:12px 0;" />${d.caption ? `\n<p style="font-size: 11px; color: #a8a29e; text-align: center; margin: -4px 0 8px;">${escHtml(d.caption)}</p>` : ''}`
 }
 
+function sectionCtaButton(d: Record<string, string>): string {
+  const isWa = d.style === 'whatsapp'
+  const isSm = d.size === 'small'
+  const bg   = isWa ? '#25d366' : '#16a34a'
+  const shadow = isWa ? '0 4px 14px rgba(37,211,102,0.4)' : '0 4px 14px rgba(22,163,74,0.4)'
+  const fontSize = isSm ? '14px' : '17px'
+  const padding  = isSm ? '12px 28px' : '16px 40px'
+  const prefix   = isWa ? '💬 ' : ''
+  return `
+<div style="text-align: center; padding: 12px 0;">
+  <a href="${escHtml(d.link || '/products')}" style="display: inline-block; background: ${bg}; color: white; font-size: ${fontSize}; font-weight: 900; padding: ${padding}; border-radius: 999px; text-decoration: none; box-shadow: ${shadow}; letter-spacing: -0.01em;">${prefix}${escHtml(d.text || 'Beli Sekarang')}</a>
+  ${d.sub ? `<p style="font-size: 11px; color: #a8a29e; margin: 8px 0 0;">${escHtml(d.sub)}</p>` : ''}
+</div>`.trim()
+}
+
+function sectionFaq(d: Record<string, string>): string {
+  const items = [1,2,3,4,5]
+    .map(i => ({ q: d[`q${i}`], a: d[`a${i}`] }))
+    .filter(x => x.q && x.a)
+  if (!items.length) return ''
+  return `
+<div style="padding: 12px 0;">
+  ${d.title ? `<h3 style="font-size: 18px; font-weight: 900; color: #1c1917; margin: 0 0 14px; text-align: center;">${escHtml(d.title)}</h3>` : ''}
+  <div style="space-y: 8px;">
+    ${items.map(it => `
+    <details style="background: white; border: 1px solid #e5e7eb; border-radius: 14px; margin-bottom: 8px; overflow: hidden;">
+      <summary style="padding: 14px 16px; font-size: 13px; font-weight: 700; color: #1c1917; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+        ${escHtml(it.q)} <span style="font-size: 16px; color: #16a34a; flex-shrink:0; margin-left:8px;">＋</span>
+      </summary>
+      <p style="padding: 0 16px 14px; font-size: 13px; color: #57534e; line-height: 1.7; margin: 0;">${escHtml(it.a)}</p>
+    </details>`).join('')}
+  </div>
+</div>`.trim()
+}
+
+function sectionStats(d: Record<string, string>): string {
+  const items = [1,2,3,4]
+    .map(i => ({ num: d[`stat${i}_num`], label: d[`stat${i}_label`] }))
+    .filter(x => x.num && x.label)
+  if (!items.length) return ''
+  const cols = items.length <= 2 ? items.length : items.length === 3 ? 3 : 2
+  return `
+<div style="padding: 16px 0 8px;">
+  ${d.title ? `<h3 style="font-size: 18px; font-weight: 900; color: #1c1917; text-align: center; margin: 0 0 16px;">${escHtml(d.title)}</h3>` : ''}
+  <div style="display: grid; grid-template-columns: repeat(${cols}, 1fr); gap: 10px; text-align: center;">
+    ${items.map(it => `
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 16px 8px;">
+      <p style="font-size: 28px; font-weight: 900; color: #16a34a; margin: 0 0 4px; line-height: 1;">${escHtml(it.num)}</p>
+      <p style="font-size: 11px; font-weight: 700; color: #15803d; margin: 0;">${escHtml(it.label)}</p>
+    </div>`).join('')}
+  </div>
+</div>`.trim()
+}
+
+function sectionCountdown(d: Record<string, string>): string {
+  if (!d.end_datetime) return ''
+  return `{{countdown:${d.end_datetime}|${d.title || 'Tawaran tamat dalam:'}|${d.expired_text || 'Tawaran telah tamat'}}}`
+}
+
 export function sectionsToHtml(sections: Section[]): string {
   return sections.map(s => {
     switch (s.type) {
@@ -214,6 +320,10 @@ export function sectionsToHtml(sections: Section[]): string {
       case 'urgency':     return sectionUrgency(s.data)
       case 'lead-form':   return sectionLeadForm(s.data)
       case 'image':       return sectionImage(s.data)
+      case 'cta-button':  return sectionCtaButton(s.data)
+      case 'faq':         return sectionFaq(s.data)
+      case 'stats':       return sectionStats(s.data)
+      case 'countdown':   return sectionCountdown(s.data)
       default:            return ''
     }
   }).filter(Boolean).join('\n\n')

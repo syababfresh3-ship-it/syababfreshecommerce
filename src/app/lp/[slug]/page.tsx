@@ -8,6 +8,7 @@ import { LpTracker } from './lp-tracker'
 import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
+import { LpCountdown } from './lp-countdown'
 import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -52,8 +53,8 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map((productsRes.data ?? []).map(p => [p.slug, p]))
   const stockByProductId = new Map((stockRes.data ?? []).map(s => [s.product_id, s.available_stock]))
 
-  // Split on {{product:slug}} and {{lead-form}} placeholders
-  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form\}\})/g)
+  // Split on {{product:slug}}, {{lead-form}}, and {{countdown:...}} placeholders
+  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form\}\}|\{\{countdown:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
@@ -76,6 +77,13 @@ export default async function LandingPage({ params }: Props) {
 
           if (part === '{{lead-form}}') {
             return <LpLeadForm key={i} slug={slug} />
+          }
+
+          if (part.startsWith('{{countdown:')) {
+            // {{countdown:2026-05-20T23:59|Tawaran tamat dalam:|Tawaran telah tamat}}
+            const inner = part.slice(12, -2)
+            const [endDatetime, title, expiredText] = inner.split('|')
+            return <LpCountdown key={i} endDatetime={endDatetime} title={title ?? 'Tawaran tamat dalam:'} expiredText={expiredText ?? 'Tawaran telah tamat'} />
           }
 
           // {{product:slug}}

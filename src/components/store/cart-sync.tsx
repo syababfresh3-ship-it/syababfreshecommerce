@@ -38,10 +38,23 @@ export function CartSync() {
 
       if (cartData) {
         const store = useCartStore.getState()
+        const freshProducts: Record<string, any> = {}
         for (const row of cartData as any[]) {
-          if (row.products && !store.items.find((i: any) => i.product.id === row.product_id)) {
+          if (!row.products) continue
+          freshProducts[row.product_id] = row.products
+          if (!store.items.find((i: any) => i.product.id === row.product_id)) {
             store.addItem(row.products as any, row.quantity)
           }
+        }
+        // Refresh product data (image_url, price, etc.) for items already in store
+        const hasFresh = cartData.length > 0
+        if (hasFresh) {
+          useCartStore.setState((state) => ({
+            items: state.items.map((item) => {
+              const fresh = freshProducts[item.product?.id]
+              return fresh ? { ...item, product: { ...item.product, ...fresh } } : item
+            }),
+          }))
         }
       }
 

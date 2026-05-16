@@ -8,7 +8,7 @@ import { Pagination } from '@/components/admin/pagination'
 
 const PAGE_SIZE = 20
 
-async function getProducts(page: number, q?: string, cat?: string) {
+async function getProducts(page: number, q?: string, cat?: string, status?: string) {
   const supabase = createClient()
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
@@ -22,6 +22,8 @@ async function getProducts(page: number, q?: string, cat?: string) {
 
   if (q) query = query.ilike('name', `%${q}%`)
   if (cat) query = query.eq('category_id', cat)
+  if (status === 'active') query = query.eq('is_active', true)
+  if (status === 'inactive') query = query.eq('is_active', false)
 
   const { data, count } = await query
   return { products: data ?? [], total: count ?? 0 }
@@ -44,12 +46,12 @@ const categoryColors: Record<string, string> = {
 export default async function AdminProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; cat?: string }>
+  searchParams: Promise<{ page?: string; q?: string; cat?: string; status?: string }>
 }) {
-  const { page: pageStr, q, cat } = await searchParams
+  const { page: pageStr, q, cat, status } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
   const [{ products, total }, categories] = await Promise.all([
-    getProducts(page, q, cat),
+    getProducts(page, q, cat, status),
     getCategories(),
   ])
   const activeCat = categories.find(c => c.id === cat)
@@ -63,6 +65,7 @@ export default async function AdminProductsPage({
             {total} produk
             {activeCat ? ` · ${activeCat.name}` : ''}
             {q ? ` · "${q}"` : ''}
+            {status === 'active' ? ' · Aktif sahaja' : status === 'inactive' ? ' · Tidak aktif' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -113,10 +116,19 @@ export default async function AdminProductsPage({
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        <select
+          name="status"
+          defaultValue={status ?? ''}
+          className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
+        >
+          <option value="">Semua Status</option>
+          <option value="active">Aktif Sahaja</option>
+          <option value="inactive">Tidak Aktif</option>
+        </select>
         <button type="submit" className="px-4 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm">
           Tapis
         </button>
-        {(q || cat) && (
+        {(q || cat || status) && (
           <a href="/admin/products" className="px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 font-medium">
             Reset
           </a>
@@ -173,7 +185,7 @@ export default async function AdminProductsPage({
           total={total}
           pageSize={PAGE_SIZE}
           basePath="/admin/products"
-          params={q ? { q } : {}}
+          params={{ ...(q ? { q } : {}), ...(cat ? { cat } : {}), ...(status ? { status } : {}) }}
         />
       </div>
 
@@ -266,7 +278,7 @@ export default async function AdminProductsPage({
           total={total}
           pageSize={PAGE_SIZE}
           basePath="/admin/products"
-          params={q ? { q } : {}}
+          params={{ ...(q ? { q } : {}), ...(cat ? { cat } : {}), ...(status ? { status } : {}) }}
         />
       </div>
     </div>

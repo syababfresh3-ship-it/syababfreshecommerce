@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // search conversion optimization
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
@@ -34,16 +35,35 @@ interface ProductsPageProps {
 async function getData(category?: string, q?: string, sort?: string, promo?: string) {
   const supabase = await createClient()
 
+  // Resolve category slug → IDs (parent + all children) for DB-level filtering
+  let categoryIds: string[] | null = null
+  if (category) {
+    const { data: allCatsRaw } = await supabase.from('categories').select('id, slug, parent_id').eq('is_active', true)
+    if (allCatsRaw) {
+      const parent = allCatsRaw.find(c => c.slug === category)
+      if (parent) {
+        const children = allCatsRaw.filter(c => c.parent_id === parent.id).map(c => c.id)
+        categoryIds = [parent.id, ...children]
+      }
+    }
+  }
+
   const [categoriesRes, productsRes, stockRes, variantsRes] = await Promise.all([
     supabase
       .from('categories')
       .select('*')
       .eq('is_active', true)
       .order('sort_order', { ascending: true }),
-    supabase
-      .from('products')
-      .select('*, category_id, categories(name, slug)')
-      .eq('is_active', true),
+    (() => {
+      let q2 = supabase
+        .from('products')
+        .select('*, category_id, categories(name, slug)')
+        .eq('is_active', true)
+      if (categoryIds && categoryIds.length > 0) {
+        q2 = q2.in('category_id', categoryIds)
+      }
+      return q2
+    })(),
     supabase
       .from('product_stock')
       .select('product_id, available_stock'),
@@ -63,20 +83,8 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
   const allCategories = (categoriesRes.data ?? []) as Category[]
   let products = (productsRes.data ?? []) as Product[]
 
-  // Filter by category — support both parent slug (show all children) and child slug
-  if (category) {
-    const selectedCat = allCategories.find(c => c.slug === category)
-    if (selectedCat && selectedCat.parent_id === null) {
-      // Parent selected: collect all child category IDs
-      const childIds = new Set(
-        allCategories.filter(c => c.parent_id === selectedCat.id).map(c => c.id)
-      )
-      products = products.filter((p: any) => childIds.has(p.category_id))
-    } else {
-      // Child/leaf category selected: filter directly by slug
-      products = products.filter((p: any) => p.categories?.slug === category)
-    }
-  }
+  // Category filtering is done at DB level above (categoryIds)
+  // No JS filtering needed for category
 
   // Filter by search
   if (q) {

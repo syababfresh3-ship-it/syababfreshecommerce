@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Trash2, Loader2, Plus, Tag, Copy, TrendingUp, Clock, X } from 'lucide-react'
+import { Trash2, Loader2, Plus, Tag, Copy, TrendingUp, Clock, X, Pencil, Check } from 'lucide-react'
 
 interface PromoCode {
   id: string
@@ -36,10 +36,51 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
     code: '', type: 'percentage' as 'percentage' | 'fixed',
     value: '', min_order: '', max_uses: '', expires_at: '',
   })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({
+    type: 'percentage' as 'percentage' | 'fixed',
+    value: '', min_order: '', max_uses: '', expires_at: '',
+  })
+  const [editLoading, setEditLoading] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const val = e.target.name === 'code' ? e.target.value.toUpperCase() : e.target.value
     setForm(prev => ({ ...prev, [e.target.name]: val }))
+  }
+
+  function startEdit(promo: PromoCode) {
+    setEditingId(promo.id)
+    setEditForm({
+      type: promo.type,
+      value: String(promo.value),
+      min_order: promo.min_order ? String(promo.min_order) : '',
+      max_uses: promo.max_uses ? String(promo.max_uses) : '',
+      expires_at: promo.expires_at ? promo.expires_at.slice(0, 16) : '',
+    })
+  }
+
+  function handleEditChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+    setEditForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  async function handleUpdate(id: string) {
+    setEditLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.from('promo_codes').update({
+      type: editForm.type,
+      value: Number(editForm.value),
+      min_order: editForm.min_order ? Number(editForm.min_order) : 0,
+      max_uses: editForm.max_uses ? Number(editForm.max_uses) : null,
+      expires_at: editForm.expires_at || null,
+    }).eq('id', id)
+    if (error) {
+      toast.error('Gagal kemaskini kod')
+    } else {
+      toast.success('Kod dikemaskini')
+      setEditingId(null)
+      router.refresh()
+    }
+    setEditLoading(false)
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -250,6 +291,10 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                       className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" title="Salin kod">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
+                    <button onClick={() => editingId === promo.id ? setEditingId(null) : startEdit(promo)}
+                      className={`p-1.5 rounded-lg transition-colors ${editingId === promo.id ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`} title="Edit">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                     <button onClick={() => toggleActive(promo)}
                       className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
                         promo.active
@@ -264,6 +309,57 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                     </button>
                   </div>
                 </div>
+
+                {/* Inline edit form */}
+                {editingId === promo.id && (
+                  <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Jenis Diskaun</label>
+                        <select name="type" value={editForm.type} onChange={handleEditChange}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                          <option value="percentage">Peratus (%)</option>
+                          <option value="fixed">Tetap (RM)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">
+                          Nilai {editForm.type === 'percentage' ? '(%)' : '(RM)'}
+                        </label>
+                        <input name="value" type="number" min="0.01" step="0.01" value={editForm.value} onChange={handleEditChange}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Min. Pesanan (RM)</label>
+                        <input name="min_order" type="number" min="0" step="0.01" value={editForm.min_order} onChange={handleEditChange}
+                          placeholder="0.00"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Had Penggunaan</label>
+                        <input name="max_uses" type="number" min="1" value={editForm.max_uses} onChange={handleEditChange}
+                          placeholder="Tiada had"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Tempoh</label>
+                        <input name="expires_at" type="datetime-local" value={editForm.expires_at} onChange={handleEditChange}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <button onClick={() => handleUpdate(promo.id)} disabled={editLoading}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                          {editLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          Simpan
+                        </button>
+                        <button onClick={() => setEditingId(null)}
+                          className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}

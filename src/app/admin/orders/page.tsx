@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { OrderFilters } from './order-filters'
-import { PaymentToggle } from './payment-toggle'
+import { StatusDropdown, PaymentDropdown } from './order-dropdowns'
 import { Download, Zap, Package, Truck } from 'lucide-react'
 import type { Order } from '@/types'
 
@@ -218,8 +218,9 @@ export default async function AdminOrdersPage({
                   <span className="text-[10px] text-gray-400">{dt.top} {dt.bottom}</span>
                 </div>
               </Link>
-              <div className="px-4 pb-3 border-t border-gray-50 pt-2">
-                <PaymentToggle
+              <div className="px-4 pb-3 border-t border-gray-50 pt-2 flex items-center gap-3">
+                <StatusDropdown orderId={order.id} currentStatus={order.status} />
+                <PaymentDropdown
                   orderId={order.id}
                   currentStatus={order.payment_status}
                   paymentMethod={(order as any).payment_method}
@@ -239,10 +240,7 @@ export default async function AdminOrdersPage({
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan Perlu</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Bayaran
-                <span className="block text-[9px] font-normal text-gray-400 normal-case tracking-normal">klik untuk tukar</span>
-              </th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Bayaran</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Masa</th>
             </tr>
@@ -285,15 +283,11 @@ export default async function AdminOrdersPage({
                       </Link>
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <Link href={`/admin/orders/${order.id}`}>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${sc.cls}`}>
-                          {sc.label}
-                        </span>
-                      </Link>
+                      <StatusDropdown orderId={order.id} currentStatus={order.status} />
                       <div className="text-[10px] text-gray-400 mt-1">{methodLabel[(order as any).payment_method] ?? ''}</div>
                     </td>
                     <td className="px-5 py-3.5 text-center">
-                      <PaymentToggle
+                      <PaymentDropdown
                         orderId={order.id}
                         currentStatus={order.payment_status}
                         paymentMethod={(order as any).payment_method}

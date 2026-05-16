@@ -10,7 +10,7 @@ interface Props {
   pickerProducts?: { id: string; name: string; slug: string }[]
 }
 
-const SECTION_TYPES: SectionType[] = ['hero', 'text', 'benefits', 'product', 'testimonial', 'urgency', 'lead-form', 'image']
+const SECTION_TYPES: SectionType[] = ['hero', 'cta-button', 'text', 'benefits', 'product', 'testimonial', 'urgency', 'faq', 'stats', 'countdown', 'lead-form', 'image']
 
 function updateAndSync(sections: Section[], onChange: Props['onChange']) {
   onChange(sections, sectionsToHtml(sections))
@@ -257,6 +257,70 @@ function SectionFields({ section, updateData, pickerProducts }: {
           <div><label className={lbl}>Alt text (penerangan gambar)</label><input className={inp} value={d.alt || ''} onChange={e => u('alt', e.target.value)} placeholder="Gambar produk" /></div>
           <div><label className={lbl}>Caption (pilihan)</label><input className={inp} value={d.caption || ''} onChange={e => u('caption', e.target.value)} placeholder="Teks bawah gambar" /></div>
           <p className="text-[10px] text-gray-400">⬆️ Gunakan butang "Upload Gambar" dalam toolbar untuk upload dan masukkan URL gambar</p>
+        </>
+      )
+
+    case 'cta-button':
+      return (
+        <>
+          <div><label className={lbl}>Teks Button *</label><input className={inp} value={d.text || ''} onChange={e => u('text', e.target.value)} placeholder="Beli Sekarang" /></div>
+          <div><label className={lbl}>Link / URL *</label><input className={inp} value={d.link || ''} onChange={e => u('link', e.target.value)} placeholder="/products atau /products?category=buah-import" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={lbl}>Warna Button</label>
+              <select className={inp} value={d.style || 'green'} onChange={e => u('style', e.target.value)}>
+                <option value="green">Hijau (Default)</option>
+                <option value="whatsapp">WhatsApp 💬</option>
+              </select>
+            </div>
+            <div>
+              <label className={lbl}>Saiz</label>
+              <select className={inp} value={d.size || 'large'} onChange={e => u('size', e.target.value)}>
+                <option value="large">Besar</option>
+                <option value="small">Kecil</option>
+              </select>
+            </div>
+          </div>
+          <div><label className={lbl}>Teks kecil bawah button (pilihan)</label><input className={inp} value={d.sub || ''} onChange={e => u('sub', e.target.value)} placeholder="Penghantaran percuma untuk order RM100+" /></div>
+        </>
+      )
+
+    case 'faq':
+      return (
+        <>
+          <div><label className={lbl}>Tajuk bahagian</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Soalan Lazim" /></div>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
+              <p className="text-[10px] font-bold text-gray-400 uppercase">Soalan {i}</p>
+              <div><label className={lbl}>Soalan</label><input className={inp} value={d[`q${i}`] || ''} onChange={e => u(`q${i}`, e.target.value)} placeholder={`Soalan ${i}...`} /></div>
+              <div><label className={lbl}>Jawapan</label><textarea className={ta} rows={2} value={d[`a${i}`] || ''} onChange={e => u(`a${i}`, e.target.value)} placeholder="Jawapan..." /></div>
+            </div>
+          ))}
+        </>
+      )
+
+    case 'stats':
+      return (
+        <>
+          <div><label className={lbl}>Tajuk (pilihan)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Dipercayai Ribuan Pelanggan" /></div>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="grid grid-cols-2 gap-2">
+              <div><label className={lbl}>Nombor/Nilai {i}</label><input className={inp} value={d[`stat${i}_num`] || ''} onChange={e => u(`stat${i}_num`, e.target.value)} placeholder="5,000+" /></div>
+              <div><label className={lbl}>Label {i}</label><input className={inp} value={d[`stat${i}_label`] || ''} onChange={e => u(`stat${i}_label`, e.target.value)} placeholder="Pelanggan Gembira" /></div>
+            </div>
+          ))}
+        </>
+      )
+
+    case 'countdown':
+      return (
+        <>
+          <div><label className={lbl}>Teks atas timer</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Tawaran tamat dalam:" /></div>
+          <div>
+            <label className={lbl}>Tarikh & Masa Tamat *</label>
+            <input type="datetime-local" className={inp} value={d.end_datetime || ''} onChange={e => u('end_datetime', e.target.value)} />
+          </div>
+          <div><label className={lbl}>Teks bila dah tamat</label><input className={inp} value={d.expired_text || ''} onChange={e => u('expired_text', e.target.value)} placeholder="Tawaran telah tamat" /></div>
         </>
       )
 
