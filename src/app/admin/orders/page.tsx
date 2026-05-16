@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { OrderFilters } from './order-filters'
 import { PaymentToggle } from './payment-toggle'
-import { Download } from 'lucide-react'
+import { Download, Zap, Package, Truck } from 'lucide-react'
 import type { Order } from '@/types'
 
 type OrderWithProfile = Order & { profiles: { full_name: string; phone: string } | null }
@@ -21,10 +21,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
 }
 
 const methodLabel: Record<string, string> = {
-  fpx: 'FPX',
-  ewallet: 'E-Wallet',
-  cod: 'COD',
-  bank_transfer: 'Pindahan Bank',
+  fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank',
 }
 
 function formatDate(dateStr: string) {
@@ -41,6 +38,37 @@ function formatDate(dateStr: string) {
   }
 }
 
+// Urgency level — lower = more urgent
+function urgency(order: OrderWithProfile): number {
+  const method = (order as any).payment_method
+  if (order.status === 'pending' && (order.payment_status === 'paid' || method === 'cod' || method === 'bank_transfer')) return 0
+  if (order.status === 'confirmed') return 1
+  if (order.status === 'preparing') return 2
+  if (order.status === 'pending' && order.payment_status === 'unpaid') return 3
+  if (order.status === 'delivering') return 4
+  if (order.status === 'delivered') return 5
+  return 6
+}
+
+function getActionInfo(order: OrderWithProfile): { label: string; color: string; border: string } {
+  const method = (order as any).payment_method
+  const isPaid = order.payment_status === 'paid' || method === 'cod' || method === 'bank_transfer'
+
+  if (order.status === 'pending' && isPaid)
+    return { label: '⚡ Sahkan pesanan', color: 'text-red-600 font-bold', border: 'border-l-4 border-l-red-400' }
+  if (order.status === 'pending' && !isPaid)
+    return { label: '⏳ Tunggu bayaran', color: 'text-yellow-600', border: 'border-l-4 border-l-yellow-300' }
+  if (order.status === 'confirmed')
+    return { label: '📦 Mula sediakan', color: 'text-blue-600 font-semibold', border: 'border-l-4 border-l-blue-400' }
+  if (order.status === 'preparing')
+    return { label: '🚚 Tandakan dihantar', color: 'text-purple-600 font-semibold', border: 'border-l-4 border-l-purple-400' }
+  if (order.status === 'delivering')
+    return { label: '📍 Dalam penghantaran', color: 'text-orange-500', border: 'border-l-4 border-l-orange-300' }
+  if (order.status === 'delivered')
+    return { label: '✓ Selesai', color: 'text-green-600', border: 'border-l-[3px] border-l-green-200' }
+  return { label: '—', color: 'text-gray-400', border: '' }
+}
+
 async function getOrders(status?: string, q?: string) {
   const supabase = createAdminClient()
   let query = supabase
@@ -50,9 +78,6 @@ async function getOrders(status?: string, q?: string) {
     .limit(200)
 
   if (status) query = query.eq('status', status)
-  if (q && !q.trim().match(/[a-zA-Z]/) === false) {
-    query = query.ilike('order_number', `%${q}%`)
-  }
 
   const { data: orders, error } = await query
   if (error || !orders || orders.length === 0) return []
@@ -66,21 +91,47 @@ async function getOrders(status?: string, q?: string) {
   const profileMap: Record<string, { full_name: string; phone: string }> = {}
   for (const p of profiles ?? []) profileMap[p.id] = p
 
-  const enriched: OrderWithProfile[] = (orders as any[]).map((o) => ({
+  let enriched: OrderWithProfile[] = (orders as any[]).map((o) => ({
     ...o,
     profiles: profileMap[o.user_id] ?? null,
   }))
 
   if (q) {
     const lower = q.toLowerCase()
-    return enriched.filter((o) =>
+    enriched = enriched.filter((o) =>
       o.order_number?.toLowerCase().includes(lower) ||
       o.profiles?.full_name?.toLowerCase().includes(lower) ||
       o.profiles?.phone?.includes(q)
     )
   }
 
+  // Sort by urgency, then by time (newest first within same urgency)
+  enriched.sort((a, b) => {
+    const ua = urgency(a), ub = urgency(b)
+    if (ua !== ub) return ua - ub
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
   return enriched
+}
+
+async function getStatusCounts() {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('orders')
+    .select('status, payment_status, payment_method')
+    .not('status', 'in', '(delivered,cancelled,refunded)')
+
+  if (!data) return { needAction: 0, confirmed: 0, preparing: 0, delivering: 0 }
+
+  const needAction = data.filter(o =>
+    o.status === 'pending' && (o.payment_status === 'paid' || o.payment_method === 'cod' || o.payment_method === 'bank_transfer')
+  ).length
+  const confirmed  = data.filter(o => o.status === 'confirmed').length
+  const preparing  = data.filter(o => o.status === 'preparing').length
+  const delivering = data.filter(o => o.status === 'delivering').length
+
+  return { needAction, confirmed, preparing, delivering }
 }
 
 export default async function AdminOrdersPage({
@@ -89,7 +140,14 @@ export default async function AdminOrdersPage({
   searchParams: Promise<{ status?: string; q?: string }>
 }) {
   const { status, q } = await searchParams
-  const orders = await getOrders(status, q)
+  const [orders, counts] = await Promise.all([getOrders(status, q), getStatusCounts()])
+
+  const summaryItems = [
+    { icon: Zap,          label: 'Perlu Sahkan', count: counts.needAction, color: 'text-red-600 bg-red-50 border-red-200',      status: 'pending' },
+    { icon: Package,      label: 'Disahkan',     count: counts.confirmed,  color: 'text-blue-600 bg-blue-50 border-blue-200',    status: 'confirmed' },
+    { icon: Package,      label: 'Disediakan',   count: counts.preparing,  color: 'text-purple-600 bg-purple-50 border-purple-200', status: 'preparing' },
+    { icon: Truck,        label: 'Dihantar',     count: counts.delivering, color: 'text-orange-600 bg-orange-50 border-orange-200', status: 'delivering' },
+  ].filter(s => s.count > 0)
 
   return (
     <div className="p-4 md:p-6">
@@ -108,6 +166,22 @@ export default async function AdminOrdersPage({
         </a>
       </div>
 
+      {/* Summary strip — shows what needs attention */}
+      {summaryItems.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {summaryItems.map((s) => (
+            <Link
+              key={s.status}
+              href={`/admin/orders?status=${s.status}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all hover:shadow-sm ${s.color}`}
+            >
+              <s.icon className="h-3.5 w-3.5" />
+              {s.count} {s.label}
+            </Link>
+          ))}
+        </div>
+      )}
+
       <Suspense><OrderFilters activeStatus={status} activeSearch={q} /></Suspense>
 
       {/* Mobile card list */}
@@ -119,16 +193,14 @@ export default async function AdminOrdersPage({
         ) : orders.map((order) => {
           const sc = statusConfig[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' }
           const dt = formatDate(order.created_at)
-          const isUnpaid = order.payment_status === 'unpaid' && (order as any).payment_method !== 'cod'
+          const action = getActionInfo(order)
           return (
-            <div key={order.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div key={order.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden ${action.border}`}>
               <Link href={`/admin/orders/${order.id}`} className="flex items-start gap-3 px-4 py-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
-                    {isUnpaid && (
-                      <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Belum Bayar</span>
-                    )}
+                    <span className={`text-[10px] font-semibold ${action.color}`}>{action.label}</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-900">{order.profiles?.full_name ?? '—'}</p>
                   {order.profiles?.phone && (
@@ -165,6 +237,7 @@ export default async function AdminOrdersPage({
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Pesanan</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan Perlu</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 Bayaran
@@ -177,7 +250,7 @@ export default async function AdminOrdersPage({
           <tbody className="divide-y divide-gray-50">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-14 text-center text-gray-400">
+                <td colSpan={7} className="px-5 py-14 text-center text-gray-400">
                   {q ? `Tiada pesanan sepadan "${q}"` : 'Tiada pesanan'}
                 </td>
               </tr>
@@ -185,8 +258,9 @@ export default async function AdminOrdersPage({
               orders.map((order) => {
                 const sc = statusConfig[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' }
                 const dt = formatDate(order.created_at)
+                const action = getActionInfo(order)
                 return (
-                  <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
+                  <tr key={order.id} className={`hover:bg-gray-50/60 transition-colors ${action.border}`}>
                     <td className="px-5 py-3.5">
                       <Link href={`/admin/orders/${order.id}`} className="font-mono text-xs text-red-600 hover:underline font-bold block">
                         {order.order_number}
@@ -204,6 +278,11 @@ export default async function AdminOrdersPage({
                           {order.profiles.phone}
                         </a>
                       )}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Link href={`/admin/orders/${order.id}`} className={`text-xs ${action.color} hover:underline`}>
+                        {action.label}
+                      </Link>
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       <Link href={`/admin/orders/${order.id}`}>
@@ -233,6 +312,29 @@ export default async function AdminOrdersPage({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Flow guide — helps staff understand the pipeline */}
+      <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Aliran Pesanan</p>
+        <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500">
+          {[
+            { label: 'Menunggu',    color: 'bg-yellow-400', hint: 'bayaran diterima' },
+            { label: 'Disahkan',    color: 'bg-blue-400',   hint: 'mula sediakan' },
+            { label: 'Disediakan',  color: 'bg-purple-400', hint: 'pack & hantar' },
+            { label: 'Dihantar',    color: 'bg-orange-400', hint: 'dalam transit' },
+            { label: 'Selesai',     color: 'bg-green-400',  hint: 'diterima customer' },
+          ].map((step, i, arr) => (
+            <span key={step.label} className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${step.color}`} />
+                <span className="font-semibold text-gray-700">{step.label}</span>
+                <span className="text-gray-400 text-[10px]">({step.hint})</span>
+              </span>
+              {i < arr.length - 1 && <span className="text-gray-300">→</span>}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   )
