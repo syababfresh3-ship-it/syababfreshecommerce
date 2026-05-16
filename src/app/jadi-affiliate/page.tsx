@@ -18,9 +18,9 @@ function JoinContent() {
   useEffect(() => {
     if (!token) { setState('error'); setErrorMsg('Token tidak dijumpai dalam link ini.'); return }
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-      setState(data.user ? 'ready' : 'need_login')
+    ;(supabase.auth.getUser() as Promise<any>).then((res) => {
+      setUser(res.data.user)
+      setState(res.data.user ? 'ready' : 'need_login')
     })
   }, [token])
 

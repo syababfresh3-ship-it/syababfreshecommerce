@@ -13,7 +13,8 @@ export function WishlistButton({ productId, className }: { productId: string; cl
   useEffect(() => {
     setMounted(true)
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    ;(supabase.auth.getUser() as Promise<any>).then((res) => {
+      const user = res.data?.user
       if (!user) return
       supabase
         .from('wishlists')
@@ -21,7 +22,7 @@ export function WishlistButton({ productId, className }: { productId: string; cl
         .eq('user_id', user.id)
         .eq('product_id', productId)
         .maybeSingle()
-        .then(({ data }) => setSaved(!!data))
+        .then((r: any) => setSaved(!!r.data))
     })
   }, [productId])
 

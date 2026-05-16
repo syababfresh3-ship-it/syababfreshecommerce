@@ -29,7 +29,7 @@ export default function CartPage() {
       .from('product_stock')
       .select('product_id, available_stock')
       .in('product_id', ids)
-      .then(({ data }) => {
+      .then(({ data }: { data: { product_id: string; available_stock: number }[] | null }) => {
         if (!data) return
         const map: Record<string, number> = {}
         data.forEach((r) => { map[r.product_id] = r.available_stock })

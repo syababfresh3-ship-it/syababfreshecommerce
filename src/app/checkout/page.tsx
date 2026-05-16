@@ -117,7 +117,7 @@ export default function CheckoutPage() {
       .select('id, label, sublabel')
       .eq('is_active', true)
       .order('sort_order')
-      .then(({ data }) => {
+      .then(({ data }: { data: { id: string; label: string; sublabel: string | null }[] | null }) => {
         const opts = (data ?? []).map(m => ({
           value: m.id,
           label: m.label,
@@ -130,7 +130,8 @@ export default function CheckoutPage() {
         }
       })
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    ;(supabase.auth.getUser() as Promise<any>).then(({ data }) => {
+      const user = data?.user
       if (!user) return
       Promise.all([
         supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
@@ -191,7 +192,7 @@ export default function CheckoutPage() {
         .from('products')
         .select('id, name, is_shippable')
         .in('id', productIds)
-      const blocked = (products ?? [])
+      const blocked = ((products ?? []) as { id: string; name: string; is_shippable: boolean }[])
         .filter(p => !p.is_shippable)
         .map(p => p.name)
       setLocalOnlyItems(blocked)

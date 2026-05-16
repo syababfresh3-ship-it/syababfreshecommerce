@@ -26,25 +26,27 @@ export function CartSync() {
     initRef.current = 'loading'
 
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    ;(async () => {
+      const { data: authData } = await supabase.auth.getUser() as any
+      const user = authData?.user
       if (!user) { initRef.current = 'done'; return }
 
-      const { data } = await supabase
+      const { data: cartData } = await supabase
         .from('cart_items')
         .select('product_id, quantity, products(id, name, price, image_url, unit, slug)')
         .eq('user_id', user.id)
 
-      if (data) {
+      if (cartData) {
         const store = useCartStore.getState()
-        for (const row of data) {
-          if (row.products && !store.items.find(i => i.product.id === row.product_id)) {
+        for (const row of cartData as any[]) {
+          if (row.products && !store.items.find((i: any) => i.product.id === row.product_id)) {
             store.addItem(row.products as any, row.quantity)
           }
         }
       }
 
       initRef.current = 'done'
-    })
+    })()
   }, [])
 
   // Debounced sync to server on every cart change (after init)
