@@ -67,10 +67,21 @@ export function PaymentToggle({
     )
   }
 
-  // Unpaid — most important: make it look like an action
   const isCod = paymentMethod === 'cod'
   const isBankTransfer = paymentMethod === 'bank_transfer'
+  const isAutoPayment = paymentMethod === 'fpx' || paymentMethod === 'ewallet'
 
+  // FPX / E-Wallet — auto via webhook, jangan bagi staff tertekan
+  if (isAutoPayment) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200">
+        <CreditCard className="h-3 w-3" />
+        Belum Bayar
+      </span>
+    )
+  }
+
+  // COD / Bank Transfer — manual confirmation by staff
   return (
     <div className="flex flex-col items-center gap-1">
       <button
@@ -79,11 +90,11 @@ export function PaymentToggle({
         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border border-dashed cursor-pointer transition-all hover:shadow-sm active:scale-95 ${
           isCod
             ? 'bg-amber-50 text-amber-700 border-amber-400 hover:bg-amber-100'
-            : 'bg-red-50 text-red-600 border-red-400 hover:bg-red-100'
+            : 'bg-blue-50 text-blue-700 border-blue-400 hover:bg-blue-100'
         }`}
       >
         <CreditCard className="h-3 w-3" />
-        {isCod ? 'COD – Belum Terima' : isBankTransfer ? 'Transfer – Belum Sahkan' : 'Belum Bayar'}
+        {isCod ? 'COD – Belum Terima' : 'Transfer – Belum Sahkan'}
       </button>
       <span className="text-[9px] text-gray-400 leading-none">↑ klik untuk tandakan bayar</span>
     </div>

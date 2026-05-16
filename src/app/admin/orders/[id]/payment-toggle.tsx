@@ -21,6 +21,7 @@ export function PaymentToggle({
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const isBankTransfer = paymentMethod === 'bank_transfer'
+  const isAutoPayment = paymentMethod === 'fpx' || paymentMethod === 'ewallet'
 
   async function markPaid() {
     if (status === 'paid') return
@@ -58,6 +59,15 @@ export function PaymentToggle({
           <p className="text-xs text-gray-500">Ref: <span className="font-mono font-medium">{currentRef}</span></p>
         )}
       </div>
+    )
+  }
+
+  // FPX / E-Wallet — auto via CHIP webhook, jangan bagi staff tukar manual
+  if (isAutoPayment) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-sm border border-gray-200">
+        Menunggu bayaran FPX/E-Wallet
+      </span>
     )
   }
 
