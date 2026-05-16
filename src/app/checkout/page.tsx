@@ -408,38 +408,36 @@ export default function CheckoutPage() {
 
         {/* ── 0. RECIPIENT INFO ────────────────────────────── */}
         <div className={card}>
-          <div className="px-4 pt-4 pb-4">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Maklumat Penerima</h2>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                  Nama Penerima <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="recipient_name"
-                  value={form.recipient_name}
-                  onChange={handleChange}
-                  required
-                  placeholder="Nama penuh"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                  No. Telefon <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  required
-                  placeholder="01X-XXXXXXX"
-                  inputMode="tel"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
-                />
-              </div>
+          <div className="px-4 pt-4 pb-4 space-y-3">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Butiran Penerima</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Nama Penuh <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                name="recipient_name"
+                value={form.recipient_name}
+                onChange={handleChange}
+                required
+                placeholder="Ahmad bin Ali"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                No. WhatsApp <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                required
+                placeholder="0123456789"
+                inputMode="tel"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              />
             </div>
           </div>
         </div>
@@ -448,12 +446,7 @@ export default function CheckoutPage() {
         {/* payment step UI: show clean selected address card by default, expand to edit */}
         <div className={card}>
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-brand-fresh-100 flex items-center justify-center shrink-0">
-                <MapPin className="h-4 w-4 text-brand-fresh-600" />
-              </div>
-              <h2 className="text-sm font-bold text-gray-900">Alamat Penghantaran</h2>
-            </div>
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Alamat Penghantaran</p>
             {savedAddresses.length > 0 && (
               <button
                 type="button"
@@ -640,16 +633,11 @@ export default function CheckoutPage() {
 
         {/* ── 2. DELIVERY TIME ─────────────────────────────── */}
         <div className={card}>
-          <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-              <Clock className="h-4 w-4 text-blue-500" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-gray-900">Masa Penghantaran</h2>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {isNationwide ? 'Dihantar dengan lori sejuk beku' : 'Anggaran 2–4 jam selepas pesanan disahkan'}
-              </p>
-            </div>
+          <div className="px-4 pt-4 pb-3">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-0.5">Masa Penghantaran</p>
+            <p className="text-[11px] text-gray-400">
+              {isNationwide ? 'Dihantar dengan lori sejuk beku' : 'Anggaran 2–4 jam selepas pesanan disahkan'}
+            </p>
           </div>
 
           {isNationwide ? (
@@ -696,15 +684,9 @@ export default function CheckoutPage() {
         {/* ── 3. PAYMENT METHOD ────────────────────────────── */}
         {/* payment step UI: large icon cards — each method is a distinct tappable block */}
         <div className={card}>
-          <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4 text-purple-500" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-gray-900">Kaedah Bayaran</h2>
-              {/* final polish: "selamat" reassures user before they see payment options */}
-              <p className="text-[11px] text-gray-400 mt-0.5">Selamat & disulitkan · Pilih yang sesuai</p>
-            </div>
+          <div className="px-4 pt-4 pb-3">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-0.5">Kaedah Bayaran</p>
+            <p className="text-[11px] text-gray-400">Selamat & disulitkan · Pilih yang sesuai</p>
           </div>
 
           <div className="px-4 pb-3 space-y-2.5">
