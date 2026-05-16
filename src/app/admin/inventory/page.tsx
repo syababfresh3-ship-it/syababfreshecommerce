@@ -1,23 +1,40 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient as createClient } from '@/lib/supabase/admin'
-import { AlertTriangle, Package, TrendingDown } from 'lucide-react'
+import { AlertTriangle, Package, TrendingDown, Search } from 'lucide-react'
 import { AddBatchForm } from './add-batch-form'
 import { Pagination } from '@/components/admin/pagination'
+import { StokSemasa } from './stok-semasa'
+import Link from 'next/link'
 
 const BATCH_PAGE_SIZE = 25
 
-async function getData(batchPage: number) {
+async function getData(batchPage: number, batchSearch?: string) {
   const supabase = createClient()
   const from = (batchPage - 1) * BATCH_PAGE_SIZE
   const to = from + BATCH_PAGE_SIZE - 1
 
+  let batchQuery = supabase
+    .from('inventory_batches')
+    .select('*, products(name)', { count: 'exact' })
+    .order('expiry_date', { ascending: true })
+
+  if (batchSearch) {
+    // Filter by product name via join
+    const { data: matchedProducts } = await supabase
+      .from('products')
+      .select('id')
+      .ilike('name', `%${batchSearch}%`)
+    const ids = (matchedProducts ?? []).map((p: any) => p.id)
+    if (ids.length === 0) {
+      batchQuery = batchQuery.in('product_id', ['00000000-0000-0000-0000-000000000000'])
+    } else {
+      batchQuery = batchQuery.in('product_id', ids)
+    }
+  }
+
   const [productsRes, batchesRes, stockRes] = await Promise.all([
     supabase.from('products').select('id, name, slug').eq('is_active', true).order('name'),
-    supabase
-      .from('inventory_batches')
-      .select('*, products(name)', { count: 'exact' })
-      .order('expiry_date', { ascending: true })
-      .range(from, to),
+    batchQuery.range(from, to),
     supabase.from('product_stock').select('*'),
   ])
 
@@ -54,11 +71,11 @@ function expiryInfo(date: string) {
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; bq?: string }>
 }) {
-  const { page: pageStr } = await searchParams
+  const { page: pageStr, bq } = await searchParams
   const batchPage = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
-  const { products, batches, batchTotal, stockMap, expiringSoon } = await getData(batchPage)
+  const { products, batches, batchTotal, stockMap, expiringSoon } = await getData(batchPage, bq)
 
   const outOfStock = products.filter((p: any) => (stockMap[p.id] ?? 0) === 0).length
   const lowStock   = products.filter((p: any) => { const s = stockMap[p.id] ?? 0; return s > 0 && s <= 10 }).length
@@ -122,47 +139,33 @@ export default async function InventoryPage({
 
         {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Stock per product */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-bold text-gray-900">Stok Semasa</h2>
-              <span className="text-xs text-gray-400">{products.length} produk</span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {products.map((p: any) => {
-                const stock = stockMap[p.id] ?? 0
-                const isEmpty = stock === 0
-                const isLow   = stock > 0 && stock <= 10
-                return (
-                  <div key={p.id} className={`flex items-center px-5 py-3 gap-4 ${isEmpty ? 'bg-red-50/40' : isLow ? 'bg-yellow-50/40' : 'hover:bg-gray-50'}`}>
-                    <div className={`h-2 w-2 rounded-full shrink-0 ${isEmpty ? 'bg-red-500' : isLow ? 'bg-yellow-400' : 'bg-green-400'}`} />
-                    <span className="flex-1 text-sm font-medium text-gray-800">{p.name}</span>
-                    {isEmpty ? (
-                      <span className="text-xs font-bold text-red-600 bg-red-100 border border-red-200 px-2.5 py-1 rounded-lg">Habis</span>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="w-20 bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className={`h-1.5 rounded-full ${isLow ? 'bg-yellow-400' : 'bg-green-400'}`}
-                            style={{ width: `${Math.min(100, (stock / 100) * 100)}%` }}
-                          />
-                        </div>
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${isLow ? 'text-yellow-700 bg-yellow-100 border-yellow-200' : 'text-green-700 bg-green-100 border-green-200'}`}>
-                          {stock} unit
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          {/* Stock per product — client component with search + filter + pagination */}
+          <StokSemasa products={products as any} stockMap={stockMap} />
 
           {/* Batch list */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-bold text-gray-900">Batch Stok</h2>
-              <span className="text-xs text-gray-400">{batchTotal} batch</span>
+            <div className="px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-gray-900">Batch Stok</h2>
+                <span className="text-xs text-gray-400">{batchTotal} batch</span>
+              </div>
+              <form method="GET" action="/admin/inventory" className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                <input
+                  name="bq"
+                  defaultValue={bq}
+                  placeholder="Cari batch mengikut nama produk..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-fresh-400 bg-gray-50"
+                />
+                {bq && (
+                  <Link
+                    href="/admin/inventory"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </Link>
+                )}
+              </form>
             </div>
             <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[500px]">

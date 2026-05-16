@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 const PRODUCT_FIELDS = [
   'name', 'slug', 'description', 'price', 'compare_price', 'unit',
   'is_featured', 'is_active', 'is_shippable', 'sort_order', 'category_id',
-  'images', 'weight_grams',
+  'image_url', 'images', 'weight_grams',
 ] as const
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
