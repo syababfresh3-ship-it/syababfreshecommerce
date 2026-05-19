@@ -21,6 +21,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3005'
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
+  other: {
+    'facebook-domain-verification': 'm2ub8z949x2rsq9bnbw89391g5phc1',
+  },
   title: {
     default: "SyababFresh — Buah Segar Online",
     template: "%s | SyababFresh",
