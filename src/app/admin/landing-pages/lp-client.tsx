@@ -74,7 +74,7 @@ function leadCount(page: LandingPage): number {
   return page.landing_page_leads?.[0]?.count ?? 0
 }
 
-type AdminTab = 'pages' | 'orders'
+type AdminTab = 'pages' | 'orders' | 'leads'
 
 const STATUS_CONFIG = {
   pending:   { label: 'Menunggu',   bg: 'bg-yellow-50', text: 'text-yellow-700', icon: Clock },
@@ -232,6 +232,73 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
 
+  // All-leads tab
+  const [allLeads, setAllLeads] = useState<(Lead & { landing_pages?: { title: string; slug: string } | null })[]>([])
+  const [allLeadsLoading, setAllLeadsLoading] = useState(false)
+  const [allLeadsFetched, setAllLeadsFetched] = useState(false)
+  const [leadsSearch, setLeadsSearch] = useState('')
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
+
+  function toggleLead(id: string) {
+    setSelectedLeads(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAllLeads() {
+    if (selectedLeads.size === filteredAllLeads.length && filteredAllLeads.length > 0) {
+      setSelectedLeads(new Set())
+    } else {
+      setSelectedLeads(new Set(filteredAllLeads.map(l => l.id)))
+    }
+  }
+
+  async function loadAllLeads() {
+    if (allLeadsLoading) return
+    setAllLeadsLoading(true)
+    try {
+      const res = await fetch('/api/admin/landing-pages/leads')
+      setAllLeads(await res.json())
+      setAllLeadsFetched(true)
+    } finally {
+      setAllLeadsLoading(false)
+    }
+  }
+
+  function exportLeadsCsv() {
+    const filtered = selectedLeads.size > 0
+      ? filteredAllLeads.filter(l => selectedLeads.has(l.id))
+      : filteredAllLeads
+    const rows = [
+      ['Nama', 'Telefon', 'Sumber', 'Landing Page', 'Tarikh'],
+      ...filtered.map(l => [
+        l.name ?? '',
+        l.phone ?? '',
+        l.source ?? '',
+        l.landing_pages?.title ?? '',
+        new Date(l.created_at).toLocaleString('ms-MY'),
+      ]),
+    ]
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `leads-lp-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const filteredAllLeads = leadsSearch.trim()
+    ? allLeads.filter(l =>
+        (l.name ?? '').toLowerCase().includes(leadsSearch.toLowerCase()) ||
+        (l.phone ?? '').includes(leadsSearch) ||
+        (l.landing_pages?.title ?? '').toLowerCase().includes(leadsSearch.toLowerCase())
+      )
+    : allLeads
+
   async function loadOrders() {
     if (ordersLoading) return
     setOrdersLoading(true)
@@ -247,12 +314,20 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   function switchTab(tab: AdminTab) {
     setActiveTab(tab)
     if (tab === 'orders' && !ordersFetched) loadOrders()
+    if (tab === 'leads' && !allLeadsFetched) loadAllLeads()
   }
 
   async function switchEditorMode(mode: 'blocks' | 'html') {
+    if (mode === 'blocks' && editorMode === 'html' && form.html_content.trim()) {
+      const ok = window.confirm(
+        'HTML sedia ada akan hilang jika beralih ke mod Blok.\n\nPastikan anda dah salin HTML anda dahulu.\n\nTeruskan?'
+      )
+      if (!ok) return
+      setForm(f => ({ ...f, html_content: '' }))
+      setSections([])
+    }
     setEditorMode(mode)
     if (mode === 'blocks' && pickerProducts.length === 0) {
-      // Fetch products for section builder product dropdown
       const res = await fetch('/api/admin/landing-pages/products')
       setPickerProducts(await res.json())
     }
@@ -419,6 +494,18 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             {orders.filter(o => o.status === 'pending').length > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                 {orders.filter(o => o.status === 'pending').length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => switchTab('leads')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'leads' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Users className="h-4 w-4" />
+            Leads
+            {allLeads.length > 0 && (
+              <span className="bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                {allLeads.length}
               </span>
             )}
           </button>
@@ -927,6 +1014,117 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Leads Tab ── */}
+      {activeTab === 'leads' && !showForm && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <input
+              type="text"
+              placeholder="Cari nama, telefon, atau page..."
+              value={leadsSearch}
+              onChange={e => setLeadsSearch(e.target.value)}
+              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+            <button
+              onClick={exportLeadsCsv}
+              disabled={allLeads.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0"
+            >
+              {selectedLeads.size > 0 ? `Export ${selectedLeads.size} Terpilih` : 'Export CSV'}
+            </button>
+            <button onClick={loadAllLeads} className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 shrink-0">
+              Muat Semula
+            </button>
+          </div>
+
+          {allLeadsLoading && <p className="text-sm text-gray-400 text-center py-12">Memuatkan...</p>}
+
+          {!allLeadsLoading && filteredAllLeads.length === 0 && (
+            <div className="text-center py-16 text-gray-400">
+              <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-semibold">{leadsSearch ? 'Tiada hasil carian' : 'Tiada leads lagi'}</p>
+            </div>
+          )}
+
+          {filteredAllLeads.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedLeads.size === filteredAllLeads.length && filteredAllLeads.length > 0}
+                          ref={el => { if (el) el.indeterminate = selectedLeads.size > 0 && selectedLeads.size < filteredAllLeads.length }}
+                          onChange={toggleAllLeads}
+                          className="w-4 h-4 rounded accent-green-600 cursor-pointer"
+                        />
+                      </th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Nama</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Telefon</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Sumber</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Landing Page</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Tarikh</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredAllLeads.map(lead => (
+                      <tr
+                        key={lead.id}
+                        onClick={() => toggleLead(lead.id)}
+                        className={`cursor-pointer transition-colors ${selectedLeads.has(lead.id) ? 'bg-green-50' : 'hover:bg-gray-50'}`}
+                      >
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedLeads.has(lead.id)}
+                            onChange={() => toggleLead(lead.id)}
+                            className="w-4 h-4 rounded accent-green-600 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-900">{lead.name || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-gray-700 font-mono text-xs">{lead.phone || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell">{lead.source || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">{lead.landing_pages?.title || '—'}</td>
+                        <td className="px-4 py-3 text-gray-400 text-xs hidden sm:table-cell whitespace-nowrap">
+                          {new Date(lead.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          {lead.phone && (
+                            <a
+                              href={`https://wa.me/6${lead.phone.replace(/^0/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors whitespace-nowrap"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              WA
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between">
+                <span>
+                  {filteredAllLeads.length} lead{filteredAllLeads.length !== 1 ? 's' : ''}
+                  {leadsSearch && allLeads.length !== filteredAllLeads.length && ` daripada ${allLeads.length}`}
+                </span>
+                {selectedLeads.size > 0 && (
+                  <button onClick={() => setSelectedLeads(new Set())} className="text-gray-400 hover:text-gray-600 font-semibold">
+                    Nyah pilih semua
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

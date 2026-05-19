@@ -247,6 +247,14 @@ function SectionFields({ section, updateData, pickerProducts }: {
         <>
           <div><label className={lbl}>Tajuk sebelum form</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Ada soalan? Kami sedia membantu!" /></div>
           <div><label className={lbl}>Penerangan (pilihan)</label><input className={inp} value={d.desc || ''} onChange={e => u('desc', e.target.value)} placeholder="Tinggalkan nombor anda..." /></div>
+          <div className="border-t border-gray-100 pt-3 mt-1">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Mesej Thank You (selepas submit)</p>
+            <div><label className={lbl}>Tajuk Thank You</label><input className={inp} value={d.ty_title || ''} onChange={e => u('ty_title', e.target.value)} placeholder="Terima kasih!" /></div>
+            <div><label className={lbl}>Mesej Thank You</label><input className={inp} value={d.ty_message || ''} onChange={e => u('ty_message', e.target.value)} placeholder="Team kami akan hubungi anda tidak lama lagi." /></div>
+            <div><label className={lbl}>Link WhatsApp Community (pilihan)</label><input className={inp} type="url" value={d.ty_wa_link || ''} onChange={e => u('ty_wa_link', e.target.value)} placeholder="https://chat.whatsapp.com/xxxx" /></div>
+            <div><label className={lbl}>Redirect ke URL selepas submit (pilihan)</label><input className={inp} value={d.ty_redirect || ''} onChange={e => u('ty_redirect', e.target.value)} placeholder="cth: /lp/thank-you atau https://..." /></div>
+            <p className="text-[10px] text-orange-500">⚠️ Kalau redirect diisi, mesej &amp; butang WA di atas tak akan dipaparkan</p>
+          </div>
           <p className="text-[10px] text-gray-400">Form kenalan akan muncul secara automatik</p>
         </>
       )

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
+import { sendCapiPurchase } from '@/lib/meta-capi'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
@@ -94,6 +95,20 @@ export async function POST(
     supabase.rpc('increment_spend', { uid: user.id, amount: Number(order.total) }),
   ])
   if (order.promo_code_id) await supabase.rpc('increment_promo_uses', { promo_id: order.promo_code_id })
+
+  sendCapiPurchase({
+    orderId,
+    orderNumber: order.order_number,
+    total: Number(order.total),
+    items: (order_items ?? []).map((i: any) => ({
+      productId: i.product_id,
+      quantity: i.quantity,
+      price: Number(i.unit_price ?? 0),
+    })),
+    userEmail: profiles?.email,
+    userPhone: profiles?.phone,
+    userId: user.id,
+  }).catch(() => {})
 
   // Email customer
   if (profiles?.email) {

@@ -53,8 +53,8 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map((productsRes.data ?? []).map(p => [p.slug, p]))
   const stockByProductId = new Map((stockRes.data ?? []).map(s => [s.product_id, s.available_stock]))
 
-  // Split on {{product:slug}}, {{lead-form}}, and {{countdown:...}} placeholders
-  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form\}\}|\{\{countdown:[^}]+\}\})/g)
+  // Split on {{product:slug}}, {{lead-form}}, {{lead-form:title|msg}}, and {{countdown:...}} placeholders
+  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
@@ -75,8 +75,20 @@ export default async function LandingPage({ params }: Props) {
             return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />
           }
 
-          if (part === '{{lead-form}}') {
-            return <LpLeadForm key={i} slug={slug} />
+          if (part === '{{lead-form}}' || part.startsWith('{{lead-form:')) {
+            let tyTitle: string | undefined
+            let tyMessage: string | undefined
+            let tyWaLink: string | undefined
+            let tyRedirect: string | undefined
+            if (part.startsWith('{{lead-form:')) {
+              const inner = part.slice(12, -2)
+              const [t, m, w, r] = inner.split('|')
+              tyTitle = t || undefined
+              tyMessage = m || undefined
+              tyWaLink = w || undefined
+              tyRedirect = r || undefined
+            }
+            return <LpLeadForm key={i} slug={slug} thankYouTitle={tyTitle} thankYouMessage={tyMessage} thankYouWaLink={tyWaLink} thankYouRedirect={tyRedirect} />
           }
 
           if (part.startsWith('{{countdown:')) {

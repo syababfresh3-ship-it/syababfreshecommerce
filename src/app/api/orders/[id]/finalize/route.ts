@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendCapiPurchase } from '@/lib/meta-capi'
 
 // POST /api/orders/[id]/finalize
 // Deducts inventory + loyalty points + promo uses for COD/bank_transfer orders.
@@ -20,7 +21,7 @@ export async function POST(
   // Fetch order — verify ownership and that it hasn't been finalized yet
   const { data: order } = await supabase
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_status, total, points_used, promo_code_id, order_items(product_id, variant_id, quantity)')
+    .select('id, user_id, order_number, status, payment_method, payment_status, total, points_used, promo_code_id, order_items(product_id, variant_id, quantity, unit_price)')
     .eq('id', orderId)
     .eq('user_id', user.id)
     .single()
@@ -65,7 +66,7 @@ export async function POST(
   // Get user's loyalty multiplier
   const { data: profile } = await supabase
     .from('profiles')
-    .select('loyalty_tiers(multiplier)')
+    .select('email, phone, loyalty_tiers(multiplier)')
     .eq('id', user.id)
     .single()
   const multiplier = (profile as any)?.loyalty_tiers?.multiplier ?? 1
@@ -94,6 +95,20 @@ export async function POST(
   if (order.promo_code_id) {
     await supabase.rpc('increment_promo_uses', { promo_id: order.promo_code_id })
   }
+
+  sendCapiPurchase({
+    orderId,
+    orderNumber: (order as any).order_number,
+    total: Number(order.total),
+    items: (order.order_items as any[]).map((i: any) => ({
+      productId: i.product_id,
+      quantity: i.quantity,
+      price: Number(i.unit_price ?? 0),
+    })),
+    userEmail: (profile as any)?.email,
+    userPhone: (profile as any)?.phone,
+    userId: user.id,
+  }).catch(() => {})
 
   return NextResponse.json({ ok: true, earnedPoints: earned })
 }

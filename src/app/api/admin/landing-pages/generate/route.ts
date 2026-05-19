@@ -134,7 +134,13 @@ PERATURAN WAJIB:
 4. Guna emoji secara strategik untuk menarik perhatian
 5. Setiap bahagian gambar, tulis: <img src="UPLOAD_GAMBAR_DI_SINI" alt="..." style="width:100%; border-radius:16px; margin:12px 0;" />
 6. Tempat produk: tulis {{product:SLUG_PRODUK}} — ganti SLUG_PRODUK dengan slug sebenar yang diberi
-7. Tempat lead form: tulis {{lead-form}}
+7. Tempat lead form: tulis {{lead-form:TAJUK|MESEJ|LINK_WA|REDIRECT_URL}}
+   - TAJUK = tajuk thank you (cth: Terima kasih!)
+   - MESEJ = mesej thank you (cth: Team kami akan hubungi anda tidak lama lagi.)
+   - LINK_WA = link WhatsApp community — kosongkan jika tiada
+   - REDIRECT_URL = URL redirect selepas submit — kosongkan jika tiada (inline je)
+   - Contoh dengan WA: {{lead-form:Terima kasih!|Team kami akan hubungi anda.|https://chat.whatsapp.com/xxx|}}
+   - Contoh dengan redirect: {{lead-form:Terima kasih!|Team kami akan hubungi anda.||/lp/thank-you}}
 8. Mobile-first — font size 14-32px, padding 16-24px, tidak lebih
 9. Jangan buat page terlalu panjang — medium length, padat dan berkesan
 10. Tiada lorem ipsum — semua teks mesti relevan dan spesifik kepada produk`
@@ -179,7 +185,7 @@ WAJIB guna warna tema ini di seluruh page. Hero section MESTI guna hero gradient
 FRAMEWORK ${fw.name.toUpperCase()} — ${fw.description}:
 ${fw.prompt}
 
-Tulis HTML lengkap sekarang. Ingat: inline styles sahaja, guna {{product:${product_slug || 'slug-produk'}}} untuk product card, dan {{lead-form}} untuk form kenalan.`
+Tulis HTML lengkap sekarang. Ingat: inline styles sahaja, guna {{product:${product_slug || 'slug-produk'}}} untuk product card, dan {{lead-form:Terima kasih!|Team kami akan hubungi anda tidak lama lagi.||}} untuk form kenalan.`
 
   try {
     const message = await client.messages.create({

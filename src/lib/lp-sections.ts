@@ -92,6 +92,10 @@ export const SECTION_META: Record<SectionType, { label: string; icon: string; de
     defaultData: {
       title: 'Ada soalan? Kami sedia membantu!',
       desc: 'Tinggalkan nombor anda — team kami hubungi dalam masa 24 jam.',
+      ty_title: 'Terima kasih!',
+      ty_message: 'Team kami akan hubungi anda tidak lama lagi.',
+      ty_wa_link: '',
+      ty_redirect: '',
     },
   },
   image: {
@@ -238,12 +242,16 @@ function sectionUrgency(d: Record<string, string>): string {
 }
 
 function sectionLeadForm(d: Record<string, string>): string {
+  const tyTitle = d.ty_title || 'Terima kasih!'
+  const tyMessage = d.ty_message || 'Team kami akan hubungi anda tidak lama lagi.'
+  const tyWaLink = d.ty_wa_link || ''
+  const tyRedirect = d.ty_redirect || ''
   return `
 <div style="margin: 16px 0 8px; text-align: center;">
   ${d.title ? `<p style="font-size: 15px; font-weight: 800; color: #1c1917; margin: 0 0 6px;">${escHtml(d.title)}</p>` : ''}
   ${d.desc ? `<p style="font-size: 13px; color: #78716c; margin: 0 0 16px;">${escHtml(d.desc)}</p>` : ''}
 </div>
-{{lead-form}}`.trim()
+{{lead-form:${tyTitle}|${tyMessage}|${tyWaLink}|${tyRedirect}}}`.trim()
 }
 
 function sectionImage(d: Record<string, string>): string {
