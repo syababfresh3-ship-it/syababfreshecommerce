@@ -40,6 +40,11 @@ export function LpLeadForm({ slug, thankYouTitle, thankYouMessage, thankYouWaLin
 
       sessionStorage.setItem(`lp_lead_${slug}`, '1')
 
+      // Fire browser-side Lead event (dedup dengan CAPI via eventID)
+      if (typeof window !== 'undefined' && (window as any).fbq) {
+        ;(window as any).fbq('track', 'Lead')
+      }
+
       if (thankYouRedirect) {
         window.location.href = thankYouRedirect
         return
