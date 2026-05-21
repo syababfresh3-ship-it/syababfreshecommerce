@@ -26,31 +26,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   if (!page) return NextResponse.json({ error: 'Halaman tidak dijumpai' }, { status: 404 })
 
-  const { error } = await supabase.from('landing_page_leads').insert({
-    page_id: page.id,
-    name: name || null,
-    phone: phone || null,
-    source: source || null,
-  })
+  const { data: lead, error } = await supabase
+    .from('landing_page_leads')
+    .insert({ page_id: page.id, name: name || null, phone: phone || null, source: source || null })
+    .select('id')
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const { data: lead } = await supabase
-    .from('landing_page_leads')
-    .select('id')
-    .eq('page_id', page.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+  console.log('[lead] inserted id:', lead?.id, 'lpPixelId:', (page as any).meta_pixel_id)
 
-  if (lead) {
-    sendCapiLead({
-      leadId: lead.id,
-      pageSlug: slug,
-      phone: phone || null,
-      lpPixelId: (page as any).meta_pixel_id ?? null,
-    }).catch(() => {})
-  }
+  sendCapiLead({
+    leadId: lead.id,
+    pageSlug: slug,
+    phone: phone || null,
+    lpPixelId: (page as any).meta_pixel_id || null,
+  }).catch(err => console.error('[lead] CAPI error:', err))
 
   return NextResponse.json({ ok: true })
 }
