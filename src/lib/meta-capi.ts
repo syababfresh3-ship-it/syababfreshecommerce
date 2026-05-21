@@ -7,6 +7,20 @@ function sha256(value: string) {
   return crypto.createHash('sha256').update(value.trim().toLowerCase()).digest('hex')
 }
 
+function hashPhone(phone: string) {
+  // Normalize: remove spaces, dashes, brackets, convert MY format 0x → 60x
+  let p = phone.replace(/[\s\-\(\)]/g, '').replace(/[^0-9+]/g, '')
+  if (p.startsWith('0')) p = '60' + p.slice(1)
+  p = p.replace(/^\+/, '')
+  return sha256(p)
+}
+
+function splitName(fullName: string): { fn?: string; ln?: string } {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length === 1) return { fn: sha256(parts[0]) }
+  return { fn: sha256(parts[0]), ln: sha256(parts.slice(1).join(' ')) }
+}
+
 async function getPixelId(lpPixelId?: string | null): Promise<string | null> {
   if (lpPixelId) return lpPixelId
   const supabase = createAdminClient()
@@ -44,6 +58,11 @@ export async function sendCapiPurchase({
   userEmail,
   userPhone,
   userId,
+  customerName,
+  clientIp,
+  userAgent,
+  fbc,
+  fbp,
 }: {
   orderId: string
   orderNumber: string
@@ -52,6 +71,11 @@ export async function sendCapiPurchase({
   userEmail?: string | null
   userPhone?: string | null
   userId?: string | null
+  customerName?: string | null
+  clientIp?: string | null
+  userAgent?: string | null
+  fbc?: string | null
+  fbp?: string | null
 }) {
   if (!process.env.META_CAPI_ACCESS_TOKEN) return
   const pixelId = await getPixelId()
@@ -59,8 +83,13 @@ export async function sendCapiPurchase({
 
   const userData: Record<string, string> = {}
   if (userEmail) userData.em = sha256(userEmail)
-  if (userPhone) userData.ph = sha256(userPhone.replace(/\D/g, ''))
+  if (userPhone) userData.ph = hashPhone(userPhone)
   if (userId) userData.external_id = sha256(userId)
+  if (customerName) Object.assign(userData, splitName(customerName))
+  if (clientIp) userData.client_ip_address = clientIp
+  if (userAgent) userData.client_user_agent = userAgent
+  if (fbc) userData.fbc = fbc
+  if (fbp) userData.fbp = fbp
 
   await sendCapiEvent(pixelId, {
     data: [{
@@ -86,19 +115,34 @@ export async function sendCapiLead({
   leadId,
   pageSlug,
   phone,
+  name,
   lpPixelId,
+  clientIp,
+  userAgent,
+  fbc,
+  fbp,
 }: {
   leadId: string
   pageSlug: string
   phone?: string | null
+  name?: string | null
   lpPixelId?: string | null
+  clientIp?: string | null
+  userAgent?: string | null
+  fbc?: string | null
+  fbp?: string | null
 }) {
   if (!process.env.META_CAPI_ACCESS_TOKEN) return
   const pixelId = await getPixelId(lpPixelId)
   if (!pixelId) return
 
   const userData: Record<string, string> = {}
-  if (phone) userData.ph = sha256(phone.replace(/\D/g, ''))
+  if (phone) userData.ph = hashPhone(phone)
+  if (name) Object.assign(userData, splitName(name))
+  if (clientIp) userData.client_ip_address = clientIp
+  if (userAgent) userData.client_user_agent = userAgent
+  if (fbc) userData.fbc = fbc
+  if (fbp) userData.fbp = fbp
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
 

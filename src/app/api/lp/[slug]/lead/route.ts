@@ -15,6 +15,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!name && !phone)
     return NextResponse.json({ error: 'Nama atau telefon diperlukan' }, { status: 400 })
 
+  // Extract browser context for CAPI matching
+  const forwarded = request.headers.get('x-forwarded-for')
+  const clientIp = forwarded ? forwarded.split(',')[0].trim() : (request.headers.get('x-real-ip') ?? null)
+  const userAgent = request.headers.get('user-agent') ?? null
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  const fbc = cookieHeader.match(/(?:^|;\s*)_fbc=([^;]+)/)?.[1] ?? null
+  const fbp = cookieHeader.match(/(?:^|;\s*)_fbp=([^;]+)/)?.[1] ?? null
+
   const supabase = createAdminClient()
 
   const { data: page } = await supabase
@@ -34,13 +42,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  console.log('[lead] inserted id:', lead?.id, 'lpPixelId:', (page as any).meta_pixel_id)
-
   sendCapiLead({
     leadId: lead.id,
     pageSlug: slug,
     phone: phone || null,
+    name: name || null,
     lpPixelId: (page as any).meta_pixel_id || null,
+    clientIp,
+    userAgent,
+    fbc,
+    fbp,
   }).catch(err => console.error('[lead] CAPI error:', err))
 
   return NextResponse.json({ ok: true })

@@ -8,10 +8,17 @@ import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: orderId } = await params
+
+  const forwarded = req.headers.get('x-forwarded-for')
+  const clientIp = forwarded ? forwarded.split(',')[0].trim() : (req.headers.get('x-real-ip') ?? null)
+  const userAgent = req.headers.get('user-agent') ?? null
+  const cookieHeader = req.headers.get('cookie') ?? ''
+  const fbc = cookieHeader.match(/(?:^|;\s*)_fbc=([^;]+)/)?.[1] ?? null
+  const fbp = cookieHeader.match(/(?:^|;\s*)_fbp=([^;]+)/)?.[1] ?? null
 
   const userClient = await createClient()
   const { data: { user } } = await userClient.auth.getUser()
@@ -108,6 +115,11 @@ export async function POST(
     userEmail: profiles?.email,
     userPhone: profiles?.phone,
     userId: user.id,
+    customerName: profiles?.full_name ?? null,
+    clientIp,
+    userAgent,
+    fbc,
+    fbp,
   }).catch(() => {})
 
   // Email customer

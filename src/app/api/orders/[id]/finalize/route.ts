@@ -7,10 +7,17 @@ import { sendCapiPurchase } from '@/lib/meta-capi'
 // Deducts inventory + loyalty points + promo uses for COD/bank_transfer orders.
 // Moved server-side so client cannot skip or manipulate these operations.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: orderId } = await params
+
+  const forwarded = req.headers.get('x-forwarded-for')
+  const clientIp = forwarded ? forwarded.split(',')[0].trim() : (req.headers.get('x-real-ip') ?? null)
+  const userAgent = req.headers.get('user-agent') ?? null
+  const cookieHeader = req.headers.get('cookie') ?? ''
+  const fbc = cookieHeader.match(/(?:^|;\s*)_fbc=([^;]+)/)?.[1] ?? null
+  const fbp = cookieHeader.match(/(?:^|;\s*)_fbp=([^;]+)/)?.[1] ?? null
 
   const userClient = await createClient()
   const { data: { user } } = await userClient.auth.getUser()
@@ -108,6 +115,10 @@ export async function POST(
     userEmail: (profile as any)?.email,
     userPhone: (profile as any)?.phone,
     userId: user.id,
+    clientIp,
+    userAgent,
+    fbc,
+    fbp,
   }).catch(() => {})
 
   return NextResponse.json({ ok: true, earnedPoints: earned })

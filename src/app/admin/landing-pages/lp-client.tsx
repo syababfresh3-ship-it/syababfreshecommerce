@@ -291,6 +291,21 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     URL.revokeObjectURL(url)
   }
 
+  async function deleteSelectedLeads() {
+    if (selectedLeads.size === 0) return
+    if (!window.confirm(`Padam ${selectedLeads.size} lead yang dipilih? Tindakan ini tidak boleh dibatalkan.`)) return
+    const ids = [...selectedLeads]
+    const res = await fetch('/api/admin/landing-pages/leads', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    if (!res.ok) { toast.error('Gagal padam leads'); return }
+    setAllLeads(prev => prev.filter(l => !selectedLeads.has(l.id)))
+    setSelectedLeads(new Set())
+    toast.success(`${ids.length} lead dipadam`)
+  }
+
   const filteredAllLeads = leadsSearch.trim()
     ? allLeads.filter(l =>
         (l.name ?? '').toLowerCase().includes(leadsSearch.toLowerCase()) ||
@@ -1035,6 +1050,14 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             >
               {selectedLeads.size > 0 ? `Export ${selectedLeads.size} Terpilih` : 'Export CSV'}
             </button>
+            {selectedLeads.size > 0 && (
+              <button
+                onClick={deleteSelectedLeads}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shrink-0"
+              >
+                Padam {selectedLeads.size}
+              </button>
+            )}
             <button onClick={loadAllLeads} className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 shrink-0">
               Muat Semula
             </button>
