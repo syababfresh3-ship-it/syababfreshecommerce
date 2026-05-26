@@ -227,7 +227,7 @@ export default async function ProfilePage() {
           {/* ── 2c. JEMPUT RAKAN — referral card ─────────────────────────── */}
           {refCode && (
             <Link
-              href="/loyalty"
+              href="/rujukan"
               className="flex items-center gap-3.5 bg-white rounded-2xl shadow-[0_3px_18px_rgba(0,0,0,0.07)] px-4 py-4 active:scale-[0.97] transition-all"
             >
               <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center shrink-0">

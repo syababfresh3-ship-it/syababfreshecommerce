@@ -1,11 +1,11 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Loader2, Gift } from 'lucide-react'
+import { Loader2, Gift, ChevronDown } from 'lucide-react'
 
 function GoogleIcon() {
   return (
@@ -22,15 +22,43 @@ function DaftarForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
-  const refCode = searchParams.get('ref') ?? ''
+  const refCodeParam = searchParams.get('ref') ?? ''
+
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [form, setForm] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    password: '',
-  })
+  const [referrerName, setReferrerName] = useState<string | null>(null)
+  const [refCode, setRefCode] = useState(refCodeParam.toUpperCase())
+  const [showRefInput, setShowRefInput] = useState(false)
+  const [checkingCode, setCheckingCode] = useState(false)
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '', password: '' })
+
+  // Auto-lookup referrer name when code comes from URL param
+  useEffect(() => {
+    if (!refCodeParam) return
+    setCheckingCode(true)
+    fetch(`/api/referrals/lookup?code=${refCodeParam.toUpperCase()}`)
+      .then(r => r.json())
+      .then(d => { if (d.name) setReferrerName(d.name) })
+      .catch(() => {})
+      .finally(() => setCheckingCode(false))
+  }, [refCodeParam])
+
+  // Lookup when user manually types a code
+  async function handleCodeLookup(code: string) {
+    const upper = code.toUpperCase()
+    setRefCode(upper)
+    if (upper.length < 4) { setReferrerName(null); return }
+    setCheckingCode(true)
+    try {
+      const res = await fetch(`/api/referrals/lookup?code=${upper}`)
+      const data = await res.json()
+      setReferrerName(res.ok ? (data.name ?? null) : null)
+    } catch {
+      setReferrerName(null)
+    } finally {
+      setCheckingCode(false)
+    }
+  }
 
   async function handleGoogleSignup() {
     setGoogleLoading(true)
@@ -76,7 +104,6 @@ function DaftarForm() {
       return
     }
 
-    // Track referral if signup came via referral link
     if (refCode && data.user) {
       try {
         await fetch('/api/referrals/track', {
@@ -85,7 +112,7 @@ function DaftarForm() {
           body: JSON.stringify({ ref_code: refCode }),
         })
       } catch {
-        // silent — don't block signup if referral tracking fails
+        // silent
       }
     }
 
@@ -93,6 +120,8 @@ function DaftarForm() {
     router.push(redirectTo)
     router.refresh()
   }
+
+  const hasValidCode = refCode.length >= 4 && referrerName !== null
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -102,17 +131,23 @@ function DaftarForm() {
           <p className="text-gray-500 text-sm mt-1">Buat akaun baru</p>
         </div>
 
-        {refCode && (
+        {/* Referral banner */}
+        {hasValidCode ? (
           <div className="mb-4 flex items-center gap-2.5 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
             <Gift className="h-4 w-4 text-green-600 shrink-0" />
             <p className="text-sm text-green-700 font-medium">
-              Anda dijemput oleh rakan — dapat <span className="font-black">50 mata</span> percuma selepas daftar!
+              <span className="font-black">{referrerName}</span> jemput anda — dapat{' '}
+              <span className="font-black">50 mata</span> percuma selepas daftar! 🎁
             </p>
           </div>
-        )}
+        ) : refCodeParam && !checkingCode && !referrerName ? (
+          <div className="mb-4 flex items-center gap-2.5 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+            <Gift className="h-4 w-4 text-yellow-600 shrink-0" />
+            <p className="text-sm text-yellow-700">Kod rujukan tidak sah atau sudah tidak aktif.</p>
+          </div>
+        ) : null}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          {/* Google Signup */}
           <button
             type="button"
             onClick={handleGoogleSignup}
@@ -133,59 +168,73 @@ function DaftarForm() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Nama Penuh</label>
-              <input
-                name="full_name"
-                value={form.full_name}
-                onChange={handleChange}
-                required
+              <input name="full_name" value={form.full_name} onChange={handleChange} required
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="Ahmad bin Ali"
-              />
+                placeholder="Ahmad bin Ali" />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                required
-                autoComplete="email"
+              <input name="email" type="email" value={form.email} onChange={handleChange} required autoComplete="email"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="email@contoh.com"
-              />
+                placeholder="email@contoh.com" />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">No. Telefon</label>
-              <input
-                name="phone"
-                type="tel"
-                value={form.phone}
-                onChange={handleChange}
+              <input name="phone" type="tel" value={form.phone} onChange={handleChange}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="011-1234 5678"
-              />
+                placeholder="011-1234 5678" />
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Kata Laluan</label>
-              <input
-                name="password"
-                type="password"
-                value={form.password}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
+              <input name="password" type="password" value={form.password} onChange={handleChange} required autoComplete="new-password"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                placeholder="Min. 6 aksara"
-              />
+                placeholder="Min. 6 aksara" />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
+            {/* Manual referral code — collapsed by default unless already has code from URL */}
+            {!refCodeParam && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowRefInput(v => !v)}
+                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <Gift className="h-3.5 w-3.5" />
+                  Ada kod rujukan?
+                  <ChevronDown className={`h-3 w-3 transition-transform ${showRefInput ? 'rotate-180' : ''}`} />
+                </button>
+                {showRefInput && (
+                  <div className="mt-2 relative">
+                    <input
+                      type="text"
+                      value={refCode}
+                      onChange={e => handleCodeLookup(e.target.value)}
+                      placeholder="Masukkan kod rujukan"
+                      maxLength={12}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 uppercase tracking-widest ${
+                        hasValidCode ? 'border-green-300 bg-green-50 focus:ring-green-300' :
+                        refCode.length >= 4 && !checkingCode && !referrerName ? 'border-red-200 focus:ring-red-300' :
+                        'border-gray-200 focus:ring-red-500'
+                      }`}
+                    />
+                    {checkingCode && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                    )}
+                    {hasValidCode && (
+                      <p className="text-xs text-green-600 font-semibold mt-1.5 flex items-center gap-1">
+                        <Gift className="h-3 w-3" />
+                        Dijemput oleh {referrerName} — dapat 50 mata percuma!
+                      </p>
+                    )}
+                    {refCode.length >= 4 && !checkingCode && !referrerName && (
+                      <p className="text-xs text-red-500 mt-1.5">Kod tidak dijumpai.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
               className="w-full bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}

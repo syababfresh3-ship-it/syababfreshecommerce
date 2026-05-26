@@ -54,21 +54,38 @@ export async function GET(request: NextRequest) {
         .eq('referral_code', refCode)
         .single()
 
-      if (referrer) {
+      if (referrer && referrer.id !== data.user.id) {
+        // Cap: max 20 referrals per month
+        const monthStart = new Date()
+        monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+        const { count: monthlyCount } = await adminDb
+          .from('referrals')
+          .select('id', { count: 'exact', head: true })
+          .eq('referrer_id', referrer.id)
+          .gte('created_at', monthStart.toISOString())
+
         const alreadyReferred = await adminDb
           .from('referrals')
           .select('id')
           .eq('referee_id', data.user.id)
           .maybeSingle()
 
-        if (!alreadyReferred.data) {
+        if (!alreadyReferred.data && (monthlyCount ?? 0) < 20) {
           await adminDb.from('referrals').insert({
             referrer_id: referrer.id,
             referee_id: data.user.id,
-            ref_code: refCode,
             status: 'pending',
+            referee_pts: 50,
             referrer_pts: 100,
           })
+          // Award referee 50 welcome pts (same as email signup flow)
+          await adminDb.from('loyalty_transactions').insert({
+            user_id: data.user.id,
+            points: 50,
+            type: 'earn',
+            description: 'Ganjaran rujukan — selamat datang!',
+          })
+          await adminDb.rpc('increment_points', { uid: data.user.id, pts: 50 })
         }
       }
     } catch {

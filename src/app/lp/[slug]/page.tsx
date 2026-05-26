@@ -13,6 +13,17 @@ import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
 
+// Strip <!DOCTYPE>/<html>/<head>/<body> wrappers so the content can be safely
+// injected inside a Next.js page via dangerouslySetInnerHTML without causing
+// React hydration mismatches (#418) on mobile/in-app browsers.
+function normaliseHtml(html: string): string {
+  if (!/<body[\s>]/i.test(html)) return html
+  const styles: string[] = []
+  const stripped = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, (m) => { styles.push(m); return '' })
+  const bodyMatch = stripped.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  return styles.join('\n') + (bodyMatch?.[1] ?? html)
+}
+
 type Props = { params: Promise<{ slug: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -53,8 +64,10 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map((productsRes.data ?? []).map(p => [p.slug, p]))
   const stockByProductId = new Map((stockRes.data ?? []).map(s => [s.product_id, s.available_stock]))
 
+  const htmlContent = normaliseHtml(page.html_content)
+
   // Split on {{product:slug}}, {{lead-form}}, {{lead-form:title|msg}}, and {{countdown:...}} placeholders
-  const parts = page.html_content.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
+  const parts = htmlContent.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">

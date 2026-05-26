@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendWhatsApp } from '@/lib/murpati'
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_affiliate, affiliate_balance')
+      .select('is_affiliate, affiliate_balance, full_name')
       .eq('id', user.id)
       .single()
 
@@ -68,6 +69,21 @@ export async function POST(request: Request) {
         .update({ affiliate_balance: profile.affiliate_balance })
         .eq('id', user.id)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // Notify admin via WhatsApp
+    const adminPhone = process.env.ADMIN_WHATSAPP
+    if (adminPhone) {
+      const name = (profile as any).full_name ?? 'Affiliate'
+      sendWhatsApp(adminPhone, [
+        `💰 *Permintaan Pengeluaran Affiliate*`,
+        ``,
+        `👤 ${name}`,
+        `💵 RM${amount.toFixed(2)}`,
+        `🏦 ${bank_name.trim()} — ${bank_account.trim()}`,
+        ``,
+        `Sila semak di panel admin → Program Affiliate → Pengeluaran`,
+      ].join('\n')).catch(() => {})
     }
 
     return NextResponse.json({ ok: true })

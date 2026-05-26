@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
+import { sendWhatsApp } from '@/lib/murpati'
 
 async function processReferralReward(supabase: ReturnType<typeof createAdminClient>, userId: string, orderId: string) {
   const { data: referral } = await supabase
@@ -27,6 +28,24 @@ async function processReferralReward(supabase: ReturnType<typeof createAdminClie
     .from('referrals')
     .update({ status: 'rewarded', order_id: orderId, rewarded_at: new Date().toISOString() })
     .eq('id', referral.id)
+
+  // Notify referrer via WhatsApp
+  const [referrerRes, refereeRes] = await Promise.all([
+    supabase.from('profiles').select('phone').eq('id', referral.referrer_id).single(),
+    supabase.from('profiles').select('full_name').eq('id', userId).single(),
+  ])
+  if (referrerRes.data?.phone) {
+    const refereeName = refereeRes.data?.full_name ?? 'Rakan anda'
+    sendWhatsApp(referrerRes.data.phone, [
+      `🎉 *Tahniah! Ganjaran Rujukan Diterima*`,
+      ``,
+      `*${refereeName}* baru sahaja selesai buat pesanan pertama guna kod rujukan anda!`,
+      ``,
+      `✨ *+${referral.referrer_pts} mata* telah dikreditkan ke akaun anda.`,
+      ``,
+      `Teruskan kongsi link rujukan untuk dapatkan lebih banyak ganjaran! 🍒`,
+    ].join('\n')).catch(() => {})
+  }
 }
 
 async function processAffiliateCommission(
