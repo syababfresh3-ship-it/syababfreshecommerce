@@ -51,14 +51,15 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
   const [categoriesRes, productsRes, stockRes, variantsRes] = await Promise.all([
     supabase
       .from('categories')
-      .select('*')
+      .select('id, name, slug, parent_id, sort_order, is_active')
       .eq('is_active', true)
       .order('sort_order', { ascending: true }),
     (() => {
       let q2 = supabase
         .from('products')
-        .select('*, category_id, categories(name, slug)')
+        .select('id, name, slug, price, compare_price, image_url, images, description, sort_order, is_active, is_featured, is_shippable, unit, category_id, created_at, updated_at, categories(name, slug)')
         .eq('is_active', true)
+        .limit(500)
       if (categoryIds && categoryIds.length > 0) {
         q2 = q2.in('category_id', categoryIds)
       }
@@ -66,11 +67,13 @@ async function getData(category?: string, q?: string, sort?: string, promo?: str
     })(),
     supabase
       .from('product_stock')
-      .select('product_id, available_stock'),
+      .select('product_id, available_stock')
+      .limit(500),
     supabase
       .from('product_variants')
       .select('product_id')
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .limit(500),
   ])
 
   const stockMap: Record<string, number> = {}

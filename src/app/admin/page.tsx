@@ -14,13 +14,14 @@ async function getStats() {
   const supabase = createAdminClient()
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
+  const yearStart = new Date(todayStart.getFullYear(), 0, 1)
 
   const [
     allRevenue, todayOrders, todayRevenue,
     totalOrders, activeProducts, customers,
     pendingOrders, pendingRefunds, lowStock,
   ] = await Promise.all([
-    supabase.from('orders').select('total').eq('payment_status', 'paid'),
+    supabase.from('orders').select('total').eq('payment_status', 'paid').gte('created_at', yearStart.toISOString()),
     supabase.from('orders').select('id', { count: 'exact', head: true })
       .gte('created_at', todayStart.toISOString()),
     supabase.from('orders').select('total')
@@ -145,7 +146,7 @@ export default async function AdminDashboard() {
         <StatCard
           label="Jualan Hari Ini"
           value={`RM${stats.todayRevenue.toFixed(2)}`}
-          sub={`RM${stats.revenue.toLocaleString('ms-MY', { minimumFractionDigits: 2 })} keseluruhan`}
+          sub={`RM${stats.revenue.toLocaleString('ms-MY', { minimumFractionDigits: 2 })} tahun ini`}
           icon={Banknote}
           gradient="from-emerald-500 to-emerald-600"
         />

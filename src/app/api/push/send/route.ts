@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const adminDb = createAdminClient()
-    let query = adminDb.from('push_subscriptions').select('*')
+    let query = adminDb.from('push_subscriptions').select('endpoint, p256dh, auth, user_id').limit(1000)
     if (userId) query = query.eq('user_id', userId)
     const { data: subs } = await query
 
