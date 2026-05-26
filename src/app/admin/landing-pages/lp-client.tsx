@@ -237,7 +237,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [allLeadsLoading, setAllLeadsLoading] = useState(false)
   const [allLeadsFetched, setAllLeadsFetched] = useState(false)
   const [leadsSearch, setLeadsSearch] = useState('')
+  const [leadsPageNum, setLeadsPageNum] = useState(1)
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
+  const LEADS_PAGE_SIZE = 50
 
   function toggleLead(id: string) {
     setSelectedLeads(prev => {
@@ -313,6 +315,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
         (l.landing_pages?.title ?? '').toLowerCase().includes(leadsSearch.toLowerCase())
       )
     : allLeads
+
+  const leadsTotalPages = Math.ceil(filteredAllLeads.length / LEADS_PAGE_SIZE)
+  const pagedLeads = filteredAllLeads.slice((leadsPageNum - 1) * LEADS_PAGE_SIZE, leadsPageNum * LEADS_PAGE_SIZE)
 
   async function loadOrders() {
     if (ordersLoading) return
@@ -1040,7 +1045,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               type="text"
               placeholder="Cari nama, telefon, atau page..."
               value={leadsSearch}
-              onChange={e => setLeadsSearch(e.target.value)}
+              onChange={e => { setLeadsSearch(e.target.value); setLeadsPageNum(1) }}
               className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
             />
             <button
@@ -1096,7 +1101,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filteredAllLeads.map(lead => (
+                    {pagedLeads.map(lead => (
                       <tr
                         key={lead.id}
                         onClick={() => toggleLead(lead.id)}
@@ -1135,15 +1140,36 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   </tbody>
                 </table>
               </div>
-              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between">
+              <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between flex-wrap gap-2">
                 <span>
                   {filteredAllLeads.length} lead{filteredAllLeads.length !== 1 ? 's' : ''}
                   {leadsSearch && allLeads.length !== filteredAllLeads.length && ` daripada ${allLeads.length}`}
+                  {selectedLeads.size > 0 && (
+                    <button onClick={() => setSelectedLeads(new Set())} className="ml-3 text-gray-400 hover:text-gray-600 font-semibold underline">
+                      Nyah pilih semua
+                    </button>
+                  )}
                 </span>
-                {selectedLeads.size > 0 && (
-                  <button onClick={() => setSelectedLeads(new Set())} className="text-gray-400 hover:text-gray-600 font-semibold">
-                    Nyah pilih semua
-                  </button>
+                {leadsTotalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setLeadsPageNum(p => Math.max(1, p - 1))}
+                      disabled={leadsPageNum === 1}
+                      className="px-2.5 py-1 rounded-lg border border-gray-200 bg-white font-semibold hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                    >
+                      ‹
+                    </button>
+                    <span className="px-2 font-semibold text-gray-600">
+                      {leadsPageNum} / {leadsTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setLeadsPageNum(p => Math.min(leadsTotalPages, p + 1))}
+                      disabled={leadsPageNum === leadsTotalPages}
+                      className="px-2.5 py-1 rounded-lg border border-gray-200 bg-white font-semibold hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                    >
+                      ›
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
