@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
 import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
-import { createClient } from "@/lib/supabase/server";
+import { getAppSettings } from "@/lib/app-settings";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -72,13 +72,7 @@ export const viewport: Viewport = {
 
 async function getPixelConfig() {
   try {
-    const supabase = await createClient()
-    const { data } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .in('key', ['meta_pixel_id', 'google_ads_id', 'google_ads_label', 'gtm_id'])
-    const map: Record<string, string> = {}
-    for (const row of data ?? []) map[row.key] = row.value
+    const map = await getAppSettings()
     return {
       metaPixelId: map['meta_pixel_id'] ?? '',
       googleAdsId: map['google_ads_id'] ?? '',

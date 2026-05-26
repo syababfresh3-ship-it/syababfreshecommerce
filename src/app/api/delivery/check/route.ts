@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAppSettings } from '@/lib/app-settings'
 
 export async function GET(req: NextRequest) {
   const postcode = req.nextUrl.searchParams.get('postcode')?.trim()
@@ -8,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ covered: false, error: 'Poskod tidak sah' })
   }
 
-  const supabase = await createClient()
+  const [supabase, settings] = await Promise.all([createClient(), getAppSettings()])
   const { data } = await supabase
     .from('delivery_zones')
     .select('postcode, area_name, city, state, frequency, delivery_fee')
@@ -16,12 +17,7 @@ export async function GET(req: NextRequest) {
     .eq('is_active', true)
     .single()
 
-  const { data: setting } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'default_delivery_fee')
-    .single()
-  const defaultFee = Number(setting?.value ?? 15)
+  const defaultFee = Number(settings['default_delivery_fee'] ?? 15)
 
   if (!data) {
     return NextResponse.json({ covered: false, fee: defaultFee })

@@ -3,21 +3,16 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { JadiEjenClient } from './jadi-ejen-client'
+import { getAppSettings } from '@/lib/app-settings'
 
 async function getStatus() {
-  const supabase = await createClient()
+  const [supabase, settings] = await Promise.all([createClient(), getAppSettings()])
   const { data: { user } } = await supabase.auth.getUser()
-
-  const adminDb = createAdminClient()
-  const { data: setting } = await adminDb
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'affiliate_commission_pct')
-    .single()
-  const commissionPct = parseFloat(setting?.value ?? '0.01') * 100
+  const commissionPct = parseFloat(settings['affiliate_commission_pct'] ?? '0.01') * 100
 
   if (!user) return { status: 'guest' as const, commissionPct }
 
+  const adminDb = createAdminClient()
   const { data: profile } = await adminDb
     .from('profiles')
     .select('full_name, phone, is_affiliate')

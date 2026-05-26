@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
@@ -24,5 +25,6 @@ export async function PATCH(request: Request) {
     .from('app_settings')
     .upsert({ key: 'store_logo_url', value: logo_url ?? '', updated_at: new Date().toISOString() })
 
+  revalidateTag('app-settings', 'default')
   return NextResponse.json({ ok: true })
 }

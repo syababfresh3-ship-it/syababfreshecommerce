@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { getAppSettings } from '@/lib/app-settings'
 
 interface CartItem {
   product_id: string
@@ -115,16 +116,9 @@ export async function POST(request: Request) {
   }
 
   // ── Recalculate delivery fee from DB ─────────────────────────────
-  const { data: deliverySettings } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .in('key', ['free_delivery_min', 'default_delivery_fee'])
-
-  const settingsMap: Record<string, number> = {}
-  for (const row of deliverySettings ?? []) settingsMap[row.key] = Number(row.value)
-
-  const FREE_DELIVERY_MIN = settingsMap.free_delivery_min ?? 80
-  let deliveryFee = settingsMap.default_delivery_fee ?? 15
+  const appSettings = await getAppSettings()
+  const FREE_DELIVERY_MIN = Number(appSettings['free_delivery_min'] ?? 80)
+  let deliveryFee = Number(appSettings['default_delivery_fee'] ?? 15)
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 

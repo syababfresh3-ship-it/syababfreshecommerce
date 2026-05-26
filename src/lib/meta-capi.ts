@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { createAdminClient } from './supabase/admin'
+import { getAppSettings } from './app-settings'
 
 const CAPI_URL = 'https://graph.facebook.com/v21.0'
 
@@ -23,13 +23,8 @@ function splitName(fullName: string): { fn?: string; ln?: string } {
 
 async function getPixelId(lpPixelId?: string | null): Promise<string | null> {
   if (lpPixelId) return lpPixelId
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'meta_pixel_id')
-    .single()
-  return data?.value ?? null
+  const settings = await getAppSettings()
+  return settings.meta_pixel_id || null
 }
 
 async function sendCapiEvent(pixelId: string, payload: object) {

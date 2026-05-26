@@ -1,5 +1,6 @@
 // homepage conversion optimization
 import { createClient } from '@/lib/supabase/server'
+import { getAppSettings } from '@/lib/app-settings'
 import { StoreLayout } from '@/components/layout/store-layout'
 import Link from 'next/link'
 import { Truck, ShieldCheck, Leaf, Clock, RotateCcw, Star } from 'lucide-react'
@@ -9,13 +10,7 @@ import { HomeBanner } from '@/components/store/home-banner'
 import type { Category, Product } from '@/types'
 
 async function getFlashSale() {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .in('key', ['flash_sale_label', 'flash_sale_ends_at', 'flash_sale_promo_code'])
-  const map: Record<string, string> = {}
-  for (const row of data ?? []) map[row.key] = row.value
+  const map = await getAppSettings()
   if (!map.flash_sale_label || !map.flash_sale_ends_at) return null
   if (new Date(map.flash_sale_ends_at) < new Date()) return null
   return { label: map.flash_sale_label, endsAt: map.flash_sale_ends_at, promoCode: map.flash_sale_promo_code || undefined }

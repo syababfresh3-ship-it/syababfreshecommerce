@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 async function adminCheck() {
   const userClient = await createClient()
@@ -68,6 +69,7 @@ export async function PATCH(request: Request) {
       .update({ value: String(body.default_fee), updated_at: new Date().toISOString() })
       .eq('key', 'default_delivery_fee')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    revalidateTag('app-settings', 'default')
     return NextResponse.json({ ok: true })
   }
 

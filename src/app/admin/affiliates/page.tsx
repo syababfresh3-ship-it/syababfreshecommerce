@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAppSettings } from '@/lib/app-settings'
 import { AffiliatesClient } from './affiliates-client'
 
 async function getData() {
   const supabase = createAdminClient()
 
-  const [profilesRes, withdrawalsRes, settingRes, commissionsRes, applicationsRes] = await Promise.all([
+  const [profilesRes, withdrawalsRes, appSettings, commissionsRes, applicationsRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, full_name, email, phone, is_affiliate, affiliate_balance, referral_code, created_at')
@@ -15,11 +16,7 @@ async function getData() {
       .from('affiliate_withdrawals')
       .select('*, affiliate:profiles!affiliate_withdrawals_affiliate_id_fkey(full_name, email)')
       .order('requested_at', { ascending: false }),
-    supabase
-      .from('app_settings')
-      .select('value')
-      .eq('key', 'affiliate_commission_pct')
-      .single(),
+    getAppSettings(),
     supabase
       .from('affiliate_commissions')
       .select('id, affiliate_id, order_id, order_total, rate, amount, status, created_at, affiliate:profiles!affiliate_commissions_affiliate_id_fkey(full_name, email)')
@@ -35,7 +32,7 @@ async function getData() {
   return {
     profiles: profilesRes.data ?? [],
     withdrawals: withdrawalsRes.data ?? [],
-    commissionPct: parseFloat(settingRes.data?.value ?? '0.01'),
+    commissionPct: parseFloat(appSettings.affiliate_commission_pct ?? '0.01'),
     commissions: (commissionsRes.data ?? []) as any[],
     applications: (applicationsRes.data ?? []) as any[],
   }

@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
@@ -48,5 +49,6 @@ export async function PATCH(request: Request) {
       .upsert({ key: u.key, value: u.value }, { onConflict: 'key' })
   }
 
+  revalidateTag('app-settings', 'default')
   return NextResponse.json({ ok: true })
 }

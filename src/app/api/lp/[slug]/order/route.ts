@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer']
@@ -90,14 +91,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   // Delivery fee
-  const { data: settings } = await supabase
-    .from('app_settings').select('key, value').in('key', ['free_delivery_min', 'default_delivery_fee'])
-
-  const settingsMap: Record<string, number> = {}
-  for (const row of settings ?? []) settingsMap[row.key] = Number(row.value)
-
-  const FREE_MIN = settingsMap.free_delivery_min ?? 80
-  let deliveryFee = settingsMap.default_delivery_fee ?? 15
+  const appSettings = await getAppSettings()
+  const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
+  let deliveryFee = Number(appSettings.default_delivery_fee ?? 15)
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
@@ -186,14 +182,9 @@ export async function GET(request: Request) {
   if (!/^\d{5}$/.test(postcode)) return NextResponse.json({ fee: 15 })
 
   const supabase = createAdminClient()
-  const { data: settings } = await supabase
-    .from('app_settings').select('key, value').in('key', ['free_delivery_min', 'default_delivery_fee'])
-
-  const settingsMap: Record<string, number> = {}
-  for (const row of settings ?? []) settingsMap[row.key] = Number(row.value)
-
-  const FREE_MIN = settingsMap.free_delivery_min ?? 80
-  let fee = settingsMap.default_delivery_fee ?? 15
+  const appSettings = await getAppSettings()
+  const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
+  let fee = Number(appSettings.default_delivery_fee ?? 15)
 
   const KL_STATES_GET = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
   const qty = parseInt(url.searchParams.get('qty') ?? '1', 10)

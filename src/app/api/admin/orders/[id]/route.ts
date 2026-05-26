@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { sendWhatsApp } from '@/lib/murpati'
@@ -82,14 +83,8 @@ async function processAffiliateCommission(
 
   if (existing) return
 
-  // Get commission rate from app_settings
-  const { data: setting } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'affiliate_commission_pct')
-    .single()
-
-  const rate = parseFloat(setting?.value ?? '0.01')
+  const appSettings = await getAppSettings()
+  const rate = parseFloat(appSettings.affiliate_commission_pct ?? '0.01')
   const amount = Math.round(orderTotal * rate * 100) / 100
 
   await supabase.from('affiliate_commissions').insert({

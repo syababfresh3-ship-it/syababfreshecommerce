@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function PATCH(request: Request) {
   try {
@@ -20,6 +21,7 @@ export async function PATCH(request: Request) {
       .upsert({ key, value: String(value), updated_at: new Date().toISOString() }, { onConflict: 'key' })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    revalidateTag('app-settings', 'default')
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
