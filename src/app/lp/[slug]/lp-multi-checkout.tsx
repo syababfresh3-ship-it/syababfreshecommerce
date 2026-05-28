@@ -108,6 +108,7 @@ export function LpMultiCheckout({ products, stocks, slug }: Props) {
       })
       const data = await res.json()
       if (!res.ok) { toast.error(data.error ?? 'Gagal buat pesanan'); return }
+      if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
       setResult({ order_number: data.order_number, total: data.total, payment_method: paymentMethod })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally { setSubmitting(false) }

@@ -43,11 +43,10 @@ export async function POST(req: NextRequest) {
   // Auto-cancel order if payment failed, cancelled, or expired
   const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired']
   if (FAILURE_EVENTS.includes(event_type)) {
-    await supabase
-      .from('orders')
-      .update({ status: 'cancelled', payment_status: 'failed' })
-      .eq('id', orderId)
-      .eq('payment_status', 'unpaid')
+    await Promise.all([
+      supabase.from('orders').update({ status: 'cancelled', payment_status: 'failed' }).eq('id', orderId).eq('payment_status', 'unpaid'),
+      supabase.from('lp_guest_orders').update({ status: 'cancelled' }).eq('id', orderId).eq('status', 'pending'),
+    ])
     return NextResponse.json({ ok: true })
   }
 
@@ -70,6 +69,41 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!updated) {
+    // Try LP guest order
+    const { data: lpOrder } = await supabase
+      .from('lp_guest_orders')
+      .update({ status: 'confirmed' })
+      .eq('id', orderId)
+      .eq('status', 'pending')
+      .select('id, order_number, name, phone, total, items, payment_method')
+      .single()
+
+    if (lpOrder) {
+      const adminPhone = process.env.ADMIN_WHATSAPP
+      if (adminPhone) {
+        const itemLines = ((lpOrder.items as any[]) ?? [])
+          .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
+          .join('\n')
+        sendWhatsApp(adminPhone, [
+          `🛒 *Pesanan LP Baru — ${lpOrder.order_number}*`,
+          ``,
+          `👤 *Pelanggan:* ${lpOrder.name}`,
+          `📱 *Telefon:* ${lpOrder.phone}`,
+          ``,
+          `🧺 *Item:*`,
+          itemLines,
+          ``,
+          `💰 *Jumlah:* RM${Number(lpOrder.total).toFixed(2)}`,
+          `💳 *Bayaran:* FPX ✅ Dibayar`,
+        ].join('\n')).catch(() => {})
+        sendAdminPush({
+          title: `💳 LP FPX Dibayar — ${lpOrder.order_number}`,
+          body: `${lpOrder.name} · RM${Number(lpOrder.total).toFixed(2)}`,
+          url: '/admin/fulfillment',
+          tag: 'payment-confirmed',
+        }).catch(() => {})
+      }
+    }
     return NextResponse.json({ ok: true })
   }
 

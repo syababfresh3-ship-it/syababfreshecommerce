@@ -2,7 +2,15 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
 
-const VALID_PAYMENT = ['cod', 'bank_transfer']
+const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
+const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
+
+function getAppUrl() {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL
+  if (explicit && !explicit.includes('localhost')) return explicit
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return explicit ?? 'http://localhost:3006'
+}
 
 interface OrderItem {
   product_id: string
@@ -165,6 +173,41 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // FPX / e-wallet — redirect to Chip payment gateway
+  if (payment_method === 'fpx' || payment_method === 'ewallet') {
+    if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) {
+      return NextResponse.json({ error: 'Payment gateway tidak dikonfigurasi' }, { status: 503 })
+    }
+    const appUrl = getAppUrl()
+    const products = validatedItems.map(i => ({
+      name: `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''}`,
+      price: Math.round(Number(i.unit_price) * 100),
+      quantity: i.quantity,
+    }))
+    if (deliveryFee > 0) products.push({ name: 'Kos Penghantaran', price: Math.round(deliveryFee * 100), quantity: 1 })
+
+    const chipRes = await fetch(`${CHIP_API_URL}/purchases/`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.CHIP_SECRET_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client: { email: `lp+${order.order_number}@syababfresh.my`, full_name: name.trim(), phone: phone.trim() },
+        purchase: { currency: 'MYR', products, notes: order.order_number },
+        brand_id: process.env.CHIP_BRAND_ID,
+        reference: order.id,
+        success_redirect: `${appUrl}/lp/${slug}?bayar=berjaya&pesanan=${order.order_number}`,
+        failure_redirect: `${appUrl}/lp/${slug}?bayar=gagal`,
+        cancel_redirect: `${appUrl}/lp/${slug}`,
+        success_callback: `${appUrl}/api/webhook/chip`,
+        send_receipt: false,
+      }),
+    })
+    if (!chipRes.ok) return NextResponse.json({ error: 'Gagal sambung payment gateway' }, { status: 502 })
+    const chipData = await chipRes.json()
+    if (!chipData.checkout_url) return NextResponse.json({ error: 'Tiada checkout URL' }, { status: 502 })
+
+    return NextResponse.json({ checkoutUrl: chipData.checkout_url, order_number: order.order_number })
+  }
 
   return NextResponse.json({
     ok: true,
