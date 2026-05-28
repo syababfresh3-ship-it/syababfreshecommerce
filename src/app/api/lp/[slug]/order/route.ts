@@ -195,7 +195,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         purchase: { currency: 'MYR', products, notes: order.order_number },
         brand_id: process.env.CHIP_BRAND_ID,
         reference: order.id,
-        success_redirect: `${appUrl}/lp/${slug}?bayar=berjaya&pesanan=${order.order_number}`,
+        success_redirect: `${appUrl}/lp/${slug}/berjaya?pesanan=${order.order_number}`,
         failure_redirect: `${appUrl}/lp/${slug}?bayar=gagal`,
         cancel_redirect: `${appUrl}/lp/${slug}`,
         success_callback: `${appUrl}/api/webhook/chip`,
