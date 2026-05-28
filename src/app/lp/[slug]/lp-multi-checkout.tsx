@@ -13,6 +13,7 @@ interface Props {
   products: ProductWithVariants[]
   stocks: Record<string, number | null>
   slug: string
+  freeMin?: number
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
@@ -23,7 +24,7 @@ interface ProductSelection {
   qty: number
 }
 
-export function LpMultiCheckout({ products, stocks, slug }: Props) {
+export function LpMultiCheckout({ products, stocks, slug, freeMin = 80 }: Props) {
   // Init each product: first active variant selected, qty=1
   const initSelections = (): ProductSelection[] =>
     products.map(p => {
@@ -46,7 +47,7 @@ export function LpMultiCheckout({ products, stocks, slug }: Props) {
     const price = s.selectedVariant ? Number(s.selectedVariant.price) : Number(s.product.price)
     return sum + price * s.qty
   }, 0)
-  const FREE_MIN = 80
+  const FREE_MIN = freeMin
   const total = subtotal + (deliveryFee ?? 0)
 
   useEffect(() => {

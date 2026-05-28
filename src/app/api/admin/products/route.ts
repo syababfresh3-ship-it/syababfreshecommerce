@@ -19,8 +19,6 @@ export async function POST(request: Request) {
     is_active: body.is_active ?? true,
     is_featured: body.is_featured ?? false,
     sort_order: body.sort_order ?? 0,
-    sku: body.sku ?? null,
-    weight_kg: body.weight_kg != null ? Number(body.weight_kg) : null,
     is_shippable: body.is_shippable ?? true,
   }
   const { error, data } = await supabase!.from('products').insert(validated).select().single()

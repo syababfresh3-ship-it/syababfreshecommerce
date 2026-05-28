@@ -9,13 +9,14 @@ interface Props {
   product: Product & { product_variants?: ProductVariant[] }
   stock: number | null
   slug: string
+  freeMin?: number
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
 const v = (name: string, fallback: string) => `var(${name}, ${fallback})`
 
-export function LpInlineCheckout({ product, stock, slug }: Props) {
+export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) {
   const activeVariants = (product.product_variants ?? [])
     .filter(v => v.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -37,7 +38,7 @@ export function LpInlineCheckout({ product, stock, slug }: Props) {
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price)
   const comparePrice = selectedVariant ? selectedVariant.compare_price : product.compare_price
   const subtotal = displayPrice * qty
-  const FREE_MIN = 80
+  const FREE_MIN = freeMin
   const total = subtotal + (deliveryFee ?? 0)
   const savedAmt = comparePrice && Number(comparePrice) > displayPrice ? (Number(comparePrice) - displayPrice) * qty : 0
 

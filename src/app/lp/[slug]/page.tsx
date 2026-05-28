@@ -40,12 +40,12 @@ export default async function LandingPage({ params }: Props) {
   const { slug } = await params
   const supabase = createAdminClient()
 
-  const { data: page } = await supabase
-    .from('landing_pages')
-    .select('title, html_content, meta_pixel_id, google_tag_id')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
+  const [pageRes, settingsRes] = await Promise.all([
+    supabase.from('landing_pages').select('title, html_content, meta_pixel_id, google_tag_id').eq('slug', slug).eq('is_active', true).single(),
+    supabase.from('app_settings').select('key, value').eq('key', 'free_delivery_min').single(),
+  ])
+  const page = pageRes.data
+  const freeMin = Number(settingsRes.data?.value ?? 80)
 
   if (!page) notFound()
 
@@ -125,13 +125,13 @@ export default async function LandingPage({ params }: Props) {
             if (checkoutProducts.length > 1) {
               const stocks: Record<string, number | null> = {}
               checkoutProducts.forEach(p => { stocks[p!.id] = stockByProductId.get(p!.id) ?? null })
-              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} />
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} />
             }
 
             // Single product
             const checkoutProduct = checkoutProducts[0]!
             const checkoutStock = stockByProductId.get(checkoutProduct.id) ?? null
-            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} />
+            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} />
           }
 
           // {{product:slug}} — add-to-cart widget (cart bar flow)

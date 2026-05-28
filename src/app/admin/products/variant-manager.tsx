@@ -72,6 +72,27 @@ export function VariantManager({ productId }: Props) {
     setSaving(null)
   }
 
+  async function handleSaveAll() {
+    const dirtyIds = Object.keys(editing)
+    if (dirtyIds.length === 0) return
+    setSaving('all')
+    const results = await Promise.all(
+      dirtyIds.map(id =>
+        fetch(`/api/admin/products/${productId}/variants/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editing[id]),
+        })
+      )
+    )
+    const failed = results.filter(r => !r.ok).length
+    if (failed > 0) toast.error(`${failed} variasi gagal disimpan`)
+    else toast.success(`${dirtyIds.length} variasi disimpan`)
+    setEditing({})
+    load()
+    setSaving(null)
+  }
+
   async function handleDelete(v: ProductVariant) {
     if (!confirm(`Padam variasi "${v.name}"?`)) return
     const res = await fetch(`/api/admin/products/${productId}/variants/${v.id}`, { method: 'DELETE' })
@@ -108,14 +129,27 @@ export function VariantManager({ productId }: Props) {
             {variants.length > 0 ? `${variants.length} variasi` : 'Tiada variasi — produk dijual pada harga tetap'}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Tambah Variasi
-        </button>
+        <div className="flex items-center gap-2">
+          {Object.keys(editing).length > 0 && (
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={saving === 'all'}
+              className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 px-3 py-2 rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              {saving === 'all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Simpan Semua ({Object.keys(editing).length})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Tambah Variasi
+          </button>
+        </div>
       </div>
 
       {/* Add form */}
