@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
-import Image from 'next/image'
 import Link from 'next/link'
 import { LpAddToCartBtn } from './lp-add-to-cart'
+import { LpInlineCheckout } from './lp-inline-checkout'
+import { LpMultiCheckout } from './lp-multi-checkout'
 import { LpPixels } from './lp-pixels'
 import { LpTracker } from './lp-tracker'
 import { LpLeadForm } from './lp-lead-form'
@@ -21,7 +22,9 @@ function normaliseHtml(html: string): string {
   const styles: string[] = []
   const stripped = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, (m) => { styles.push(m); return '' })
   const bodyMatch = stripped.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  return styles.join('\n') + (bodyMatch?.[1] ?? html)
+  // Preserve any content after </html> — e.g. {{product:...}} placeholders appended outside the document
+  const afterHtml = stripped.replace(/^[\s\S]*<\/html>/i, '').trim()
+  return styles.join('\n') + (bodyMatch?.[1] ?? html) + (afterHtml ? '\n' + afterHtml : '')
 }
 
 type Props = { params: Promise<{ slug: string }> }
@@ -46,10 +49,11 @@ export default async function LandingPage({ params }: Props) {
 
   if (!page) notFound()
 
-  // Extract all {{product:slug}} placeholders
-  const productSlugs = [...new Set(
-    [...page.html_content.matchAll(/\{\{product:([a-z0-9-]+)\}\}/g)].map(m => m[1])
-  )]
+  // Extract all {{product:slug}} and {{checkout:slug1,slug2,...}} placeholders
+  const productSlugs = [...new Set([
+    ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
+    ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map(s => s.trim())).flat(),
+  ])]
 
   // Fetch products + variants + stock in parallel
   const [productsRes, stockRes] = await Promise.all([
@@ -66,8 +70,8 @@ export default async function LandingPage({ params }: Props) {
 
   const htmlContent = normaliseHtml(page.html_content)
 
-  // Split on {{product:slug}}, {{lead-form}}, {{lead-form:title|msg}}, and {{countdown:...}} placeholders
-  const parts = htmlContent.split(/(\{\{product:[a-z0-9-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
+  // Split on all placeholders: product, checkout (single or multi), lead-form, countdown
+  const parts = htmlContent.split(/(\{\{(?:product|checkout):[a-zA-Z0-9,\-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
@@ -81,7 +85,7 @@ export default async function LandingPage({ params }: Props) {
       </header>
 
       {/* Rendered HTML + injected product cards */}
-      <div className="max-w-2xl mx-auto px-4 pb-32">
+      <div className="max-w-2xl mx-auto px-4 pb-56">
         {parts.map((part: string, i: number) => {
           if (i % 2 === 0) {
             if (!part.trim()) return null
@@ -111,33 +115,38 @@ export default async function LandingPage({ params }: Props) {
             return <LpCountdown key={i} endDatetime={endDatetime} title={title ?? 'Tawaran tamat dalam:'} expiredText={expiredText ?? 'Tawaran telah tamat'} />
           }
 
-          // {{product:slug}}
+          // {{checkout:slug}} or {{checkout:slug1,slug2,...}}
+          if (part.startsWith('{{checkout:')) {
+            const rawSlugs = part.slice(11, -2).split(',').map(s => s.trim())
+            const checkoutProducts = rawSlugs.map(s => productsBySlug.get(s)).filter(p => p && p.is_active)
+            if (checkoutProducts.length === 0) return null
+
+            // Multi-product
+            if (checkoutProducts.length > 1) {
+              const stocks: Record<string, number | null> = {}
+              checkoutProducts.forEach(p => { stocks[p!.id] = stockByProductId.get(p!.id) ?? null })
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} />
+            }
+
+            // Single product
+            const checkoutProduct = checkoutProducts[0]!
+            const checkoutStock = stockByProductId.get(checkoutProduct.id) ?? null
+            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} />
+          }
+
+          // {{product:slug}} — add-to-cart widget (cart bar flow)
           const productSlug = part.slice(10, -2)
           const product = productsBySlug.get(productSlug)
           if (!product || !product.is_active) return null
 
           const stock = stockByProductId.get(product.id) ?? null
-          const images: string[] = Array.isArray(product.images) && product.images.length > 0
-            ? product.images
-            : product.image_url ? [product.image_url] : []
 
           return (
-            <div key={i} className="my-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              {images[0] && (
-                <div className="relative aspect-[4/3] w-full bg-gray-50">
-                  <Image
-                    src={images[0]}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 672px) 100vw, 672px"
-                  />
-                </div>
-              )}
-              <div className="p-4">
-                <h3 className="font-bold text-gray-900 text-lg leading-tight">{product.name}</h3>
+            <div key={i} className="my-4 rounded-2xl overflow-hidden" style={{ background: 'var(--cream, #fff)', border: '2px solid var(--cherry-border, #e5e7eb)', boxShadow: '0 4px 24px rgba(156,15,48,0.10)' }}>
+              <div className="p-5">
+                <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--text, #1f2937)' }}>{product.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xl font-black text-green-600">RM{Number(product.price).toFixed(2)}</span>
+                  <span className="text-xl font-black" style={{ color: 'var(--cherry, #9C0F30)' }}>RM{Number(product.price).toFixed(2)}</span>
                   {product.compare_price && Number(product.compare_price) > Number(product.price) && (
                     <span className="text-sm text-gray-400 line-through">RM{Number(product.compare_price).toFixed(2)}</span>
                   )}

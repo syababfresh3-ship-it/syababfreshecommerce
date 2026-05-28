@@ -100,7 +100,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
-    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
+    if (zone && !zone.is_active)
+      return NextResponse.json({ error: 'Penghantaran tidak tersedia ke kawasan ini' }, { status: 400 })
     if (zone) {
       const pc = parseInt(postcode, 10)
       const isKlByPostcode = !isNaN(pc) &&
@@ -179,42 +181,45 @@ export async function GET(request: Request) {
   const postcode = url.searchParams.get('postcode') ?? ''
   const subtotal = parseFloat(url.searchParams.get('subtotal') ?? '0')
 
-  if (!/^\d{5}$/.test(postcode)) return NextResponse.json({ fee: 15 })
+  if (!/^\d{5}$/.test(postcode)) return NextResponse.json({ available: true, fee: 15 })
 
   const supabase = createAdminClient()
   const appSettings = await getAppSettings()
   const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
   let fee = Number(appSettings.default_delivery_fee ?? 15)
 
+  // Check blacklist — zone exists but is_active = false
+  const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
+  if (zone && !zone.is_active) {
+    return NextResponse.json({ available: false, fee: null })
+  }
+
   const KL_STATES_GET = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
   const qty = parseInt(url.searchParams.get('qty') ?? '1', 10)
 
   if (subtotal >= FREE_MIN) {
     fee = 0
-  } else {
-    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()
-    if (zone) {
-      const pcn = parseInt(postcode, 10)
-      const isKlByPc = !isNaN(pcn) &&
-        ((pcn >= 40000 && pcn <= 48999) || (pcn >= 50000 && pcn <= 60000) || (pcn >= 62000 && pcn <= 64000))
-      const isKl = zone.state ? KL_STATES_GET.has(zone.state) : isKlByPc
-      if (!isKl) {
-        const totalWeightKg = Math.max(qty, 1) * 1.0
-        const { data: tier } = await supabase
-          .from('shipping_weight_tiers')
-          .select('fee')
-          .eq('carrier_id', 'ninja_cold')
-          .lte('min_kg', totalWeightKg)
-          .or(`max_kg.is.null,max_kg.gt.${totalWeightKg}`)
-          .order('min_kg', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        fee = tier ? Number(tier.fee) : Number(zone.delivery_fee)
-      } else {
-        fee = Number(zone.delivery_fee)
-      }
+  } else if (zone) {
+    const pcn = parseInt(postcode, 10)
+    const isKlByPc = !isNaN(pcn) &&
+      ((pcn >= 40000 && pcn <= 48999) || (pcn >= 50000 && pcn <= 60000) || (pcn >= 62000 && pcn <= 64000))
+    const isKl = zone.state ? KL_STATES_GET.has(zone.state) : isKlByPc
+    if (!isKl) {
+      const totalWeightKg = Math.max(qty, 1) * 1.0
+      const { data: tier } = await supabase
+        .from('shipping_weight_tiers')
+        .select('fee')
+        .eq('carrier_id', 'ninja_cold')
+        .lte('min_kg', totalWeightKg)
+        .or(`max_kg.is.null,max_kg.gt.${totalWeightKg}`)
+        .order('min_kg', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      fee = tier ? Number(tier.fee) : Number(zone.delivery_fee)
+    } else {
+      fee = Number(zone.delivery_fee)
     }
   }
 
-  return NextResponse.json({ fee })
+  return NextResponse.json({ available: true, fee })
 }

@@ -65,11 +65,11 @@ export function LpAddToCartBtn({ product, stock, variants }: Props) {
             <button
               key={v.id}
               onClick={() => setSelectedVariant(v)}
-              className={`px-3 py-1.5 rounded-xl text-sm font-bold border transition-all ${
-                selectedVariant?.id === v.id
-                  ? 'bg-green-500 text-white border-green-500 shadow-sm'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-green-400'
-              }`}
+              className="px-3 py-1.5 rounded-xl text-sm font-bold border transition-all"
+              style={selectedVariant?.id === v.id
+                ? { background: 'var(--cherry, #22c55e)', color: '#fff', borderColor: 'var(--cherry, #22c55e)', boxShadow: '0 2px 8px rgba(156,15,48,0.2)' }
+                : { background: 'var(--cherry-light, #f9fafb)', color: 'var(--text, #374151)', borderColor: 'var(--cherry-border, #e5e7eb)' }
+              }
             >
               {v.name}
             </button>
@@ -99,13 +99,13 @@ export function LpAddToCartBtn({ product, stock, variants }: Props) {
       {/* Add to LP cart */}
       <button
         onClick={handleAdd}
-        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm active:scale-[0.97] transition-all ${
-          justAdded
-            ? 'bg-green-600 text-white'
-            : inCart
-            ? 'bg-green-50 text-green-700 border-2 border-green-500'
-            : 'bg-green-500 text-white shadow-[0_4px_16px_rgba(34,197,94,0.4)] hover:bg-green-600'
-        }`}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm active:scale-[0.97] transition-all"
+        style={justAdded
+          ? { background: 'var(--cherry-dark, #16a34a)', color: '#fff' }
+          : inCart
+          ? { background: 'var(--cherry-light, #f0fdf4)', color: 'var(--cherry, #16a34a)', border: '2px solid var(--cherry, #22c55e)' }
+          : { background: 'var(--cherry, #22c55e)', color: '#fff', boxShadow: '0 4px 16px rgba(156,15,48,0.3)' }
+        }
       >
         {justAdded ? (
           <><Check className="h-4 w-4" strokeWidth={2.5} /> Ditambah!</>
