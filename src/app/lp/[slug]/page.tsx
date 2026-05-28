@@ -52,7 +52,7 @@ export default async function LandingPage({ params }: Props) {
   // Extract all {{product:slug}} and {{checkout:slug1,slug2,...}} placeholders
   const productSlugs = [...new Set([
     ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
-    ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map(s => s.trim())).flat(),
+    ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map((s: string) => s.trim())).flat(),
   ])]
 
   // Fetch products + variants + stock in parallel
