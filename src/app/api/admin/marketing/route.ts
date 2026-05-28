@@ -34,6 +34,6 @@ export async function PATCH(request: Request) {
     }
   }
 
-  revalidateTag('app-settings', 'default')
+  revalidateTag('app-settings')
   return NextResponse.json({ ok: true })
 }

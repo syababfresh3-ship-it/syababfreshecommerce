@@ -69,7 +69,7 @@ export async function PATCH(request: Request) {
       .update({ value: String(body.default_fee), updated_at: new Date().toISOString() })
       .eq('key', 'default_delivery_fee')
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    revalidateTag('app-settings', 'default')
+    revalidateTag('app-settings')
     return NextResponse.json({ ok: true })
   }
 

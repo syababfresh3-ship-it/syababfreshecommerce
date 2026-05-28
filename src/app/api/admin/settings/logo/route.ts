@@ -25,6 +25,6 @@ export async function PATCH(request: Request) {
     .from('app_settings')
     .upsert({ key: 'store_logo_url', value: logo_url ?? '', updated_at: new Date().toISOString() })
 
-  revalidateTag('app-settings', 'default')
+  revalidateTag('app-settings')
   return NextResponse.json({ ok: true })
 }

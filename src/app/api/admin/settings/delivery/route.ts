@@ -49,6 +49,6 @@ export async function PATCH(request: Request) {
       .upsert({ key: u.key, value: u.value }, { onConflict: 'key' })
   }
 
-  revalidateTag('app-settings', 'default')
+  revalidateTag('app-settings')
   return NextResponse.json({ ok: true })
 }
