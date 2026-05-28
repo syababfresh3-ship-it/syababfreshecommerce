@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     sort_order: body.sort_order ?? 0,
     sku: body.sku ?? null,
     weight_kg: body.weight_kg != null ? Number(body.weight_kg) : null,
-    local_only: body.local_only ?? false,
+    is_shippable: body.is_shippable ?? true,
   }
   const { error, data } = await supabase!.from('products').insert(validated).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
