@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getAppSettings } from '@/lib/app-settings'
 import Link from 'next/link'
 import { LpAddToCartBtn } from './lp-add-to-cart'
 import { LpInlineCheckout } from './lp-inline-checkout'
@@ -40,12 +41,12 @@ export default async function LandingPage({ params }: Props) {
   const { slug } = await params
   const supabase = createAdminClient()
 
-  const [pageRes, settingsRes] = await Promise.all([
+  const [pageRes, appSettings] = await Promise.all([
     supabase.from('landing_pages').select('title, html_content, meta_pixel_id, google_tag_id').eq('slug', slug).eq('is_active', true).single(),
-    supabase.from('app_settings').select('key, value').eq('key', 'free_delivery_min').single(),
+    getAppSettings(),
   ])
   const page = pageRes.data
-  const freeMin = Number(settingsRes.data?.value ?? 80)
+  const freeMin = Number(appSettings.free_delivery_min ?? 80)
 
   if (!page) notFound()
 
