@@ -65,7 +65,7 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
               ✅
             </div>
             <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, color: '#fff', marginBottom: 6 }}>Pembayaran Berjaya!</p>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>Terima kasih atas pesanan anda</p>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)' }}>Bayaran FPX anda telah diterima &amp; disahkan</p>
           </div>
 
           {/* Order details */}
@@ -108,7 +108,7 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
                 {/* Next steps */}
                 <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '14px 16px', marginBottom: 16, fontSize: 13, color: '#166534' }}>
                   <p style={{ fontWeight: 800, marginBottom: 6 }}>Apa seterusnya?</p>
-                  <p style={{ lineHeight: 1.6 }}>📦 Pesanan anda sedang diproses. Team kami akan menghubungi anda melalui WhatsApp untuk pengesahan penghantaran.</p>
+                  <p style={{ lineHeight: 1.6 }}>✅ Bayaran FPX diterima. Pesanan anda sedang diproses &amp; akan dihantar mengikut jadual. Team kami akan hubungi anda untuk update penghantaran.</p>
                 </div>
 
                 {/* WhatsApp button */}
@@ -145,8 +145,9 @@ function WaButton({ order, items }: { order: any; items: any[] }) {
     `💳 Bayaran: FPX ✅ Dibayar\n\nTerima kasih!`
   )
 
+  const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT ?? ''
   return (
-    <a href={`https://wa.me/?text=${msg}`} target="_blank" rel="noopener noreferrer"
+    <a href={`https://wa.me/${waNumber}?text=${msg}`} target="_blank" rel="noopener noreferrer"
       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '14px', background: '#25D366', color: '#fff', borderRadius: 14, fontWeight: 700, fontSize: 15, textDecoration: 'none', boxSizing: 'border-box' }}>
       💬 Hantar Pengesahan via WhatsApp
     </a>

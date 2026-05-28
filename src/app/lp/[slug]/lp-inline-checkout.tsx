@@ -107,7 +107,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
       `💰 Jumlah: *RM${result.total.toFixed(2)}*\n` +
       `🏠 Alamat: ${form.address}\n\nTerima kasih!`
     )
-    window.open(`https://wa.me/?text=${msg}`, '_blank', 'noopener')
+    window.open(`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT ?? ''}?text=${msg}`, '_blank', 'noopener')
   }
 
   /* ── SOLD OUT ── */
