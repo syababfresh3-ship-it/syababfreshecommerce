@@ -6,20 +6,20 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 
 const STATUS_OPTIONS = [
-  { value: 'pending',    label: 'Menunggu',       cls: 'text-yellow-700 bg-yellow-50' },
-  { value: 'confirmed',  label: 'Disahkan',        cls: 'text-blue-700 bg-blue-50' },
-  { value: 'preparing',  label: 'Disediakan',      cls: 'text-purple-700 bg-purple-50' },
-  { value: 'delivering', label: 'Dihantar',        cls: 'text-orange-700 bg-orange-50' },
-  { value: 'delivered',  label: 'Selesai',         cls: 'text-green-700 bg-green-50' },
-  { value: 'cancelled',  label: 'Dibatal',         cls: 'text-red-600 bg-red-50' },
+  { value: 'pending',    label: 'Pending',       cls: 'text-yellow-700 bg-yellow-50' },
+  { value: 'confirmed',  label: 'Confirmed',        cls: 'text-blue-700 bg-blue-50' },
+  { value: 'preparing',  label: 'Preparing',      cls: 'text-purple-700 bg-purple-50' },
+  { value: 'delivering', label: 'Delivering',        cls: 'text-orange-700 bg-orange-50' },
+  { value: 'delivered',  label: 'Delivered',         cls: 'text-green-700 bg-green-50' },
+  { value: 'cancelled',  label: 'Cancelled',         cls: 'text-red-600 bg-red-50' },
 ] as const
 
 const PAYMENT_OPTIONS = [
-  { value: 'unpaid', label: 'Belum Bayar', cls: 'text-gray-600 bg-gray-50' },
-  { value: 'paid',   label: 'Dibayar',     cls: 'text-green-700 bg-green-50' },
+  { value: 'unpaid', label: 'Unpaid', cls: 'text-gray-600 bg-gray-50' },
+  { value: 'paid',   label: 'Paid',     cls: 'text-green-700 bg-green-50' },
 ] as const
 
-export function StatusDropdown({ orderId, currentStatus }: { orderId: string; currentStatus: string }) {
+export function StatusDropdown({ orderId, currentStatus, onUpdate }: { orderId: string; currentStatus: string; onUpdate?: () => void }) {
   const [status, setStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -37,11 +37,12 @@ export function StatusDropdown({ orderId, currentStatus }: { orderId: string; cu
       body: JSON.stringify({ status: next }),
     })
     if (!res.ok) {
-      toast.error('Gagal tukar status')
+      toast.error('Failed to update status')
       setStatus(prev)
     } else {
       toast.success(`Status → ${STATUS_OPTIONS.find(o => o.value === next)?.label}`)
       router.refresh()
+      onUpdate?.()
     }
     setLoading(false)
   }
@@ -53,13 +54,13 @@ export function StatusDropdown({ orderId, currentStatus }: { orderId: string; cu
         value={status}
         onChange={e => handleChange(e.target.value)}
         disabled={loading || status === 'refunded'}
-        className={`text-xs font-semibold border-0 rounded-lg px-2.5 py-1.5 pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-300 appearance-none disabled:opacity-50 ${current?.cls ?? 'text-gray-600 bg-gray-50'}`}
+        className={`text-sm font-semibold border-0 rounded-lg px-3 py-1.5 pr-7 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-300 appearance-none disabled:opacity-50 w-32 ${current?.cls ?? 'text-gray-600 bg-gray-50'}`}
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
       >
         {STATUS_OPTIONS.map(o => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
-        {status === 'refunded' && <option value="refunded">Dibayar Balik</option>}
+        {status === 'refunded' && <option value="refunded">Refunded</option>}
       </select>
     </div>
   )
@@ -69,10 +70,12 @@ export function PaymentDropdown({
   orderId,
   currentStatus,
   paymentMethod,
+  onUpdate,
 }: {
   orderId: string
   currentStatus: string
   paymentMethod: string
+  onUpdate?: () => void
 }) {
   const [status, setStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
@@ -92,23 +95,24 @@ export function PaymentDropdown({
       body: JSON.stringify({ payment_status: next }),
     })
     if (!res.ok) {
-      toast.error('Gagal tukar status bayaran')
+      toast.error('Failed to update payment status')
       setStatus(prev)
     } else {
-      toast.success(next === 'paid' ? 'Bayaran disahkan ✓' : 'Ditanda belum bayar')
+      toast.success(next === 'paid' ? 'Payment confirmed ✓' : 'Marked as unpaid')
       router.refresh()
+      onUpdate?.()
     }
     setLoading(false)
   }
 
   if (isRefunded) {
-    return <span className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-500">Dibayar Balik</span>
+    return <span className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-50 text-gray-500 w-20 text-center">Refunded</span>
   }
 
   if (isAuto) {
     return (
-      <span className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg ${status === 'paid' ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
-        {status === 'paid' ? 'Dibayar' : 'Auto (FPX/eWallet)'}
+      <span className={`text-sm font-semibold px-3 py-1.5 rounded-lg w-24 text-center ${status === 'paid' ? 'text-green-700 bg-green-50' : 'text-gray-400 bg-gray-50'}`}>
+        {status === 'paid' ? 'Paid' : 'Auto (FPX/eWallet)'}
       </span>
     )
   }
@@ -122,7 +126,7 @@ export function PaymentDropdown({
         value={status}
         onChange={e => handleChange(e.target.value)}
         disabled={loading}
-        className={`text-xs font-semibold border-0 rounded-lg px-2.5 py-1.5 pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-300 appearance-none disabled:opacity-50 ${current.cls}`}
+        className={`text-sm font-semibold border-0 rounded-lg px-3 py-1.5 pr-7 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-300 appearance-none disabled:opacity-50 w-24 ${current.cls}`}
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
       >
         {PAYMENT_OPTIONS.map(o => (

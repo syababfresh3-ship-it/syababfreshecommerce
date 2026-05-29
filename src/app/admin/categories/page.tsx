@@ -50,9 +50,9 @@ export default function CategoriesPage() {
       parent_id: form.parent_id || null,
     })
     if (error) {
-      toast.error(error.code === '23505' ? 'Slug sudah wujud' : 'Gagal tambah')
+      toast.error(error.code === '23505' ? 'Slug sudah wujud' : 'Failed tambah')
     } else {
-      toast.success('Kategori ditambah')
+      toast.success('Category ditambah')
       setForm({ name: '', slug: '', description: '', parent_id: '' })
       setShowForm(false)
       load()
@@ -69,8 +69,8 @@ export default function CategoriesPage() {
       description: editForm.description || null,
       parent_id: editForm.parent_id || null,
     }).eq('id', id)
-    if (error) toast.error('Gagal kemaskini')
-    else { toast.success('Dikemaskini'); setEditingId(null); load() }
+    if (error) toast.error('Failed update')
+    else { toast.success('Diupdate'); setEditingId(null); load() }
     setLoading(false)
   }
 
@@ -80,10 +80,10 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(cat: Category) {
-    if (!confirm(`Padam "${cat.name}"?\n\nProduk dalam kategori ini akan hilang kategori.`)) return
+    if (!confirm(`Delete "${cat.name}"?\n\nProduct dalam category ini akan hilang category.`)) return
     const { error } = await supabase.from('categories').delete().eq('id', cat.id)
-    if (error) toast.error('Gagal padam — mungkin ada produk dalam kategori ini')
-    else { toast.success('Kategori dipadam'); load() }
+    if (error) toast.error('Failed delete — mungkin ada product dalam category ini')
+    else { toast.success('Category didelete'); load() }
   }
 
   // Drag & drop handlers
@@ -110,7 +110,7 @@ export default function CategoriesPage() {
       )
     )
     setSavingOrder(false)
-    toast.success('Urutan disimpan')
+    toast.success('Urutan disave')
   }
 
   const parents = categories.filter(c => c.parent_id === null)
@@ -133,9 +133,9 @@ export default function CategoriesPage() {
     <div className="p-4 md:p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Kategori Produk</h1>
+          <h1 className="text-xl font-bold text-gray-900">Category Product</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {parents.length} parent · {children.length} sub-kategori · seret untuk susun semula
+            {parents.length} parent · {children.length} sub-category · seret untuk susun semula
             {savingOrder && <span className="ml-2 text-blue-500">Menyimpan urutan...</span>}
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function CategoriesPage() {
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm"
           >
-            <Plus className="h-4 w-4" /> Kategori Baru
+            <Plus className="h-4 w-4" /> Category New
           </button>
         )}
       </div>
@@ -156,12 +156,12 @@ export default function CategoriesPage() {
             <div className="bg-red-100 p-1.5 rounded-lg">
               <Tag className="h-4 w-4 text-red-600" />
             </div>
-            <h2 className="font-bold text-gray-900">Kategori Baru</h2>
+            <h2 className="font-bold text-gray-900">Category New</h2>
           </div>
           <form onSubmit={handleAdd} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Nama *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Name *</label>
                 <input
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value, slug: autoSlug(e.target.value) }))}
@@ -179,28 +179,28 @@ export default function CategoriesPage() {
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Penerangan</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
                 <input
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Penerangan ringkas kategori ini"
+                  placeholder="Description ringkas category ini"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Kategori</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Category</label>
                 <select
                   value={form.parent_id}
                   onChange={e => setForm(p => ({ ...p, parent_id: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
                 >
-                  <option value="">— Tiada (jadikan Parent) —</option>
+                  <option value="">— No (jadikan Parent) —</option>
                   {parents.map(p => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
                 <p className="text-[11px] text-gray-400 mt-1">
-                  {form.parent_id ? `Akan jadi sub-kategori di bawah "${parents.find(p => p.id === form.parent_id)?.name}"` : 'Akan jadi kategori utama (Parent)'}
+                  {form.parent_id ? `Akan jadi sub-category di bawah "${parents.find(p => p.id === form.parent_id)?.name}"` : 'Akan jadi category utama (Parent)'}
                 </p>
               </div>
             </div>
@@ -212,7 +212,7 @@ export default function CategoriesPage() {
               <button type="submit" disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Simpan Kategori
+                Save Category
               </button>
             </div>
           </form>
@@ -223,7 +223,7 @@ export default function CategoriesPage() {
       <div className="space-y-1.5">
         {categories.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-12 text-center text-gray-400">
-            Tiada kategori lagi. Tambah kategori pertama.
+            No category lagi. Add category pertama.
           </div>
         ) : (
           orderedForDisplay.map((cat) => (
@@ -247,7 +247,7 @@ export default function CategoriesPage() {
                 <form onSubmit={e => handleEdit(e, cat.id)} className="p-4 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">Nama</label>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Name</label>
                       <input
                         value={editForm.name}
                         onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))}
@@ -263,7 +263,7 @@ export default function CategoriesPage() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">Penerangan</label>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
                       <input
                         value={editForm.description}
                         onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
@@ -271,13 +271,13 @@ export default function CategoriesPage() {
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Kategori</label>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1">Parent Category</label>
                       <select
                         value={editForm.parent_id}
                         onChange={e => setEditForm(p => ({ ...p, parent_id: e.target.value }))}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white"
                       >
-                        <option value="">— Tiada (Parent) —</option>
+                        <option value="">— No (Parent) —</option>
                         {parents.filter(p => p.id !== cat.id).map(p => (
                           <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
@@ -292,7 +292,7 @@ export default function CategoriesPage() {
                     <button type="submit" disabled={loading}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
                       {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                      Simpan
+                      Save
                     </button>
                   </div>
                 </form>
@@ -322,7 +322,7 @@ export default function CategoriesPage() {
                       }`}
                     >
                       {cat.is_active ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                      {cat.is_active ? 'Aktif' : 'Sembunyi'}
+                      {cat.is_active ? 'Active' : 'Sembunyi'}
                     </button>
                     <button
                       onClick={() => { setEditingId(cat.id); setEditForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '' }) }}

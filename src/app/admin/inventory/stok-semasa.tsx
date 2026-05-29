@@ -7,16 +7,16 @@ type Product = { id: string; name: string }
 type StockMap = Record<string, number>
 
 const FILTERS = [
-  { value: 'all',  label: 'Semua' },
+  { value: 'all',  label: 'All' },
   { value: 'out',  label: 'Habis' },
-  { value: 'low',  label: 'Stok Rendah' },
+  { value: 'low',  label: 'Stock Rendah' },
   { value: 'ok',   label: 'OK' },
 ] as const
 type Filter = typeof FILTERS[number]['value']
 
 const PER_PAGE = 30
 
-export function StokSemasa({ products, stockMap }: { products: Product[]; stockMap: StockMap }) {
+export function StockSemasa({ products, stockMap }: { products: Product[]; stockMap: StockMap }) {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [page, setPage] = useState(1)
@@ -60,8 +60,8 @@ export function StokSemasa({ products, stockMap }: { products: Product[]; stockM
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-gray-900">Stok Semasa</h2>
-          <span className="text-xs text-gray-400">{filtered.length} / {products.length} produk</span>
+          <h2 className="font-bold text-gray-900">Stock Semasa</h2>
+          <span className="text-xs text-gray-400">{filtered.length} / {products.length} product</span>
         </div>
 
         {/* Search */}
@@ -70,7 +70,7 @@ export function StokSemasa({ products, stockMap }: { products: Product[]; stockM
           <input
             value={q}
             onChange={e => handleSearch(e.target.value)}
-            placeholder="Cari produk..."
+            placeholder="Search product..."
             className="w-full pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-fresh-400 bg-gray-50"
           />
           {q && (
@@ -106,7 +106,7 @@ export function StokSemasa({ products, stockMap }: { products: Product[]; stockM
       <div className="divide-y divide-gray-50">
         {paged.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-10">
-            {q ? `Tiada produk sepadan "${q}"` : 'Tiada produk'}
+            {q ? `No product sepadan "${q}"` : 'No product'}
           </p>
         ) : paged.map(p => {
           const stock   = stockMap[p.id] ?? 0
@@ -141,7 +141,7 @@ export function StokSemasa({ products, stockMap }: { products: Product[]; stockM
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400">{filtered.length} produk · halaman {safePage}/{totalPages}</p>
+          <p className="text-xs text-gray-400">{filtered.length} product · halaman {safePage}/{totalPages}</p>
           <div className="flex gap-1">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}

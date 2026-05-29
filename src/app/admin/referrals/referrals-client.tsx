@@ -45,26 +45,26 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-gray-900">Program Rujukan</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Semua jemputan dan ganjaran</p>
+        <h1 className="text-xl font-bold text-gray-900">Program Referral</h1>
+        <p className="text-sm text-gray-400 mt-0.5">All jemputan dan ganjaran</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <StatCard icon={Users}        label="Jumlah Rujukan"      value={total}                             color="text-gray-700" />
+        <StatCard icon={Users}        label="Total Referral"      value={total}                             color="text-gray-700" />
         <StatCard icon={Clock}        label="Belum Order"          value={pending}                           color="text-yellow-600" />
         <StatCard icon={CheckCircle2} label="Diberi Ganjaran"      value={rewarded}                          color="text-green-600" />
-        <StatCard icon={Gift}         label="Jumlah Mata Diberikan" value={`${totalPts.toLocaleString()} mata`} color="text-purple-600" />
+        <StatCard icon={Gift}         label="Total Mata Diberikan" value={`${totalPts.toLocaleString()} mata`} color="text-purple-600" />
       </div>
 
       {/* Monthly breakdown */}
       {monthlyStats.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-4">Rujukan Mengikut Bulan</h2>
+          <h2 className="text-sm font-bold text-gray-900 mb-4">Referral Mengikut Bulan</h2>
           <div className="space-y-3">
             {monthlyStats.map(([month, { total: mTotal, rewarded: mRewarded }]) => {
               const [year, m] = month.split('-')
-              const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })
+              const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })
               const pct = (mTotal / maxMonthly) * 100
               const rewardedPct = mTotal > 0 ? (mRewarded / mTotal) * 100 : 0
               return (
@@ -97,7 +97,7 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Cari nama, email, atau kod rujukan..."
+            placeholder="Search nama, email, atau kod rujukan..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -110,7 +110,7 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${statusFilter === s ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
             >
-              {s === 'all' ? `Semua (${total})` : s === 'pending' ? `Belum Order (${pending})` : `Diberi (${rewarded})`}
+              {s === 'all' ? `All (${total})` : s === 'pending' ? `Belum Order (${pending})` : `Diberi (${rewarded})`}
             </button>
           ))}
         </div>
@@ -125,7 +125,7 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Dijemput</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Ganjaran</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarikh</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -134,7 +134,7 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
                 <td colSpan={5} className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <Gift className="h-10 w-10 text-gray-200" />
-                    <p className="font-medium">{search || statusFilter !== 'all' ? 'Tiada hasil carian' : 'Belum ada rujukan'}</p>
+                    <p className="font-medium">{search || statusFilter !== 'all' ? 'No hasil carian' : 'Belum ada rujukan'}</p>
                   </div>
                 </td>
               </tr>
@@ -172,10 +172,10 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-right text-xs text-gray-400">
-                      <div>{new Date(r.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                      <div>{new Date(r.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                       {r.rewarded_at && (
                         <div className="text-green-500 mt-0.5">
-                          ✓ {new Date(r.rewarded_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}
+                          ✓ {new Date(r.rewarded_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
                         </div>
                       )}
                     </td>

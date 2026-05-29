@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Users, Star, Crown, Leaf, ChevronRight } from 'lucide-react'
 import { CreateUserForm } from './create-user-form'
-import { SEGMENT_CONFIG, type Segment } from './segment-utils'
+import { SEGMENT_CONFIG, CHANNEL_CONFIG, type Segment, type Channel } from './segment-utils'
 
 interface Customer {
   id: string
@@ -16,7 +16,11 @@ interface Customer {
   created_at: string
   last_order_at: string | null
   order_count: number
+  lp_order_count: number
+  lp_spend: number
+  aov: number | null
   segment: Segment
+  channel: Channel
   loyalty_tiers?: { name: string } | null
 }
 
@@ -60,12 +64,23 @@ function SegmentBadge({ segment }: { segment: Segment }) {
   )
 }
 
+function ChannelBadge({ channel }: { channel: Channel }) {
+  if (channel === 'none') return null
+  const cfg = CHANNEL_CONFIG[channel]
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.color}`}>
+      {cfg.emoji} {cfg.label}
+    </span>
+  )
+}
+
 const SEGMENT_ORDER: Array<Segment | 'all'> = ['all', 'vip', 'active', 'new', 'at_risk', 'inactive', 'no_orders']
 
 export function CustomersClient({ customers }: { customers: Customer[] }) {
   const [showForm, setShowForm] = useState(false)
   const [q, setQ] = useState('')
   const [activeSegment, setActiveSegment] = useState<Segment | 'all'>('all')
+  const [activeChannel, setActiveChannel] = useState<Channel | 'all'>('all')
 
   const segmentCounts = useMemo(() => {
     const counts: Record<string, number> = { all: customers.length }
@@ -77,6 +92,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
 
   const filtered = useMemo(() => {
     let list = activeSegment === 'all' ? customers : customers.filter(c => c.segment === activeSegment)
+    if (activeChannel !== 'all') list = list.filter(c => c.channel === activeChannel)
     if (q.trim()) {
       const lower = q.toLowerCase()
       list = list.filter(c =>
@@ -86,15 +102,24 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
       )
     }
     return list
-  }, [customers, q, activeSegment])
+  }, [customers, q, activeSegment, activeChannel])
+
+  // CRM stats
+  const stats = useMemo(() => {
+    const active = customers.filter(c => c.order_count > 0)
+    const avgAov = active.length > 0 ? active.reduce((s, c) => s + (c.aov ?? 0), 0) / active.length : 0
+    const lpBuyers = customers.filter(c => c.lp_order_count > 0).length
+    const bothChannel = customers.filter(c => c.channel === 'both').length
+    return { avgAov, lpBuyers, bothChannel, totalActive: active.length }
+  }, [customers])
 
   return (
     <div className="p-4 md:p-6 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Pelanggan</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{customers.length} pelanggan berdaftar</p>
+          <h1 className="text-xl font-bold text-gray-900">Customer</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{customers.length} customer berdaftar</p>
         </div>
         {!showForm && (
           <button
@@ -102,13 +127,37 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
             className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            Pelanggan Baru
+            Customer New
           </button>
         )}
       </div>
 
       {/* Create form */}
       {showForm && <CreateUserForm onClose={() => setShowForm(false)} />}
+
+      {/* CRM Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <p className="text-xs text-gray-400 mb-1">Avg AOV</p>
+          <p className="text-xl font-black text-gray-900">RM{stats.avgAov.toFixed(0)}</p>
+          <p className="text-[10px] text-gray-400">{stats.totalActive} customers w/ orders</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <p className="text-xs text-gray-400 mb-1">LP Buyers</p>
+          <p className="text-xl font-black text-rose-600">{stats.lpBuyers}</p>
+          <p className="text-[10px] text-gray-400">ordered via landing page</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <p className="text-xs text-gray-400 mb-1">Cross-Channel</p>
+          <p className="text-xl font-black text-purple-600">{stats.bothChannel}</p>
+          <p className="text-[10px] text-gray-400">store + LP buyers</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
+          <p className="text-xs text-gray-400 mb-1">Total Customers</p>
+          <p className="text-xl font-black text-gray-900">{customers.length}</p>
+          <p className="text-[10px] text-gray-400">registered accounts</p>
+        </div>
+      </div>
 
       {/* Segment filter chips */}
       <div className="flex flex-wrap gap-2 mb-4">
@@ -129,12 +178,29 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
               }`}
             >
-              {isAll ? '👥' : cfg!.emoji} {isAll ? 'Semua' : cfg!.label}
+              {isAll ? '👥' : cfg!.emoji} {isAll ? 'All' : cfg!.label}
               <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                 isActive ? 'bg-white/20 text-inherit' : 'bg-gray-100 text-gray-500'
               }`}>
                 {count}
               </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Channel filter */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {(['all', 'both', 'store_only', 'lp_only'] as const).map(ch => {
+          const cfg = ch === 'all' ? null : CHANNEL_CONFIG[ch]
+          const count = ch === 'all' ? customers.length : customers.filter(c => c.channel === ch).length
+          return (
+            <button key={ch} onClick={() => setActiveChannel(ch)}
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                activeChannel === ch ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+              }`}>
+              {ch === 'all' ? '🔄 All Channels' : `${cfg!.emoji} ${cfg!.label}`}
+              <span className="ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-white/20">{count}</span>
             </button>
           )
         })}
@@ -146,7 +212,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Cari nama, email, telefon..."
+          placeholder="Search nama, email, phone..."
           className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
         />
       </div>
@@ -156,7 +222,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-3 text-gray-400 py-16">
             <Users className="h-10 w-10 text-gray-200" />
-            <p className="font-medium text-sm">{q ? `Tiada hasil untuk "${q}"` : 'Tiada pelanggan dalam segmen ini'}</p>
+            <p className="font-medium text-sm">{q ? `No hasil untuk "${q}"` : 'No customer dalam segmen ini'}</p>
           </div>
         ) : filtered.map((customer) => {
           const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
@@ -180,7 +246,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
               </div>
               <div className="text-right shrink-0">
                 <p className="font-bold text-gray-900 text-sm">RM{Number(customer.total_spend).toFixed(0)}</p>
-                <p className="text-xs text-gray-400">{customer.order_count} pesanan</p>
+                <p className="text-xs text-gray-400">{customer.order_count} orders</p>
               </div>
             </a>
           )
@@ -192,23 +258,24 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Telefon</th>
-              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Segmen</th>
-              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Tier</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Pesanan</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah Belanja</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Order Terakhir</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Segment</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Channel</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Orders</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Spend</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">AOV</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Last Order</th>
               <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-16 text-center">
+                <td colSpan={9} className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-3 text-gray-400">
                     <Users className="h-10 w-10 text-gray-200" />
-                    <p className="font-medium">{q ? `Tiada hasil untuk "${q}"` : 'Tiada pelanggan dalam segmen ini'}</p>
+                    <p className="font-medium">{q ? `No hasil untuk "${q}"` : 'No customer dalam segmen ini'}</p>
                   </div>
                 </td>
               </tr>
@@ -217,7 +284,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
                 const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
                 const initials = (customer.full_name ?? '?').charAt(0).toUpperCase()
                 const lastOrder = customer.last_order_at
-                  ? new Date(customer.last_order_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+                  ? new Date(customer.last_order_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
                   : '—'
                 return (
                   <tr
@@ -243,17 +310,29 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
                     <td className="px-5 py-3.5 text-center">
                       <SegmentBadge segment={customer.segment} />
                     </td>
-                    {/* Tier */}
+                    {/* Channel */}
                     <td className="px-5 py-3.5 text-center">
-                      <TierBadge name={tierName} />
+                      <ChannelBadge channel={customer.channel} />
                     </td>
                     {/* Order count */}
                     <td className="px-5 py-3.5 text-right">
                       <span className="font-bold text-gray-900">{customer.order_count}</span>
+                      {customer.lp_order_count > 0 && (
+                        <span className="ml-1 text-[10px] text-rose-500 font-semibold">+{customer.lp_order_count}LP</span>
+                      )}
                     </td>
                     {/* Spend */}
                     <td className="px-5 py-3.5 text-right">
-                      <span className="font-bold text-gray-900">RM{Number(customer.total_spend).toFixed(2)}</span>
+                      <span className="font-bold text-gray-900">RM{Number(customer.total_spend).toFixed(0)}</span>
+                      {customer.lp_spend > 0 && (
+                        <div className="text-[10px] text-rose-500 font-semibold">+RM{customer.lp_spend.toFixed(0)} LP</div>
+                      )}
+                    </td>
+                    {/* AOV */}
+                    <td className="px-5 py-3.5 text-right">
+                      <span className="font-semibold text-gray-700">
+                        {customer.aov !== null ? `RM${customer.aov.toFixed(0)}` : '—'}
+                      </span>
                     </td>
                     {/* Last order */}
                     <td className="px-5 py-3.5 text-right text-xs text-gray-400">{lastOrder}</td>

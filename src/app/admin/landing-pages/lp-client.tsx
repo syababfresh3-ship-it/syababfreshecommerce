@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown } from 'lucide-react'
 import Image from 'next/image'
 import { LpSectionBuilder } from './lp-section-builder'
 import { type Section } from '@/lib/lp-sections'
@@ -74,7 +74,13 @@ function leadCount(page: LandingPage): number {
   return page.landing_page_leads?.[0]?.count ?? 0
 }
 
-type AdminTab = 'pages' | 'orders' | 'leads'
+type AdminTab = 'pages' | 'orders' | 'leads' | 'performance'
+
+interface LpPerf {
+  id: string; title: string; slug: string; is_active: boolean; created_at: string
+  views: number; leads: number; orders: number; confirmed_orders: number
+  revenue: number; aov: number; order_rate: number; lead_rate: number
+}
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   bg: 'bg-yellow-50', text: 'text-yellow-700', icon: Clock },
@@ -143,7 +149,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   async function handleGenerate() {
-    if (!genForm.product_name.trim()) { toast.error('Sila masukkan nama produk'); return }
+    if (!genForm.product_name.trim()) { toast.error('Please masukkan nama product'); return }
     setGenerating(true)
     try {
       const res = await fetch('/api/admin/landing-pages/generate', {
@@ -152,10 +158,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
         body: JSON.stringify(genForm),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Gagal jana'); return }
+      if (!res.ok) { toast.error(data.error ?? 'Failed jana'); return }
       setForm(f => ({ ...f, html_content: data.html }))
       setShowGenerate(false)
-      toast.success(`HTML ${data.framework} berjaya dijana!`)
+      toast.success(`HTML ${data.framework} success dijana!`)
     } finally {
       setGenerating(false)
     }
@@ -196,7 +202,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   function insertProduct(product: PickerProduct) {
     insertAtCursor(`{{product:${product.slug}}}`)
     setShowPicker(false)
-    toast.success(`Produk "${product.name}" ditambah`)
+    toast.success(`Product "${product.name}" ditambah`)
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -208,9 +214,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       fd.append('file', file)
       const res = await fetch('/api/admin/landing-pages/upload', { method: 'POST', body: fd })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Gagal upload'); return }
+      if (!res.ok) { toast.error(data.error ?? 'Failed upload'); return }
       insertAtCursor(`\n<img src="${data.url}" alt="" style="width:100%; border-radius:14px; margin:12px 0;" />\n`)
-      toast.success('Gambar berjaya dimuatnaik!')
+      toast.success('Gambar success dimuatnaik!')
     } finally {
       setUploadingImg(false)
       e.target.value = ''
@@ -237,6 +243,12 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [allLeadsLoading, setAllLeadsLoading] = useState(false)
   const [allLeadsFetched, setAllLeadsFetched] = useState(false)
   const [leadsSearch, setLeadsSearch] = useState('')
+
+  // Performance tab
+  const [perf, setPerf] = useState<LpPerf[]>([])
+  const [perfLoading, setPerfLoading] = useState(false)
+  const [perfFetched, setPerfFetched] = useState(false)
+  const [perfSort, setPerfSort] = useState<{ col: keyof LpPerf; dir: 'desc' | 'asc' }>({ col: 'revenue', dir: 'desc' })
   const [leadsPageNum, setLeadsPageNum] = useState(1)
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
   const LEADS_PAGE_SIZE = 50
@@ -295,17 +307,17 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
   async function deleteSelectedLeads() {
     if (selectedLeads.size === 0) return
-    if (!window.confirm(`Padam ${selectedLeads.size} lead yang dipilih? Tindakan ini tidak boleh dibatalkan.`)) return
+    if (!window.confirm(`Delete ${selectedLeads.size} lead yang diselect? Tindakan ini tidak boleh dibatalkan.`)) return
     const ids = [...selectedLeads]
     const res = await fetch('/api/admin/landing-pages/leads', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids }),
     })
-    if (!res.ok) { toast.error('Gagal padam leads'); return }
+    if (!res.ok) { toast.error('Failed delete leads'); return }
     setAllLeads(prev => prev.filter(l => !selectedLeads.has(l.id)))
     setSelectedLeads(new Set())
-    toast.success(`${ids.length} lead dipadam`)
+    toast.success(`${ids.length} lead didelete`)
   }
 
   const filteredAllLeads = leadsSearch.trim()
@@ -331,10 +343,31 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     }
   }
 
+  async function loadPerf() {
+    if (perfLoading) return
+    setPerfLoading(true)
+    try {
+      const res = await fetch('/api/admin/landing-pages/performance')
+      setPerf(await res.json())
+      setPerfFetched(true)
+    } finally { setPerfLoading(false) }
+  }
+
   function switchTab(tab: AdminTab) {
     setActiveTab(tab)
     if (tab === 'orders' && !ordersFetched) loadOrders()
     if (tab === 'leads' && !allLeadsFetched) loadAllLeads()
+    if (tab === 'performance' && !perfFetched) loadPerf()
+  }
+
+  const sortedPerf = [...perf].sort((a, b) => {
+    const av = a[perfSort.col] as number
+    const bv = b[perfSort.col] as number
+    return perfSort.dir === 'desc' ? bv - av : av - bv
+  })
+
+  function toggleSort(col: keyof LpPerf) {
+    setPerfSort(prev => prev.col === col ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { col, dir: 'desc' })
   }
 
   async function switchEditorMode(mode: 'blocks' | 'html') {
@@ -361,9 +394,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       })
-      if (!res.ok) { toast.error('Gagal kemaskini'); return }
+      if (!res.ok) { toast.error('Failed update'); return }
       setOrders(o => o.map(x => x.id === id ? { ...x, status } : x))
-      toast.success('Status dikemaskini')
+      toast.success('Status diupdate')
     } finally {
       setUpdatingOrder(null)
     }
@@ -413,8 +446,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   async function handleSave() {
-    if (!form.title.trim()) { toast.error('Sila masukkan tajuk'); return }
-    if (!form.slug.trim()) { toast.error('Sila masukkan slug'); return }
+    if (!form.title.trim()) { toast.error('Please masukkan title'); return }
+    if (!form.slug.trim()) { toast.error('Please masukkan slug'); return }
 
     setSaving(true)
     try {
@@ -433,9 +466,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       })
 
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Gagal simpan'); return }
+      if (!res.ok) { toast.error(data.error ?? 'Failed save'); return }
 
-      toast.success(isNew ? 'Landing page berjaya dibuat!' : 'Landing page dikemaskini!')
+      toast.success(isNew ? 'Landing page success dibuat!' : 'Landing page diupdate!')
 
       const listRes = await fetch('/api/admin/landing-pages')
       setPages(await listRes.json())
@@ -446,12 +479,12 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   async function handleDelete(page: LandingPage) {
-    if (!confirm(`Padam "${page.title}"?`)) return
+    if (!confirm(`Delete "${page.title}"?`)) return
     setDeleting(page.id)
     try {
       const res = await fetch(`/api/admin/landing-pages/${page.id}`, { method: 'DELETE' })
-      if (!res.ok) { toast.error('Gagal padam'); return }
-      toast.success('Dipadam')
+      if (!res.ok) { toast.error('Failed delete'); return }
+      toast.success('Didelete')
       setPages(p => p.filter(x => x.id !== page.id))
     } finally {
       setDeleting(null)
@@ -464,7 +497,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !page.is_active }),
     })
-    if (!res.ok) { toast.error('Gagal kemaskini'); return }
+    if (!res.ok) { toast.error('Failed update'); return }
     setPages(p => p.map(x => x.id === page.id ? { ...x, is_active: !x.is_active } : x))
   }
 
@@ -528,6 +561,13 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 {allLeads.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => switchTab('performance')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'performance' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            Performance
           </button>
         </div>
       )}
@@ -619,7 +659,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                             disabled={updatingOrder === order.id}
                             className="px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 disabled:opacity-50 transition-colors"
                           >
-                            Sahkan
+                            Confirm
                           </button>
                           <button
                             onClick={() => updateOrderStatus(order.id, 'cancelled')}
@@ -669,7 +709,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     const title = e.target.value
                     setForm(f => ({ ...f, title, slug: creating ? slugify(title) : f.slug }))
                   }}
-                  placeholder="cth: Kurma Pilihan Ramadan"
+                  placeholder="cth: Kurma Selectan Ramadan"
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
               </div>
@@ -720,7 +760,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     <label className="text-xs font-bold text-gray-600">HTML Content</label>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button type="button" onClick={openPicker} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 transition-colors">
-                        <Package className="h-3.5 w-3.5" />Pilih Produk
+                        <Package className="h-3.5 w-3.5" />Select Product
                       </button>
                       <button type="button" onClick={() => imgInputRef.current?.click()} disabled={uploadingImg} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 disabled:opacity-50 transition-colors">
                         <ImagePlus className="h-3.5 w-3.5" />{uploadingImg ? 'Uploading...' : 'Upload Gambar'}
@@ -803,7 +843,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
                   <div className="px-4 py-3 border-t border-gray-100 shrink-0">
                     <p className="text-[11px] text-gray-400 text-center">
-                      Klik produk untuk masukkan <code className="bg-gray-100 px-1 rounded">{'{{product:slug}}'}</code> pada kedudukan kursor
+                      Klik product untuk masukkan <code className="bg-gray-100 px-1 rounded">{'{{product:slug}}'}</code> pada kedudukan kursor
                     </p>
                   </div>
                 </div>
@@ -951,7 +991,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         <input
                           value={genForm.campaign_goal}
                           onChange={e => setGenForm(f => ({ ...f, campaign_goal: e.target.value }))}
-                          placeholder="cth: tingkatkan jualan Ramadan, clearance stok"
+                          placeholder="cth: tingkatkan jualan Ramadan, clearance stock"
                           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
                         />
                       </div>
@@ -998,7 +1038,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       placeholder="cth: 1234567890123456"
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
                     />
-                    <p className="text-[11px] text-gray-400 mt-1">Nombor sahaja, dari Meta Business Suite</p>
+                    <p className="text-[11px] text-gray-400 mt-1">Number sahaja, dari Meta Business Suite</p>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-600 block mb-1">Google Tag / Ads ID</label>
@@ -1030,7 +1070,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 disabled={saving}
                 className="px-6 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Saving...' : 'Simpan'}
+                {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -1053,14 +1093,14 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               disabled={allLeads.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0"
             >
-              {selectedLeads.size > 0 ? `Export ${selectedLeads.size} Terpilih` : 'Export CSV'}
+              {selectedLeads.size > 0 ? `Export ${selectedLeads.size} Terselect` : 'Export CSV'}
             </button>
             {selectedLeads.size > 0 && (
               <button
                 onClick={deleteSelectedLeads}
                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shrink-0"
               >
-                Padam {selectedLeads.size}
+                Delete {selectedLeads.size}
               </button>
             )}
             <button onClick={loadAllLeads} className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 shrink-0">
@@ -1092,11 +1132,11 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           className="w-4 h-4 rounded accent-green-600 cursor-pointer"
                         />
                       </th>
-                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Nama</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Telefon</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Name</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide">Phone</th>
                       <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Sumber</th>
                       <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Landing Page</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Tarikh</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Date</th>
                       <th className="px-4 py-3" />
                     </tr>
                   </thead>
@@ -1177,6 +1217,115 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
         </div>
       )}
 
+      {/* ── Performance Tab ── */}
+      {activeTab === 'performance' && !showForm && (
+        <div className="space-y-4">
+          {perfLoading && <p className="text-sm text-gray-400 text-center py-12">Loading...</p>}
+          {!perfLoading && sortedPerf.length > 0 && (
+            <>
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Total Views', value: sortedPerf.reduce((s, p) => s + p.views, 0).toLocaleString(), icon: '👁️' },
+                  { label: 'Total Orders', value: sortedPerf.reduce((s, p) => s + p.orders, 0), icon: '🛒' },
+                  { label: 'Total Revenue', value: `RM${sortedPerf.reduce((s, p) => s + p.revenue, 0).toFixed(0)}`, icon: '💰' },
+                  { label: 'Total Leads', value: sortedPerf.reduce((s, p) => s + p.leads, 0), icon: '👥' },
+                ].map(s => (
+                  <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
+                    <p className="text-xs text-gray-400 mb-1">{s.icon} {s.label}</p>
+                    <p className="text-xl font-black text-gray-900">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide">Campaign</th>
+                        {([
+                          { col: 'views', label: 'Views' },
+                          { col: 'leads', label: 'Leads' },
+                          { col: 'lead_rate', label: 'Lead Rate' },
+                          { col: 'orders', label: 'Orders' },
+                          { col: 'order_rate', label: 'Order Rate' },
+                          { col: 'revenue', label: 'Revenue' },
+                          { col: 'aov', label: 'AOV' },
+                        ] as { col: keyof LpPerf; label: string }[]).map(h => (
+                          <th key={h.col}
+                            className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-gray-900 select-none"
+                            onClick={() => toggleSort(h.col)}
+                          >
+                            <span className="flex items-center justify-end gap-1">
+                              {h.label}
+                              <ArrowUpDown className={`h-3 w-3 ${perfSort.col === h.col ? 'text-red-600' : 'opacity-30'}`} />
+                            </span>
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wide">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {sortedPerf.map(p => (
+                        <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
+                          <td className="px-5 py-3.5">
+                            <p className="font-semibold text-gray-900 leading-tight">{p.title}</p>
+                            <a href={`/lp/${p.slug}`} target="_blank" rel="noopener noreferrer"
+                              className="text-[11px] text-gray-400 hover:text-red-600 font-mono">/lp/{p.slug}</a>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-gray-900">{p.views.toLocaleString()}</td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="font-semibold text-gray-900">{p.leads}</span>
+                            {p.views > 0 && <span className="text-[10px] text-gray-400 ml-1">({p.lead_rate.toFixed(1)}%)</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.lead_rate >= 5 ? 'bg-green-100 text-green-700' : p.lead_rate >= 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {p.lead_rate.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className="font-semibold text-gray-900">{p.orders}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.order_rate >= 2 ? 'bg-green-100 text-green-700' : p.order_rate >= 0.5 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {p.order_rate.toFixed(1)}%
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-black text-gray-900">
+                            {p.revenue > 0 ? `RM${p.revenue.toFixed(0)}` : '—'}
+                          </td>
+                          <td className="px-4 py-3.5 text-right text-gray-600">
+                            {p.aov > 0 ? `RM${p.aov.toFixed(0)}` : '—'}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                              {p.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400 text-center">
+                Click column headers to sort · Lead Rate = leads/views · Order Rate = orders/views
+              </p>
+            </>
+          )}
+          {!perfLoading && sortedPerf.length === 0 && (
+            <div className="text-center py-16 text-gray-400">
+              <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-20" />
+              <p className="font-semibold">No data yet</p>
+              <p className="text-sm mt-1">Performance data will appear once LPs have views and orders</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Pages List ── */}
       {activeTab === 'pages' && !showForm && (
         pages.length === 0 ? (
@@ -1235,7 +1384,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
-                  {page.is_active ? 'Aktif' : 'Tidak Aktif'}
+                  {page.is_active ? 'Active' : 'Inactive'}
                 </button>
 
                 <button

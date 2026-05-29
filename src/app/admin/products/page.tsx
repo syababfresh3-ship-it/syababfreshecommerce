@@ -60,12 +60,12 @@ export default async function AdminProductsPage({
     <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Produk</h1>
+          <h1 className="text-xl font-bold text-gray-900">Product</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {total} produk
+            {total} product
             {activeCat ? ` · ${activeCat.name}` : ''}
             {q ? ` · "${q}"` : ''}
-            {status === 'active' ? ' · Aktif sahaja' : status === 'inactive' ? ' · Tidak aktif' : ''}
+            {status === 'active' ? ' · Active sahaja' : status === 'inactive' ? ' · Inactive' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export default async function AdminProductsPage({
             className="inline-flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Tambah Produk</span>
+            <span className="hidden sm:inline">Add Product</span>
             <span className="sm:hidden">Tambah</span>
           </Link>
         </div>
@@ -94,7 +94,7 @@ export default async function AdminProductsPage({
           <input
             name="q"
             defaultValue={q}
-            placeholder="Cari nama produk..."
+            placeholder="Search nama product..."
             className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
           />
         </div>
@@ -103,10 +103,10 @@ export default async function AdminProductsPage({
           defaultValue={cat ?? ''}
           className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700 min-w-[140px]"
         >
-          <option value="">Semua Kategori</option>
+          <option value="">All Category</option>
           {categories.filter(c => !c.parent_id).map(parent => (
             <optgroup key={parent.id} label={parent.name}>
-              <option value={parent.id}>{parent.name} (semua)</option>
+              <option value={parent.id}>{parent.name} (all)</option>
               {categories.filter(c => c.parent_id === parent.id).map(child => (
                 <option key={child.id} value={child.id}>↳ {child.name}</option>
               ))}
@@ -121,9 +121,9 @@ export default async function AdminProductsPage({
           defaultValue={status ?? ''}
           className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
         >
-          <option value="">Semua Status</option>
-          <option value="active">Aktif Sahaja</option>
-          <option value="inactive">Tidak Aktif</option>
+          <option value="">All Status</option>
+          <option value="active">Active Sahaja</option>
+          <option value="inactive">Inactive</option>
         </select>
         <button type="submit" className="px-4 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-sm">
           Tapis
@@ -139,7 +139,7 @@ export default async function AdminProductsPage({
       <div className="md:hidden space-y-2">
         {products.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-12">
-            {q ? `Tiada produk sepadan "${q}"` : 'Tiada produk.'}
+            {q ? `No product sepadan "${q}"` : 'No product.'}
           </p>
         ) : products.map((product: any) => {
           const hasDiscount = product.compare_price && Number(product.compare_price) > Number(product.price)
@@ -194,11 +194,11 @@ export default async function AdminProductsPage({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Produk</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kategori</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Harga</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Product</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Category</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Featured</th>
-              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Aktif</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Active</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan</th>
             </tr>
           </thead>
@@ -206,8 +206,8 @@ export default async function AdminProductsPage({
             {products.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-12 text-center text-gray-400">
-                  {q ? `Tiada produk sepadan "${q}"` : (
-                    <>Tiada produk. <Link href="/admin/products/new" className="text-red-600 font-semibold hover:underline">Tambah sekarang</Link></>
+                  {q ? `No product sepadan "${q}"` : (
+                    <>No product. <Link href="/admin/products/new" className="text-red-600 font-semibold hover:underline">Add sekarang</Link></>
                   )}
                 </td>
               </tr>

@@ -16,7 +16,7 @@ export default async function NewProductPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl">
-      <h1 className="text-xl font-bold text-gray-900 mb-6">Tambah Produk</h1>
+      <h1 className="text-xl font-bold text-gray-900 mb-6">Add Product</h1>
       <ProductForm categories={categories} />
     </div>
   )

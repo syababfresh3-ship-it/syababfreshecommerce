@@ -26,7 +26,7 @@ export function PaymentToggle({
   async function markPaid() {
     if (status === 'paid') return
     if (isBankTransfer && !ref.trim()) {
-      toast.error('Sila masukkan nombor rujukan pindahan bank')
+      toast.error('Please masukkan number rujukan pindahan bank')
       return
     }
     setLoading(true)
@@ -39,10 +39,10 @@ export function PaymentToggle({
       body: JSON.stringify(body),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini bayaran')
+      toast.error('Failed update payment')
     } else {
       setStatus('paid')
-      toast.success('Bayaran disahkan ✓')
+      toast.success('Payment diconfirm ✓')
       router.refresh()
     }
     setLoading(false)
@@ -53,7 +53,7 @@ export function PaymentToggle({
       <div className="space-y-1.5">
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-sm font-medium border border-green-200">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Dibayar
+          Paid
         </span>
         {currentRef && (
           <p className="text-xs text-gray-500">Ref: <span className="font-mono font-medium">{currentRef}</span></p>
@@ -66,7 +66,7 @@ export function PaymentToggle({
   if (isAutoPayment) {
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-400 text-sm border border-gray-200">
-        Menunggu bayaran FPX/E-Wallet
+        Pending payment FPX/E-Wallet
       </span>
     )
   }
@@ -76,7 +76,7 @@ export function PaymentToggle({
       {isBankTransfer && (
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">
-            Nombor Rujukan Pindahan *
+            Number Referral Pindahan *
           </label>
           <input
             value={ref}
@@ -92,7 +92,7 @@ export function PaymentToggle({
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm font-medium border border-red-200 hover:bg-red-100 disabled:opacity-50 transition-colors"
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-        {loading ? 'Menyimpan...' : 'Mark Sebagai Dibayar'}
+        {loading ? 'Menyimpan...' : 'Mark Sebagai Paid'}
       </button>
     </div>
   )

@@ -5,21 +5,21 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
 const statusOptions = [
-  { value: 'pending',    label: 'Menunggu' },
-  { value: 'confirmed',  label: 'Disahkan' },
-  { value: 'preparing',  label: 'Disediakan' },
-  { value: 'delivering', label: 'Dihantar' },
-  { value: 'delivered',  label: 'Selesai' },
-  { value: 'cancelled',  label: 'Dibatal' },
-  { value: 'refunded',   label: 'Dibayar Balik' },
+  { value: 'pending',    label: 'Pending' },
+  { value: 'confirmed',  label: 'Confirmed' },
+  { value: 'preparing',  label: 'Preparing' },
+  { value: 'delivering', label: 'Shipped' },
+  { value: 'delivered',  label: 'Delivered' },
+  { value: 'cancelled',  label: 'Cancelled' },
+  { value: 'refunded',   label: 'Refunded' },
 ]
 
 const pushMessages: Record<string, { title: string; body: string }> = {
-  confirmed:  { title: 'Pesanan Disahkan ✅', body: 'Pesanan anda telah disahkan dan sedang disediakan.' },
-  preparing:  { title: 'Sedang Disediakan 🧺', body: 'Buah-buahan segar anda sedang dipilih dengan teliti!' },
-  delivering: { title: 'Dalam Penghantaran 🚚', body: 'Penghantar kami sedang dalam perjalanan ke alamat anda.' },
-  delivered:  { title: 'Pesanan Selesai 🎉', body: 'Pesanan anda telah tiba. Selamat menikmati!' },
-  cancelled:  { title: 'Pesanan Dibatal ❌', body: 'Pesanan anda telah dibatalkan. Hubungi kami jika ada soalan.' },
+  confirmed:  { title: 'Orders Confirmed ✅', body: 'Orders anda telah diconfirm dan sedang disediakan.' },
+  preparing:  { title: 'Sedang Preparing 🧺', body: 'Buah-buahan segar anda sedang diselect dengan teliti!' },
+  delivering: { title: 'Dalam Pengsendan 🚚', body: 'Pengsend kami sedang dalam perjalanan ke address anda.' },
+  delivered:  { title: 'Order Delivered 🎉', body: 'Your order has arrived. Enjoy!' },
+  cancelled:  { title: 'Orders Cancelled ❌', body: 'Orders anda telah dibatalkan. Hubungi kami jika ada soalan.' },
 }
 
 interface OrderStatusUpdaterProps {
@@ -45,10 +45,10 @@ export function OrderStatusUpdater({ orderId, userId, currentStatus }: OrderStat
     })
 
     if (!res.ok) {
-      toast.error('Gagal kemaskini status')
+      toast.error('Failed update status')
     } else {
       setStatus(newStatus)
-      toast.success('Status dikemaskini')
+      toast.success('Status diupdate')
       // Notify customer via WhatsApp + Push (fire & forget)
       const push = pushMessages[newStatus]
       Promise.all([

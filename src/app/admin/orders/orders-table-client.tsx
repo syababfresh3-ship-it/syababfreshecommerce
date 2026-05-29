@@ -10,17 +10,17 @@ import { StatusDropdown, PaymentDropdown } from './order-dropdowns'
 const PAGE_SIZE = 25
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
-  pending:    { label: 'Menunggu',       cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  confirmed:  { label: 'Disahkan',      cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  preparing:  { label: 'Disediakan',    cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-  delivering: { label: 'Dihantar',      cls: 'bg-orange-50 text-orange-700 border-orange-200' },
-  delivered:  { label: 'Selesai',       cls: 'bg-green-50 text-green-700 border-green-200' },
-  cancelled:  { label: 'Dibatal',       cls: 'bg-red-50 text-red-600 border-red-200' },
-  refunded:   { label: 'Dibayar Balik', cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+  pending:    { label: 'Pending',       cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  confirmed:  { label: 'Confirmed',      cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  preparing:  { label: 'Preparing',    cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  delivering: { label: 'Delivering',      cls: 'bg-orange-50 text-orange-700 border-orange-200' },
+  delivered:  { label: 'Delivered',       cls: 'bg-green-50 text-green-700 border-green-200' },
+  cancelled:  { label: 'Cancelled',       cls: 'bg-red-50 text-red-600 border-red-200' },
+  refunded:   { label: 'Refunded', cls: 'bg-gray-100 text-gray-500 border-gray-200' },
 }
 
 const methodLabel: Record<string, string> = {
-  fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank',
+  fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Bank Transfer',
 }
 
 function formatDate(dateStr: string) {
@@ -29,30 +29,30 @@ function formatDate(dateStr: string) {
   const isToday = date.toDateString() === now.toDateString()
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
   const isYesterday = date.toDateString() === yesterday.toDateString()
-  const time = date.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })
-  if (isToday) return { top: 'Hari ini', bottom: time }
-  if (isYesterday) return { top: 'Semalam', bottom: time }
-  return { top: date.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' }), bottom: time }
+  const time = date.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' })
+  if (isToday) return { top: 'Today', bottom: time }
+  if (isYesterday) return { top: 'Yesterday', bottom: time }
+  return { top: date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }), bottom: time }
 }
 
 function getActionInfo(order: any): { label: string; color: string; border: string } {
   const method = order.payment_method
   const isPaid = order.payment_status === 'paid' || method === 'cod' || method === 'bank_transfer'
-  if (order.status === 'pending' && isPaid)    return { label: '⚡ Sahkan pesanan',    color: 'text-red-600 font-bold',     border: 'border-l-4 border-l-red-400' }
-  if (order.status === 'pending' && !isPaid)   return { label: '⏳ Tunggu bayaran',    color: 'text-yellow-600',            border: 'border-l-4 border-l-yellow-300' }
-  if (order.status === 'confirmed')            return { label: '📦 Mula sediakan',     color: 'text-blue-600 font-semibold', border: 'border-l-4 border-l-blue-400' }
-  if (order.status === 'preparing')            return { label: '🚚 Tandakan dihantar', color: 'text-purple-600 font-semibold', border: 'border-l-4 border-l-purple-400' }
-  if (order.status === 'delivering')           return { label: '📍 Dalam penghantaran', color: 'text-orange-500',           border: 'border-l-4 border-l-orange-300' }
-  if (order.status === 'delivered')            return { label: '✓ Selesai',            color: 'text-green-600',             border: 'border-l-[3px] border-l-green-200' }
+  if (order.status === 'pending' && isPaid)    return { label: '⚡ Confirm orders',    color: 'text-red-600 font-bold',     border: 'border-l-4 border-l-red-400' }
+  if (order.status === 'pending' && !isPaid)   return { label: '⏳ Awaiting payment',    color: 'text-yellow-600',            border: 'border-l-4 border-l-yellow-300' }
+  if (order.status === 'confirmed')            return { label: '📦 Start preparing',     color: 'text-blue-600 font-semibold', border: 'border-l-4 border-l-blue-400' }
+  if (order.status === 'preparing')            return { label: '🚚 Mark as shipped', color: 'text-purple-600 font-semibold', border: 'border-l-4 border-l-purple-400' }
+  if (order.status === 'delivering')           return { label: '📍 In transit', color: 'text-orange-500',           border: 'border-l-4 border-l-orange-300' }
+  if (order.status === 'delivered')            return { label: '✓ Delivered',            color: 'text-green-600',             border: 'border-l-[3px] border-l-green-200' }
   return { label: '—', color: 'text-gray-400', border: '' }
 }
 
 const BULK_STATUSES = [
-  { value: 'confirmed',  label: 'Disahkan' },
-  { value: 'preparing',  label: 'Disediakan' },
-  { value: 'delivering', label: 'Dihantar' },
-  { value: 'delivered',  label: 'Selesai' },
-  { value: 'cancelled',  label: 'Dibatal' },
+  { value: 'confirmed',  label: 'Confirmed' },
+  { value: 'preparing',  label: 'Preparing' },
+  { value: 'delivering', label: 'Delivering' },
+  { value: 'delivered',  label: 'Delivered' },
+  { value: 'cancelled',  label: 'Cancelled' },
 ]
 
 export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; searchQuery?: string }) {
@@ -84,7 +84,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
   function exportCsv() {
     const selectedOrders = orders.filter(o => selected.has(o.id))
     const rows = [
-      ['No. Pesanan', 'Pelanggan', 'Telefon', 'Status', 'Bayaran', 'Kaedah', 'Jumlah (RM)', 'Slot Penghantaran', 'Tarikh'],
+      ['Order No.', 'Customer', 'Phone', 'Status', 'Payment', 'Method', 'Amount (RM)', 'Delivery Slot', 'Date'],
       ...selectedOrders.map(o => [
         o.order_number,
         o.profiles?.full_name ?? '',
@@ -94,7 +94,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
         methodLabel[o.payment_method] ?? o.payment_method,
         Number(o.total).toFixed(2),
         o.delivery_slot ?? '',
-        new Date(o.created_at).toLocaleDateString('ms-MY'),
+        new Date(o.created_at).toLocaleDateString('en-MY'),
       ]),
     ]
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -102,14 +102,14 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `pesanan-${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
 
   async function applyBulkStatus() {
     if (!bulkStatus || selected.size === 0) return
-    if (!window.confirm(`Tukar ${selected.size} pesanan ke "${BULK_STATUSES.find(s => s.value === bulkStatus)?.label}"?`)) return
+    if (!window.confirm(`Change ${selected.size} orders to "${BULK_STATUSES.find(s => s.value === bulkStatus)?.label}"?`)) return
     setBulkLoading(true)
     let failed = 0
     await Promise.all([...selected].map(async id => {
@@ -121,8 +121,8 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
       if (!res.ok) failed++
     }))
     setBulkLoading(false)
-    if (failed > 0) toast.error(`${failed} pesanan gagal dikemaskini`)
-    else toast.success(`${selected.size} pesanan dikemaskini`)
+    if (failed > 0) toast.error(`${failed} orders failed to update`)
+    else toast.success(`${selected.size} orders updated`)
     setSelected(new Set())
     setBulkStatus('')
     router.refresh()
@@ -139,12 +139,12 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
       {/* Bulk action bar */}
       {someSelected && (
         <div className="sticky top-0 z-20 bg-white border border-gray-200 rounded-2xl shadow-lg px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-bold text-gray-900">{selected.size} dipilih</span>
+          <span className="text-sm font-bold text-gray-900">{selected.size} selected</span>
           <button
             onClick={() => setSelected(new Set())}
             className="text-xs text-gray-400 hover:text-gray-600 underline"
           >
-            Nyahpilih
+            Nyahselect
           </button>
           <div className="flex-1" />
           <button
@@ -179,7 +179,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
       <div className="md:hidden space-y-2">
         {pageOrders.length === 0 ? (
           <p className="text-center text-gray-400 text-sm py-14">
-            {searchQuery ? `Tiada pesanan sepadan "${searchQuery}"` : 'Tiada pesanan'}
+            {searchQuery ? `No orders sepadan "${searchQuery}"` : 'No orders'}
           </p>
         ) : pageOrders.map((order) => {
           const sc = statusConfig[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' }
@@ -233,20 +233,20 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                   className="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-300 cursor-pointer"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Pesanan</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan Perlu</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order No.</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Action Required</th>
               <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Bayaran</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Masa</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {pageOrders.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-5 py-14 text-center text-gray-400">
-                  {searchQuery ? `Tiada pesanan sepadan "${searchQuery}"` : 'Tiada pesanan'}
+                  {searchQuery ? `No orders sepadan "${searchQuery}"` : 'No orders'}
                 </td>
               </tr>
             ) : pageOrders.map((order) => {
@@ -255,8 +255,12 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
               const action = getActionInfo(order)
               const isSelected = selected.has(order.id)
               return (
-                <tr key={order.id} className={`transition-colors ${action.border} ${isSelected ? 'bg-purple-50/60' : 'hover:bg-gray-50/60'}`}>
-                  <td className="pl-5 pr-3 py-3.5">
+                <tr
+                  key={order.id}
+                  className={`transition-colors cursor-pointer ${action.border} ${isSelected ? 'bg-purple-50/60' : 'hover:bg-gray-50/60'}`}
+                  onClick={() => router.push((order as any)._isLp ? `/admin/orders/lp/${order.id}` : `/admin/orders/${order.id}`)}
+                >
+                  <td className="pl-5 pr-3 py-3.5" onClick={e => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -265,15 +269,23 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                     />
                   </td>
                   <td className="px-4 py-3.5">
-                    <Link href={`/admin/orders/${order.id}`} className="font-mono text-xs text-red-600 hover:underline font-bold block">
-                      {order.order_number}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`/admin/orders/${order.id}`} className="font-mono text-sm text-red-600 hover:underline font-bold">
+                        {order.order_number}
+                      </Link>
+                      {(order as any)._isLp && (
+                        <span className="text-xs font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
+                      )}
+                    </div>
+                    {(order as any)._lpTitle && (
+                      <span className="text-xs text-rose-400 mt-0.5 block truncate max-w-[140px]">{(order as any)._lpTitle}</span>
+                    )}
                     {order.delivery_slot && (
-                      <span className="text-[10px] text-blue-600 font-medium mt-0.5 block">🕐 {order.delivery_slot}</span>
+                      <span className="text-xs text-blue-600 mt-0.5 block">🕐 {order.delivery_slot}</span>
                     )}
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="font-semibold text-gray-900 text-sm">{order.profiles?.full_name ?? '—'}</div>
+                    <div className="text-sm font-semibold text-gray-900">{order.profiles?.full_name ?? '—'}</div>
                     {order.profiles?.phone && (
                       <a href={`tel:${order.profiles.phone}`} className="text-xs text-gray-400 hover:text-blue-600 transition-colors">
                         {order.profiles.phone}
@@ -281,22 +293,20 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                     )}
                   </td>
                   <td className="px-4 py-3.5">
-                    <Link href={`/admin/orders/${order.id}`} className={`text-xs ${action.color} hover:underline`}>
-                      {action.label}
-                    </Link>
+                    <span className={`text-sm ${action.color}`}>{action.label}</span>
                   </td>
-                  <td className="px-4 py-3.5 text-center">
+                  <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
                     <StatusDropdown orderId={order.id} currentStatus={order.status} />
-                    <div className="text-[10px] text-gray-400 mt-1">{methodLabel[order.payment_method] ?? ''}</div>
+                    <div className="text-xs text-gray-400 mt-1">{methodLabel[order.payment_method] ?? ''}</div>
                   </td>
-                  <td className="px-4 py-3.5 text-center">
+                  <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
                     <PaymentDropdown orderId={order.id} currentStatus={order.payment_status} paymentMethod={order.payment_method} />
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    <span className="font-bold text-gray-900">RM{Number(order.total).toFixed(2)}</span>
+                    <span className="text-sm font-bold text-gray-900">RM{Number(order.total).toFixed(2)}</span>
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    <span className="text-xs font-medium text-gray-600 block">{dt.top}</span>
+                    <span className="text-sm font-medium text-gray-600 block">{dt.top}</span>
                     <span className="text-xs text-gray-400">{dt.bottom}</span>
                   </td>
                 </tr>
@@ -310,8 +320,8 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 px-1">
           <p className="text-xs text-gray-400">
-            Halaman <span className="font-bold text-gray-700">{page}</span> dari <span className="font-bold text-gray-700">{totalPages}</span>
-            <span className="ml-1">· {orders.length} rekod</span>
+            Page <span className="font-bold text-gray-700">{page}</span> dari <span className="font-bold text-gray-700">{totalPages}</span>
+            <span className="ml-1">· {orders.length} records</span>
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -352,12 +362,13 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
               disabled={page === totalPages}
               className="flex items-center gap-1 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              Seterus
+              Next
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       )}
+
     </div>
   )
 }

@@ -64,7 +64,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name || !form.price || !form.slug) {
-      toast.error('Nama, slug dan harga wajib diisi')
+      toast.error('Name, slug dan price wajib diisi')
       return
     }
 
@@ -92,9 +92,9 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      toast.error(err.error ?? 'Gagal simpan produk')
+      toast.error(err.error ?? 'Failed save product')
     } else {
-      toast.success(isEdit ? 'Produk dikemaskini' : 'Produk ditambah')
+      toast.success(isEdit ? 'Product diupdate' : 'Product ditambah')
       router.push('/admin/products')
       router.refresh()
     }
@@ -104,14 +104,14 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
   async function handleDelete() {
     if (!product) return
-    if (!confirm(`Padam "${product.name}"? Tindakan ini tidak boleh diundur.`)) return
+    if (!confirm(`Delete "${product.name}"? Tindakan ini tidak boleh diundur.`)) return
 
     setLoading(true)
     const res = await fetch(`/api/admin/products/${product.id}`, { method: 'DELETE' })
     if (!res.ok) {
-      toast.error('Gagal padam produk')
+      toast.error('Failed delete product')
     } else {
-      toast.success('Produk dipadam')
+      toast.success('Product didelete')
       router.push('/admin/products')
       router.refresh()
     }
@@ -121,13 +121,13 @@ export function ProductForm({ categories, product }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
 
-      {/* Gambar Produk */}
+      {/* Gambar Product */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-semibold text-gray-900">Gambar Produk</h2>
+          <h2 className="font-semibold text-gray-900">Gambar Product</h2>
           <span className="text-xs text-gray-400">Sehingga 3 gambar · 800×800px</span>
         </div>
-        <p className="text-xs text-gray-400 mb-4">Gambar 1 dipaparkan di kad produk. Semua gambar boleh dilihat di halaman detail.</p>
+        <p className="text-xs text-gray-400 mb-4">Gambar 1 dipaparkan di kad product. All gambar boleh dilihat di halaman detail.</p>
         <div className="grid grid-cols-3 gap-3">
           <div>
             <p className="text-xs font-semibold text-gray-600 mb-1.5">Gambar 1 <span className="text-brand-fresh-500">(Utama)</span></p>
@@ -154,11 +154,11 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
       {/* Basic Info */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">Maklumat Produk</h2>
+        <h2 className="font-semibold text-gray-900">Maklumat Product</h2>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nama Produk *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name Product *</label>
             <input
               name="name"
               value={form.name}
@@ -180,14 +180,14 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           </div>
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Penerangan</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea
               name="description"
               value={form.description}
               onChange={handleChange}
               rows={3}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="Penerangan ringkas produk..."
+              placeholder="Description ringkas product..."
             />
           </div>
         </div>
@@ -195,11 +195,11 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
       {/* Pricing */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">Harga & Unit</h2>
+        <h2 className="font-semibold text-gray-900">Price & Unit</h2>
 
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Harga (RM) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Price (RM) *</label>
             <input
               name="price"
               type="number"
@@ -213,7 +213,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Harga Asal (RM)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Price Asal (RM)</label>
             <input
               name="compare_price"
               type="number"
@@ -244,18 +244,18 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
       {/* Category & Settings */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h2 className="font-semibold text-gray-900">Kategori & Tetapan</h2>
+        <h2 className="font-semibold text-gray-900">Category & Settings</h2>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <select
               name="category_id"
               value={form.category_id}
               onChange={handleChange}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
             >
-              <option value="">— Tiada Kategori —</option>
+              <option value="">— No Category —</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
@@ -283,7 +283,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               onChange={handleChange}
               className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
-            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">Aktif (ditunjuk kepada pelanggan)</label>
+            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">Active (ditunjuk kepada customer)</label>
           </div>
 
           <div className="flex items-center gap-3">
@@ -301,7 +301,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
 
         {/* Delivery scope */}
         <div className="border-t border-gray-100 pt-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">Skop Penghantaran</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">Skop Pengsendan</p>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -317,7 +317,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
                 Klang Valley sahaja
               </span>
               <span className="text-[10px] text-gray-400 leading-tight">
-                Buah potong, produk mudah rosak
+                Buah potong, product mudah rosak
               </span>
             </button>
             <button
@@ -334,7 +334,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
                 Boleh dipos (seluruh Malaysia)
               </span>
               <span className="text-[10px] text-gray-400 leading-tight">
-                Buah utuh, produk kering
+                Buah utuh, product kering
               </span>
             </button>
           </div>
@@ -350,7 +350,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
             disabled={loading}
             className="text-sm text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
           >
-            Padam Produk
+            Delete Product
           </button>
         ) : (
           <span />
@@ -368,7 +368,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
             disabled={loading}
             className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Menyimpan...' : isEdit ? 'Kemaskini' : 'Tambah Produk'}
+            {loading ? 'Menyimpan...' : isEdit ? 'Update' : 'Add Product'}
           </button>
         </div>
       </div>

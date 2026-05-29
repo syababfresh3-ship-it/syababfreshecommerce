@@ -25,7 +25,7 @@ function expiryStatus(expires_at: string | null) {
   if (days < 0)  return { label: 'Tamat',       cls: 'text-red-600 bg-red-50 border-red-200' }
   if (days <= 3) return { label: `${days}h lagi`, cls: 'text-orange-600 bg-orange-50 border-orange-200' }
   if (days <= 7) return { label: `${days}h lagi`, cls: 'text-yellow-700 bg-yellow-50 border-yellow-200' }
-  return { label: new Date(expires_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' }), cls: 'text-gray-500 bg-gray-50 border-gray-200' }
+  return { label: new Date(expires_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' }), cls: 'text-gray-500 bg-gray-50 border-gray-200' }
 }
 
 export function PromoManager({ promos }: { promos: PromoCode[] }) {
@@ -74,9 +74,9 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
       expires_at: editForm.expires_at || null,
     }).eq('id', id)
     if (error) {
-      toast.error('Gagal kemaskini kod')
+      toast.error('Failed update kod')
     } else {
-      toast.success('Kod dikemaskini')
+      toast.success('Kod diupdate')
       setEditingId(null)
       router.refresh()
     }
@@ -97,9 +97,9 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
       expires_at: form.expires_at || null,
     })
     if (error) {
-      toast.error(error.code === '23505' ? 'Kod sudah wujud' : 'Gagal buat kod')
+      toast.error(error.code === '23505' ? 'Kod sudah wujud' : 'Failed buat kod')
     } else {
-      toast.success('Kod promosi dicipta')
+      toast.success('Kod promotions dicipta')
       setShowForm(false)
       setForm({ code: '', type: 'percentage', value: '', min_order: '', max_uses: '', expires_at: '' })
       router.refresh()
@@ -110,15 +110,15 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
   async function toggleActive(promo: PromoCode) {
     const supabase = createClient()
     await supabase.from('promo_codes').update({ active: !promo.active }).eq('id', promo.id)
-    toast.success(promo.active ? 'Kod dinyahaktifkan' : 'Kod diaktifkan')
+    toast.success(promo.active ? 'Kod dinyahactivekan' : 'Kod diactivekan')
     router.refresh()
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Padam kod ini?')) return
+    if (!confirm('Delete kod ini?')) return
     const supabase = createClient()
     await supabase.from('promo_codes').delete().eq('id', id)
-    toast.success('Kod dipadam')
+    toast.success('Kod didelete')
     router.refresh()
   }
 
@@ -134,13 +134,13 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Kod Promosi</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{active.length} aktif · {inactive.length} tidak aktif</p>
+          <h1 className="text-xl font-bold text-gray-900">Kod Promotions</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{active.length} active · {inactive.length} inactive</p>
         </div>
         {!showForm && (
           <button onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm">
-            <Plus className="h-4 w-4" /> Kod Baru
+            <Plus className="h-4 w-4" /> Kod New
           </button>
         )}
       </div>
@@ -153,7 +153,7 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
               <div className="bg-red-100 p-1.5 rounded-lg">
                 <Tag className="h-4 w-4 text-red-600" />
               </div>
-              <h2 className="font-bold text-gray-900">Kod Promosi Baru</h2>
+              <h2 className="font-bold text-gray-900">Kod Promotions New</h2>
             </div>
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
               <X className="h-4 w-4" />
@@ -174,7 +174,7 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Kod Promosi *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Kod Promotions *</label>
                 <input name="code" value={form.code} onChange={handleChange} required
                   placeholder="SYABAB10"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-red-300" />
@@ -196,19 +196,19 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Min. Pesanan (RM)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Min. Orders (RM)</label>
                 <input name="min_order" type="number" min="0" step="0.01" value={form.min_order} onChange={handleChange}
                   placeholder="0.00"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Had Penggunaan</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Had Useran</label>
                 <input name="max_uses" type="number" min="1" value={form.max_uses} onChange={handleChange}
-                  placeholder="Tiada had"
+                  placeholder="No had"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Tempoh</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Period</label>
                 <input name="expires_at" type="datetime-local" value={form.expires_at} onChange={handleChange}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
               </div>
@@ -231,7 +231,7 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
       {/* Promo cards */}
       {promos.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-14 text-center text-gray-400">
-          Tiada kod promosi lagi.
+          No kod promotions lagi.
         </div>
       ) : (
         <div className="space-y-3">
@@ -301,7 +301,7 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                           ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                           : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                       }`}>
-                      {promo.active ? 'Aktif' : 'Tidak Aktif'}
+                      {promo.active ? 'Active' : 'Inactive'}
                     </button>
                     <button onClick={() => handleDelete(promo.id)}
                       className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
@@ -330,19 +330,19 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Min. Pesanan (RM)</label>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Min. Orders (RM)</label>
                         <input name="min_order" type="number" min="0" step="0.01" value={editForm.min_order} onChange={handleEditChange}
                           placeholder="0.00"
                           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Had Penggunaan</label>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Had Useran</label>
                         <input name="max_uses" type="number" min="1" value={editForm.max_uses} onChange={handleEditChange}
-                          placeholder="Tiada had"
+                          placeholder="No had"
                           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Tempoh</label>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Period</label>
                         <input name="expires_at" type="datetime-local" value={editForm.expires_at} onChange={handleEditChange}
                           className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
                       </div>
@@ -350,7 +350,7 @@ export function PromoManager({ promos }: { promos: PromoCode[] }) {
                         <button onClick={() => handleUpdate(promo.id)} disabled={editLoading}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
                           {editLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                          Simpan
+                          Save
                         </button>
                         <button onClick={() => setEditingId(null)}
                           className="px-3 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50">

@@ -11,7 +11,7 @@ export function RefundAction({ orderId, amount }: { orderId: string; amount: num
   const router = useRouter()
 
   async function handleRefund() {
-    if (!confirm(`Sahkan refund RM${Number(amount).toFixed(2)} untuk pesanan ini?\n\nStatus akan bertukar kepada "Dibayar Balik".`)) return
+    if (!confirm(`Confirm refund RM${Number(amount).toFixed(2)} untuk orders ini?\n\nStatus akan bertukar kepada "Refunded".`)) return
     setLoading(true)
     const res = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
@@ -19,9 +19,9 @@ export function RefundAction({ orderId, amount }: { orderId: string; amount: num
       body: JSON.stringify({ status: 'refunded', payment_status: 'refunded' }),
     })
     if (!res.ok) {
-      toast.error('Gagal proses refund')
+      toast.error('Failed proses refund')
     } else {
-      toast.success('Refund berjaya direkodkan')
+      toast.success('Refund success direkodkan')
       setDone(true)
       router.refresh()
     }

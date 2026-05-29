@@ -70,8 +70,8 @@ export default function SettingsPage() {
       body: JSON.stringify({ logo_url: pendingUrl }),
     })
     setSavingLogo(false)
-    if (res.ok) { setLogoUrl(pendingUrl); toast.success('Logo dikemaskini') }
-    else toast.error('Gagal simpan logo')
+    if (res.ok) { setLogoUrl(pendingUrl); toast.success('Logo diupdate') }
+    else toast.error('Failed save logo')
   }
 
   async function handleSaveDelivery() {
@@ -82,8 +82,8 @@ export default function SettingsPage() {
       body: JSON.stringify({ free_delivery_min: freeDeliveryEnabled ? freeDeliveryMin : 99999, default_delivery_fee: defaultFee, slots }),
     })
     setSavingDelivery(false)
-    if (res.ok) toast.success('Tetapan penghantaran disimpan')
-    else toast.error('Gagal simpan tetapan')
+    if (res.ok) toast.success('Settings pengsendan disave')
+    else toast.error('Failed save settings')
   }
 
   function updateSlot(id: string, field: keyof DeliverySlot, value: unknown) {
@@ -119,8 +119,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Tetapan Kedai</h1>
-        <p className="text-sm text-gray-500 mt-1">Logo, penghantaran, dan konfigurasi kedai</p>
+        <h1 className="text-xl font-bold text-gray-900">Settings Kedai</h1>
+        <p className="text-sm text-gray-500 mt-1">Logo, pengsendan, dan konfigurasi kedai</p>
       </div>
 
       {/* ── Logo ── */}
@@ -145,7 +145,7 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <p className="text-xs font-semibold text-gray-500 mb-2">Upload Logo Baru</p>
+          <p className="text-xs font-semibold text-gray-500 mb-2">Upload Logo New</p>
           <ImageUploader
             currentUrl={pendingUrl}
             onUpload={(url) => setPendingUrl(url)}
@@ -156,7 +156,7 @@ export default function SettingsPage() {
           />
           {pendingUrl && pendingUrl !== logoUrl && (
             <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
-              ⚠ Klik Simpan untuk paparkan logo baru
+              ⚠ Klik Save untuk paparkan logo baru
             </p>
           )}
         </div>
@@ -167,7 +167,7 @@ export default function SettingsPage() {
           className="w-full flex items-center justify-center gap-2 bg-brand-fresh-500 hover:bg-brand-fresh-600 text-white font-bold py-3 rounded-2xl disabled:opacity-40 transition-colors"
         >
           {savingLogo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Simpan Logo
+          Save Logo
         </button>
       </div>
 
@@ -178,8 +178,8 @@ export default function SettingsPage() {
             <Truck className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900">Tetapan Penghantaran</p>
-            <p className="text-xs text-gray-400">Had percuma, bayaran, dan slot masa untuk customer</p>
+            <p className="text-sm font-bold text-gray-900">Settings Pengsendan</p>
+            <p className="text-xs text-gray-400">Had percuma, payment, dan slot masa untuk customer</p>
           </div>
         </div>
 
@@ -187,7 +187,7 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-3">
           <div className={`border rounded-2xl p-4 transition-colors ${freeDeliveryEnabled ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
             <div className="flex items-center justify-between mb-1">
-              <p className={`text-xs font-bold ${freeDeliveryEnabled ? 'text-green-700' : 'text-gray-500'}`}>🎁 Penghantaran Percuma</p>
+              <p className={`text-xs font-bold ${freeDeliveryEnabled ? 'text-green-700' : 'text-gray-500'}`}>🎁 Pengsendan Percuma</p>
               <button
                 type="button"
                 onClick={() => setFreeDeliveryEnabled(v => !v)}
@@ -197,7 +197,7 @@ export default function SettingsPage() {
               </button>
             </div>
             <p className={`text-[11px] mb-3 ${freeDeliveryEnabled ? 'text-green-600' : 'text-gray-400'}`}>
-              {freeDeliveryEnabled ? 'Customer jimat kos bila order mencapai had ini' : 'Penghantaran percuma dimatikan'}
+              {freeDeliveryEnabled ? 'Customer jimat kos bila order mencapai had ini' : 'Pengsendan percuma dimatikan'}
             </p>
             {freeDeliveryEnabled ? (
               <>
@@ -223,8 +223,8 @@ export default function SettingsPage() {
           </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
-            <p className="text-xs font-bold text-blue-700 mb-1">🚗 Bayaran Penghantaran</p>
-            <p className="text-[11px] text-blue-600 mb-3">Dikenakan jika tiada kadar zon khusus untuk poskod</p>
+            <p className="text-xs font-bold text-blue-700 mb-1">🚗 Payment Pengsendan</p>
+            <p className="text-[11px] text-blue-600 mb-3">Dikenakan jika tiada kadar zon khusus untuk postcode</p>
             <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl px-3 py-2">
               <span className="text-sm font-bold text-gray-500">RM</span>
               <input
@@ -237,7 +237,7 @@ export default function SettingsPage() {
                 className="flex-1 text-2xl font-black text-gray-900 bg-transparent focus:outline-none w-full"
               />
             </div>
-            <p className="text-[10px] text-blue-600 mt-2">Bayaran lalai jika zon tidak ditemui</p>
+            <p className="text-[10px] text-blue-600 mt-2">Payment lalai jika zon tidak ditemui</p>
           </div>
         </div>
 
@@ -245,9 +245,9 @@ export default function SettingsPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-gray-400" />
-            <p className="text-sm font-bold text-gray-900">Slot Masa Penghantaran</p>
+            <p className="text-sm font-bold text-gray-900">Slot Masa Pengsendan</p>
           </div>
-          <p className="text-xs text-gray-400 -mt-2">Slot yang aktif akan dipaparkan kepada customer semasa checkout</p>
+          <p className="text-xs text-gray-400 -mt-2">Slot yang active akan dipaparkan kepada customer semasa checkout</p>
 
           {/* Today slots */}
           <SlotGroup
@@ -278,7 +278,7 @@ export default function SettingsPage() {
           className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl disabled:opacity-40 transition-colors"
         >
           {savingDelivery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Simpan Tetapan Penghantaran
+          Save Settings Pengsendan
         </button>
       </div>
     </div>
@@ -308,7 +308,7 @@ function SlotGroup({
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${c.dot}`} />
           <p className={`text-xs font-bold ${c.text}`}>{label}</p>
-          <span className="text-xs text-gray-400">({slots.filter(s => s.active).length}/{slots.length} aktif)</span>
+          <span className="text-xs text-gray-400">({slots.filter(s => s.active).length}/{slots.length} active)</span>
         </div>
         <button
           type="button"
@@ -320,7 +320,7 @@ function SlotGroup({
       </div>
 
       {slots.length === 0 ? (
-        <p className="text-xs text-gray-400 text-center py-3">Tiada slot. Klik Tambah untuk buat slot baru.</p>
+        <p className="text-xs text-gray-400 text-center py-3">No slot. Klik Add untuk buat slot baru.</p>
       ) : (
         <div className="space-y-2">
           {slots.map(slot => (
@@ -377,7 +377,7 @@ function SlotRow({ slot, showLead, onUpdate, onRemove }: {
         {/* Lead time (today only) */}
         {showLead && (
           <div className="flex items-center gap-1 shrink-0 bg-orange-50 border border-orange-100 rounded-lg px-2 py-1.5">
-            <span className="text-[10px] text-orange-600 font-semibold whitespace-nowrap">Tutup</span>
+            <span className="text-[10px] text-orange-600 font-semibold whitespace-nowrap">Close</span>
             <input
               type="number"
               min={0}

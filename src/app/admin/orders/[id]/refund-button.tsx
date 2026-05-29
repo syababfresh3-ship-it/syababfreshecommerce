@@ -10,7 +10,7 @@ export function RefundButton({ orderId, amount }: { orderId: string; amount: num
   const router = useRouter()
 
   async function handleRefund() {
-    if (!confirm(`Proses refund RM${Number(amount).toFixed(2)} untuk pesanan ini?\n\nStatus akan bertukar kepada "Dibayar Balik".`)) return
+    if (!confirm(`Proses refund RM${Number(amount).toFixed(2)} untuk orders ini?\n\nStatus akan bertukar kepada "Refunded".`)) return
     setLoading(true)
 
     const res = await fetch(`/api/admin/orders/${orderId}`, {
@@ -20,9 +20,9 @@ export function RefundButton({ orderId, amount }: { orderId: string; amount: num
     })
 
     if (!res.ok) {
-      toast.error('Gagal proses refund')
+      toast.error('Failed proses refund')
     } else {
-      toast.success('Refund berjaya direkodkan')
+      toast.success('Refund success direkodkan')
       router.refresh()
     }
     setLoading(false)

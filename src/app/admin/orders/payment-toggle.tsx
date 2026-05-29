@@ -28,7 +28,7 @@ export function PaymentToggle({
       body: JSON.stringify({ payment_status: next }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini bayaran')
+      toast.error('Failed update payment')
     } else {
       setStatus(next)
       toast.success(next === 'paid' ? '✓ Ditanda dibayar' : 'Ditanda belum bayar')
@@ -49,7 +49,7 @@ export function PaymentToggle({
   if (status === 'refunded') {
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 text-gray-500">
-        Dibayar Balik
+        Refunded
       </span>
     )
   }
@@ -62,7 +62,7 @@ export function PaymentToggle({
         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 transition-colors cursor-pointer"
       >
         <Check className="h-3 w-3" />
-        Dibayar
+        Paid
       </button>
     )
   }
@@ -76,7 +76,7 @@ export function PaymentToggle({
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 text-gray-400 border border-gray-200">
         <CreditCard className="h-3 w-3" />
-        Belum Bayar
+        Unpaid
       </span>
     )
   }
@@ -94,7 +94,7 @@ export function PaymentToggle({
         }`}
       >
         <CreditCard className="h-3 w-3" />
-        {isCod ? 'COD – Belum Terima' : 'Transfer – Belum Sahkan'}
+        {isCod ? 'COD – Belum Terima' : 'Transfer – Belum Confirm'}
       </button>
       <span className="text-[9px] text-gray-400 leading-none">↑ klik untuk tandakan bayar</span>
     </div>

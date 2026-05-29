@@ -5,21 +5,21 @@ import { Search, X, CalendarDays } from 'lucide-react'
 import { useRef } from 'react'
 
 const statusTabs = [
-  { value: '',           label: 'Semua',      dot: '' },
-  { value: 'pending',    label: 'Menunggu',   dot: 'bg-yellow-400' },
-  { value: 'confirmed',  label: 'Disahkan',   dot: 'bg-blue-400' },
-  { value: 'preparing',  label: 'Disediakan', dot: 'bg-purple-400' },
-  { value: 'delivering', label: 'Dihantar',   dot: 'bg-orange-400' },
-  { value: 'delivered',  label: 'Selesai',    dot: 'bg-green-400' },
-  { value: 'cancelled',  label: 'Dibatal',    dot: 'bg-red-400' },
+  { value: '',           label: 'All',      dot: '' },
+  { value: 'pending',    label: 'Pending',   dot: 'bg-yellow-400' },
+  { value: 'confirmed',  label: 'Confirmed',   dot: 'bg-blue-400' },
+  { value: 'preparing',  label: 'Preparing', dot: 'bg-purple-400' },
+  { value: 'delivering', label: 'Delivering',   dot: 'bg-orange-400' },
+  { value: 'delivered',  label: 'Delivered',    dot: 'bg-green-400' },
+  { value: 'cancelled',  label: 'Cancelled',    dot: 'bg-red-400' },
 ]
 
 const dateTabs = [
-  { value: '',          label: 'Semua' },
-  { value: 'hari-ini',  label: 'Hari Ini' },
-  { value: 'semalam',   label: 'Semalam' },
-  { value: '7-hari',    label: '7 Hari' },
-  { value: 'bulan-ini', label: 'Bulan Ini' },
+  { value: '',          label: 'All' },
+  { value: 'hari-ini',  label: 'Today' },
+  { value: 'semalam',   label: 'Yesterday' },
+  { value: '7-hari',    label: '7 Days' },
+  { value: 'bulan-ini', label: 'This Month' },
 ]
 
 export function OrderFilters({ activeStatus, activeSearch, activeDate }: {
@@ -62,7 +62,7 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate }: {
           <input
             ref={inputRef}
             defaultValue={activeSearch}
-            placeholder="Cari no. pesanan, nama atau telefon..."
+            placeholder="Search order no., name or phone..."
             className="w-full pl-9 pr-9 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-gray-50 placeholder:text-gray-400"
           />
           {activeSearch && (

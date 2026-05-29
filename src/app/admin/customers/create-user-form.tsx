@@ -22,7 +22,7 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.full_name.trim() || !form.email.trim()) {
-      toast.error('Nama dan email wajib diisi')
+      toast.error('Name dan email wajib diisi')
       return
     }
 
@@ -36,9 +36,9 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
     const data = await res.json()
 
     if (!res.ok) {
-      toast.error(data.error ?? 'Gagal buat akaun')
+      toast.error(data.error ?? 'Failed buat akaun')
     } else {
-      toast.success('Akaun pelanggan berjaya dibuat')
+      toast.success('Akaun customer success dibuat')
       onClose()
       router.refresh()
     }
@@ -52,7 +52,7 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
           <div className="bg-red-100 p-1.5 rounded-lg">
             <UserPlus className="h-4 w-4 text-red-600" />
           </div>
-          <h2 className="font-bold text-gray-900">Pelanggan Baru</h2>
+          <h2 className="font-bold text-gray-900">Customer New</h2>
         </div>
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
           <X className="h-4 w-4" />
@@ -63,7 +63,7 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-              Nama Penuh <span className="text-red-500">*</span>
+              Name Penuh <span className="text-red-500">*</span>
             </label>
             <input
               name="full_name"
@@ -91,7 +91,7 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">No. Telefon</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">No. Phone</label>
             <input
               name="phone"
               type="tel"
@@ -105,7 +105,7 @@ export function CreateUserForm({ onClose }: { onClose: () => void }) {
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 mb-1.5">
               Kata Laluan
-              <span className="text-gray-400 font-normal ml-1">(kosong = pelanggan set sendiri via reset password)</span>
+              <span className="text-gray-400 font-normal ml-1">(kosong = customer set sendiri via reset password)</span>
             </label>
             <input
               name="password"

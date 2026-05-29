@@ -62,14 +62,14 @@ export default function DeliveryZonesPage() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!/^\d{5}$/.test(form.postcode)) { toast.error('Poskod mesti 5 digit'); return }
+    if (!/^\d{5}$/.test(form.postcode)) { toast.error('Postcode mesti 5 digit'); return }
     setLoading(true)
     const res = await fetch('/api/admin/delivery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, is_active: true }),
     })
-    if (!res.ok) toast.error('Gagal tambah kawasan')
+    if (!res.ok) toast.error('Failed tambah kawasan')
     else {
       toast.success('Kawasan ditambah')
       setForm({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Harian' })
@@ -89,9 +89,9 @@ export default function DeliveryZonesPage() {
   }
 
   async function handleDelete(postcode: string) {
-    if (!confirm(`Padam poskod ${postcode}?`)) return
+    if (!confirm(`Delete postcode ${postcode}?`)) return
     await fetch(`/api/admin/delivery/${postcode}`, { method: 'DELETE' })
-    toast.success('Kawasan dipadam')
+    toast.success('Kawasan didelete')
     load()
   }
 
@@ -105,12 +105,12 @@ export default function DeliveryZonesPage() {
       const parts = line.split(',').map(s => s.trim())
       if (parts.length < 3) { errors.push(`Baris tidak lengkap: ${line}`); continue }
       const [postcode, area_name, city, state = 'Selangor'] = parts
-      if (!/^\d{5}$/.test(postcode)) { errors.push(`Poskod tidak sah: ${postcode}`); continue }
+      if (!/^\d{5}$/.test(postcode)) { errors.push(`Postcode tidak sah: ${postcode}`); continue }
       rows.push({ postcode, area_name, city, state, is_active: true })
     }
 
     if (errors.length) { toast.error(`${errors.length} baris ada ralat`); return }
-    if (!rows.length) { toast.error('Tiada data untuk import'); return }
+    if (!rows.length) { toast.error('No data untuk import'); return }
 
     setLoading(true)
     const res = await fetch('/api/admin/delivery', {
@@ -118,7 +118,7 @@ export default function DeliveryZonesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bulk: true, rows }),
     })
-    if (!res.ok) toast.error('Gagal import')
+    if (!res.ok) toast.error('Failed import')
     else { toast.success(`${rows.length} kawasan diimport`); setBulkInput(''); setShowBulk(false); load() }
     setLoading(false)
   }
@@ -130,15 +130,15 @@ export default function DeliveryZonesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Kawasan Penghantaran</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{activeCount} aktif · {zones.length} jumlah poskod</p>
+          <h1 className="text-xl font-bold text-gray-900">Kawasan Pengsendan</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{activeCount} active · {zones.length} jumlah postcode</p>
         </div>
         <div className="flex gap-2">
           <Link
             href="/admin/delivery/rates"
             className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
           >
-            <Tag className="h-3.5 w-3.5" /> Kadar Penghantaran
+            <Tag className="h-3.5 w-3.5" /> Kadar Pengsendan
           </Link>
           <button
             onClick={() => { setShowBulk(!showBulk); setShowForm(false) }}
@@ -151,7 +151,7 @@ export default function DeliveryZonesPage() {
               onClick={() => { setShowForm(true); setShowBulk(false) }}
               className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm"
             >
-              <Plus className="h-4 w-4" /> Tambah Poskod
+              <Plus className="h-4 w-4" /> Add Postcode
             </button>
           )}
         </div>
@@ -168,7 +168,7 @@ export default function DeliveryZonesPage() {
             <button onClick={() => setShowBulk(false)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
           </div>
           <p className="text-xs text-gray-500 mb-3 bg-gray-50 rounded-xl px-3 py-2 font-mono">
-            Format: <span className="text-gray-700">poskod, nama_kawasan, bandar, negeri</span>
+            Format: <span className="text-gray-700">postcode, nama_kawasan, bandar, negeri</span>
           </p>
           <form onSubmit={handleBulkImport} className="space-y-3">
             <textarea
@@ -199,14 +199,14 @@ export default function DeliveryZonesPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="bg-red-100 p-1.5 rounded-lg"><MapPin className="h-4 w-4 text-red-600" /></div>
-              <h2 className="font-bold text-gray-900">Kawasan Baru</h2>
+              <h2 className="font-bold text-gray-900">Kawasan New</h2>
             </div>
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
           </div>
           <form onSubmit={handleAdd} className="space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Poskod *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Postcode *</label>
                 <input
                   value={form.postcode}
                   onChange={e => setForm(p => ({ ...p, postcode: e.target.value.replace(/\D/g, '').slice(0, 5) }))}
@@ -215,7 +215,7 @@ export default function DeliveryZonesPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nama Kawasan *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Name Kawasan *</label>
                 <input
                   value={form.area_name}
                   onChange={e => setForm(p => ({ ...p, area_name: e.target.value }))}
@@ -251,7 +251,7 @@ export default function DeliveryZonesPage() {
               </div>
             </div>
             <div className="max-w-xs">
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Frekuensi Penghantaran</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Frekuensi Pengsendan</label>
               <select
                 value={form.frequency}
                 onChange={e => setForm(p => ({ ...p, frequency: e.target.value }))}
@@ -269,7 +269,7 @@ export default function DeliveryZonesPage() {
               <button type="submit" disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50">
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Simpan Kawasan
+                Save Kawasan
               </button>
             </div>
           </form>
@@ -283,7 +283,7 @@ export default function DeliveryZonesPage() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Cari poskod, kawasan, negeri..."
+            placeholder="Search postcode, kawasan, negeri..."
             className="w-full pl-9 pr-8 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm"
           />
           {search && (
@@ -298,7 +298,7 @@ export default function DeliveryZonesPage() {
           onChange={e => setFilterState(e.target.value)}
           className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
         >
-          <option value="">Semua Negeri</option>
+          <option value="">All Negeri</option>
           {malaysiaStates.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
@@ -307,7 +307,7 @@ export default function DeliveryZonesPage() {
           onChange={e => setFilterFreq(e.target.value)}
           className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-300 bg-white shadow-sm text-gray-700"
         >
-          <option value="">Semua Frekuensi</option>
+          <option value="">All Frekuensi</option>
           <option value="Harian">Harian (Lembah Klang)</option>
           <option value="1-3 Hari Bekerja">1-3 Hari Bekerja (Luar KL)</option>
         </select>
@@ -327,7 +327,7 @@ export default function DeliveryZonesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Poskod</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Postcode</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kawasan</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bandar</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Negeri</th>
@@ -342,7 +342,7 @@ export default function DeliveryZonesPage() {
                 <td colSpan={7} className="px-5 py-12 text-center">
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <MapPin className="h-8 w-8 text-gray-200" />
-                    <p className="font-medium">{search ? `Tiada hasil untuk "${search}"` : 'Tiada kawasan penghantaran'}</p>
+                    <p className="font-medium">{search ? `No hasil untuk "${search}"` : 'No kawasan pengsendan'}</p>
                   </div>
                 </td>
               </tr>
@@ -367,7 +367,7 @@ export default function DeliveryZonesPage() {
                           : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      {z.is_active ? <><Eye className="h-3 w-3" /> Aktif</> : <><EyeOff className="h-3 w-3" /> Sembunyi</>}
+                      {z.is_active ? <><Eye className="h-3 w-3" /> Active</> : <><EyeOff className="h-3 w-3" /> Sembunyi</>}
                     </button>
                   </td>
                   <td className="px-4 py-3 text-right">

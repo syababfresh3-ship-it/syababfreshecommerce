@@ -44,8 +44,8 @@ export default function MarketingPage() {
       body: JSON.stringify(settings),
     })
     setSaving(false)
-    if (res.ok) toast.success('Tetapan disimpan')
-    else toast.error('Gagal simpan')
+    if (res.ok) toast.success('Settings disave')
+    else toast.error('Failed save')
   }
 
   const card = 'bg-white rounded-2xl border border-gray-100 p-5 space-y-4'
@@ -94,31 +94,31 @@ export default function MarketingPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tajuk Flash Sale</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Title Flash Sale</label>
             <input type="text" value={settings.flash_sale_label} onChange={set('flash_sale_label')}
-              placeholder="Flash Sale! Diskaun 30% untuk semua buah" suppressHydrationWarning
+              placeholder="Flash Sale! Diskaun 30% untuk all buah" suppressHydrationWarning
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tarikh Tamat</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Date Tamat</label>
             <input type="datetime-local" value={settings.flash_sale_ends_at} onChange={set('flash_sale_ends_at')}
               suppressHydrationWarning
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
             <p className="text-xs text-gray-400 mt-1">Banner hilang otomatik bila masa tamat</p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Kod Promo (pilihan)</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Kod Promo (selectan)</label>
             <input type="text" value={settings.flash_sale_promo_code} onChange={set('flash_sale_promo_code')}
               placeholder="FLASH30" suppressHydrationWarning
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-400" />
           </div>
           {settings.flash_sale_ends_at && !settings.flash_sale_label && (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">⚠️ Isi tajuk untuk banner muncul</p>
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">⚠️ Isi title untuk banner muncul</p>
           )}
           {settings.flash_sale_label && (
             <button type="button" onClick={() => setSettings(p => ({ ...p, flash_sale_ends_at: '', flash_sale_label: '', flash_sale_promo_code: '' }))}
               className="text-xs text-red-500 hover:underline">
-              × Padamkan flash sale
+              × Deletekan flash sale
             </button>
           )}
         </div>
@@ -196,7 +196,7 @@ export default function MarketingPage() {
           </div>
           {field(
             'GTM Container ID',
-            'Cth: GTM-XXXXXXX — isi ini jika nak urus semua tags via GTM',
+            'Cth: GTM-XXXXXXX — isi ini jika nak urus all tags via GTM',
             'gtm_id',
             'GTM-XXXXXXX'
           )}
@@ -221,7 +221,7 @@ export default function MarketingPage() {
           className="w-full flex items-center justify-center gap-2 bg-brand-fresh-500 text-white font-bold py-3.5 rounded-2xl disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Simpan Tetapan
+          Save Settings
         </button>
       </form>
     </div>

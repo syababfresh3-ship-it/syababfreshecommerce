@@ -17,6 +17,7 @@ export async function GET(request: Request) {
 
   if (pageId) query = query.eq('page_id', pageId)
   if (status) query = query.eq('status', status)
+  else query = query.not('status', 'in', '(delivered,cancelled)')
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -28,15 +29,33 @@ export async function PATCH(request: Request) {
   if (forbidden) return forbidden
 
   const body = await request.json()
-  const { id, status } = body
+  const { id, status, name, phone, address, postcode, notes, courier_id, tracking_number, tracking_url, shipment_notes } = body
 
-  const VALID = ['pending', 'confirmed', 'cancelled']
-  if (!id || !status || !VALID.includes(status))
-    return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+
+  // Status update
+  if (status !== undefined) {
+    const VALID = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled']
+    if (!VALID.includes(status)) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    update.status = status
+  }
+
+  // Customer details update
+  if (name !== undefined) update.name = String(name).trim()
+  if (phone !== undefined) update.phone = String(phone).trim()
+  if (address !== undefined) update.address = String(address).trim()
+  if (postcode !== undefined) update.postcode = postcode ? String(postcode).trim() : null
+  if (notes !== undefined) update.notes = notes ? String(notes).trim() : null
+  if (courier_id !== undefined) update.courier_id = courier_id || null
+  if (tracking_number !== undefined) update.tracking_number = tracking_number || null
+  if (tracking_url !== undefined) update.tracking_url = tracking_url || null
+  if (shipment_notes !== undefined) update.shipment_notes = shipment_notes || null
 
   const { error } = await supabase!
     .from('lp_guest_orders')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update(update)
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

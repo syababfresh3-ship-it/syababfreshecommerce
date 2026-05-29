@@ -44,10 +44,10 @@ export function SortList({ products: initial }: { products: Product[] }) {
       body: JSON.stringify({ ids: products.map((p) => p.id) }),
     })
     if (res.ok) {
-      toast.success('Urutan disimpan')
+      toast.success('Urutan disave')
       router.refresh()
     } else {
-      toast.error('Gagal simpan urutan')
+      toast.error('Failed save urutan')
     }
     setSaving(false)
   }
@@ -73,7 +73,7 @@ export function SortList({ products: initial }: { products: Product[] }) {
             <span className="text-xs text-gray-400 w-5 text-right tabular-nums">{i + 1}</span>
             <span className="font-medium text-gray-900 flex-1 text-sm">{p.name}</span>
             {!p.is_active && (
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">tidak aktif</span>
+              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">inactive</span>
             )}
           </div>
         ))}
@@ -86,7 +86,7 @@ export function SortList({ products: initial }: { products: Product[] }) {
           className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-60 transition-colors"
         >
           {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {saving ? 'Menyimpan...' : 'Simpan Urutan'}
+          {saving ? 'Menyimpan...' : 'Save Urutan'}
         </button>
         <a
           href="/admin/products"

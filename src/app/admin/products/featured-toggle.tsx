@@ -20,7 +20,7 @@ export function FeaturedToggle({ id, isFeatured }: FeaturedToggleProps) {
       body: JSON.stringify({ is_featured: !featured }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini')
+      toast.error('Failed update')
     } else {
       setFeatured(!featured)
     }

@@ -41,9 +41,9 @@ const SENDER = {
   name: 'SyababFresh',
   email: '',
   phone: '601116614004',
-  address: 'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, Bandar Baru Bangi',
+  address: 'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, Bandar New Bangi',
   postcode: '43650',
-  city: 'Bandar Baru Bangi',
+  city: 'Bandar New Bangi',
   state: 'Selangor',
 }
 
@@ -124,10 +124,10 @@ function exportNinjaCold(orders: ExportOrder[]) {
       o.order_number,             // SHIPPER ORDER NO
       getItemsSummary(o.items),   // INSTRUCTIONS
       'TRUE',                     // WEEKEND DELIVERY
-      '0',                        // GOODS VALUE
-      getItemsSummary(o.items),   // PARCEL DESCRIPTION
-      'NO',                       // IS DANGEROUS GOOD
-      '0',                        // INSURED VALUE
+      String(Math.round(Number(o.total))),              // GOODS VALUE
+      getItemsSummary(o.items),                         // PARCEL DESCRIPTION
+      'NO',                                             // IS DANGEROUS GOOD
+      Number(o.total) >= 200 ? String(Math.round(Number(o.total))) : '0', // INSURED VALUE
       '0',                        // VOLUME
       '0.1',                      // LENGTH
       '0.1',                      // WIDTH
@@ -205,7 +205,7 @@ function printAwb(orders: ExportOrder[]) {
         </div>
         <div class="divider"></div>
         <div class="section">
-          <div class="label">PENERIMA</div>
+          <div class="label">RECIPIENT</div>
           <div class="name">${name}</div>
           <div class="phone">${phone}</div>
           <div class="address">${address}</div>
@@ -278,7 +278,7 @@ function parseTrackingCsv(text: string): { order_number: string; carrier_id: str
 
   // Detect header
   const header = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/['"]/g, ''))
-  const orderCol = header.findIndex((h) => h.includes('order') || h.includes('no') || h.includes('pesanan'))
+  const orderCol = header.findIndex((h) => h.includes('order') || h.includes('no') || h.includes('orders'))
   const trackingCol = header.findIndex((h) => h.includes('tracking') || h.includes('awb'))
   const carrierCol = header.findIndex((h) => h.includes('carrier') || h.includes('kurier') || h.includes('provider'))
 
@@ -343,19 +343,19 @@ export function ExportsClient({
   )
 
   function handleExportNinja() {
-    if (selectedOrders.length === 0) { toast.error('Pilih pesanan dahulu'); return }
+    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
     exportNinjaCold(selectedOrders)
-    toast.success(`${selectedOrders.length} pesanan dieksport (Ninja Cold)`)
+    toast.success(`${selectedOrders.length} orders diexport (Ninja Cold)`)
   }
 
   function handleExportPoslaju() {
-    if (selectedOrders.length === 0) { toast.error('Pilih pesanan dahulu'); return }
+    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
     exportPoslaju(selectedOrders)
-    toast.success(`${selectedOrders.length} pesanan dieksport (Poslaju)`)
+    toast.success(`${selectedOrders.length} orders diexport (Poslaju)`)
   }
 
   function handlePrintAwb() {
-    if (selectedOrders.length === 0) { toast.error('Pilih pesanan dahulu'); return }
+    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
     printAwb(selectedOrders)
   }
 
@@ -375,7 +375,7 @@ export function ExportsClient({
   }, [trackingText])
 
   async function handleImport() {
-    if (parsedRows.length === 0) { toast.error('Tiada data untuk diimport'); return }
+    if (parsedRows.length === 0) { toast.error('No data untuk diimport'); return }
     setImporting(true)
     setImportResult(null)
     try {
@@ -385,10 +385,10 @@ export function ExportsClient({
         body: JSON.stringify({ rows: parsedRows.map((r) => ({ ...r, carrier_id: r.carrier_id || importCarrier })) }),
       })
       const json = await res.json()
-      if (!res.ok) { toast.error(json.error ?? 'Gagal import'); return }
+      if (!res.ok) { toast.error(json.error ?? 'Failed import'); return }
       setImportResult(json)
-      if (json.ok > 0) toast.success(`${json.ok} tracking berjaya diimport`)
-      if (json.fail > 0) toast.error(`${json.fail} baris gagal`)
+      if (json.ok > 0) toast.success(`${json.ok} tracking success diimport`)
+      if (json.fail > 0) toast.error(`${json.fail} baris failed`)
       setTrackingText('')
     } catch {
       toast.error('Ralat rangkaian')
@@ -410,14 +410,14 @@ export function ExportsClient({
           <FileDown className="h-5 w-5 text-indigo-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Eksport & Import Penghantaran</h1>
+          <h1 className="text-xl font-bold text-gray-900">Export & Import Shipping</h1>
           <p className="text-sm text-gray-400">Ninja Cold CSV · Poslaju CSV · AWB Slip · Import Tracking</p>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6 w-fit">
-        {([['export', 'Eksport & Cetak'], ['import', 'Import Tracking']] as const).map(([key, label]) => (
+        {([['export', 'Export & Print'], ['import', 'Import Tracking']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -436,18 +436,18 @@ export function ExportsClient({
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex flex-wrap gap-3 items-end">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Dari</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">From</label>
                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">Hingga</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">To</label>
                 <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
                   className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
               </div>
               <button onClick={applyFilter}
                 className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-colors">
-                <RefreshCw className="h-3.5 w-3.5" />Tapis
+                <RefreshCw className="h-3.5 w-3.5" />Filter
               </button>
             </div>
           </div>
@@ -457,19 +457,19 @@ export function ExportsClient({
             <div className="space-y-2">
               {/* Legend */}
               <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Buah Segar (sejuk)</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Buah Kering</span>
-                <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">LK = Lembah Klang</span>
-                <span className="text-gray-400">→ Segar+LK: Lalamove · Segar+Luar: Ninja Cold · Kering: Poslaju</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Fresh Items (cold)</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Dry Items</span>
+                <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">KV = Klang Valley</span>
+                <span className="text-gray-400">→ Fresh+KV: Lalamove · Fresh+Others: Ninja Cold · Dry: Poslaju</span>
               </div>
               <div className="flex flex-wrap gap-2 items-center">
                 <button onClick={toggleAll}
                   className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
                   {selected.size === orders.length ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-400" />}
-                  {selected.size === orders.length ? 'Nyah Pilih Semua' : `Pilih Semua (${orders.length})`}
+                  {selected.size === orders.length ? 'Deselect All' : `Select All (${orders.length})`}
                 </button>
 
-                <span className="text-xs text-gray-400 px-1">{selected.size} dipilih</span>
+                <span className="text-xs text-gray-400 px-1">{selected.size} diselect</span>
 
                 <div className="flex gap-2 ml-auto flex-wrap">
                   <button onClick={handleExportNinja}
@@ -496,7 +496,7 @@ export function ExportsClient({
           {orders.length === 0 ? (
             <div className="text-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-100">
               <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="font-semibold">Tiada pesanan dalam tempoh ini</p>
+              <p className="font-semibold">No orders in this date range</p>
               <p className="text-sm mt-1">Cuba tukar tarikh tapisan</p>
             </div>
           ) : (
@@ -505,11 +505,11 @@ export function ExportsClient({
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
                     <th className="w-10 px-4 py-3"></th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">No. Pesanan</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Penerima</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">No. Orders</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Recipient</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Item</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Kawasan</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Kurier</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Area</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Courier</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
                   </tr>
                 </thead>
@@ -523,7 +523,7 @@ export function ExportsClient({
                     if (!o.has_fresh) {
                       courierBadge = { label: 'Poslaju', cls: 'bg-red-100 text-red-700' }
                     } else if (!o.area_known) {
-                      courierBadge = { label: 'Segar — zon ?', cls: 'bg-green-100 text-green-700' }
+                      courierBadge = { label: 'Fresh — zone ?', cls: 'bg-green-100 text-green-700' }
                     } else if (o.is_kl) {
                       courierBadge = { label: 'Lalamove', cls: 'bg-orange-100 text-orange-700' }
                     } else {
@@ -556,7 +556,7 @@ export function ExportsClient({
                         <td className="px-4 py-3 max-w-[220px]">
                           {missingAddress ? (
                             <span className="flex items-center gap-1 text-xs text-red-500">
-                              <AlertCircle className="h-3 w-3" />Alamat tidak lengkap
+                              <AlertCircle className="h-3 w-3" />Address tidak lengkap
                             </span>
                           ) : (
                             <div className="space-y-0.5">
@@ -608,7 +608,7 @@ export function ExportsClient({
             <div>
               <h2 className="font-bold text-gray-900">Import Tracking Number</h2>
               <p className="text-sm text-gray-400 mt-0.5">
-                Selepas dapat tracking dari Ninja / Poslaju, import balik ke sistem secara bulk.
+                After getting tracking numbers from Ninja / Poslaju, bulk import back into the system.
               </p>
             </div>
 
@@ -622,7 +622,7 @@ export function ExportsClient({
 
             {/* Default carrier */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Kurier Default (jika tiada dalam CSV)</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Default Courier (if not in CSV)</label>
               <select
                 value={importCarrier}
                 onChange={(e) => setImportCarrier(e.target.value)}
@@ -644,7 +644,7 @@ export function ExportsClient({
                 className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors w-full justify-center"
               >
                 <Upload className="h-4 w-4" />
-                Pilih fail CSV
+                Select fail CSV
               </button>
             </div>
 
@@ -683,7 +683,7 @@ export function ExportsClient({
             {importResult && (
               <div className={`rounded-xl p-4 text-sm space-y-1 ${importResult.fail > 0 ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200'}`}>
                 <p className="font-bold text-gray-800">
-                  ✓ {importResult.ok} berjaya · {importResult.fail} gagal
+                  ✓ {importResult.ok} success · {importResult.fail} failed
                 </p>
                 {importResult.errors.map((e, i) => (
                   <p key={i} className="text-xs text-red-600">{e}</p>
@@ -705,9 +705,9 @@ export function ExportsClient({
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
             <p className="font-bold mb-1">Cara guna:</p>
             <ol className="list-decimal list-inside space-y-1 text-xs">
-              <li>Eksport pesanan → upload ke portal Ninja / EasyParcel</li>
+              <li>Export orders → upload ke portal Ninja / EasyParcel</li>
               <li>Portal generate AWB + tracking numbers</li>
-              <li>Download semula Excel/CSV dari portal</li>
+              <li>Download Excel/CSV from the portal again</li>
               <li>Import balik di sini — sistem auto-update status "Dalam Transit"</li>
             </ol>
           </div>

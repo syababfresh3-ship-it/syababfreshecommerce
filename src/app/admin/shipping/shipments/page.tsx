@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
-  pending:          { label: 'Menunggu',      cls: 'bg-yellow-50 text-yellow-700 border-yellow-200'  },
+  pending:          { label: 'Pending',      cls: 'bg-yellow-50 text-yellow-700 border-yellow-200'  },
   picked_up:        { label: 'Sudah Diambil', cls: 'bg-blue-50 text-blue-700 border-blue-200'        },
   in_transit:       { label: 'Dalam Transit', cls: 'bg-purple-50 text-purple-700 border-purple-200'  },
-  out_for_delivery: { label: 'Keluar Hantar', cls: 'bg-orange-50 text-orange-700 border-orange-200'  },
+  out_for_delivery: { label: 'Keluar Send', cls: 'bg-orange-50 text-orange-700 border-orange-200'  },
   delivered:        { label: 'Selesai',       cls: 'bg-green-50 text-green-700 border-green-200'     },
-  failed:           { label: 'Gagal',         cls: 'bg-red-50 text-red-600 border-red-200'           },
+  failed:           { label: 'Failed',         cls: 'bg-red-50 text-red-600 border-red-200'           },
 }
 
 async function getShipments(carrier?: string, status?: string) {
@@ -82,7 +82,7 @@ export default async function ShipmentsPage({
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Semua Penghantaran</h1>
+          <h1 className="text-xl font-bold text-gray-900">All Pengsendan</h1>
           <p className="text-sm text-gray-400 mt-0.5">{shipments.length} rekod</p>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default async function ShipmentsPage({
           href={carrierLink()}
           className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${!carrier ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
         >
-          Semua Kurier
+          All Kurier
         </Link>
         {carriers.map((c: any) => (
           <Link
@@ -112,7 +112,7 @@ export default async function ShipmentsPage({
           href={statusLink()}
           className={`text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${!status ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
         >
-          Semua Status
+          All Status
         </Link>
         {Object.entries(STATUS_CONFIG).map(([k, v]) => (
           <Link
@@ -129,19 +129,19 @@ export default async function ShipmentsPage({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pesanan</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Orders</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kurier</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Tracking</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarikh</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {shipments.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-14 text-center text-gray-400">
-                  Tiada rekod penghantaran
+                  No rekod pengsendan
                 </td>
               </tr>
             ) : (
@@ -191,7 +191,7 @@ export default async function ShipmentsPage({
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right text-xs text-gray-400">
-                      {new Date(s.created_at).toLocaleDateString('ms-MY', {
+                      {new Date(s.created_at).toLocaleDateString('en-MY', {
                         day: 'numeric', month: 'short', year: 'numeric',
                       })}
                     </td>

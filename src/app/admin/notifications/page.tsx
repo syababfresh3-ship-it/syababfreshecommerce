@@ -7,25 +7,25 @@ import { PushSubscribeButton } from '@/components/store/push-subscribe'
 
 const TEMPLATES = [
   {
-    label: 'Promosi Baru',
+    label: 'Promotions New',
     icon: Megaphone,
     color: 'bg-red-50 text-red-600 border-red-200',
     title: 'Tawaran Istimewa! 🎉',
-    body: 'Jangan lepaskan promosi terhad hari ini. Beli sekarang!',
+    body: 'Jangan lepaskan promotions terhad hari ini. Beli sekarang!',
   },
   {
-    label: 'Restock Produk',
+    label: 'Restock Product',
     icon: Package,
     color: 'bg-green-50 text-green-600 border-green-200',
-    title: 'Stok Baru Tiba! 🍍',
-    body: 'Produk kegemaran anda kini tersedia semula. Pesan sebelum habis!',
+    title: 'Stock New Tiba! 🍍',
+    body: 'Product kegemaran anda kini tersedia semula. Pesan sebelum habis!',
   },
   {
-    label: 'Peringatan Pesanan',
+    label: 'Peringatan Orders',
     icon: ShoppingBag,
     color: 'bg-blue-50 text-blue-600 border-blue-200',
     title: 'Jangan Lupa Pesan 🛒',
-    body: 'Buah segar menunggu anda. Pesan hari ini untuk penghantaran esok!',
+    body: 'Buah segar menunggu anda. Pesan hari ini untuk pengsendan esok!',
   },
 ]
 
@@ -42,8 +42,8 @@ export default function AdminNotificationsPage() {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.title || !form.body) { toast.error('Tajuk dan mesej wajib diisi'); return }
-    if (!confirm(`Hantar notifikasi ke SEMUA pelanggan yang langgan?\n\n"${form.title}"`)) return
+    if (!form.title || !form.body) { toast.error('Title dan mesej wajib diisi'); return }
+    if (!confirm(`Send notifications ke SEMUA customer yang langgan?\n\n"${form.title}"`)) return
 
     setLoading(true)
     setLastResult(null)
@@ -59,12 +59,12 @@ export default function AdminNotificationsPage() {
     try { data = JSON.parse(text) } catch { /* empty body */ }
 
     if (!res.ok) {
-      toast.error(data.error ?? 'Gagal hantar notifikasi')
+      toast.error(data.error ?? 'Failed send notifications')
     } else if (data.skipped) {
-      toast.info('Tiada pelanggan yang langgan notifikasi')
+      toast.info('No customer yang langgan notifications')
     } else {
       setLastResult({ sent: data.sent, total: data.total })
-      toast.success(`Notifikasi dihantar ke ${data.sent} peranti`)
+      toast.success(`Notifications disend ke ${data.sent} peranti`)
     }
     setLoading(false)
   }
@@ -72,15 +72,15 @@ export default function AdminNotificationsPage() {
   return (
     <div className="p-4 md:p-6 max-w-2xl space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Broadcast Notifikasi</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Hantar push notification ke semua pelanggan yang aktif</p>
+        <h1 className="text-xl font-bold text-gray-900">Broadcast Notifications</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Send push notification ke all customer yang active</p>
       </div>
 
       {/* Admin subscribe panel */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
         <div>
-          <p className="font-semibold text-blue-900 text-sm">Notifikasi Order Baru untuk Admin</p>
-          <p className="text-xs text-blue-600 mt-0.5">Aktifkan supaya dapat push notification bila ada order masuk atau FPX dibayar</p>
+          <p className="font-semibold text-blue-900 text-sm">Notifications Order New untuk Admin</p>
+          <p className="text-xs text-blue-600 mt-0.5">Activekan supaya dapat push notification bila ada order masuk atau FPX dibayar</p>
         </div>
         <PushSubscribeButton />
       </div>
@@ -111,10 +111,10 @@ export default function AdminNotificationsPage() {
 
       {/* Form */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <h2 className="font-bold text-gray-900 mb-4">Tulis Notifikasi</h2>
+        <h2 className="font-bold text-gray-900 mb-4">Tulis Notifications</h2>
         <form onSubmit={handleSend} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tajuk *</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Title *</label>
             <input
               value={form.title}
               onChange={e => { setForm(p => ({ ...p, title: e.target.value })); setActiveTemplate(null) }}
@@ -129,7 +129,7 @@ export default function AdminNotificationsPage() {
               rows={3}
               value={form.body}
               onChange={e => { setForm(p => ({ ...p, body: e.target.value })); setActiveTemplate(null) }}
-              placeholder="cth: Jangan lepaskan promosi terhad hari ini..."
+              placeholder="cth: Jangan lepaskan promotions terhad hari ini..."
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
             />
           </div>
@@ -147,7 +147,7 @@ export default function AdminNotificationsPage() {
           {/* Live preview */}
           {(form.title || form.body) && (
             <div className="bg-gray-900 rounded-2xl p-4">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3 font-semibold">Preview Notifikasi</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-3 font-semibold">Preview Notifications</p>
               <div className="bg-white/10 rounded-xl px-4 py-3 flex items-start gap-3">
                 <div className="bg-red-600 p-2 rounded-lg shrink-0">
                   <Bell className="h-4 w-4 text-white" />
@@ -166,7 +166,7 @@ export default function AdminNotificationsPage() {
             className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {loading ? 'Menghantar...' : 'Hantar ke Semua Pelanggan'}
+            {loading ? 'Mengsend...' : 'Send ke All Customer'}
           </button>
         </form>
       </div>
@@ -178,9 +178,9 @@ export default function AdminNotificationsPage() {
             <Users className="h-5 w-5 text-green-600" />
           </div>
           <div>
-            <p className="text-sm font-bold text-green-800">Berjaya dihantar!</p>
+            <p className="text-sm font-bold text-green-800">Success disend!</p>
             <p className="text-xs text-green-600 mt-0.5">
-              {lastResult.sent} daripada {lastResult.total} peranti menerima notifikasi
+              {lastResult.sent} daripada {lastResult.total} peranti menerima notifications
             </p>
           </div>
           <button onClick={() => setLastResult(null)} className="ml-auto text-green-400 hover:text-green-600">

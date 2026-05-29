@@ -36,11 +36,11 @@ export default function TeamPage() {
 
   async function addStaff() {
     if (!form.full_name.trim() || !form.email.trim()) {
-      toast.error('Nama dan email wajib diisi')
+      toast.error('Name dan email wajib diisi')
       return
     }
     if (!form.password || form.password.length < 8) {
-      toast.error('Kata laluan minimum 8 karakter')
+      toast.error('Password minimum 8 karakter')
       return
     }
     setSubmitting(true)
@@ -51,9 +51,9 @@ export default function TeamPage() {
     })
     const data = await res.json()
     if (!res.ok) {
-      toast.error(data.error ?? 'Gagal tambah staf')
+      toast.error(data.error ?? 'Failed tambah staf')
     } else {
-      toast.success(`${form.full_name} berjaya ditambah sebagai admin`)
+      toast.success(`${form.full_name} success ditambah sebagai admin`)
       setForm({ full_name: '', email: '', phone: '', password: '' })
       setShowForm(false)
       await load()
@@ -66,7 +66,7 @@ export default function TeamPage() {
     setRemoving(member.id)
     const res = await fetch(`/api/admin/team/${member.id}`, { method: 'DELETE' })
     if (!res.ok) {
-      toast.error('Gagal tarik akses')
+      toast.error('Failed tarik akses')
     } else {
       toast.success(`Akses admin ${member.full_name ?? member.email} ditarik`)
       setStaff(prev => prev.filter(s => s.id !== member.id))
@@ -82,7 +82,7 @@ export default function TeamPage() {
             <Users className="h-5 w-5 text-indigo-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Pengguna Admin</h1>
+            <h1 className="text-xl font-bold text-gray-900">User Admin</h1>
             <p className="text-sm text-gray-400 mt-0.5">{staff.length} staf mempunyai akses admin</p>
           </div>
         </div>
@@ -91,27 +91,27 @@ export default function TeamPage() {
           className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-colors"
         >
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? 'Batal' : 'Tambah Staf'}
+          {showForm ? 'Batal' : 'Add Staf'}
         </button>
       </div>
 
       {/* Add staff form */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5 space-y-4">
-          <p className="font-semibold text-gray-900 text-sm">Akaun Admin Baru</p>
+          <p className="font-semibold text-gray-900 text-sm">Akaun Admin New</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nama Penuh *</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Name Penuh *</label>
               <input
                 type="text"
                 value={form.full_name}
                 onChange={e => setForm(v => ({ ...v, full_name: e.target.value }))}
-                placeholder="Nama staf"
+                placeholder="Name staf"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">No. Telefon</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">No. Phone</label>
               <input
                 type="tel"
                 value={form.phone}
@@ -152,7 +152,7 @@ export default function TeamPage() {
           </div>
           <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
             <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
-            <p className="text-xs text-indigo-700">Akaun ini akan mempunyai akses penuh ke semua halaman admin.</p>
+            <p className="text-xs text-indigo-700">Akaun ini akan mempunyai akses penuh ke all halaman admin.</p>
           </div>
           <button
             onClick={addStaff}
@@ -173,7 +173,7 @@ export default function TeamPage() {
       ) : staff.length === 0 ? (
         <div className="text-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-100">
           <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-semibold">Tiada staf admin lagi</p>
+          <p className="font-semibold">No staf admin lagi</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -204,7 +204,7 @@ export default function TeamPage() {
       )}
 
       <p className="text-xs text-gray-400 mt-6 text-center">
-        Menarik akses tidak memadam akaun — staf masih boleh log masuk sebagai pelanggan biasa.
+        Menarik akses tidak memadam akaun — staf masih boleh log masuk sebagai customer biasa.
       </p>
     </div>
   )

@@ -20,12 +20,11 @@ async function getStats() {
     allRevenue, todayOrders, todayRevenue,
     totalOrders, activeProducts, customers,
     pendingOrders, pendingRefunds, lowStock,
+    lpTodayOrders, lpTodayRevenue, lpTotalOrders,
   ] = await Promise.all([
     supabase.from('orders').select('total').eq('payment_status', 'paid').gte('created_at', yearStart.toISOString()),
-    supabase.from('orders').select('id', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString()),
-    supabase.from('orders').select('total')
-      .eq('payment_status', 'paid').gte('created_at', todayStart.toISOString()),
+    supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+    supabase.from('orders').select('total').eq('payment_status', 'paid').gte('created_at', todayStart.toISOString()),
     supabase.from('orders').select('id', { count: 'exact', head: true }),
     supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_admin', false),
@@ -36,15 +35,18 @@ async function getStats() {
       .limit(5),
     supabase.from('orders').select('id', { count: 'exact', head: true })
       .eq('status', 'cancelled').eq('payment_status', 'paid'),
-    supabase.from('product_stock').select('product_id, available_stock')
-      .lt('available_stock', 5),
+    supabase.from('product_stock').select('product_id, available_stock').lt('available_stock', 5),
+    supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
+    supabase.from('lp_guest_orders').select('total').eq('status', 'confirmed').gte('created_at', todayStart.toISOString()),
+    supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }),
   ])
 
   return {
     revenue: allRevenue.data?.reduce((s, o) => s + Number(o.total), 0) ?? 0,
-    todayRevenue: todayRevenue.data?.reduce((s, o) => s + Number(o.total), 0) ?? 0,
-    todayOrders: todayOrders.count ?? 0,
-    totalOrders: totalOrders.count ?? 0,
+    todayRevenue: (todayRevenue.data?.reduce((s, o) => s + Number(o.total), 0) ?? 0) +
+                  (lpTodayRevenue.data?.reduce((s, o) => s + Number(o.total), 0) ?? 0),
+    todayOrders: (todayOrders.count ?? 0) + (lpTodayOrders.count ?? 0),
+    totalOrders: (totalOrders.count ?? 0) + (lpTotalOrders.count ?? 0),
     products: activeProducts.count ?? 0,
     customers: customers.count ?? 0,
     urgentPending: pendingOrders.data ?? [],
@@ -80,13 +82,13 @@ function timeAgo(date: string) {
 }
 
 const statusConfig: Record<string, { label: string; cls: string }> = {
-  pending:    { label: 'Menunggu',    cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  confirmed:  { label: 'Disahkan',   cls: 'bg-blue-100 text-blue-700 border-blue-200' },
-  preparing:  { label: 'Disediakan', cls: 'bg-purple-100 text-purple-700 border-purple-200' },
-  delivering: { label: 'Dihantar',   cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+  pending:    { label: 'Pending',    cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  confirmed:  { label: 'Confirmed',   cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  preparing:  { label: 'Preparing', cls: 'bg-purple-100 text-purple-700 border-purple-200' },
+  delivering: { label: 'Shipped',   cls: 'bg-orange-100 text-orange-700 border-orange-200' },
   delivered:  { label: 'Selesai',    cls: 'bg-green-100 text-green-700 border-green-200' },
-  cancelled:  { label: 'Dibatal',    cls: 'bg-red-100 text-red-600 border-red-200' },
-  refunded:   { label: 'Dibayar Balik', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+  cancelled:  { label: 'Cancelled',    cls: 'bg-red-100 text-red-600 border-red-200' },
+  refunded:   { label: 'Refunded', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
 }
 
 export default async function AdminDashboard() {
@@ -110,7 +112,7 @@ export default async function AdminDashboard() {
               <Link href="/admin/fulfillment"
                 className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm">
                 <Clock className="h-3.5 w-3.5" />
-                {stats.urgentPending.length} pesanan menunggu &gt;10 minit
+                {stats.urgentPending.length} orders menunggu &gt;10 minit
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
@@ -126,7 +128,7 @@ export default async function AdminDashboard() {
               <Link href="/admin/inventory"
                 className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm">
                 <Package className="h-3.5 w-3.5" />
-                {stats.lowStockCount} produk stok rendah
+                {stats.lowStockCount} product stock rendah
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             )}
@@ -137,7 +139,7 @@ export default async function AdminDashboard() {
       {/* STATS */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
-          label="Pesanan Hari Ini"
+          label="Orders Hari Ini"
           value={stats.todayOrders.toString()}
           sub={`${stats.totalOrders} keseluruhan`}
           icon={ShoppingBag}
@@ -146,18 +148,18 @@ export default async function AdminDashboard() {
         <StatCard
           label="Jualan Hari Ini"
           value={`RM${stats.todayRevenue.toFixed(2)}`}
-          sub={`RM${stats.revenue.toLocaleString('ms-MY', { minimumFractionDigits: 2 })} tahun ini`}
+          sub={`RM${stats.revenue.toLocaleString('en-MY', { minimumFractionDigits: 2 })} tahun ini`}
           icon={Banknote}
           gradient="from-emerald-500 to-emerald-600"
         />
         <StatCard
-          label="Produk Aktif"
+          label="Product Active"
           value={stats.products.toString()}
           icon={Package}
           gradient="from-orange-500 to-orange-600"
         />
         <StatCard
-          label="Pelanggan"
+          label="Customer"
           value={stats.customers.toString()}
           icon={Users}
           gradient="from-violet-500 to-violet-600"
@@ -170,19 +172,19 @@ export default async function AdminDashboard() {
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/fulfillment"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-gray-900 text-white hover:bg-gray-800 transition-colors shadow-sm">
-            <ClipboardList className="h-4 w-4" /> Buka Fulfillment
+            <ClipboardList className="h-4 w-4" /> Open Fulfillment
           </Link>
           <Link href="/admin/orders"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
-            <ShoppingBag className="h-4 w-4" /> Senarai Pesanan
+            <ShoppingBag className="h-4 w-4" /> Senarai Orders
           </Link>
           <Link href="/admin/products/new"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
-            <Plus className="h-4 w-4" /> Tambah Produk
+            <Plus className="h-4 w-4" /> Add Product
           </Link>
           <Link href="/admin/inventory"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors">
-            <Package className="h-4 w-4" /> Tambah Stok
+            <Package className="h-4 w-4" /> Add Stock
           </Link>
         </div>
       </div>
@@ -190,14 +192,14 @@ export default async function AdminDashboard() {
       {/* RECENT ORDERS */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-bold text-gray-900">Pesanan Terkini</h2>
+          <h2 className="font-bold text-gray-900">Orders Terkini</h2>
           <Link href="/admin/orders" className="text-xs text-red-600 hover:underline font-semibold flex items-center gap-1">
-            Lihat semua <ArrowRight className="h-3 w-3" />
+            Lihat all <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <div className="divide-y divide-gray-50">
           {recentOrders.length === 0 ? (
-            <p className="px-5 py-10 text-center text-gray-400 text-sm">Tiada pesanan lagi</p>
+            <p className="px-5 py-10 text-center text-gray-400 text-sm">No orders lagi</p>
           ) : (
             recentOrders.map((order: any) => {
               const sc = statusConfig[order.status] ?? { label: order.status, cls: 'bg-gray-100 text-gray-600 border-gray-200' }
@@ -209,7 +211,7 @@ export default async function AdminDashboard() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
                       {isUnpaid && (
-                        <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Belum Bayar</span>
+                        <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full">Unpaid</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-800 font-medium truncate">{order.profiles?.full_name ?? '—'}</p>

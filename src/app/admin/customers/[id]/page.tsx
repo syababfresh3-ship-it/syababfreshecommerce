@@ -10,37 +10,34 @@ async function getCustomer(id: string) {
   const supabase = createClient()
 
   const [profileRes, ordersRes, addressesRes, loyaltyRes] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('*, loyalty_tiers(name, multiplier)')
-      .eq('id', id)
-      .single(),
-    supabase
-      .from('orders')
-      .select('id, order_number, status, total, payment_status, created_at')
-      .eq('user_id', id)
-      .order('created_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('addresses')
-      .select('*')
-      .eq('user_id', id)
-      .order('is_default', { ascending: false }),
-    supabase
-      .from('loyalty_transactions')
-      .select('id, points, type, description, created_at')
-      .eq('user_id', id)
-      .order('created_at', { ascending: false })
-      .limit(30),
+    supabase.from('profiles').select('*, loyalty_tiers(name, multiplier)').eq('id', id).single(),
+    supabase.from('orders').select('id, order_number, status, total, payment_status, created_at').eq('user_id', id).order('created_at', { ascending: false }).limit(50),
+    supabase.from('addresses').select('*').eq('user_id', id).order('is_default', { ascending: false }),
+    supabase.from('loyalty_transactions').select('id, points, type, description, created_at').eq('user_id', id).order('created_at', { ascending: false }).limit(30),
   ])
 
   if (!profileRes.data) return null
+
+  // Fetch LP orders matched by phone
+  let lpOrders: any[] = []
+  if (profileRes.data.phone) {
+    const phone = profileRes.data.phone
+    const normalized = phone.replace(/\D/g, '').replace(/^0/, '6').replace(/^(?!60)/, '60')
+    const variants = [phone, normalized, phone.replace(/^0/, ''), '0' + normalized.slice(2)]
+    const { data: lpRes } = await supabase
+      .from('lp_guest_orders')
+      .select('id, order_number, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
+      .in('phone', [...new Set(variants)])
+      .order('created_at', { ascending: false })
+    lpOrders = lpRes ?? []
+  }
 
   return {
     profile: profileRes.data,
     orders: ordersRes.data ?? [],
     addresses: addressesRes.data ?? [],
     loyaltyTx: loyaltyRes.data ?? [],
+    lpOrders,
   }
 }
 
@@ -55,8 +52,8 @@ const statusStyles: Record<string, string> = {
 }
 
 const statusLabel: Record<string, string> = {
-  pending: 'Menunggu', confirmed: 'Disahkan', preparing: 'Disediakan',
-  delivering: 'Dihantar', delivered: 'Selesai', cancelled: 'Dibatal', refunded: 'Dibayar Balik',
+  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+  delivering: 'Shipped', delivered: 'Selesai', cancelled: 'Cancelled', refunded: 'Refunded',
 }
 
 const TIER_CONFIG: Record<string, { cls: string; icon: typeof Leaf }> = {
@@ -66,10 +63,10 @@ const TIER_CONFIG: Record<string, { cls: string; icon: typeof Leaf }> = {
 }
 
 const TX_TYPE_CONFIG: Record<string, { label: string; cls: string; sign: string }> = {
-  earn:       { label: 'Diperoleh',  cls: 'text-green-600',  sign: '+' },
-  redeem:     { label: 'Ditukar',    cls: 'text-orange-600', sign: '-' },
-  adjustment: { label: 'Laras',      cls: 'text-blue-600',   sign: '' },
-  expire:     { label: 'Luput',      cls: 'text-red-500',    sign: '-' },
+  earn:       { label: 'Earned',  cls: 'text-green-600',  sign: '+' },
+  redeem:     { label: 'Redeemed',    cls: 'text-orange-600', sign: '-' },
+  adjustment: { label: 'Adjusted',      cls: 'text-blue-600',   sign: '' },
+  expire:     { label: 'Expired',      cls: 'text-red-500',    sign: '-' },
 }
 
 const AVATAR_COLORS = [
@@ -86,7 +83,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const data = await getCustomer(id)
   if (!data) notFound()
 
-  const { profile, orders, addresses, loyaltyTx } = data
+  const { profile, orders, addresses, loyaltyTx, lpOrders } = data
   const tierName = (profile.loyalty_tiers as any)?.name ?? 'Hijau'
   const multiplier = (profile.loyalty_tiers as any)?.multiplier ?? 1
   const completedOrders = orders.filter((o: any) => o.status === 'delivered')
@@ -125,7 +122,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           {initials}
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 leading-tight">{profile.full_name ?? 'Tanpa Nama'}</h1>
+          <h1 className="text-xl font-bold text-gray-900 leading-tight">{profile.full_name ?? 'No Name'}</h1>
           <p className="text-xs text-gray-400">{profile.email ?? '—'}</p>
         </div>
         <span className={`ml-2 inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${tierConfig.cls}`}>
@@ -142,7 +139,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1">
             <ShoppingBag className="h-3.5 w-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Pesanan</span>
+            <span className="text-xs text-gray-500">Orders</span>
           </div>
           <span className="text-xl font-black text-gray-900">{deliveredOrders.length}</span>
           <span className="text-xs text-gray-400 ml-1">/ {totalOrders} total</span>
@@ -150,7 +147,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="h-3.5 w-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Avg Pesanan</span>
+            <span className="text-xs text-gray-500">Avg Orders</span>
           </div>
           <span className="text-xl font-black text-gray-900">
             {avgOrderValue !== null ? `RM${avgOrderValue.toFixed(0)}` : '—'}
@@ -159,23 +156,23 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1">
             <Clock className="h-3.5 w-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Order Terakhir</span>
+            <span className="text-xs text-gray-500">Last Order</span>
           </div>
           <span className="text-sm font-bold text-gray-900">
             {lastOrderAt
-              ? new Date(lastOrderAt).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+              ? new Date(lastOrderAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
               : '—'}
           </span>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1">
             <Calendar className="h-3.5 w-3.5 text-gray-400" />
-            <span className="text-xs text-gray-500">Frekuensi</span>
+            <span className="text-xs text-gray-500">Frequency</span>
           </div>
           <span className="text-xl font-black text-gray-900">
             {orderFreq ?? '—'}
           </span>
-          {orderFreq && <span className="text-xs text-gray-400 ml-1">pesanan/bulan</span>}
+          {orderFreq && <span className="text-xs text-gray-400 ml-1">orders/bulan</span>}
         </div>
       </div>
 
@@ -184,7 +181,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div className="lg:col-span-1 space-y-4">
           {/* Profile info */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Maklumat</h2>
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Details</h2>
             <div className="space-y-2.5">
               <div className="flex items-center gap-2.5 text-sm">
                 <Mail className="h-3.5 w-3.5 text-gray-400 shrink-0" />
@@ -197,7 +194,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
               <div className="flex items-center gap-2.5 text-sm">
                 <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                 <span className="text-gray-700 text-xs">
-                  Daftar {new Date(profile.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  Registered {new Date(profile.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                   <span className="text-gray-400"> · {daysSinceJoin} hari lepas</span>
                 </span>
               </div>
@@ -209,11 +206,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             <h2 className="text-sm font-bold text-gray-900 mb-3">Loyalty</h2>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Mata terkumpul</span>
+                <span className="text-xs text-gray-500">Points earned</span>
                 <span className="text-sm font-bold text-gray-900">{(profile.total_points ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Jumlah belanja</span>
+                <span className="text-xs text-gray-500">Total spend</span>
                 <span className="text-sm font-bold text-gray-900">RM{Number(profile.total_spend ?? 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
@@ -221,7 +218,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 <span className="text-sm font-bold text-amber-600">{multiplier}x</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Pesanan selesai</span>
+                <span className="text-xs text-gray-500">Completed orders</span>
                 <span className="text-sm font-bold text-gray-900">{completedOrders.length} / {totalOrders}</span>
               </div>
             </div>
@@ -234,7 +231,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           {loyaltyTx.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                <Star className="h-3.5 w-3.5 text-amber-400" /> Transaksi Mata
+                <Star className="h-3.5 w-3.5 text-amber-400" /> Points History
               </h2>
               <div className="space-y-2">
                 {loyaltyTx.map((tx: any) => {
@@ -245,7 +242,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                       <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-700 truncate">{tx.description}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">
-                          {new Date(tx.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(tx.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                           <span className={`ml-2 font-semibold ${cfg.cls}`}>{cfg.label}</span>
                         </p>
                       </div>
@@ -263,14 +260,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           {addresses.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-gray-400" /> Alamat
+                <MapPin className="h-3.5 w-3.5 text-gray-400" /> Address
               </h2>
               <div className="space-y-3">
                 {addresses.map((addr: any) => (
                   <div key={addr.id} className="text-xs text-gray-600 leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5">
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="font-semibold text-gray-800">{addr.label}</span>
-                      {addr.is_default && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Utama</span>}
+                      {addr.is_default && <span className="text-[10px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">Default</span>}
                     </div>
                     <p className="text-gray-500">{addr.full_address}</p>
                     {(addr.postcode || addr.city) && (
@@ -284,29 +281,80 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         </div>
 
         {/* Orders */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
+          {/* LP Orders */}
+          {lpOrders.length > 0 && (
+            <div className="bg-white rounded-2xl border border-rose-100 shadow-sm">
+              <div className="px-5 py-4 border-b border-rose-100 flex items-center gap-2 bg-rose-50 rounded-t-2xl">
+                <span className="text-base">📄</span>
+                <h2 className="font-bold text-gray-900">Landing Page Orders</h2>
+                <span className="ml-auto text-xs text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full font-semibold">{lpOrders.length} orders</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[480px]">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Campaign</th>
+                      <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {lpOrders.map((o: any) => {
+                      const items: any[] = Array.isArray(o.items) && o.items.length > 0 ? o.items : [{ product_name: o.product_name, variant_name: o.variant_name, quantity: o.quantity }]
+                      return (
+                        <tr key={o.id} className="hover:bg-gray-50/80">
+                          <td className="px-5 py-3">
+                            <p className="font-mono text-xs text-rose-600 font-semibold">{o.order_number}</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">
+                              {items.map((i: any) => `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} ×${i.quantity}`).join(', ')}
+                            </p>
+                          </td>
+                          <td className="px-5 py-3 text-xs text-gray-500">{(o.landing_pages as any)?.title ?? '—'}</td>
+                          <td className="px-5 py-3 text-center">
+                            <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                              o.status === 'confirmed' ? 'bg-green-50 text-green-700 border-green-200' :
+                              o.status === 'cancelled' ? 'bg-red-50 text-red-600 border-red-200' :
+                              'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            }`}>{o.status}</span>
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold text-gray-900">RM{Number(o.total).toFixed(2)}</td>
+                          <td className="px-5 py-3 text-right text-xs text-gray-400">
+                            {new Date(o.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <ShoppingBag className="h-4 w-4 text-gray-400" />
-              <h2 className="font-bold text-gray-900">Sejarah Pesanan</h2>
-              <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{totalOrders} pesanan</span>
+              <h2 className="font-bold text-gray-900">Order History</h2>
+              <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{totalOrders} orders</span>
             </div>
 
             {orders.length === 0 ? (
               <div className="px-5 py-12 text-center text-gray-400 text-sm">
                 <ShoppingBag className="h-8 w-8 text-gray-200 mx-auto mb-2" />
-                Tiada pesanan lagi
+                No orders yet
               </div>
             ) : (
               <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[480px]">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Pesanan</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Orders</th>
                     <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Bayaran</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarikh</th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -325,14 +373,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span className={`text-xs font-semibold ${order.payment_status === 'paid' ? 'text-green-600' : 'text-gray-400'}`}>
-                          {order.payment_status === 'paid' ? 'Dibayar' : 'Belum Bayar'}
+                          {order.payment_status === 'paid' ? 'Paid' : 'Unpaid'}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-right font-bold text-gray-900">
                         RM{Number(order.total).toFixed(2)}
                       </td>
                       <td className="px-5 py-3 text-right text-gray-400 text-xs">
-                        {new Date(order.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short' })}
+                        {new Date(order.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
                       </td>
                     </tr>
                   ))}

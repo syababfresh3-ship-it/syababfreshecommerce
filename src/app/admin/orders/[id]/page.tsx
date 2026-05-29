@@ -25,19 +25,19 @@ async function getOrder(id: string) {
 }
 
 const statusLabel: Record<string, string> = {
-  pending:    'Menunggu',
-  confirmed:  'Disahkan',
-  preparing:  'Disediakan',
-  delivering: 'Dihantar',
-  delivered:  'Selesai',
-  cancelled:  'Dibatal',
-  refunded:   'Dibayar Balik',
+  pending:    'Pending',
+  confirmed:  'Confirmed',
+  preparing:  'Preparing',
+  delivering: 'Shipped',
+  delivered:  'Delivered',
+  cancelled:  'Cancelled',
+  refunded:   'Refunded',
 }
 
 const paymentMethodLabel: Record<string, string> = {
   fpx: 'FPX',
   ewallet: 'E-Wallet',
-  cod: 'Bayar Semasa Terima',
+  cod: 'Cash On Delivery',
   bank_transfer: 'Pindahan Bank',
 }
 
@@ -53,7 +53,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div>
           <h1 className="text-xl font-bold text-gray-900">{order.order_number}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {new Date(order.created_at).toLocaleString('ms-MY')}
+            {new Date(order.created_at).toLocaleString('en-MY')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -67,14 +67,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {/* Customer Info */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">Maklumat Pelanggan</h2>
+          <h2 className="font-semibold text-gray-900 mb-3">Customer Details</h2>
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">Nama</dt>
+              <dt className="text-gray-500">Name</dt>
               <dd className="text-gray-900 font-medium">{order.profiles?.full_name ?? '—'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">Telefon</dt>
+              <dt className="text-gray-500">Phone</dt>
               <dd className="text-gray-900">{order.profiles?.phone ?? '—'}</dd>
             </div>
             <div className="flex justify-between">
@@ -86,14 +86,14 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
         {/* Payment Info */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h2 className="font-semibold text-gray-900 mb-3">Maklumat Bayaran</h2>
+          <h2 className="font-semibold text-gray-900 mb-3">Payment Details</h2>
           <dl className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <dt className="text-gray-500">Kaedah</dt>
               <dd className="text-gray-900">{paymentMethodLabel[order.payment_method] ?? order.payment_method}</dd>
             </div>
             <div className="flex justify-between items-center">
-              <dt className="text-gray-500">Status Bayaran</dt>
+              <dt className="text-gray-500">Status Payment</dt>
               <dd>
                 <PaymentToggle
                   orderId={order.id}
@@ -116,7 +116,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       {/* Delivery Address + Slot */}
       {(order.delivery_address || order.delivery_slot) && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-4">
-          <h2 className="font-semibold text-gray-900 mb-2">Penghantaran</h2>
+          <h2 className="font-semibold text-gray-900 mb-2">Pengsendan</h2>
           {order.delivery_slot && (
             <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">🕐 {order.delivery_slot}</p>
           )}
@@ -136,7 +136,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       {/* Order Items */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm mb-4">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Item Pesanan</h2>
+          <h2 className="font-semibold text-gray-900">Item Orders</h2>
         </div>
 
         {/* Mobile list */}
@@ -158,8 +158,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <table className="hidden sm:table w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500">Produk</th>
-              <th className="px-5 py-2.5 text-right text-xs font-medium text-gray-500">Harga</th>
+              <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500">Product</th>
+              <th className="px-5 py-2.5 text-right text-xs font-medium text-gray-500">Price</th>
               <th className="px-5 py-2.5 text-right text-xs font-medium text-gray-500">Kuantiti</th>
               <th className="px-5 py-2.5 text-right text-xs font-medium text-gray-500">Subtotal</th>
             </tr>
@@ -183,7 +183,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <span>RM{Number(order.subtotal).toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
-            <span>Penghantaran</span>
+            <span>Pengsendan</span>
             <span>{Number(order.delivery_fee) === 0 ? 'Percuma' : `RM${Number(order.delivery_fee).toFixed(2)}`}</span>
           </div>
           {Number(order.discount) > 0 && (
@@ -199,7 +199,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             </div>
           )}
           <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-100">
-            <span>Jumlah</span>
+            <span>Total</span>
             <span>RM{Number(order.total).toFixed(2)}</span>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       {/* Notes */}
       {order.notes && (
         <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-gray-700">
-          <span className="font-medium">Nota pelanggan: </span>{order.notes}
+          <span className="font-medium">Customer note: </span>{order.notes}
         </div>
       )}
     </div>

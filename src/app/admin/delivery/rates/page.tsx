@@ -67,7 +67,7 @@ export default function DeliveryRatesPage() {
         carrier_id: editCarriers[areaName] || null,
       }),
     })
-    if (!res.ok) toast.error('Gagal simpan')
+    if (!res.ok) toast.error('Failed save')
     else {
       toast.success(`${areaName} dikemas kini`)
       setAreas(prev => prev.map(a =>
@@ -88,7 +88,7 @@ export default function DeliveryRatesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ default_fee: fee }),
     })
-    if (!res.ok) toast.error('Gagal simpan')
+    if (!res.ok) toast.error('Failed save')
     else toast.success(`Kadar lalai → RM${fee.toFixed(2)}`)
     setSaving(null)
   }
@@ -130,7 +130,7 @@ export default function DeliveryRatesPage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Kos Penghantaran</h1>
+          <h1 className="text-xl font-bold text-gray-900">Kos Pengsendan</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             {areas.length} kawasan · set kos & kurier mengikut kawasan
           </p>
@@ -142,7 +142,7 @@ export default function DeliveryRatesPage() {
         <div className="flex flex-wrap gap-2 mb-5">
           {Object.entries(feeGroups).sort(([a], [b]) => Number(a) - Number(b)).map(([fee, count]) => (
             <span key={fee} className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
-              RM{Number(fee).toFixed(2)} — {count} poskod
+              RM{Number(fee).toFixed(2)} — {count} postcode
             </span>
           ))}
           {Object.entries(carrierGroups).map(([cid, count]) => {
@@ -166,7 +166,7 @@ export default function DeliveryRatesPage() {
               Kos Lalai
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
-              Dipakai untuk poskod yang tiada dalam senarai kawasan
+              Dipakai untuk postcode yang tiada dalam senarai kawasan
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -185,7 +185,7 @@ export default function DeliveryRatesPage() {
               className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white text-xs font-medium rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {saving === '__default__' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Simpan
+              Save
             </button>
           </div>
         </div>
@@ -194,14 +194,14 @@ export default function DeliveryRatesPage() {
       {/* Search + Zone filter */}
       <input
         type="text"
-        placeholder="Cari kawasan... (cth: Bangi, Kajang, Shah Alam)"
+        placeholder="Search kawasan... (cth: Bangi, Kajang, Shah Alam)"
         value={search}
         onChange={e => { setSearch(e.target.value); setPage(1) }}
         className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-red-500"
       />
 
       <div className="flex gap-1.5 mb-4">
-        {([['all', 'Semua'], ['kl', 'Lembah Klang'], ['luar', 'Luar KL']] as const).map(([val, label]) => (
+        {([['all', 'All'], ['kl', 'Lembah Klang'], ['luar', 'Luar KL']] as const).map(([val, label]) => (
           <button
             key={val}
             onClick={() => { setZone(val); setPage(1) }}
@@ -233,7 +233,7 @@ export default function DeliveryRatesPage() {
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-center text-gray-400 py-12 text-sm">
-            {search ? `Tiada kawasan sepadan "${search}"` : 'Tiada kawasan'}
+            {search ? `No kawasan sepadan "${search}"` : 'No kawasan'}
           </p>
         ) : (
           <table className="w-full text-sm">
@@ -273,7 +273,7 @@ export default function DeliveryRatesPage() {
                           onChange={e => setEditCarriers(prev => ({ ...prev, [area.area_name]: e.target.value }))}
                           className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-500 w-36"
                         >
-                          <option value="">— Tiada —</option>
+                          <option value="">— No —</option>
                           {carriers.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
@@ -305,7 +305,7 @@ export default function DeliveryRatesPage() {
                           className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors ml-auto"
                         >
                           {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                          Simpan
+                          Save
                         </button>
                       )}
                     </td>
@@ -363,7 +363,7 @@ export default function DeliveryRatesPage() {
       )}
 
       <p className="text-xs text-gray-400 mt-4 text-center leading-relaxed">
-        Semua poskod dalam kawasan yang sama dikemas kini serentak.
+        All postcode dalam kawasan yang sama dikemas kini serentak.
       </p>
     </div>
   )

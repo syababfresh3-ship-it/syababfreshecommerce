@@ -29,7 +29,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
   async function save() {
     if (!shipment && !carrierId) {
-      toast.error('Sila pilih kurier')
+      toast.error('Please select kurier')
       return
     }
 
@@ -61,9 +61,9 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      toast.error(err.error ?? 'Gagal simpan penghantaran')
+      toast.error(err.error ?? 'Failed save pengsendan')
     } else {
-      toast.success(shipment ? 'Penghantaran dikemaskini' : 'Penghantaran dibuat')
+      toast.success(shipment ? 'Pengsendan diupdate' : 'Pengsendan dibuat')
       setIsEditing(false)
       if (!shipment) {
         const newShipment = await res.json()
@@ -96,14 +96,14 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
           <Truck className="h-4 w-4 text-gray-400" />
-          Penghantaran
+          Pengsendan
         </h2>
         {shipment && !isEditing && (
           <button
             onClick={startEdit}
             className="text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 px-2.5 py-1 rounded-lg transition-colors"
           >
-            Kemaskini
+            Update
           </button>
         )}
       </div>
@@ -124,7 +124,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
                   rel="noopener noreferrer"
                   className="text-orange-500 hover:text-orange-700 flex items-center gap-1 text-xs font-semibold"
                 >
-                  Buka Link <ExternalLink className="h-3 w-3" />
+                  Open Link <ExternalLink className="h-3 w-3" />
                 </a>
               </dd>
             </div>
@@ -148,7 +148,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
           ) : null}
           {shipment.notes && (
             <div className="flex justify-between">
-              <dt className="text-gray-500">Nota</dt>
+              <dt className="text-gray-500">Notes</dt>
               <dd className="text-gray-700 text-right max-w-[220px] text-xs">{shipment.notes}</dd>
             </div>
           )}
@@ -163,7 +163,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
                 onChange={e => setCarrierId(e.target.value)}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="">Pilih kurier...</option>
+                <option value="">Select kurier...</option>
                 {activeCarriers.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -178,7 +178,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
           {isLalamove ? (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Link Penghantaran Lalamove</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Link Pengsendan Lalamove</label>
               <input
                 value={directUrl}
                 onChange={e => setDirectUrl(e.target.value)}
@@ -201,11 +201,11 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Nota (pilihan)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Nota (selectan)</label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Nota tambahan..."
+              placeholder="Additional notes..."
               rows={2}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
             />
@@ -218,7 +218,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
               className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
-              {loading ? 'Menyimpan...' : (shipment ? 'Kemaskini' : 'Buat Penghantaran')}
+              {loading ? 'Menyimpan...' : (shipment ? 'Update' : 'Buat Pengsendan')}
             </button>
             {shipment && (
               <button

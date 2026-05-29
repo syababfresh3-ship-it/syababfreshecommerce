@@ -40,7 +40,7 @@ export default function PaymentsPage() {
   async function toggle(method: PaymentMethod) {
     const activeCount = methods.filter(m => m.is_active).length
     if (method.is_active && activeCount <= 1) {
-      toast.error('Sekurang-kurangnya satu kaedah bayaran mesti aktif')
+      toast.error('Sekurang-kurangnya satu kaedah payment mesti active')
       return
     }
 
@@ -52,9 +52,9 @@ export default function PaymentsPage() {
       .eq('id', method.id)
 
     if (error) {
-      toast.error('Gagal kemaskini')
+      toast.error('Failed update')
     } else {
-      toast.success(method.is_active ? `${method.label} dimatikan` : `${method.label} diaktifkan`)
+      toast.success(method.is_active ? `${method.label} dimatikan` : `${method.label} diactivekan`)
       setMethods(prev => prev.map(m => m.id === method.id ? { ...m, is_active: !m.is_active } : m))
     }
     setToggling(null)
@@ -65,9 +65,9 @@ export default function PaymentsPage() {
   return (
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-gray-900">Kaedah Pembayaran</h1>
+        <h1 className="text-xl font-bold text-gray-900">Kaedah Pempayment</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {activeCount} daripada {methods.length} kaedah aktif
+          {activeCount} daripada {methods.length} kaedah active
         </p>
       </div>
 
@@ -75,7 +75,7 @@ export default function PaymentsPage() {
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5 mb-5">
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700 font-medium leading-relaxed">
-            Hanya satu kaedah aktif. Pastikan ia mencukupi sebelum matikan yang lain.
+            Hanya satu kaedah active. Pastikan ia mencukupi sebelum matikan yang lain.
           </p>
         </div>
       )}
@@ -118,7 +118,7 @@ export default function PaymentsPage() {
                       ? 'bg-green-50 text-green-700 border-green-200'
                       : 'bg-gray-50 text-gray-400 border-gray-200'
                   }`}>
-                    {method.is_active ? 'Aktif' : 'Mati'}
+                    {method.is_active ? 'Active' : 'Mati'}
                   </span>
 
                   {/* Toggle switch */}
@@ -147,7 +147,7 @@ export default function PaymentsPage() {
       )}
 
       <p className="text-xs text-gray-400 mt-6 text-center leading-relaxed">
-        Perubahan berkuat kuasa serta-merta — pelanggan hanya nampak kaedah yang aktif semasa checkout.
+        Perubahan berkuat kuasa serta-merta — customer hanya nampak kaedah yang active semasa checkout.
       </p>
     </div>
   )

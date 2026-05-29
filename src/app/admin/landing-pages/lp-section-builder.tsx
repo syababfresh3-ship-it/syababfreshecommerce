@@ -58,7 +58,7 @@ export function LpSectionBuilder({ sections, onChange, pickerProducts = [] }: Pr
       {sections.length === 0 && (
         <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
           <p className="text-sm font-semibold">Belum ada bahagian</p>
-          <p className="text-xs mt-1">Klik "Tambah Bahagian" untuk mula</p>
+          <p className="text-xs mt-1">Klik "Add Bahagian" untuk mula</p>
         </div>
       )}
 
@@ -110,12 +110,12 @@ export function LpSectionBuilder({ sections, onChange, pickerProducts = [] }: Pr
           className="w-full flex items-center justify-center gap-2 py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm font-bold text-gray-500 hover:border-green-400 hover:text-green-600 hover:bg-green-50 transition-all"
         >
           <Plus className="h-4 w-4" />
-          Tambah Bahagian
+          Add Bahagian
         </button>
 
         {showAddMenu && (
           <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl p-3 z-30">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Pilih jenis bahagian</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Select jenis bahagian</p>
             <div className="grid grid-cols-2 gap-1.5">
               {SECTION_TYPES.map(type => {
                 const m = SECTION_META[type]
@@ -153,17 +153,17 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'hero':
       return (
         <>
-          <div><label className={lbl}>Badge (pilihan) — cth: 🇹🇷 Import Turkey</label><input className={inp} value={d.badge || ''} onChange={e => u('badge', e.target.value)} placeholder="🌟 TAWARAN ISTIMEWA" /></div>
+          <div><label className={lbl}>Badge (selectan) — cth: 🇹🇷 Import Turkey</label><input className={inp} value={d.badge || ''} onChange={e => u('badge', e.target.value)} placeholder="🌟 TAWARAN ISTIMEWA" /></div>
           <div><label className={lbl}>Headline Utama *</label><input className={inp} value={d.headline || ''} onChange={e => u('headline', e.target.value)} placeholder="Buah Tin Turkey Premium" /></div>
-          <div><label className={lbl}>Sub-headline (pilihan)</label><input className={inp} value={d.subheadline || ''} onChange={e => u('subheadline', e.target.value)} placeholder="Manis. Segar. Terus Dari Sumber." /></div>
-          <div><label className={lbl}>Teks badan (pilihan)</label><textarea className={ta} rows={3} value={d.body || ''} onChange={e => u('body', e.target.value)} placeholder="Penerangan ringkas produk..." /></div>
+          <div><label className={lbl}>Sub-headline (selectan)</label><input className={inp} value={d.subheadline || ''} onChange={e => u('subheadline', e.target.value)} placeholder="Manis. Segar. Terus Dari Sumber." /></div>
+          <div><label className={lbl}>Teks badan (selectan)</label><textarea className={ta} rows={3} value={d.body || ''} onChange={e => u('body', e.target.value)} placeholder="Description ringkas product..." /></div>
         </>
       )
 
     case 'text':
       return (
         <>
-          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Produk Ini?" /></div>
+          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Product Ini?" /></div>
           <div><label className={lbl}>Teks *</label><textarea className={ta} rows={4} value={d.body || ''} onChange={e => u('body', e.target.value)} placeholder="Tulis penerangan, cerita, atau fakta menarik di sini..." /></div>
           <div>
             <label className={lbl}>Penjajaran teks</label>
@@ -178,15 +178,15 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'benefits':
       return (
         <>
-          <div><label className={lbl}>Section title</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Pilih Kami?" /></div>
+          <div><label className={lbl}>Section title</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Select Kami?" /></div>
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
               <p className="text-[10px] font-bold text-gray-400 uppercase">Manfaat {i}</p>
               <div className="grid grid-cols-4 gap-2">
                 <div><label className={lbl}>Emoji</label><input className={inp} value={d[`item${i}_emoji`] || ''} onChange={e => u(`item${i}_emoji`, e.target.value)} placeholder="✅" /></div>
-                <div className="col-span-3"><label className={lbl}>Tajuk</label><input className={inp} value={d[`item${i}_title`] || ''} onChange={e => u(`item${i}_title`, e.target.value)} placeholder={`Kelebihan ${i}`} /></div>
+                <div className="col-span-3"><label className={lbl}>Title</label><input className={inp} value={d[`item${i}_title`] || ''} onChange={e => u(`item${i}_title`, e.target.value)} placeholder={`Kelebihan ${i}`} /></div>
               </div>
-              <div><label className={lbl}>Penerangan (pilihan)</label><input className={inp} value={d[`item${i}_desc`] || ''} onChange={e => u(`item${i}_desc`, e.target.value)} placeholder="Penerangan ringkas..." /></div>
+              <div><label className={lbl}>Description (selectan)</label><input className={inp} value={d[`item${i}_desc`] || ''} onChange={e => u(`item${i}_desc`, e.target.value)} placeholder="Description ringkas..." /></div>
             </div>
           ))}
         </>
@@ -195,16 +195,16 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'product':
       return (
         <div>
-          <label className={lbl}>Pilih Produk *</label>
+          <label className={lbl}>Select Product *</label>
           {pickerProducts.length > 0 ? (
             <select className={inp} value={d.slug || ''} onChange={e => u('slug', e.target.value)}>
-              <option value="">— Pilih produk —</option>
+              <option value="">— Select product —</option>
               {pickerProducts.map(p => (
                 <option key={p.id} value={p.slug}>{p.name} ({p.slug})</option>
               ))}
             </select>
           ) : (
-            <input className={inp} value={d.slug || ''} onChange={e => u('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="slug-produk (cth: ajwa-medium)" />
+            <input className={inp} value={d.slug || ''} onChange={e => u('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="slug-product (cth: ajwa-medium)" />
           )}
           <p className="text-[10px] text-gray-400 mt-1">Akan jana <code className="bg-gray-100 px-1 rounded">{`{{product:${d.slug || 'slug'}}}`}</code></p>
         </div>
@@ -213,7 +213,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'testimonial':
       return (
         <>
-          <div><label className={lbl}>Kata-kata pelanggan *</label><textarea className={ta} rows={3} value={d.quote || ''} onChange={e => u('quote', e.target.value)} placeholder="Memang sedap, anak-anak suka sangat..." /></div>
+          <div><label className={lbl}>Kata-kata customer *</label><textarea className={ta} rows={3} value={d.quote || ''} onChange={e => u('quote', e.target.value)} placeholder="Memang sedap, anak-anak suka sangat..." /></div>
           <div className="grid grid-cols-2 gap-2">
             <div><label className={lbl}>Customer name</label><input className={inp} value={d.name || ''} onChange={e => u('name', e.target.value)} placeholder="Puan Aishah" /></div>
             <div><label className={lbl}>Lokasi</label><input className={inp} value={d.location || ''} onChange={e => u('location', e.target.value)} placeholder="Kuala Lumpur" /></div>
@@ -237,7 +237,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
         <>
           <div className="grid grid-cols-4 gap-2">
             <div><label className={lbl}>Emoji</label><input className={inp} value={d.emoji || ''} onChange={e => u('emoji', e.target.value)} placeholder="🔥" /></div>
-            <div className="col-span-3"><label className={lbl}>Teks urgent *</label><input className={inp} value={d.text || ''} onChange={e => u('text', e.target.value)} placeholder="Stok terhad — order sekarang!" /></div>
+            <div className="col-span-3"><label className={lbl}>Teks urgent *</label><input className={inp} value={d.text || ''} onChange={e => u('text', e.target.value)} placeholder="Stock terhad — order sekarang!" /></div>
           </div>
         </>
       )
@@ -246,13 +246,13 @@ function SectionFields({ section, updateData, pickerProducts }: {
       return (
         <>
           <div><label className={lbl}>Title before form</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Ada soalan? Kami sedia membantu!" /></div>
-          <div><label className={lbl}>Penerangan (pilihan)</label><input className={inp} value={d.desc || ''} onChange={e => u('desc', e.target.value)} placeholder="Tinggalkan nombor anda..." /></div>
+          <div><label className={lbl}>Description (selectan)</label><input className={inp} value={d.desc || ''} onChange={e => u('desc', e.target.value)} placeholder="Tinggalkan number anda..." /></div>
           <div className="border-t border-gray-100 pt-3 mt-1">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Mesej Thank You (selepas submit)</p>
             <div><label className={lbl}>Thank You Title</label><input className={inp} value={d.ty_title || ''} onChange={e => u('ty_title', e.target.value)} placeholder="Terima kasih!" /></div>
             <div><label className={lbl}>Mesej Thank You</label><input className={inp} value={d.ty_message || ''} onChange={e => u('ty_message', e.target.value)} placeholder="Team kami akan hubungi anda tidak lama lagi." /></div>
-            <div><label className={lbl}>Link WhatsApp Community (pilihan)</label><input className={inp} type="url" value={d.ty_wa_link || ''} onChange={e => u('ty_wa_link', e.target.value)} placeholder="https://chat.whatsapp.com/xxxx" /></div>
-            <div><label className={lbl}>Redirect ke URL selepas submit (pilihan)</label><input className={inp} value={d.ty_redirect || ''} onChange={e => u('ty_redirect', e.target.value)} placeholder="cth: /lp/thank-you atau https://..." /></div>
+            <div><label className={lbl}>Link WhatsApp Community (selectan)</label><input className={inp} type="url" value={d.ty_wa_link || ''} onChange={e => u('ty_wa_link', e.target.value)} placeholder="https://chat.whatsapp.com/xxxx" /></div>
+            <div><label className={lbl}>Redirect ke URL selepas submit (selectan)</label><input className={inp} value={d.ty_redirect || ''} onChange={e => u('ty_redirect', e.target.value)} placeholder="cth: /lp/thank-you atau https://..." /></div>
             <p className="text-[10px] text-orange-500">⚠️ Kalau redirect diisi, mesej &amp; butang WA di atas tak akan dipaparkan</p>
           </div>
           <p className="text-[10px] text-gray-400">Form kenalan akan muncul secara automatik</p>
@@ -262,8 +262,8 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'image':
       return (
         <>
-          <div><label className={lbl}>Alt text (penerangan gambar)</label><input className={inp} value={d.alt || ''} onChange={e => u('alt', e.target.value)} placeholder="Gambar produk" /></div>
-          <div><label className={lbl}>Caption (pilihan)</label><input className={inp} value={d.caption || ''} onChange={e => u('caption', e.target.value)} placeholder="Teks bawah gambar" /></div>
+          <div><label className={lbl}>Alt text (penerangan gambar)</label><input className={inp} value={d.alt || ''} onChange={e => u('alt', e.target.value)} placeholder="Gambar product" /></div>
+          <div><label className={lbl}>Caption (selectan)</label><input className={inp} value={d.caption || ''} onChange={e => u('caption', e.target.value)} placeholder="Teks bawah gambar" /></div>
           <p className="text-[10px] text-gray-400">⬆️ Gunakan butang "Upload Gambar" dalam toolbar untuk upload dan masukkan URL gambar</p>
         </>
       )
@@ -289,7 +289,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
               </select>
             </div>
           </div>
-          <div><label className={lbl}>Teks kecil bawah button (pilihan)</label><input className={inp} value={d.sub || ''} onChange={e => u('sub', e.target.value)} placeholder="Penghantaran percuma untuk order RM100+" /></div>
+          <div><label className={lbl}>Teks kecil bawah button (selectan)</label><input className={inp} value={d.sub || ''} onChange={e => u('sub', e.target.value)} placeholder="Pengsendan percuma untuk order RM100+" /></div>
         </>
       )
 
@@ -310,11 +310,11 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'stats':
       return (
         <>
-          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Dipercayai Ribuan Pelanggan" /></div>
+          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Dipercayai Ribuan Customer" /></div>
           {[1,2,3,4].map(i => (
             <div key={i} className="grid grid-cols-2 gap-2">
-              <div><label className={lbl}>Nombor/Nilai {i}</label><input className={inp} value={d[`stat${i}_num`] || ''} onChange={e => u(`stat${i}_num`, e.target.value)} placeholder="5,000+" /></div>
-              <div><label className={lbl}>Label {i}</label><input className={inp} value={d[`stat${i}_label`] || ''} onChange={e => u(`stat${i}_label`, e.target.value)} placeholder="Pelanggan Gembira" /></div>
+              <div><label className={lbl}>Number/Nilai {i}</label><input className={inp} value={d[`stat${i}_num`] || ''} onChange={e => u(`stat${i}_num`, e.target.value)} placeholder="5,000+" /></div>
+              <div><label className={lbl}>Label {i}</label><input className={inp} value={d[`stat${i}_label`] || ''} onChange={e => u(`stat${i}_label`, e.target.value)} placeholder="Customer Gembira" /></div>
             </div>
           ))}
         </>
@@ -325,7 +325,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
         <>
           <div><label className={lbl}>Teks atas timer</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Tawaran tamat dalam:" /></div>
           <div>
-            <label className={lbl}>Tarikh & Masa Tamat *</label>
+            <label className={lbl}>Date & Masa Tamat *</label>
             <input type="datetime-local" className={inp} value={d.end_datetime || ''} onChange={e => u('end_datetime', e.target.value)} />
           </div>
           <div><label className={lbl}>Teks bila dah tamat</label><input className={inp} value={d.expired_text || ''} onChange={e => u('expired_text', e.target.value)} placeholder="Tawaran telah tamat" /></div>

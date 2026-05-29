@@ -128,7 +128,63 @@ export default async function ShippingExportsPage({
   const fromISO = `${fromDate}T00:00:00+08:00`
   const toISO = `${toDate}T23:59:59+08:00`
 
-  const orders = await getOrders(fromISO, toISO)
+  const supabaseAdmin = createAdminClient()
+  const [orders, lpOrdersRes] = await Promise.all([
+    getOrders(fromISO, toISO),
+    supabaseAdmin.from('lp_guest_orders')
+      .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price')
+      .in('status', ['confirmed', 'preparing', 'delivering'])
+      .gte('created_at', fromISO)
+      .lte('created_at', toISO)
+      .order('created_at', { ascending: false }),
+  ])
 
-  return <ExportsClient orders={orders} defaultFrom={fromDate} defaultTo={toDate} />
+  // Transform LP orders to ExportOrder shape
+  function extractPostcodeFromAddr(addr: string | null): string | null {
+    if (!addr) return null
+    const m = addr.match(/\b(\d{5})\b/)
+    return m ? m[1] : null
+  }
+  function isKlPostcode(pc: string | null): boolean {
+    if (!pc) return false
+    const n = parseInt(pc, 10)
+    return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000)
+  }
+
+  const lpOrders: typeof orders = (lpOrdersRes.data ?? []).map((lp: any) => {
+    const postcode = lp.postcode ?? extractPostcodeFromAddr(lp.address)
+    const items = (Array.isArray(lp.items) && lp.items.length > 0
+      ? lp.items
+      : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity }]
+    ).map((i: any) => ({ product_name: i.product_name, quantity: i.quantity, variant_name: i.variant_name ?? null, is_shippable: false }))
+    return {
+      id: lp.id,
+      order_number: lp.order_number,
+      status: lp.status,
+      payment_method: lp.payment_method,
+      payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
+      total: lp.total,
+      notes: lp.notes ?? null,
+      created_at: lp.created_at,
+      full_name: lp.name,
+      phone: lp.phone,
+      email: null,
+      full_address: lp.address ?? null,
+      city: null,
+      postcode,
+      state: null,
+      is_kl: isKlPostcode(postcode),
+      area_known: !!postcode,
+      has_fresh: true,
+      recipient_name: lp.name,
+      recipient_phone: lp.phone,
+      items,
+    }
+  })
+
+  const allOrders = [...orders, ...lpOrders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+
+  return <ExportsClient orders={allOrders} defaultFrom={fromDate} defaultTo={toDate} />
 }

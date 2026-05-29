@@ -57,11 +57,11 @@ export default async function AdminRefundsPage() {
   return (
     <div className="p-6 max-w-4xl space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Pengurusan Refund</h1>
+        <h1 className="text-xl font-bold text-gray-900">Refund Management</h1>
         <p className="text-sm text-gray-400 mt-0.5">
           {pending.length > 0
             ? `${pending.length} refund perlu diproses`
-            : 'Tiada refund tertunggak'}
+            : 'No pending refunds'}
         </p>
       </div>
 
@@ -69,7 +69,7 @@ export default async function AdminRefundsPage() {
       <section>
         <div className="flex items-center gap-2 mb-3">
           <RotateCcw className="h-4 w-4 text-red-500" />
-          <h2 className="font-bold text-gray-900">Perlu Direfund</h2>
+          <h2 className="font-bold text-gray-900">Needs Refund</h2>
           {pending.length > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending.length}</span>
           )}
@@ -80,8 +80,8 @@ export default async function AdminRefundsPage() {
             <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
               <CheckCircle2 className="h-6 w-6 text-green-500" />
             </div>
-            <p className="text-green-800 font-semibold">Semua beres!</p>
-            <p className="text-green-600 text-sm mt-0.5">Tiada refund tertunggak pada masa ini.</p>
+            <p className="text-green-800 font-semibold">All clear!</p>
+            <p className="text-green-600 text-sm mt-0.5">No pending refunds pada masa ini.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -106,7 +106,7 @@ export default async function AdminRefundsPage() {
                     )}
                     <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-500">
                       <Clock className="h-3 w-3" />
-                      Dibatal {o.cancelled_at ? daysSince(o.cancelled_at) : '—'}
+                      Cancelled {o.cancelled_at ? daysSince(o.cancelled_at) : '—'}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -127,18 +127,18 @@ export default async function AdminRefundsPage() {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 className="h-4 w-4 text-gray-400" />
-            <h2 className="font-bold text-gray-900">Sudah Direfund</h2>
+            <h2 className="font-bold text-gray-900">Refunded</h2>
             <span className="text-xs text-gray-400">({done.length})</span>
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Pesanan</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Pelanggan</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kaedah</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Jumlah</th>
-                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarikh</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">No. Orders</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Method</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
+                  <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -160,7 +160,7 @@ export default async function AdminRefundsPage() {
                     </td>
                     <td className="px-5 py-3 text-right font-semibold text-gray-700">RM{Number(o.total).toFixed(2)}</td>
                     <td className="px-5 py-3 text-right text-xs text-gray-400">
-                      {new Date(o.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(o.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                   </tr>
                 ))}

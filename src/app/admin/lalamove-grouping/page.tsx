@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { GroupingClient, type LalamoveOrder } from './grouping-client'
 import { Truck } from 'lucide-react'
@@ -97,11 +98,52 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
   })
 }
 
+async function getLpOrders(rangeStart: Date): Promise<LalamoveOrder[]> {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('lp_guest_orders')
+    .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity')
+    .in('status', ['confirmed', 'preparing', 'delivering'])
+    .gte('created_at', rangeStart.toISOString())
+    .order('created_at', { ascending: true })
+
+  return (data ?? []).map((lp: any) => {
+    const items = (Array.isArray(lp.items) && lp.items.length > 0
+      ? lp.items
+      : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity }]
+    ).map((i: any) => ({ product_name: i.product_name, quantity: i.quantity, variant_name: i.variant_name ?? null }))
+    return {
+      id: lp.id,
+      order_number: lp.order_number,
+      status: lp.status,
+      payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
+      total: lp.total,
+      delivery_address: lp.address ?? null,
+      delivery_slot: null,
+      notes: lp.notes ?? null,
+      created_at: lp.created_at,
+      full_name: lp.name,
+      phone: lp.phone,
+      postcode: lp.postcode ?? null,
+      city: null,
+      recipient_name: lp.name,
+      recipient_phone: lp.phone,
+      items,
+    }
+  })
+}
+
 export default async function LalamoveGroupingPage() {
-  const orders = await getTodayOrders()
+  const now = new Date()
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
+  const rangeStart = new Date(todayStart); rangeStart.setDate(rangeStart.getDate() - 2)
+  const [orders, lpOrders] = await Promise.all([getTodayOrders(), getLpOrders(rangeStart)])
+  const allOrders = [...orders, ...lpOrders].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto" data-orders={allOrders.length}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">
@@ -118,7 +160,7 @@ export default async function LalamoveGroupingPage() {
         </div>
       </div>
 
-      <GroupingClient orders={orders} />
+      <GroupingClient orders={allOrders} />
     </div>
   )
 }

@@ -15,12 +15,16 @@ async function getAnalytics() {
     topProductsRes,
     ordersByStatusRes,
     newCustomersRes,
+    lpPaidOrders,
+    lpAllOrders,
   ] = await Promise.all([
     supabase.from('orders').select('total, created_at').eq('payment_status', 'paid').gte('created_at', sevenDaysAgo.toISOString()),
     supabase.from('orders').select('total, created_at').gte('created_at', sevenDaysAgo.toISOString()),
     supabase.from('order_items').select('product_name, product_image, quantity, subtotal'),
     supabase.from('orders').select('status').gte('created_at', sevenDaysAgo.toISOString()),
     supabase.from('profiles').select('created_at').eq('is_admin', false).gte('created_at', sevenDaysAgo.toISOString()),
+    supabase.from('lp_guest_orders').select('total, created_at').eq('status', 'confirmed').gte('created_at', sevenDaysAgo.toISOString()),
+    supabase.from('lp_guest_orders').select('total, created_at, status, items').gte('created_at', sevenDaysAgo.toISOString()),
   ])
 
   const days: { date: string; label: string; dayLabel: string; revenue: number; orders: number }[] = []
@@ -30,14 +34,15 @@ async function getAnalytics() {
     const dateStr = d.toISOString().slice(0, 10)
     days.push({
       date: dateStr,
-      label: d.toLocaleDateString('ms-MY', { weekday: 'short' }),
-      dayLabel: d.toLocaleDateString('ms-MY', { day: 'numeric' }),
+      label: d.toLocaleDateString('en-MY', { weekday: 'short' }),
+      dayLabel: d.toLocaleDateString('en-MY', { day: 'numeric' }),
       revenue: 0,
       orders: 0,
     })
   }
 
-  for (const order of paidOrders.data ?? []) {
+  // Merge main store + LP paid orders into daily chart
+  for (const order of [...(paidOrders.data ?? []), ...(lpPaidOrders.data ?? [])]) {
     const dateStr = order.created_at.slice(0, 10)
     const day = days.find((d) => d.date === dateStr)
     if (day) { day.revenue += Number(order.total); day.orders += 1 }
@@ -51,32 +56,51 @@ async function getAnalytics() {
     productMap[item.product_name].qty += item.quantity
     productMap[item.product_name].revenue += Number(item.subtotal)
   }
+  // Add LP order items to top products
+  for (const lpOrder of lpAllOrders.data ?? []) {
+    const items: any[] = Array.isArray(lpOrder.items) ? lpOrder.items : []
+    for (const item of items) {
+      if (!item.product_name) continue
+      if (!productMap[item.product_name]) productMap[item.product_name] = { name: item.product_name, image: null, qty: 0, revenue: 0 }
+      productMap[item.product_name].qty += item.quantity ?? 1
+      productMap[item.product_name].revenue += Number(item.unit_price ?? 0) * (item.quantity ?? 1)
+    }
+  }
   const topProducts = Object.values(productMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
 
   const statusCount: Record<string, number> = {}
   for (const o of ordersByStatusRes.data ?? []) {
     statusCount[o.status] = (statusCount[o.status] ?? 0) + 1
   }
+  // LP status (prefix lp_ to distinguish)
+  for (const o of lpAllOrders.data ?? []) {
+    const key = `lp_${o.status}`
+    statusCount[key] = (statusCount[key] ?? 0) + 1
+  }
 
   const totalRevenue7d = days.reduce((s, d) => s + d.revenue, 0)
-  const totalOrders7d = (allOrders.data ?? []).length
+  const totalOrders7d = (allOrders.data ?? []).length + (lpAllOrders.data ?? []).length
   const newCustomers7d = (newCustomersRes.data ?? []).length
   const maxRevenue = Math.max(...days.map((d) => d.revenue), 1)
+  const lpOrders7d = (lpAllOrders.data ?? []).length
 
-  return { days, topProducts, statusCount, totalRevenue7d, totalOrders7d, newCustomers7d, maxRevenue }
+  return { days, topProducts, statusCount, totalRevenue7d, totalOrders7d, newCustomers7d, maxRevenue, lpOrders7d }
 }
 
 const statusLabel: Record<string, string> = {
-  pending: 'Menunggu', confirmed: 'Disahkan', preparing: 'Disediakan',
-  delivering: 'Dihantar', delivered: 'Selesai', cancelled: 'Dibatal',
+  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+  delivering: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+  lp_pending: 'LP — Pending', lp_confirmed: 'LP — Confirmed', lp_cancelled: 'LP — Cancelled',
 }
 const statusColor: Record<string, string> = {
   pending: 'bg-yellow-400', confirmed: 'bg-blue-500', preparing: 'bg-purple-500',
   delivering: 'bg-orange-400', delivered: 'bg-green-500', cancelled: 'bg-red-400',
+  lp_pending: 'bg-rose-300', lp_confirmed: 'bg-rose-500', lp_cancelled: 'bg-gray-400',
 }
 const statusDot: Record<string, string> = {
   pending: 'bg-yellow-400', confirmed: 'bg-blue-500', preparing: 'bg-purple-500',
   delivering: 'bg-orange-400', delivered: 'bg-green-500', cancelled: 'bg-red-400',
+  lp_pending: 'bg-rose-300', lp_confirmed: 'bg-rose-500', lp_cancelled: 'bg-gray-400',
 }
 
 const RANK_STYLES = [
@@ -86,14 +110,14 @@ const RANK_STYLES = [
 ]
 
 export default async function AnalyticsPage() {
-  const { days, topProducts, statusCount, totalRevenue7d, totalOrders7d, newCustomers7d, maxRevenue } = await getAnalytics()
+  const { days, topProducts, statusCount, totalRevenue7d, totalOrders7d, newCustomers7d, maxRevenue, lpOrders7d } = await getAnalytics()
   const totalStatusOrders = Object.values(statusCount).reduce((s, n) => s + n, 0)
 
   return (
     <div className="p-4 md:p-6 max-w-5xl space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Analitik</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Prestasi 7 hari lepas</p>
+        <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Performance — last 7 days</p>
       </div>
 
       {/* Summary cards */}
@@ -104,23 +128,23 @@ export default async function AnalyticsPage() {
             <div className="bg-green-100 p-1.5 rounded-lg"><TrendingUp className="h-3.5 w-3.5 text-green-600" /></div>
           </div>
           <p className="text-2xl font-black text-gray-900">RM{totalRevenue7d.toFixed(2)}</p>
-          <p className="text-xs text-gray-400 mt-1">daripada pesanan berbayar</p>
+          <p className="text-xs text-gray-400 mt-1">store + LP paid orders</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-gray-500">Pesanan (7 Hari)</span>
+            <span className="text-xs font-semibold text-gray-500">Orders (7 Hari)</span>
             <div className="bg-blue-100 p-1.5 rounded-lg"><ShoppingBag className="h-3.5 w-3.5 text-blue-600" /></div>
           </div>
           <p className="text-2xl font-black text-gray-900">{totalOrders7d}</p>
-          <p className="text-xs text-gray-400 mt-1">semua status termasuk</p>
+          <p className="text-xs text-gray-400 mt-1">store + LP ({lpOrders7d} LP)</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-gray-500">Pelanggan Baru</span>
+            <span className="text-xs font-semibold text-gray-500">Customer New</span>
             <div className="bg-purple-100 p-1.5 rounded-lg"><Users className="h-3.5 w-3.5 text-purple-600" /></div>
           </div>
           <p className="text-2xl font-black text-gray-900">{newCustomers7d}</p>
-          <p className="text-xs text-gray-400 mt-1">pendaftaran baru</p>
+          <p className="text-xs text-gray-400 mt-1">new registrations</p>
         </div>
       </div>
 
@@ -128,7 +152,7 @@ export default async function AnalyticsPage() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center gap-2 mb-5">
           <BarChart3 className="h-4 w-4 text-gray-400" />
-          <h2 className="font-bold text-gray-900">Jualan 7 Hari Lepas</h2>
+          <h2 className="font-bold text-gray-900">Revenue — Last 7 Days</h2>
         </div>
         <div className="flex items-end gap-3 h-40">
           {days.map((day, i) => {
@@ -160,10 +184,10 @@ export default async function AnalyticsPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <Package className="h-4 w-4 text-gray-400" />
-            <h2 className="font-bold text-gray-900">Top 5 Produk</h2>
+            <h2 className="font-bold text-gray-900">Top 5 Product</h2>
           </div>
           {topProducts.length === 0 ? (
-            <div className="py-8 text-center text-gray-400 text-sm">Tiada data jualan</div>
+            <div className="py-8 text-center text-gray-400 text-sm">No data jualan</div>
           ) : (
             <div className="space-y-3">
               {topProducts.map((p, i) => (
@@ -195,13 +219,13 @@ export default async function AnalyticsPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <ShoppingBag className="h-4 w-4 text-gray-400" />
-            <h2 className="font-bold text-gray-900">Status Pesanan</h2>
+            <h2 className="font-bold text-gray-900">Status Orders</h2>
             {totalStatusOrders > 0 && (
-              <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{totalStatusOrders} pesanan</span>
+              <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{totalStatusOrders} orders</span>
             )}
           </div>
           {Object.keys(statusCount).length === 0 ? (
-            <div className="py-8 text-center text-gray-400 text-sm">Tiada pesanan minggu ini</div>
+            <div className="py-8 text-center text-gray-400 text-sm">No orders minggu ini</div>
           ) : (
             <div className="space-y-3">
               {Object.entries(statusCount)

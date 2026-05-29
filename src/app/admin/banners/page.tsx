@@ -26,7 +26,7 @@ function BannerPreview({ title, subtitle, link_label, bg_class }: { title: strin
   return (
     <div className={`${opt?.preview ?? 'bg-gray-800'} rounded-xl px-5 py-4 text-white relative overflow-hidden`}>
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_80%_50%,white,transparent)]" />
-      <p className="font-black text-lg leading-tight">{title || 'Tajuk Banner'}</p>
+      <p className="font-black text-lg leading-tight">{title || 'Title Banner'}</p>
       {subtitle && <p className="text-white/70 text-xs mt-1">{subtitle}</p>}
       {link_label && (
         <div className="mt-3 inline-flex bg-white/20 border border-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
@@ -86,7 +86,7 @@ export default function AdminBannersPage() {
       }),
     })
     if (!res.ok) {
-      toast.error('Gagal buat banner')
+      toast.error('Failed buat banner')
     } else {
       toast.success('Banner dicipta')
       setShowForm(false)
@@ -110,9 +110,9 @@ export default function AdminBannersPage() {
       }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini banner')
+      toast.error('Failed update banner')
     } else {
-      toast.success('Banner dikemaskini')
+      toast.success('Banner diupdate')
       closeEdit()
       load()
     }
@@ -129,9 +129,9 @@ export default function AdminBannersPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Padam banner ini?')) return
+    if (!confirm('Delete banner ini?')) return
     await fetch(`/api/admin/banners/${id}`, { method: 'DELETE' })
-    toast.success('Banner dipadam')
+    toast.success('Banner didelete')
     load()
   }
 
@@ -140,12 +140,12 @@ export default function AdminBannersPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Banner Utama</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{banners.filter(b => b.is_active).length} aktif · {banners.length} jumlah</p>
+          <p className="text-sm text-gray-400 mt-0.5">{banners.filter(b => b.is_active).length} active · {banners.length} jumlah</p>
         </div>
         {!showForm && (
           <button onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-red-700 transition-colors shadow-sm">
-            <Plus className="h-4 w-4" /> Banner Baru
+            <Plus className="h-4 w-4" /> Banner New
           </button>
         )}
       </div>
@@ -172,12 +172,12 @@ export default function AdminBannersPage() {
 
           <form onSubmit={handleEdit} className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Tajuk *</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Title *</label>
               <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Subtajuk</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Subtitle</label>
               <input value={form.subtitle} onChange={e => setForm(p => ({ ...p, subtitle: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
             </div>
@@ -207,7 +207,7 @@ export default function AdminBannersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 800×360px)</span></label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(selectan · 800×360px)</span></label>
               <ImageUploader
                 currentUrl={form.image_url || null}
                 onUpload={url => setForm(p => ({ ...p, image_url: url }))}
@@ -228,7 +228,7 @@ export default function AdminBannersPage() {
               <button type="submit" disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50">
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Kemaskini Banner
+                Update Banner
               </button>
             </div>
           </form>
@@ -243,7 +243,7 @@ export default function AdminBannersPage() {
               <div className="bg-red-100 p-1.5 rounded-lg">
                 <Image className="h-4 w-4 text-red-600" />
               </div>
-              <h2 className="font-bold text-gray-900">Banner Baru</h2>
+              <h2 className="font-bold text-gray-900">Banner New</h2>
             </div>
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
               <X className="h-4 w-4" />
@@ -263,15 +263,15 @@ export default function AdminBannersPage() {
 
           <form onSubmit={handleCreate} className="space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Tajuk *</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Title *</label>
               <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required
                 placeholder="Diskaun 20% Buah Import"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Subtajuk</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Subtitle</label>
               <input value={form.subtitle} onChange={e => setForm(p => ({ ...p, subtitle: e.target.value }))}
-                placeholder="Strawberry, Anggur, Epal — semua ada!"
+                placeholder="Strawberry, Anggur, Epal — all ada!"
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -310,7 +310,7 @@ export default function AdminBannersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 800×360px)</span></label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(selectan · 800×360px)</span></label>
               <ImageUploader
                 currentUrl={form.image_url || null}
                 onUpload={url => setForm(p => ({ ...p, image_url: url }))}
@@ -331,7 +331,7 @@ export default function AdminBannersPage() {
               <button type="submit" disabled={loading}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50">
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Simpan Banner
+                Save Banner
               </button>
             </div>
           </form>
@@ -341,7 +341,7 @@ export default function AdminBannersPage() {
       {/* Banner list */}
       {banners.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-14 text-center text-gray-400">
-          Tiada banner lagi. Tambah banner pertama.
+          No banner lagi. Add banner pertama.
         </div>
       ) : (
         <div className="space-y-3">
@@ -381,7 +381,7 @@ export default function AdminBannersPage() {
                         ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                         : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                     }`}>
-                    {b.is_active ? <><Eye className="h-3 w-3" /> Aktif</> : <><EyeOff className="h-3 w-3" /> Sembunyi</>}
+                    {b.is_active ? <><Eye className="h-3 w-3" /> Active</> : <><EyeOff className="h-3 w-3" /> Sembunyi</>}
                   </button>
                   <button onClick={() => openEdit(b)}
                     className="p-1.5 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors">

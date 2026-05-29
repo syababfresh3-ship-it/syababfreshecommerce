@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { RefreshCw, Clock, Package, Truck, CheckCircle2, AlertCircle, Phone, Calendar, ShieldAlert, Tag } from 'lucide-react'
+import { LpOrdersSection } from '../orders/lp-orders-section'
 
 interface Order {
   id: string
@@ -97,7 +98,7 @@ export default function FulfillmentPage() {
   const load = useCallback(async () => {
     const [mainRes, lpRes] = await Promise.all([
       fetch('/api/admin/fulfillment'),
-      fetch('/api/admin/landing-pages/orders?status=pending'),
+      fetch('/api/admin/landing-pages/orders'),
     ])
     const [mainData, lpData] = await Promise.all([mainRes.json(), lpRes.json()])
     setOrders(Array.isArray(mainData) ? mainData : [])
@@ -215,11 +216,11 @@ export default function FulfillmentPage() {
             <CheckCircle2 className="h-8 w-8 text-green-500" />
           </div>
           <p className="text-gray-700 font-semibold text-lg">All done!</p>
-          <p className="text-gray-400 text-sm mt-1">Tiada active orders pada masa ini.</p>
+          <p className="text-gray-400 text-sm mt-1">No active orders pada masa ini.</p>
         </div>
       ) : (
         <>
-        {/* ── LP Orders — Preorder pending ── */}
+        {/* ── LP Orders — Full flow ── */}
         {lpOrders.length > 0 && (
           <div className="mb-5">
             <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-rose-600 shadow-sm mb-3">
@@ -227,56 +228,7 @@ export default function FulfillmentPage() {
               <span className="text-sm font-bold text-white flex-1">Landing Page Orders</span>
               <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">{lpOrders.length}</span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {lpOrders.map(lp => {
-                const items: any[] = Array.isArray(lp.items) && lp.items.length > 0
-                  ? lp.items
-                  : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity, unit_price: lp.unit_price }]
-                const payLabel: Record<string, string> = { fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank' }
-                const isPaid = lp.payment_method === 'fpx' || lp.payment_method === 'ewallet'
-                return (
-                  <div key={lp.id} className="bg-white rounded-2xl border-2 border-rose-200 shadow-sm overflow-hidden">
-                    <div className="bg-rose-50 px-4 py-2 flex items-center justify-between border-b border-rose-100">
-                      <span className="text-xs font-bold text-rose-700 truncate">{lp.landing_pages?.title ?? 'LP'}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {isPaid ? '✓ Paid' : payLabel[lp.payment_method] ?? lp.payment_method}
-                      </span>
-                    </div>
-                    <div className="px-4 py-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono font-bold text-rose-600">{lp.order_number}</span>
-                        <span className="text-sm font-black text-gray-900">RM{Number(lp.total).toFixed(2)}</span>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl px-3 py-2">
-                        <p className="text-sm font-bold text-gray-900">{lp.name}</p>
-                        <a href={`tel:${lp.phone}`} className="flex items-center gap-1 text-xs text-blue-600 mt-0.5">
-                          <Phone className="h-3 w-3" />{lp.phone}
-                        </a>
-                      </div>
-                      <div className="space-y-0.5">
-                        {items.slice(0, 3).map((item: any, i: number) => (
-                          <p key={i} className="text-xs text-gray-600">• {item.product_name}{item.variant_name ? ` (${item.variant_name})` : ''} ×{item.quantity}</p>
-                        ))}
-                      </div>
-                      {lp.notes && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">📝 {lp.notes}</p>}
-                      <p className="text-[10px] text-gray-400">{timeAgo(lp.created_at)}</p>
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={() => advanceLp(lp, 'cancelled')}
-                          disabled={updating === lp.id}
-                          className="flex-1 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 disabled:opacity-50"
-                        >Cancel</button>
-                        <button
-                          onClick={() => advanceLp(lp, 'confirmed')}
-                          disabled={updating === lp.id}
-                          className="flex-1 py-2 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 disabled:opacity-50"
-                        >{updating === lp.id ? '...' : '✓ Confirm'}</button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+            <LpOrdersSection lpOrders={lpOrders as any} onUpdate={load} />
           </div>
         )}
 
@@ -359,7 +311,7 @@ export default function FulfillmentPage() {
                 {/* Empty state */}
                 {colOrders.length === 0 ? (
                   <div className="border-2 border-dashed border-gray-200 rounded-2xl py-10 text-center">
-                    <p className="text-xs text-gray-400">Tiada pesanan</p>
+                    <p className="text-xs text-gray-400">No orders</p>
                   </div>
                 ) : (
                   colOrders.map(order => {
@@ -380,7 +332,7 @@ export default function FulfillmentPage() {
                         {isUrgent && (
                           <div className="bg-red-500 flex items-center gap-2 px-4 py-1.5">
                             <AlertCircle className="h-3.5 w-3.5 text-white shrink-0" />
-                            <span className="text-xs font-bold text-white">Menunggu {waitMins} minit!</span>
+                            <span className="text-xs font-bold text-white">Pending {waitMins} minit!</span>
                           </div>
                         )}
 
@@ -400,7 +352,7 @@ export default function FulfillmentPage() {
                               <p className="text-base font-black text-gray-900">RM{Number(order.total).toFixed(2)}</p>
                               {isUnpaid && (
                                 <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                                  Belum Bayar
+                                  Unpaid
                                 </span>
                               )}
                               {isCOD && (
@@ -478,7 +430,7 @@ export default function FulfillmentPage() {
                               disabled={updating === order.id}
                               className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm ${action.cls}`}
                             >
-                              {updating === order.id ? 'Kemaskini...' : action.label}
+                              {updating === order.id ? 'Update...' : action.label}
                             </button>
                           )}
                         </div>

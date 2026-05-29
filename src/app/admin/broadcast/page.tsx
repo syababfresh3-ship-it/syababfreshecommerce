@@ -76,8 +76,8 @@ export default function BroadcastPage() {
 
   async function handleSend() {
     if (!message.trim()) return toast.error('Tulis mesej dahulu')
-    if (!recipientCount) return toast.error('Tiada penerima dipilih')
-    if (!confirm(`Hantar ke ${recipientCount} penerima? Tindakan ini tidak boleh dibatalkan.`)) return
+    if (!recipientCount) return toast.error('No penerima diselect')
+    if (!confirm(`Send ke ${recipientCount} penerima? Tindakan ini tidak boleh dibatalkan.`)) return
 
     setSending(true)
     setResult(null)
@@ -96,9 +96,9 @@ export default function BroadcastPage() {
     if (res.ok) {
       const data = await res.json()
       setResult(data)
-      toast.success(`Berjaya hantar ke ${data.sent} penerima`)
+      toast.success(`Success send ke ${data.sent} penerima`)
     } else {
-      toast.error('Gagal hantar broadcast')
+      toast.error('Failed send broadcast')
     }
   }
 
@@ -119,22 +119,22 @@ export default function BroadcastPage() {
   )
 
   const FILTER_TABS: { mode: FilterMode; label: string; icon: React.ElementType }[] = [
-    { mode: 'all', label: 'Semua', icon: Users },
+    { mode: 'all', label: 'All', icon: Users },
     { mode: 'state', label: 'Kawasan', icon: MapPin },
     { mode: 'activity', label: 'Aktiviti', icon: Clock },
-    { mode: 'manual', label: 'Pilih Sendiri', icon: UserCheck },
+    { mode: 'manual', label: 'Select Sendiri', icon: UserCheck },
   ]
 
   return (
     <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900">WhatsApp Broadcast</h1>
-        <p className="text-sm text-gray-500 mt-1">Hantar mesej ke pelanggan yang opt-in WhatsApp marketing</p>
+        <p className="text-sm text-gray-500 mt-1">Send mesej ke customer yang opt-in WhatsApp marketing</p>
       </div>
 
       {/* Filter tabs */}
       <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
-        <p className="text-sm font-bold text-gray-900">Pilih Penerima</p>
+        <p className="text-sm font-bold text-gray-900">Select Penerima</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {FILTER_TABS.map(({ mode, label, icon: Icon }) => (
             <button
@@ -155,7 +155,7 @@ export default function BroadcastPage() {
         {/* Filter: State */}
         {filterMode === 'state' && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-gray-500">Pilih negeri (boleh pilih berbilang):</p>
+            <p className="text-xs font-semibold text-gray-500">Select negeri (boleh select berbilang):</p>
             <div className="flex flex-wrap gap-2">
               {MY_STATES.map(s => (
                 <button
@@ -179,9 +179,9 @@ export default function BroadcastPage() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {([
-                { val: 'inactive', label: 'Tak aktif', sub: 'Tak order dalam X hari' },
-                { val: 'active',   label: 'Aktif',     sub: 'Order dalam X hari' },
-                { val: 'never',    label: 'Belum order', sub: 'Tak pernah buat pesanan' },
+                { val: 'inactive', label: 'Tak active', sub: 'Tak order dalam X hari' },
+                { val: 'active',   label: 'Active',     sub: 'Order dalam X hari' },
+                { val: 'never',    label: 'Belum order', sub: 'Tak pernah buat orders' },
               ] as const).map(({ val, label, sub }) => (
                 <button
                   key={val}
@@ -199,7 +199,7 @@ export default function BroadcastPage() {
             </div>
             {activityType !== 'never' && (
               <div className="flex items-center gap-3">
-                <p className="text-xs text-gray-600 shrink-0">Tempoh:</p>
+                <p className="text-xs text-gray-600 shrink-0">Period:</p>
                 <div className="flex gap-2 flex-wrap">
                   {[7, 14, 30, 60, 90].map(d => (
                     <button
@@ -227,7 +227,7 @@ export default function BroadcastPage() {
               <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Cari nama atau no. telefon..."
+                placeholder="Search nama atau no. phone..."
                 value={manualSearch}
                 onChange={e => setManualSearch(e.target.value)}
                 className="flex-1 text-sm focus:outline-none"
@@ -241,7 +241,7 @@ export default function BroadcastPage() {
             ) : (
               <div className="max-h-56 overflow-y-auto space-y-1 border border-gray-100 rounded-xl p-2">
                 {filteredManual.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-4">Tiada penerima</p>
+                  <p className="text-xs text-gray-400 text-center py-4">No penerima</p>
                 ) : filteredManual.map(r => (
                   <label key={r.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
                     <input
@@ -260,8 +260,8 @@ export default function BroadcastPage() {
             )}
             {selectedIds.size > 0 && (
               <div className="flex items-center justify-between">
-                <p className="text-xs text-green-700 font-semibold">{selectedIds.size} dipilih</p>
-                <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Nyah pilih semua</button>
+                <p className="text-xs text-green-700 font-semibold">{selectedIds.size} diselect</p>
+                <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Nyah select all</button>
               </div>
             )}
           </div>
@@ -299,7 +299,7 @@ export default function BroadcastPage() {
             {loadingRecipients ? (
               <div className="flex justify-center py-6"><Loader2 className="h-4 w-4 animate-spin text-gray-300" /></div>
             ) : previewList.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">Tiada penerima untuk filter ini</p>
+              <p className="text-xs text-gray-400 text-center py-4">No penerima untuk filter ini</p>
             ) : previewList.map(r => (
               <div key={r.id} className="flex items-center gap-3 px-3 py-2">
                 <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
@@ -330,7 +330,7 @@ export default function BroadcastPage() {
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"
           />
           <div className="flex justify-between mt-1">
-            <p className="text-xs text-gray-400">Guna <code className="bg-gray-100 px-1 rounded">{'{nama}'}</code> untuk nama pelanggan</p>
+            <p className="text-xs text-gray-400">Guna <code className="bg-gray-100 px-1 rounded">{'{nama}'}</code> untuk nama customer</p>
             <p className={`text-xs font-medium ${message.length > 900 ? 'text-red-500' : 'text-gray-400'}`}>{message.length} / 1000</p>
           </div>
         </div>
@@ -348,12 +348,12 @@ export default function BroadcastPage() {
           className="w-full flex items-center justify-center gap-2 bg-green-500 text-white font-bold py-3.5 rounded-2xl disabled:opacity-60 hover:bg-green-600 transition-colors"
         >
           {sending ? (
-            <><Loader2 className="h-4 w-4 animate-spin" />Menghantar... ({recipientCount} penerima)</>
+            <><Loader2 className="h-4 w-4 animate-spin" />Mengsend... ({recipientCount} penerima)</>
           ) : (
-            <><Send className="h-4 w-4" />Hantar ke {recipientCount ?? '—'} penerima</>
+            <><Send className="h-4 w-4" />Send ke {recipientCount ?? '—'} penerima</>
           )}
         </button>
-        {sending && <p className="text-xs text-center text-gray-400">Sila tunggu — menghantar satu persatu untuk elak spam</p>}
+        {sending && <p className="text-xs text-center text-gray-400">Please tunggu — mengsend satu persatu untuk elak spam</p>}
       </div>
 
       {/* Result */}
@@ -364,17 +364,17 @@ export default function BroadcastPage() {
             <div className="bg-green-50 rounded-xl p-3">
               <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto mb-1" />
               <p className="text-lg font-black text-green-600">{result.sent}</p>
-              <p className="text-xs text-gray-500">Berjaya</p>
+              <p className="text-xs text-gray-500">Success</p>
             </div>
             <div className="bg-red-50 rounded-xl p-3">
               <AlertCircle className="h-5 w-5 text-red-400 mx-auto mb-1" />
               <p className="text-lg font-black text-red-500">{result.failed}</p>
-              <p className="text-xs text-gray-500">Gagal</p>
+              <p className="text-xs text-gray-500">Failed</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <Users className="h-5 w-5 text-gray-400 mx-auto mb-1" />
               <p className="text-lg font-black text-gray-600">{result.total}</p>
-              <p className="text-xs text-gray-500">Jumlah</p>
+              <p className="text-xs text-gray-500">Total</p>
             </div>
           </div>
         </div>
@@ -382,9 +382,9 @@ export default function BroadcastPage() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-700 space-y-1.5">
         <p className="font-bold">Tips broadcast berkesan:</p>
-        <p>• Hantar pada waktu pagi (8–10am) atau petang (4–6pm)</p>
+        <p>• Send pada waktu pagi (8–10am) atau petang (4–6pm)</p>
         <p>• Masukkan tawaran yang jelas dan CTA (Call-to-Action)</p>
-        <p>• Jangan hantar lebih dari 2x seminggu untuk elak diblock</p>
+        <p>• Jangan send lebih dari 2x seminggu untuk elak diblock</p>
         <p>• Guna <code className="bg-amber-100 px-1 rounded">{'{nama}'}</code> untuk personalisasi — kadar buka lebih tinggi</p>
       </div>
     </div>

@@ -42,10 +42,10 @@ interface Commission {
 }
 
 const WD_STATUS: Record<string, { label: string; cls: string }> = {
-  pending:  { label: 'Menunggu',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  approved: { label: 'Diluluskan', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  paid:     { label: 'Dibayar',   cls: 'bg-green-50 text-green-700 border-green-200' },
-  rejected: { label: 'Ditolak',   cls: 'bg-red-50 text-red-700 border-red-200' },
+  pending:  { label: 'Pending',  cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  approved: { label: 'Approved', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  paid:     { label: 'Paid',   cls: 'bg-green-50 text-green-700 border-green-200' },
+  rejected: { label: 'Rejected',   cls: 'bg-red-50 text-red-700 border-red-200' },
 }
 
 export function AffiliatesClient({ profiles, withdrawals, commissionPct, commissions, applications }: {
@@ -105,7 +105,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
 
   function exportCsv() {
     const rows = [
-      ['Affiliate', 'Email', 'Nilai Order (RM)', 'Kadar (%)', 'Komisyen (RM)', 'Status', 'Tarikh'],
+      ['Affiliate', 'Email', 'Nilai Order (RM)', 'Kadar (%)', 'Komisyen (RM)', 'Status', 'Date'],
       ...filteredCommissions.map(c => [
         c.affiliate?.full_name ?? '',
         c.affiliate?.email ?? '',
@@ -113,7 +113,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
         (c.rate * 100).toFixed(1),
         Number(c.amount).toFixed(2),
         c.status,
-        new Date(c.created_at).toLocaleDateString('ms-MY'),
+        new Date(c.created_at).toLocaleDateString('en-MY'),
       ]),
     ]
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -131,7 +131,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
     const res = await fetch('/api/admin/affiliates/invite', { method: 'POST' })
     const data = await res.json().catch(() => ({}))
     setGeneratingInvite(false)
-    if (!res.ok) { toast.error(data.error ?? 'Gagal jana link'); return }
+    if (!res.ok) { toast.error(data.error ?? 'Failed jana link'); return }
     setInviteLink(data.link)
   }
 
@@ -141,11 +141,11 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
       setInviteCopied(true)
       toast.success('Link disalin!')
       setTimeout(() => setInviteCopied(false), 2000)
-    } catch { toast.error('Gagal salin') }
+    } catch { toast.error('Failed salin') }
   }
 
   async function toggleAffiliate(id: string, current: boolean) {
-    const name = profiles.find(p => p.id === id)?.full_name ?? 'pengguna ini'
+    const name = profiles.find(p => p.id === id)?.full_name ?? 'user ini'
     const msg = current
       ? `Buang ${name} dari program affiliate?`
       : `Jadikan ${name} sebagai affiliate?`
@@ -158,7 +158,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
       body: JSON.stringify({ is_affiliate: !current }),
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) toast.error(data.error ?? 'Gagal')
+    if (!res.ok) toast.error(data.error ?? 'Failed')
     else { toast.success(!current ? 'Dijadikan affiliate' : 'Dialih keluar dari affiliate'); location.reload() }
     setLoading(null)
   }
@@ -171,8 +171,8 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
       body: JSON.stringify({ status, admin_note: adminNote || undefined }),
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) toast.error(data.error ?? 'Gagal')
-    else { toast.success('Status dikemaskini'); location.reload() }
+    if (!res.ok) toast.error(data.error ?? 'Failed')
+    else { toast.success('Status diupdate'); location.reload() }
     setLoading(null)
   }
 
@@ -186,8 +186,8 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
       body: JSON.stringify({ key: 'affiliate_commission_pct', value: String(val / 100) }),
     })
     setSavingPct(false)
-    if (res.ok) toast.success('Kadar komisyen disimpan')
-    else toast.error('Gagal simpan')
+    if (res.ok) toast.success('Kadar komisyen disave')
+    else toast.error('Failed save')
   }
 
   return (
@@ -199,10 +199,10 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <Stat icon={Users}      label="Jumlah Affiliate"  value={affiliates.length}                color="text-blue-600" />
-        <Stat icon={UserPlus}   label="Permohonan Baru"   value={applications.length}              color="text-purple-600" />
+        <Stat icon={Users}      label="Total Affiliate"  value={affiliates.length}                color="text-blue-600" />
+        <Stat icon={UserPlus}   label="Permohonan New"   value={applications.length}              color="text-purple-600" />
         <Stat icon={Clock}      label="Withdraw Pending"  value={pendingWds.length}                color="text-yellow-600" />
-        <Stat icon={DollarSign} label="Jumlah Dibayar"    value={`RM${totalPaid.toFixed(2)}`}      color="text-green-600" />
+        <Stat icon={DollarSign} label="Total Paid"    value={`RM${totalPaid.toFixed(2)}`}      color="text-green-600" />
       </div>
 
       {/* Tabs */}
@@ -219,7 +219,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
              t === 'permohonan'   ? `Permohonan${applications.length ? ` (${applications.length})` : ''}` :
              t === 'komisyen'     ? `Komisyen${commissions.length ? ` (${commissions.length})` : ''}` :
              t === 'withdrawals'  ? `Pengeluaran${pendingWds.length ? ` (${pendingWds.length})` : ''}` :
-             'Tetapan'}
+             'Settings'}
           </button>
         ))}
       </div>
@@ -258,17 +258,17 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <h2 className="font-bold text-gray-900 text-sm">Affiliate Aktif</h2>
+              <h2 className="font-bold text-gray-900 text-sm">Affiliate Active</h2>
               <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{affiliates.length}</span>
             </div>
             {affiliates.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-gray-400 text-center">Tiada affiliate lagi</p>
+              <p className="px-5 py-8 text-sm text-gray-400 text-center">No affiliate lagi</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[420px]">
                   <thead>
                     <tr className="border-b border-gray-50 bg-gray-50/60">
-                      <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</th>
+                      <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
                       <th className="px-5 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Kod</th>
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Baki</th>
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide"></th>
@@ -318,7 +318,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                               <td colSpan={4} className="px-5 py-4">
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-4 text-xs">
-                                    <span className="text-gray-500">Jumlah komisyen: <span className="font-black text-purple-600">RM{myTotal.toFixed(2)}</span></span>
+                                    <span className="text-gray-500">Total komisyen: <span className="font-black text-purple-600">RM{myTotal.toFixed(2)}</span></span>
                                     <span className="text-gray-500">Transaksi: <span className="font-bold text-gray-700">{myCommissions.length}</span></span>
                                     <span className="text-gray-500">Phone: <span className="font-mono text-gray-700">{a.phone ?? '—'}</span></span>
                                   </div>
@@ -330,7 +330,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                                             <th className="px-3 py-2 text-left text-gray-500 font-semibold">Nilai Order</th>
                                             <th className="px-3 py-2 text-right text-gray-500 font-semibold">Kadar</th>
                                             <th className="px-3 py-2 text-right text-gray-500 font-semibold">Komisyen</th>
-                                            <th className="px-3 py-2 text-right text-gray-500 font-semibold">Tarikh</th>
+                                            <th className="px-3 py-2 text-right text-gray-500 font-semibold">Date</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y divide-purple-50">
@@ -340,7 +340,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                                               <td className="px-3 py-2 text-right text-gray-400">{(c.rate * 100).toFixed(1)}%</td>
                                               <td className="px-3 py-2 text-right font-bold text-purple-600">RM{Number(c.amount).toFixed(2)}</td>
                                               <td className="px-3 py-2 text-right text-gray-400">
-                                                {new Date(c.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                {new Date(c.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                                               </td>
                                             </tr>
                                           ))}
@@ -370,12 +370,12 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3">
               <Users className="h-4 w-4 text-gray-400" />
-              <h2 className="font-bold text-gray-900 text-sm">Pelanggan</h2>
+              <h2 className="font-bold text-gray-900 text-sm">Customer</h2>
               <div className="ml-auto relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Cari nama, email..."
+                  placeholder="Search nama, email..."
                   value={customerSearch}
                   onChange={e => setCustomerSearch(e.target.value)}
                   className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 w-44"
@@ -384,14 +384,14 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
             </div>
             {filteredNonAffiliates.length === 0 ? (
               <p className="px-5 py-8 text-sm text-gray-400 text-center">
-                {customerSearch ? 'Tiada hasil carian' : 'Tiada pelanggan lagi'}
+                {customerSearch ? 'No hasil carian' : 'No customer lagi'}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[360px]">
                   <thead>
                     <tr className="border-b border-gray-50 bg-gray-50/60">
-                      <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Nama</th>
+                      <th className="px-5 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
                       <th className="px-5 py-2.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Kod</th>
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide"></th>
                     </tr>
@@ -421,7 +421,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                 </table>
                 {!customerSearch && nonAffiliates.length > 50 && (
                   <p className="px-5 py-2.5 text-xs text-gray-400 border-t border-gray-50">
-                    Tunjuk 50 daripada {nonAffiliates.length} — guna carian untuk cari nama spesifik
+                    Tunjuk 50 daripada {nonAffiliates.length} — guna carian untuk search nama spesifik
                   </p>
                 )}
               </div>
@@ -436,7 +436,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
           {applications.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <UserPlus className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-gray-400">Tiada permohonan baharu</p>
+              <p className="text-sm text-gray-400">No permohonan baharu</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
@@ -453,7 +453,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                         <p className="text-xs text-gray-400">{applicant?.email}</p>
                         {applicant?.phone && <p className="text-xs text-gray-400 font-mono">{applicant.phone}</p>}
                         <p className="text-[10px] text-gray-400 mt-1">
-                          {new Date(app.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          {new Date(app.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
@@ -474,8 +474,8 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                             body: JSON.stringify({ action: 'approve' }),
                           })
                           const data = await res.json().catch(() => ({}))
-                          if (!res.ok) toast.error(data.error ?? 'Gagal')
-                          else { toast.success('Permohonan diluluskan, WA dihantar'); location.reload() }
+                          if (!res.ok) toast.error(data.error ?? 'Failed')
+                          else { toast.success('Permohonan diluluskan, WA disend'); location.reload() }
                           setLoading(null)
                         }}
                         disabled={loading === app.id}
@@ -494,7 +494,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                             body: JSON.stringify({ action: 'reject', admin_note: note }),
                           })
                           const data = await res.json().catch(() => ({}))
-                          if (!res.ok) toast.error(data.error ?? 'Gagal')
+                          if (!res.ok) toast.error(data.error ?? 'Failed')
                           else { toast.success('Permohonan ditolak'); location.reload() }
                           setLoading(null)
                         }}
@@ -519,11 +519,11 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
               <p className="text-xl font-black text-purple-600">RM{totalCommissions.toFixed(2)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Jumlah Komisyen</p>
+              <p className="text-xs text-gray-400 mt-0.5">Total Komisyen</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
               <p className="text-xl font-black text-gray-900">{commissions.length}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Jumlah Transaksi</p>
+              <p className="text-xs text-gray-400 mt-0.5">Total Transaksi</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-center">
               <p className="text-xl font-black text-green-600">{(commissionPct * 100).toFixed(1)}%</p>
@@ -540,7 +540,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
               <div className="divide-y divide-gray-50">
                 {monthlyStats.map(([month, total]) => {
                   const [year, m] = month.split('-')
-                  const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' })
+                  const label = new Date(Number(year), Number(m) - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' })
                   const pct = totalCommissions > 0 ? (total / totalCommissions) * 100 : 0
                   return (
                     <div key={month} className="px-5 py-3 flex items-center gap-3">
@@ -561,13 +561,13 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-3">
               <TrendingUp className="h-4 w-4 text-purple-500" />
-              <h2 className="font-bold text-gray-900 text-sm">Semua Komisyen</h2>
+              <h2 className="font-bold text-gray-900 text-sm">All Komisyen</h2>
               <div className="ml-auto flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Cari affiliate..."
+                    placeholder="Search affiliate..."
                     value={commissionSearch}
                     onChange={e => setCommissionSearch(e.target.value)}
                     className="pl-7 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-300 w-40"
@@ -584,7 +584,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
             </div>
             {filteredCommissions.length === 0 ? (
               <p className="px-5 py-10 text-sm text-gray-400 text-center">
-                {commissionSearch ? 'Tiada hasil carian' : 'Belum ada komisyen'}
+                {commissionSearch ? 'No hasil carian' : 'Belum ada komisyen'}
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -595,7 +595,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Nilai Order</th>
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Kadar</th>
                       <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Komisyen</th>
-                      <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tarikh</th>
+                      <th className="px-5 py-2.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -609,7 +609,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                         <td className="px-5 py-3 text-right text-gray-400 text-xs">{(c.rate * 100).toFixed(1)}%</td>
                         <td className="px-5 py-3 text-right font-black text-purple-600">RM{Number(c.amount).toFixed(2)}</td>
                         <td className="px-5 py-3 text-right text-xs text-gray-400">
-                          {new Date(c.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(c.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
                       </tr>
                     ))}
@@ -625,7 +625,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
       {tab === 'withdrawals' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           {withdrawals.length === 0 ? (
-            <p className="px-5 py-12 text-sm text-gray-400 text-center">Tiada permintaan pengeluaran</p>
+            <p className="px-5 py-12 text-sm text-gray-400 text-center">No permintaan pengeluaran</p>
           ) : (
             <div className="divide-y divide-gray-50">
               {withdrawals.map(w => {
@@ -644,7 +644,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                       <div className="text-right shrink-0">
                         <div className="text-lg font-black text-gray-900">RM{Number(w.amount).toFixed(2)}</div>
                         <div className="text-[10px] text-gray-400">
-                          {new Date(w.requested_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(w.requested_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </div>
                       </div>
                       <button onClick={() => { setExpandedWd(expanded ? null : w.id); setAdminNote('') }} className="text-gray-400 hover:text-gray-600">
@@ -657,7 +657,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                         <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1.5">
                           <div className="flex justify-between"><span className="text-gray-500">Bank</span><span className="font-semibold">{w.bank_name}</span></div>
                           <div className="flex justify-between"><span className="text-gray-500">No. Akaun</span><span className="font-mono font-semibold">{w.bank_account}</span></div>
-                          <div className="flex justify-between"><span className="text-gray-500">Nama Akaun</span><span className="font-semibold">{w.account_name}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Name Akaun</span><span className="font-semibold">{w.account_name}</span></div>
                         </div>
                         {w.admin_note && (
                           <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-100 rounded-lg px-3 py-2">{w.admin_note}</p>
@@ -677,7 +677,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
                                 disabled={loading === w.id}
                                 className="flex-1 bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors"
                               >
-                                {loading === w.id ? '...' : 'Tandakan Dibayar'}
+                                {loading === w.id ? '...' : 'Tandakan Paid'}
                               </button>
                               <button
                                 onClick={() => updateWithdrawal(w.id, 'rejected')}
@@ -704,7 +704,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 max-w-sm">
           <div className="flex items-center gap-2 mb-4">
             <Settings className="h-4 w-4 text-gray-400" />
-            <h2 className="font-bold text-gray-900 text-sm">Tetapan Komisyen</h2>
+            <h2 className="font-bold text-gray-900 text-sm">Settings Komisyen</h2>
           </div>
           <div className="space-y-4">
             <div>
@@ -730,7 +730,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
               disabled={savingPct}
               className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors"
             >
-              {savingPct ? 'Menyimpan...' : 'Simpan'}
+              {savingPct ? 'Menyimpan...' : 'Save'}
             </button>
           </div>
         </div>

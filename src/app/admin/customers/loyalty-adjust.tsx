@@ -27,9 +27,9 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
     })
 
     if (!res.ok) {
-      toast.error('Gagal kemaskini mata')
+      toast.error('Failed update mata')
     } else {
-      toast.success(`${mode === 'add' ? '+' : '-'}${pts} mata berjaya direkodkan`)
+      toast.success(`${mode === 'add' ? '+' : '-'}${pts} mata success direkodkan`)
       setPoints('')
       setReason('')
       router.refresh()
@@ -44,7 +44,7 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
           <Star className="h-4 w-4 text-yellow-600" />
         </div>
         <div>
-          <h2 className="text-sm font-bold text-gray-900">Laras Mata Loyalty</h2>
+          <h2 className="text-sm font-bold text-gray-900">Adjust Loyalty Points</h2>
           <p className="text-xs text-gray-400">Semasa: <span className="font-semibold text-gray-600">{currentPoints.toLocaleString()} mata</span></p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
               mode === 'add' ? 'bg-green-50 border-green-300 text-green-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
             }`}
           >
-            <Plus className="h-3.5 w-3.5" /> Tambah Mata
+            <Plus className="h-3.5 w-3.5" /> Add Points
           </button>
           <button
             type="button"
@@ -67,12 +67,12 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
               mode === 'deduct' ? 'bg-red-50 border-red-300 text-red-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
             }`}
           >
-            <Minus className="h-3.5 w-3.5" /> Tolak Mata
+            <Minus className="h-3.5 w-3.5" /> Deduct Points
           </button>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Jumlah Mata</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Total Points</label>
           <input
             type="number"
             min="1"
@@ -84,12 +84,12 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Sebab <span className="font-normal text-gray-400">(pilihan)</span></label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Reason <span className="font-normal text-gray-400">(optional)</span></label>
           <input
             type="text"
             value={reason}
             onChange={e => setReason(e.target.value)}
-            placeholder="cth: Pampasan lambat hantar"
+            placeholder="cth: Pampasan lambat send"
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
           />
         </div>
@@ -100,7 +100,7 @@ export function LoyaltyAdjust({ userId, currentPoints }: { userId: string; curre
           className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
         >
           {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {loading ? 'Menyimpan...' : `${mode === 'add' ? 'Tambah' : 'Tolak'} Mata`}
+          {loading ? 'Saving...' : `${mode === 'add' ? 'Add' : 'Deduct'} Points`}
         </button>
       </form>
     </div>

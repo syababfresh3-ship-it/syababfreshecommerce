@@ -5,6 +5,22 @@ import { NextResponse } from 'next/server'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { sendWhatsApp } from '@/lib/murpati'
 
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      id, order_number, status, total, payment_status, payment_method, delivery_address, delivery_slot, notes, created_at, updated_at, admin_notes,
+      order_items(id, product_name, variant_name, quantity, unit_price, subtotal),
+      profiles(full_name, phone, email)
+    `)
+    .eq('id', id)
+    .single()
+  if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(data)
+}
+
 async function processReferralReward(supabase: ReturnType<typeof createAdminClient>, userId: string, orderId: string) {
   const { data: referral } = await supabase
     .from('referrals')

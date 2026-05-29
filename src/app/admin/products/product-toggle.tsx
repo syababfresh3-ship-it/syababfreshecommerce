@@ -20,7 +20,7 @@ export function ProductToggle({ id, isActive }: ProductToggleProps) {
       body: JSON.stringify({ is_active: !active }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini status')
+      toast.error('Failed update status')
     } else {
       setActive(!active)
     }

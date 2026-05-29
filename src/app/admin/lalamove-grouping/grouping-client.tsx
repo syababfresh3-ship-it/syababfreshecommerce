@@ -75,7 +75,7 @@ function formatCopyList(orders: LalamoveOrder[]): string {
       const phone = o.phone ?? o.recipient_phone ?? '—'
       const address = o.delivery_address ?? '—'
       const items = getItemsSummary(o.items)
-      return `${idx + 1}. ${name} – ${phone}\nAlamat: ${address}\nItem: ${items}\nBayaran: ${o.payment_status === 'paid' ? '✓ Dah bayar' : '⚡ COD'}${o.notes ? `\nNota: ${o.notes}` : ''}`
+      return `${idx + 1}. ${name} – ${phone}\nAddress: ${address}\nItem: ${items}\nPayment: ${o.payment_status === 'paid' ? '✓ Dah bayar' : '⚡ COD'}${o.notes ? `\nNota: ${o.notes}` : ''}`
     })
     .join('\n\n')
 }
@@ -228,7 +228,7 @@ function ZoneGroupCard({
           <span className="text-sm font-bold text-gray-900">{group.orders.length} order</span>
           {group.savedId && (
             <span className="text-[10px] text-brand-fresh-600 font-semibold flex items-center gap-0.5">
-              <CheckCircle2 className="h-3 w-3" /> Tersimpan
+              <CheckCircle2 className="h-3 w-3" /> Tersave
             </span>
           )}
         </div>
@@ -287,7 +287,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       const res = await fetch(`/api/admin/delivery-batches?date=${date}`)
       const { batches } = await res.json() as { batches: SavedBatch[] }
       if (!batches || batches.length === 0) {
-        toast('Tiada batch tersimpan untuk tarikh ini')
+        toast('No batch tersave untuk tarikh ini')
         setLoadingExisting(false)
         return
       }
@@ -330,7 +330,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       setSaved(true)
       toast.success(`${batches.length} batch dimuatkan semula`)
     } catch {
-      toast.error('Gagal muatkan batch tersimpan')
+      toast.error('Failed muatkan batch tersave')
     }
     setLoadingExisting(false)
   }
@@ -387,13 +387,13 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
 
       if (!res.ok) {
         const err = await res.json()
-        toast.error(err.error ?? 'Gagal simpan batch')
+        toast.error(err.error ?? 'Failed save batch')
         setSaving(false)
         return
       }
 
       setSaved(true)
-      toast.success('Batch berjaya disimpan!')
+      toast.success('Batch success disave!')
 
       // Reload to get savedIds
       await loadExistingBatches()
@@ -417,7 +417,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       })
-      if (!res.ok) toast.error('Gagal kemaskini status')
+      if (!res.ok) toast.error('Failed update status')
     }
   }, [groups])
 
@@ -444,7 +444,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       .filter((g) => g.orders.length > 0)
       .map((g) => `=== ${g.zone.emoji} ${g.zone.name} (${g.orders.length} order) ===\n${formatCopyList(g.orders)}`)
       .join('\n\n')
-    navigator.clipboard.writeText(allText).then(() => toast.success('Semua batch disalin!'))
+    navigator.clipboard.writeText(allText).then(() => toast.success('All batch disalin!'))
   }
 
   const totalOrders = orders.length
@@ -459,7 +459,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
-              <Calendar className="h-3 w-3 inline mr-1" />Tarikh
+              <Calendar className="h-3 w-3 inline mr-1" />Date
             </label>
             <input
               type="date"
@@ -484,7 +484,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
 
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">
-              <Filter className="h-3 w-3 inline mr-1" />Status Pesanan
+              <Filter className="h-3 w-3 inline mr-1" />Status Orders
             </label>
             <div className="flex flex-wrap gap-2">
               {['confirmed', 'preparing', 'delivering'].map((s) => (
@@ -520,7 +520,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
           </div>
           {filteredCount === 0 && (
             <div className="flex items-center gap-1.5 text-xs text-orange-500">
-              <AlertCircle className="h-3.5 w-3.5" />Tiada order dalam kriteria ini
+              <AlertCircle className="h-3.5 w-3.5" />No order dalam kriteria ini
             </div>
           )}
         </div>
@@ -541,10 +541,10 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             onClick={loadExistingBatches}
             disabled={loadingExisting}
             className="flex items-center gap-2 px-4 py-3 border-2 border-gray-200 text-gray-600 font-semibold rounded-2xl text-sm hover:border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            title="Muatkan batch tersimpan"
+            title="Muatkan batch tersave"
           >
             {loadingExisting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            Muatkan Tersimpan
+            Muatkan Tersave
           </button>
         </div>
       </div>
@@ -563,11 +563,11 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
               {/* Save badge */}
               {saved && (
                 <span className="flex items-center gap-1 text-xs text-brand-fresh-600 font-semibold">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> Tersimpan
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Tersave
                 </span>
               )}
               {!saved && generated && (
-                <span className="text-xs text-orange-500 font-semibold">● Belum disimpan</span>
+                <span className="text-xs text-orange-500 font-semibold">● Belum disave</span>
               )}
 
               {/* Copy All */}
@@ -575,7 +575,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
                 onClick={copyAll}
                 className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors"
               >
-                <Copy className="h-3.5 w-3.5" />Copy Semua
+                <Copy className="h-3.5 w-3.5" />Copy All
               </button>
 
               {/* Save to DB */}
@@ -585,7 +585,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
                 className="flex items-center gap-1.5 px-4 py-2 bg-brand-fresh-500 text-white text-xs font-bold rounded-xl hover:bg-brand-fresh-600 disabled:opacity-50 transition-colors shadow-sm"
               >
                 {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                {saving ? 'Menyimpan...' : 'Simpan Batch'}
+                {saving ? 'Menyimpan...' : 'Save Batch'}
               </button>
             </div>
           </div>
@@ -603,7 +603,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             {groups.every((g) => g.orders.length === 0) && (
               <div className="text-center py-12 text-gray-400">
                 <Truck className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                <p className="font-semibold">Tiada order untuk dikumpulkan</p>
+                <p className="font-semibold">No order untuk dikumpulkan</p>
               </div>
             )}
           </div>

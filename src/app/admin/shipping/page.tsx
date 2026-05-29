@@ -19,7 +19,7 @@ interface WeightTier {
 }
 
 const TIER_CARRIERS = [
-  { id: 'ninja_cold', label: 'Ninja Van Cold — Luar Lembah Klang' },
+  { id: 'ninja_cold', label: 'Ninja Van Cold — Outside Klang Valley' },
 ]
 
 const CARRIER_META: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
@@ -106,18 +106,18 @@ export default function ShippingPage() {
         fee: parseFloat(editValues.fee),
       }),
     })
-    if (!res.ok) { toast.error('Gagal simpan'); setSavingTier(false); return }
-    toast.success('Kadar dikemaskini')
+    if (!res.ok) { toast.error('Failed save'); setSavingTier(false); return }
+    toast.success('Kadar diupdate')
     setEditingTier(null)
     await loadTiers()
     setSavingTier(false)
   }
 
   async function deleteTier(tierId: string) {
-    if (!confirm('Padam tier ini?')) return
+    if (!confirm('Delete tier ini?')) return
     const res = await fetch(`/api/admin/shipping/weight-tiers/${tierId}`, { method: 'DELETE' })
-    if (!res.ok) { toast.error('Gagal padam'); return }
-    toast.success('Tier dipadam')
+    if (!res.ok) { toast.error('Failed delete'); return }
+    toast.success('Tier didelete')
     setTiers(prev => prev.filter(t => t.id !== tierId))
   }
 
@@ -134,7 +134,7 @@ export default function ShippingPage() {
         fee: parseFloat(newTier.fee),
       }),
     })
-    if (!res.ok) { toast.error('Gagal tambah'); setSavingTier(false); return }
+    if (!res.ok) { toast.error('Failed tambah'); setSavingTier(false); return }
     toast.success('Tier ditambah')
     setNewTier(null)
     await loadTiers()
@@ -149,9 +149,9 @@ export default function ShippingPage() {
       body: JSON.stringify({ is_active: !carrier.is_active }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini')
+      toast.error('Failed update')
     } else {
-      toast.success(carrier.is_active ? `${carrier.name} dimatikan` : `${carrier.name} diaktifkan`)
+      toast.success(carrier.is_active ? `${carrier.name} disabled` : `${carrier.name} enabled`)
       setCarriers(prev => prev.map(c => c.id === carrier.id ? { ...c, is_active: !c.is_active } : c))
     }
     setToggling(null)
@@ -165,9 +165,9 @@ export default function ShippingPage() {
       body: JSON.stringify({ config: configs[carrierId] ?? {} }),
     })
     if (!res.ok) {
-      toast.error('Gagal simpan konfigurasi')
+      toast.error('Failed save konfigurasi')
     } else {
-      toast.success('Konfigurasi disimpan')
+      toast.success('Configuration saved')
       setExpanded(null)
     }
     setSaving(null)
@@ -189,9 +189,9 @@ export default function ShippingPage() {
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Penghantaran & Kurier</h1>
+          <h1 className="text-xl font-bold text-gray-900">Shipping Pengsendan & Kurier Couriers</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {carriers.filter(c => c.is_active).length} daripada {carriers.length} kurier aktif
+            {carriers.filter(c => c.is_active).length} daripada {carriers.length} kurier active
           </p>
         </div>
         <div className="flex gap-2">
@@ -199,14 +199,14 @@ export default function ShippingPage() {
             href="/admin/shipping/exports"
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 bg-indigo-50 px-3 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
           >
-            Eksport & AWB
+            Export & AWB
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
           <Link
             href="/admin/shipping/shipments"
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
           >
-            Semua Penghantaran
+            All Shipments
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -258,13 +258,13 @@ export default function ShippingPage() {
                       ? 'bg-green-50 text-green-700 border-green-200'
                       : 'bg-gray-50 text-gray-400 border-gray-200'
                   }`}>
-                    {carrier.is_active ? 'Aktif' : 'Mati'}
+                    {carrier.is_active ? 'Active' : 'Mati'}
                   </span>
 
                   <button
                     onClick={() => setExpanded(isExpanded ? null : carrier.id)}
                     className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors shrink-0"
-                    title="Tetapan API"
+                    title="Settings API"
                   >
                     {isExpanded ? <ChevronUp className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
                   </button>
@@ -288,9 +288,9 @@ export default function ShippingPage() {
 
                 {isExpanded && (
                   <div className="border-t border-gray-100 px-5 pb-5 pt-4 space-y-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Konfigurasi API</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">API Configuration</p>
                     {fields.length === 0 ? (
-                      <p className="text-sm text-gray-400">Tiada konfigurasi API diperlukan untuk kurier ini.</p>
+                      <p className="text-sm text-gray-400">No API configuration required for this courier.</p>
                     ) : (
                       <>
                         {fields.map(field => {
@@ -326,7 +326,7 @@ export default function ShippingPage() {
                           className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
                         >
                           {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                          {isSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
+                          {isSaving ? 'Saving...' : 'Save Configuration'}
                         </button>
                       </>
                     )}
@@ -339,14 +339,14 @@ export default function ShippingPage() {
       )}
 
       <p className="text-xs text-gray-400 mt-6 text-center leading-relaxed">
-        Konfigurasi API akan digunakan apabila integrasi penghantaran automatik diaktifkan.
+        API configuration will be used when automatic shipping integration is enabled.
       </p>
 
       {/* ── Weight Tiers ── */}
       <div className="mt-8">
         <div className="flex items-center gap-2 mb-4">
           <Scale className="h-4 w-4 text-gray-500" />
-          <h2 className="text-base font-bold text-gray-900">Kadar Penghantaran Mengikut Berat</h2>
+          <h2 className="text-base font-bold text-gray-900">Weight-Based Shipping Rates</h2>
         </div>
 
         {TIER_CARRIERS.map(carrier => (
@@ -354,13 +354,13 @@ export default function ShippingPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <p className="font-bold text-gray-900 text-sm">{carrier.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Kadar digunakan untuk pesanan luar Lembah Klang</p>
+                <p className="text-xs text-gray-400 mt-0.5">Rates used for orders outside Klang Valley</p>
               </div>
               <button
                 onClick={() => setNewTier({ min_kg: '', max_kg: '', fee: '' })}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-xl hover:bg-gray-700 transition-colors"
               >
-                <Plus className="h-3.5 w-3.5" />Tambah Tier
+                <Plus className="h-3.5 w-3.5" />Add Tier
               </button>
             </div>
 
@@ -372,8 +372,8 @@ export default function ShippingPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    <th className="text-left px-5 py-3">Berat (kg)</th>
-                    <th className="text-left px-5 py-3">Kadar (RM)</th>
+                    <th className="text-left px-5 py-3">Weight (kg)</th>
+                    <th className="text-left px-5 py-3">Rate (RM)</th>
                     <th className="w-20 px-5 py-3"></th>
                   </tr>
                 </thead>
@@ -502,7 +502,7 @@ export default function ShippingPage() {
                   {tiers.filter(t => t.carrier_id === carrier.id).length === 0 && !newTier && (
                     <tr>
                       <td colSpan={3} className="px-5 py-8 text-center text-sm text-gray-400">
-                        Tiada tier. Klik "Tambah Tier" untuk mulakan.
+                        No tiers yet. Click "Add Tier" to start.
                       </td>
                     </tr>
                   )}

@@ -18,10 +18,10 @@ export default async function ProductSortPage() {
         <Link href="/admin/products" className="text-gray-400 hover:text-gray-600 transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">Urus Urutan Produk</h1>
+        <h1 className="text-xl font-bold text-gray-900">Urus Urutan Product</h1>
       </div>
       <p className="text-sm text-gray-500 mb-5 ml-7">
-        Seret dan lepas untuk susun semula. Klik <strong>Simpan Urutan</strong> bila selesai.
+        Seret dan lepas untuk susun semula. Klik <strong>Save Urutan</strong> bila selesai.
       </p>
 
       <div className="max-w-md">
