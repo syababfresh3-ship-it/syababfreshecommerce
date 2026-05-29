@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
+import { sendWhatsApp } from '@/lib/murpati'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
@@ -55,7 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Get landing page
   const { data: page } = await supabase
     .from('landing_pages')
-    .select('id')
+    .select('id, title')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -208,6 +209,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
     return NextResponse.json({ checkoutUrl: chipData.checkout_url, order_number: order.order_number })
   }
+
+  // COD / bank_transfer — hantar WhatsApp terus (FPX handled in webhook after payment)
+  const appUrl = getAppUrl()
+  const itemLines = validatedItems.map(i =>
+    `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`
+  ).join('\n')
+  const payLabel: Record<string, string> = { cod: 'Bayar Semasa Terima (COD)', bank_transfer: 'Pindahan Bank' }
+  sendWhatsApp(phone.trim(), [
+    `Terima kasih ${name.trim()}! 🌿`,
+    ``,
+    `📋 *Pesanan Diterima*`,
+    `📦 No. Pesanan: *${order.order_number}*`,
+    `🛍️ ${page.title}`,
+    ``,
+    itemLines,
+    ``,
+    `💰 Jumlah: *RM${Number(order.total).toFixed(2)}*`,
+    `💳 Kaedah Bayar: ${payLabel[payment_method] ?? payment_method}`,
+    ``,
+    `Daftar akaun untuk track order & dapat loyalty points:`,
+    `👉 ${appUrl}/daftar`,
+    ``,
+    `SyababFresh 🌿`,
+  ].join('\n')).catch(() => {})
 
   return NextResponse.json({
     ok: true,

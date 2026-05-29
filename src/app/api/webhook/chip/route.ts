@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { event_type, purchase } = body
+  console.log('[chip-webhook] event:', event_type, 'reference:', purchase?.reference, 'status:', purchase?.status)
 
   const orderId = purchase?.reference
   if (!orderId) return NextResponse.json({ ok: true })
@@ -69,36 +70,61 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!updated) {
+    console.log('[chip-webhook] not in orders table, trying lp_guest_orders for:', orderId)
     // Try LP guest order
     const { data: lpOrder } = await supabase
       .from('lp_guest_orders')
       .update({ status: 'confirmed' })
       .eq('id', orderId)
       .eq('status', 'pending')
-      .select('id, order_number, name, phone, total, items, payment_method')
+      .select('id, order_number, name, phone, total, items, payment_method, landing_pages(title)')
       .single()
 
+    console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
     if (lpOrder) {
+      const lp = lpOrder as any
+      const lpTitle = lp.landing_pages?.title ?? 'SyababFresh'
+      const itemLines = ((lp.items as any[]) ?? [])
+        .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
+        .join('\n')
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+
+      // WhatsApp to customer
+      sendWhatsApp(lp.phone, [
+        `Terima kasih ${lp.name}! 🌿`,
+        ``,
+        `✅ *Bayaran FPX Diterima*`,
+        `📦 No. Pesanan: *${lp.order_number}*`,
+        `🛍️ ${lpTitle}`,
+        ``,
+        itemLines,
+        ``,
+        `💰 Jumlah: *RM${Number(lp.total).toFixed(2)}*`,
+        ``,
+        `Daftar akaun untuk track order & dapat loyalty points:`,
+        `👉 ${appUrl}/daftar`,
+        ``,
+        `SyababFresh 🌿`,
+      ].join('\n')).catch(() => {})
+
+      // WhatsApp to admin
       const adminPhone = process.env.ADMIN_WHATSAPP
       if (adminPhone) {
-        const itemLines = ((lpOrder.items as any[]) ?? [])
-          .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
-          .join('\n')
         sendWhatsApp(adminPhone, [
-          `🛒 *Pesanan LP Baru — ${lpOrder.order_number}*`,
+          `🛒 *Pesanan LP Baru — ${lp.order_number}*`,
           ``,
-          `👤 *Pelanggan:* ${lpOrder.name}`,
-          `📱 *Telefon:* ${lpOrder.phone}`,
+          `👤 *Pelanggan:* ${lp.name}`,
+          `📱 *Telefon:* ${lp.phone}`,
+          `🛍️ ${lpTitle}`,
           ``,
-          `🧺 *Item:*`,
           itemLines,
           ``,
-          `💰 *Jumlah:* RM${Number(lpOrder.total).toFixed(2)}`,
+          `💰 *Jumlah:* RM${Number(lp.total).toFixed(2)}`,
           `💳 *Bayaran:* FPX ✅ Dibayar`,
         ].join('\n')).catch(() => {})
         sendAdminPush({
-          title: `💳 LP FPX Dibayar — ${lpOrder.order_number}`,
-          body: `${lpOrder.name} · RM${Number(lpOrder.total).toFixed(2)}`,
+          title: `💳 LP FPX Dibayar — ${lp.order_number}`,
+          body: `${lp.name} · RM${Number(lp.total).toFixed(2)}`,
           url: '/admin/fulfillment',
           tag: 'payment-confirmed',
         }).catch(() => {})

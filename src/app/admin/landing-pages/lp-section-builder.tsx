@@ -29,7 +29,7 @@ export function LpSectionBuilder({ sections, onChange, pickerProducts = [] }: Pr
   }
 
   function removeSection(id: string) {
-    if (!confirm('Padam bahagian ini?')) return
+    if (!confirm('Delete this section?')) return
     const next = sections.filter(s => s.id !== id)
     updateAndSync(next, onChange)
   }
@@ -163,7 +163,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'text':
       return (
         <>
-          <div><label className={lbl}>Tajuk (pilihan)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Produk Ini?" /></div>
+          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Produk Ini?" /></div>
           <div><label className={lbl}>Teks *</label><textarea className={ta} rows={4} value={d.body || ''} onChange={e => u('body', e.target.value)} placeholder="Tulis penerangan, cerita, atau fakta menarik di sini..." /></div>
           <div>
             <label className={lbl}>Penjajaran teks</label>
@@ -178,7 +178,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'benefits':
       return (
         <>
-          <div><label className={lbl}>Tajuk bahagian</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Pilih Kami?" /></div>
+          <div><label className={lbl}>Section title</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Kenapa Pilih Kami?" /></div>
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
               <p className="text-[10px] font-bold text-gray-400 uppercase">Manfaat {i}</p>
@@ -215,7 +215,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
         <>
           <div><label className={lbl}>Kata-kata pelanggan *</label><textarea className={ta} rows={3} value={d.quote || ''} onChange={e => u('quote', e.target.value)} placeholder="Memang sedap, anak-anak suka sangat..." /></div>
           <div className="grid grid-cols-2 gap-2">
-            <div><label className={lbl}>Nama pelanggan</label><input className={inp} value={d.name || ''} onChange={e => u('name', e.target.value)} placeholder="Puan Aishah" /></div>
+            <div><label className={lbl}>Customer name</label><input className={inp} value={d.name || ''} onChange={e => u('name', e.target.value)} placeholder="Puan Aishah" /></div>
             <div><label className={lbl}>Lokasi</label><input className={inp} value={d.location || ''} onChange={e => u('location', e.target.value)} placeholder="Kuala Lumpur" /></div>
           </div>
           <div>
@@ -245,11 +245,11 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'lead-form':
       return (
         <>
-          <div><label className={lbl}>Tajuk sebelum form</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Ada soalan? Kami sedia membantu!" /></div>
+          <div><label className={lbl}>Title before form</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Ada soalan? Kami sedia membantu!" /></div>
           <div><label className={lbl}>Penerangan (pilihan)</label><input className={inp} value={d.desc || ''} onChange={e => u('desc', e.target.value)} placeholder="Tinggalkan nombor anda..." /></div>
           <div className="border-t border-gray-100 pt-3 mt-1">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-2">Mesej Thank You (selepas submit)</p>
-            <div><label className={lbl}>Tajuk Thank You</label><input className={inp} value={d.ty_title || ''} onChange={e => u('ty_title', e.target.value)} placeholder="Terima kasih!" /></div>
+            <div><label className={lbl}>Thank You Title</label><input className={inp} value={d.ty_title || ''} onChange={e => u('ty_title', e.target.value)} placeholder="Terima kasih!" /></div>
             <div><label className={lbl}>Mesej Thank You</label><input className={inp} value={d.ty_message || ''} onChange={e => u('ty_message', e.target.value)} placeholder="Team kami akan hubungi anda tidak lama lagi." /></div>
             <div><label className={lbl}>Link WhatsApp Community (pilihan)</label><input className={inp} type="url" value={d.ty_wa_link || ''} onChange={e => u('ty_wa_link', e.target.value)} placeholder="https://chat.whatsapp.com/xxxx" /></div>
             <div><label className={lbl}>Redirect ke URL selepas submit (pilihan)</label><input className={inp} value={d.ty_redirect || ''} onChange={e => u('ty_redirect', e.target.value)} placeholder="cth: /lp/thank-you atau https://..." /></div>
@@ -296,7 +296,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'faq':
       return (
         <>
-          <div><label className={lbl}>Tajuk bahagian</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Soalan Lazim" /></div>
+          <div><label className={lbl}>Section title</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Soalan Lazim" /></div>
           {[1,2,3,4,5].map(i => (
             <div key={i} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-white">
               <p className="text-[10px] font-bold text-gray-400 uppercase">Soalan {i}</p>
@@ -310,7 +310,7 @@ function SectionFields({ section, updateData, pickerProducts }: {
     case 'stats':
       return (
         <>
-          <div><label className={lbl}>Tajuk (pilihan)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Dipercayai Ribuan Pelanggan" /></div>
+          <div><label className={lbl}>Title (optional)</label><input className={inp} value={d.title || ''} onChange={e => u('title', e.target.value)} placeholder="Dipercayai Ribuan Pelanggan" /></div>
           {[1,2,3,4].map(i => (
             <div key={i} className="grid grid-cols-2 gap-2">
               <div><label className={lbl}>Nombor/Nilai {i}</label><input className={inp} value={d[`stat${i}_num`] || ''} onChange={e => u(`stat${i}_num`, e.target.value)} placeholder="5,000+" /></div>

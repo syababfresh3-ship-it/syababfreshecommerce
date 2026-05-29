@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { RefreshCw, Clock, Package, Truck, CheckCircle2, AlertCircle, Phone, Calendar, ShieldAlert } from 'lucide-react'
+import { RefreshCw, Clock, Package, Truck, CheckCircle2, AlertCircle, Phone, Calendar, ShieldAlert, Tag } from 'lucide-react'
 
 interface Order {
   id: string
@@ -20,31 +20,50 @@ interface Order {
   order_items: { product_name: string; quantity: number }[]
 }
 
+interface LpOrder {
+  id: string
+  order_number: string
+  status: string
+  total: number
+  payment_method: string
+  name: string
+  phone: string
+  address: string
+  product_name: string
+  variant_name: string | null
+  quantity: number
+  unit_price: number
+  items: any[]
+  created_at: string
+  notes: string | null
+  landing_pages: { title: string; slug: string } | null
+}
+
 const COLUMNS = [
   {
     status: 'pending',
-    label: 'Menunggu',
+    label: 'Pending',
     headerCls: 'bg-yellow-500',
     cardBorder: 'border-yellow-200',
     icon: Clock,
   },
   {
     status: 'confirmed',
-    label: 'Disahkan',
+    label: 'Confirmed',
     headerCls: 'bg-blue-500',
     cardBorder: 'border-blue-200',
     icon: CheckCircle2,
   },
   {
     status: 'preparing',
-    label: 'Disediakan',
+    label: 'Preparing',
     headerCls: 'bg-purple-500',
     cardBorder: 'border-purple-200',
     icon: Package,
   },
   {
     status: 'delivering',
-    label: 'Dihantar',
+    label: 'Delivering',
     headerCls: 'bg-orange-500',
     cardBorder: 'border-orange-200',
     icon: Truck,
@@ -52,32 +71,37 @@ const COLUMNS = [
 ]
 
 const ACTION: Record<string, { label: string; next: string; cls: string }> = {
-  pending:   { label: '✓ Sahkan Pesanan',  next: 'confirmed',  cls: 'bg-blue-600 hover:bg-blue-700 text-white' },
-  confirmed: { label: '▶ Mula Sediakan',   next: 'preparing',  cls: 'bg-purple-600 hover:bg-purple-700 text-white' },
-  preparing: { label: '🚗 Hantar Sekarang', next: 'delivering', cls: 'bg-orange-500 hover:bg-orange-600 text-white' },
-  delivering:{ label: '✓ Tandakan Selesai',next: 'delivered',   cls: 'bg-green-600 hover:bg-green-700 text-white' },
+  pending:   { label: '✓ Confirm Order',  next: 'confirmed',  cls: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  confirmed: { label: '▶ Start Preparing',   next: 'preparing',  cls: 'bg-purple-600 hover:bg-purple-700 text-white' },
+  preparing: { label: '🚗 Ship Now', next: 'delivering', cls: 'bg-orange-500 hover:bg-orange-600 text-white' },
+  delivering:{ label: '✓ Mark Delivered',next: 'delivered',   cls: 'bg-green-600 hover:bg-green-700 text-white' },
 }
 
 function timeAgo(date: string) {
   const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60000)
-  if (mins < 1) return 'baru sahaja'
-  if (mins < 60) return `${mins} min lalu`
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs} jam lalu`
-  return `${Math.floor(hrs / 24)} hari lalu`
+  if (hrs < 24) return `${hrs} hr ago`
+  return `${Math.floor(hrs / 24)} d ago`
 }
 
 export default function FulfillmentPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [lpOrders, setLpOrders] = useState<LpOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [trackingLinks, setTrackingLinks] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/admin/fulfillment')
-    const data = await res.json()
-    setOrders(Array.isArray(data) ? data : [])
+    const [mainRes, lpRes] = await Promise.all([
+      fetch('/api/admin/fulfillment'),
+      fetch('/api/admin/landing-pages/orders?status=pending'),
+    ])
+    const [mainData, lpData] = await Promise.all([mainRes.json(), lpRes.json()])
+    setOrders(Array.isArray(mainData) ? mainData : [])
+    setLpOrders(Array.isArray(lpData) ? lpData : [])
     setLoading(false)
     setLastUpdated(new Date())
   }, [])
@@ -98,7 +122,7 @@ export default function FulfillmentPage() {
       body: JSON.stringify({ status: action.next }),
     })
     if (!res.ok) {
-      toast.error('Gagal kemaskini status')
+      toast.error('Failed to update status')
     } else {
       toast.success(`${order.order_number} — ${action.label}`)
       const trackingUrl = order.status === 'preparing' ? (trackingLinks[order.id] ?? '').trim() : ''
@@ -126,27 +150,39 @@ export default function FulfillmentPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'approve' }),
     })
-    if (!res.ok) toast.error('Gagal luluskan pesanan')
-    else { toast.success(`${order.order_number} — Diluluskan!`); load() }
+    if (!res.ok) toast.error('Failed to approve order')
+    else { toast.success(`${order.order_number} — Approved!`); load() }
     setUpdating(null)
   }
 
   async function rejectOrder(order: Order) {
-    if (!confirm(`Tolak pesanan ${order.order_number}? Pesanan akan dibatalkan.`)) return
+    if (!confirm(`Cancel order ${order.order_number}? This will cancel the order.`)) return
     setUpdating(order.id)
     const res = await fetch(`/api/admin/orders/${order.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reject' }),
     })
-    if (!res.ok) toast.error('Gagal tolak pesanan')
-    else { toast.success(`${order.order_number} — Ditolak`); load() }
+    if (!res.ok) toast.error('Failed to reject order')
+    else { toast.success(`${order.order_number} — Rejected`); load() }
+    setUpdating(null)
+  }
+
+  async function advanceLp(lpOrder: LpOrder, newStatus: 'confirmed' | 'cancelled') {
+    setUpdating(lpOrder.id)
+    const res = await fetch('/api/admin/landing-pages/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: lpOrder.id, status: newStatus }),
+    })
+    if (!res.ok) toast.error('Failed to update')
+    else { toast.success(`${lpOrder.order_number} — ${newStatus === 'confirmed' ? 'Confirmed ✓' : 'Cancelled'}`); load() }
     setUpdating(null)
   }
 
   const pendingApproval = orders.filter(o => o.needs_approval)
   const byStatus = (status: string) => orders.filter(o => !o.needs_approval && o.status === status)
-  const total = orders.length
+  const total = orders.length + lpOrders.length
 
   return (
     <div className="p-4 md:p-6 min-h-screen bg-gray-50/80">
@@ -155,9 +191,9 @@ export default function FulfillmentPage() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Fulfillment</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {total} pesanan aktif
+            {total} active orders
             {lastUpdated && (
-              <span className="ml-2 text-gray-300">· dikemaskini {lastUpdated.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="ml-2 text-gray-300">· updated {lastUpdated.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' })}</span>
             )}
           </p>
         </div>
@@ -171,24 +207,85 @@ export default function FulfillmentPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-24 text-gray-400">
-          <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Memuatkan...
+          <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Loading...
         </div>
       ) : total === 0 ? (
         <div className="text-center py-24">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
             <CheckCircle2 className="h-8 w-8 text-green-500" />
           </div>
-          <p className="text-gray-700 font-semibold text-lg">Semua selesai!</p>
-          <p className="text-gray-400 text-sm mt-1">Tiada pesanan aktif pada masa ini.</p>
+          <p className="text-gray-700 font-semibold text-lg">All done!</p>
+          <p className="text-gray-400 text-sm mt-1">Tiada active orders pada masa ini.</p>
         </div>
       ) : (
         <>
+        {/* ── LP Orders — Preorder pending ── */}
+        {lpOrders.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-rose-600 shadow-sm mb-3">
+              <Tag className="h-4 w-4 text-white" />
+              <span className="text-sm font-bold text-white flex-1">Landing Page Orders</span>
+              <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">{lpOrders.length}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {lpOrders.map(lp => {
+                const items: any[] = Array.isArray(lp.items) && lp.items.length > 0
+                  ? lp.items
+                  : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity, unit_price: lp.unit_price }]
+                const payLabel: Record<string, string> = { fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank' }
+                const isPaid = lp.payment_method === 'fpx' || lp.payment_method === 'ewallet'
+                return (
+                  <div key={lp.id} className="bg-white rounded-2xl border-2 border-rose-200 shadow-sm overflow-hidden">
+                    <div className="bg-rose-50 px-4 py-2 flex items-center justify-between border-b border-rose-100">
+                      <span className="text-xs font-bold text-rose-700 truncate">{lp.landing_pages?.title ?? 'LP'}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {isPaid ? '✓ Paid' : payLabel[lp.payment_method] ?? lp.payment_method}
+                      </span>
+                    </div>
+                    <div className="px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono font-bold text-rose-600">{lp.order_number}</span>
+                        <span className="text-sm font-black text-gray-900">RM{Number(lp.total).toFixed(2)}</span>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2">
+                        <p className="text-sm font-bold text-gray-900">{lp.name}</p>
+                        <a href={`tel:${lp.phone}`} className="flex items-center gap-1 text-xs text-blue-600 mt-0.5">
+                          <Phone className="h-3 w-3" />{lp.phone}
+                        </a>
+                      </div>
+                      <div className="space-y-0.5">
+                        {items.slice(0, 3).map((item: any, i: number) => (
+                          <p key={i} className="text-xs text-gray-600">• {item.product_name}{item.variant_name ? ` (${item.variant_name})` : ''} ×{item.quantity}</p>
+                        ))}
+                      </div>
+                      {lp.notes && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">📝 {lp.notes}</p>}
+                      <p className="text-[10px] text-gray-400">{timeAgo(lp.created_at)}</p>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => advanceLp(lp, 'cancelled')}
+                          disabled={updating === lp.id}
+                          className="flex-1 py-2 text-xs font-bold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 disabled:opacity-50"
+                        >Cancel</button>
+                        <button
+                          onClick={() => advanceLp(lp, 'confirmed')}
+                          disabled={updating === lp.id}
+                          className="flex-1 py-2 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 disabled:opacity-50"
+                        >{updating === lp.id ? '...' : '✓ Confirm'}</button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ── Perlu Lulus — First-order approval queue ── */}
         {pendingApproval.length > 0 && (
           <div className="mb-5">
             <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-amber-500 shadow-sm mb-3">
               <ShieldAlert className="h-4 w-4 text-white" />
-              <span className="text-sm font-bold text-white flex-1">Perlu Kelulusan — Pelanggan Baru</span>
+              <span className="text-sm font-bold text-white flex-1">Needs Approval — New Customer</span>
               <span className="bg-white/25 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingApproval.length}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -196,7 +293,7 @@ export default function FulfillmentPage() {
                 <div key={order.id} className="bg-white rounded-2xl border-2 border-amber-300 shadow-sm overflow-hidden">
                   <div className="bg-amber-50 px-4 py-2 flex items-center gap-2 border-b border-amber-100">
                     <ShieldAlert className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                    <span className="text-xs font-bold text-amber-700">Pesanan Pertama — Semak Sebelum Lulus</span>
+                    <span className="text-xs font-bold text-amber-700">First Order — Review Before Approving</span>
                   </div>
                   <div className="px-4 py-3 space-y-2">
                     <div className="flex items-center justify-between">
@@ -363,13 +460,13 @@ export default function FulfillmentPage() {
                             <div>
                               <input
                                 type="url"
-                                placeholder="Link Lalamove (pilihan)"
+                                placeholder="Lalamove Link (optional)"
                                 value={trackingLinks[order.id] ?? ''}
                                 onChange={e => setTrackingLinks(prev => ({ ...prev, [order.id]: e.target.value }))}
                                 className="w-full border border-orange-200 bg-orange-50 rounded-xl px-3 py-2 text-xs placeholder:text-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-400"
                               />
                               {(trackingLinks[order.id] ?? '').trim() && (
-                                <p className="text-[10px] text-orange-500 mt-1 px-1">✓ Link akan dihantar ke customer dalam WA</p>
+                                <p className="text-[10px] text-orange-500 mt-1 px-1">✓ Link will be sent to customer via WhatsApp</p>
                               )}
                             </div>
                           )}

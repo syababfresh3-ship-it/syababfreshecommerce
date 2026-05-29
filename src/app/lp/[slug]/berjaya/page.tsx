@@ -111,6 +111,12 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
                   <p style={{ lineHeight: 1.6 }}>✅ Bayaran FPX diterima. Pesanan anda sedang diproses &amp; akan dihantar mengikut jadual. Team kami akan hubungi anda untuk update penghantaran.</p>
                 </div>
 
+                {/* Register CTA */}
+                <a href={`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/daftar`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', background: '#9C0F30', color: '#fff', borderRadius: 14, fontWeight: 700, fontSize: 14, textDecoration: 'none', marginBottom: 10, boxSizing: 'border-box' }}>
+                  🎁 Daftar Akaun — Dapat Loyalty Points &amp; Track Order
+                </a>
+
                 {/* WhatsApp button */}
                 <WaButton order={order} items={items} />
               </>

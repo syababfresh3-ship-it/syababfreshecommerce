@@ -77,9 +77,9 @@ function leadCount(page: LandingPage): number {
 type AdminTab = 'pages' | 'orders' | 'leads'
 
 const STATUS_CONFIG = {
-  pending:   { label: 'Menunggu',   bg: 'bg-yellow-50', text: 'text-yellow-700', icon: Clock },
-  confirmed: { label: 'Disahkan',   bg: 'bg-green-50',  text: 'text-green-700',  icon: CheckCircle },
-  cancelled: { label: 'Dibatal',    bg: 'bg-red-50',    text: 'text-red-600',    icon: XCircle },
+  pending:   { label: 'Pending',   bg: 'bg-yellow-50', text: 'text-yellow-700', icon: Clock },
+  confirmed: { label: 'Confirmed',   bg: 'bg-green-50',  text: 'text-green-700',  icon: CheckCircle },
+  cancelled: { label: 'Cancelled',    bg: 'bg-red-50',    text: 'text-red-600',    icon: XCircle },
 } as const
 
 export function LpClient({ initial }: { initial: LandingPage[] }) {
@@ -274,13 +274,13 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       ? filteredAllLeads.filter(l => selectedLeads.has(l.id))
       : filteredAllLeads
     const rows = [
-      ['Nama', 'Telefon', 'Sumber', 'Landing Page', 'Tarikh'],
+      ['Name', 'Phone', 'Source', 'Landing Page', 'Date'],
       ...filtered.map(l => [
         l.name ?? '',
         l.phone ?? '',
         l.source ?? '',
         l.landing_pages?.title ?? '',
-        new Date(l.created_at).toLocaleString('ms-MY'),
+        new Date(l.created_at).toLocaleString('en-MY'),
       ]),
     ]
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
@@ -482,7 +482,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-gray-900">Landing Pages</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Cipta halaman kempen fokus dengan produk pilihan</p>
+          <p className="text-sm text-gray-500 mt-0.5">Create focused campaign pages for product launches</p>
         </div>
         {activeTab === 'pages' && !showForm && (
           <button
@@ -490,7 +490,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             className="flex items-center gap-2 px-4 py-2 bg-brand-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            Landing Page Baru
+            New Landing Page
           </button>
         )}
       </div>
@@ -510,7 +510,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'orders' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <ShoppingBag className="h-4 w-4" />
-            Pesanan LP
+            LP Orders
             {orders.filter(o => o.status === 'pending').length > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                 {orders.filter(o => o.status === 'pending').length}
@@ -538,10 +538,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           {/* Status filter */}
           <div className="flex gap-2 flex-wrap">
             {[
-              { id: 'all', label: 'Semua' },
-              { id: 'pending', label: 'Menunggu' },
-              { id: 'confirmed', label: 'Disahkan' },
-              { id: 'cancelled', label: 'Dibatal' },
+              { id: 'all', label: 'All' },
+              { id: 'pending', label: 'Pending' },
+              { id: 'confirmed', label: 'Confirmed' },
+              { id: 'cancelled', label: 'Cancelled' },
             ].map(f => (
               <button
                 key={f.id}
@@ -557,16 +557,16 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </button>
             ))}
             <button onClick={loadOrders} className="ml-auto px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200">
-              Muat Semula
+              Refresh
             </button>
           </div>
 
-          {ordersLoading && <p className="text-sm text-gray-400 text-center py-12">Memuatkan...</p>}
+          {ordersLoading && <p className="text-sm text-gray-400 text-center py-12">Loading...</p>}
 
           {!ordersLoading && filteredOrders.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-semibold">Tiada pesanan</p>
+              <p className="font-semibold">No orders</p>
             </div>
           )}
 
@@ -608,7 +608,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         href={`https://wa.me/6${order.phone.replace(/^0/, '').replace(/\D/g, '')}`}
                         target="_blank" rel="noopener noreferrer"
                         className="p-1.5 text-[#25D366] hover:bg-green-50 rounded-lg transition-colors"
-                        title="Hubungi via WA"
+                        title="Contact via WA"
                       >
                         <MessageCircle className="h-4 w-4" />
                       </a>
@@ -640,7 +640,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         </button>
                       )}
                       <span className="text-[11px] text-gray-400">
-                        {new Date(order.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(order.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                   </div>
@@ -655,14 +655,14 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       {showForm && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">{creating ? 'Landing Page Baru' : `Edit: ${editing?.title}`}</h2>
-            <button onClick={closeForm} className="text-sm text-gray-400 hover:text-gray-600">Batal</button>
+            <h2 className="font-bold text-gray-900">{creating ? 'New Landing Page' : `Edit: ${editing?.title}`}</h2>
+            <button onClick={closeForm} className="text-sm text-gray-400 hover:text-gray-600">Cancel</button>
           </div>
 
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold text-gray-600 block mb-1">Tajuk</label>
+                <label className="text-xs font-bold text-gray-600 block mb-1">Title</label>
                 <input
                   value={form.title}
                   onChange={e => {
@@ -700,7 +700,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   </button>
                 </div>
                 {editorMode === 'blocks' && (
-                  <p className="text-[11px] text-gray-400">Isi form — HTML jana automatik</p>
+                  <p className="text-[11px] text-gray-400">Fill form — HTML auto-generated</p>
                 )}
               </div>
 
@@ -739,7 +739,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     rows={18}
                     spellCheck={false}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-y bg-gray-950 text-green-300 leading-relaxed"
-                    placeholder="Tampal HTML yang dijana oleh Claude di sini..."
+                    placeholder="Paste Claude-generated HTML here..."
                   />
                 </>
               )}
@@ -751,7 +751,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 <div className="absolute inset-0 bg-black/40" onClick={() => setShowPicker(false)} />
                 <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[75vh] flex flex-col shadow-2xl">
                   <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-                    <p className="font-bold text-gray-900">Pilih Produk</p>
+                    <p className="font-bold text-gray-900">Pick Product</p>
                     <button onClick={() => setShowPicker(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
                       <X className="h-4 w-4 text-gray-500" />
                     </button>
@@ -765,7 +765,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         autoFocus
                         value={pickerSearch}
                         onChange={e => setPickerSearch(e.target.value)}
-                        placeholder="Cari nama produk atau kategori..."
+                        placeholder="Search product name or category..."
                         className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                       />
                     </div>
@@ -773,9 +773,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
                   {/* List */}
                   <div className="overflow-y-auto flex-1 px-3 py-3 space-y-1">
-                    {pickerLoading && <p className="text-sm text-gray-400 text-center py-8">Memuatkan produk...</p>}
+                    {pickerLoading && <p className="text-sm text-gray-400 text-center py-8">Loading products...</p>}
                     {!pickerLoading && filteredPicker.length === 0 && (
-                      <p className="text-sm text-gray-400 text-center py-8">Tiada produk dijumpai</p>
+                      <p className="text-sm text-gray-400 text-center py-8">No products found</p>
                     )}
                     {filteredPicker.map(p => (
                       <button
@@ -818,7 +818,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-violet-600" />
-                      <p className="font-bold text-gray-900">Jana Landing Page dengan AI</p>
+                      <p className="font-bold text-gray-900">Generate Landing Page with AI</p>
                     </div>
                     <button onClick={() => setShowGenerate(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
                       <X className="h-4 w-4 text-gray-500" />
@@ -828,7 +828,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
                     {/* Framework selector */}
                     <div>
-                      <label className="text-xs font-bold text-gray-600 block mb-2">Pilih Framework Copywriting</label>
+                      <label className="text-xs font-bold text-gray-600 block mb-2">Choose Copywriting Framework</label>
                       <div className="grid grid-cols-2 gap-2">
                         {(frameworks.length > 0 ? frameworks : [
                           { id: 'aida', name: 'AIDA', description: 'Attention → Interest → Desire → Action' },
@@ -857,7 +857,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
                     {/* Theme selector */}
                     <div>
-                      <label className="text-xs font-bold text-gray-600 block mb-2">Pilih Tema Warna</label>
+                      <label className="text-xs font-bold text-gray-600 block mb-2">Choose Color Theme</label>
                       <div className="grid grid-cols-4 gap-2">
                         {(themes.length > 0 ? themes : [
                           { id: 'green', name: 'Fresh Green', emoji: '💚', preview: '#16a34a', bg: '#f0fdf4' },
@@ -894,7 +894,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     <div className="space-y-2.5">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-xs font-bold text-gray-600 block mb-1">Nama Produk *</label>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Product Name *</label>
                           <input
                             value={genForm.product_name}
                             onChange={e => setGenForm(f => ({ ...f, product_name: e.target.value }))}
@@ -903,7 +903,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           />
                         </div>
                         <div>
-                          <label className="text-xs font-bold text-gray-600 block mb-1">Slug Produk</label>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Product Slug</label>
                           <input
                             value={genForm.product_slug}
                             onChange={e => setGenForm(f => ({ ...f, product_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
@@ -914,7 +914,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-xs font-bold text-gray-600 block mb-1">Harga (RM)</label>
+                          <label className="text-xs font-bold text-gray-600 block mb-1">Price (RM)</label>
                           <input
                             value={genForm.product_price}
                             onChange={e => setGenForm(f => ({ ...f, product_price: e.target.value }))}
@@ -938,7 +938,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-600 block mb-1">Target Pelanggan</label>
+                        <label className="text-xs font-bold text-gray-600 block mb-1">Target Audience</label>
                         <input
                           value={genForm.target_audience}
                           onChange={e => setGenForm(f => ({ ...f, target_audience: e.target.value }))}
@@ -947,7 +947,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-gray-600 block mb-1">Tujuan Kempen</label>
+                        <label className="text-xs font-bold text-gray-600 block mb-1">Campaign Goal</label>
                         <input
                           value={genForm.campaign_goal}
                           onChange={e => setGenForm(f => ({ ...f, campaign_goal: e.target.value }))}
@@ -965,13 +965,13 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       className="w-full flex items-center justify-center gap-2 py-3.5 bg-violet-600 text-white rounded-xl font-bold text-sm hover:bg-violet-700 disabled:opacity-50 transition-all"
                     >
                       {generating ? (
-                        <><span className="animate-spin">⟳</span> AI sedang menulis...</>
+                        <><span className="animate-spin">⟳</span> AI is writing...</>
                       ) : (
-                        <><Wand2 className="h-4 w-4" /> Jana HTML Sekarang</>
+                        <><Wand2 className="h-4 w-4" /> Generate HTML Now</>
                       )}
                     </button>
                     {generating && (
-                      <p className="text-[11px] text-gray-400 text-center mt-2">Ambil masa 10-20 saat...</p>
+                      <p className="text-[11px] text-gray-400 text-center mt-2">Takes 10-20 seconds...</p>
                     )}
                   </div>
                 </div>
@@ -1022,7 +1022,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 >
                   <div className={`w-4 h-4 bg-white rounded-full shadow mt-0.5 transition-transform ${form.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </div>
-                <span className="text-sm font-medium text-gray-700">{form.is_active ? 'Aktif (boleh diakses)' : 'Tidak aktif (tersembunyi)'}</span>
+                <span className="text-sm font-medium text-gray-700">{form.is_active ? 'Active (visible to public)' : 'Inactive (hidden)'}</span>
               </label>
 
               <button
@@ -1030,7 +1030,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 disabled={saving}
                 className="px-6 py-2.5 bg-green-500 text-white rounded-xl font-bold text-sm hover:bg-green-600 disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Menyimpan...' : 'Simpan'}
+                {saving ? 'Saving...' : 'Simpan'}
               </button>
             </div>
           </div>
@@ -1043,7 +1043,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           <div className="flex items-center gap-3 flex-wrap">
             <input
               type="text"
-              placeholder="Cari nama, telefon, atau page..."
+              placeholder="Search name, phone, or page..."
               value={leadsSearch}
               onChange={e => { setLeadsSearch(e.target.value); setLeadsPageNum(1) }}
               className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
@@ -1064,16 +1064,16 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </button>
             )}
             <button onClick={loadAllLeads} className="px-3 py-2 rounded-xl text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 shrink-0">
-              Muat Semula
+              Refresh
             </button>
           </div>
 
-          {allLeadsLoading && <p className="text-sm text-gray-400 text-center py-12">Memuatkan...</p>}
+          {allLeadsLoading && <p className="text-sm text-gray-400 text-center py-12">Loading...</p>}
 
           {!allLeadsLoading && filteredAllLeads.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p className="font-semibold">{leadsSearch ? 'Tiada hasil carian' : 'Tiada leads lagi'}</p>
+              <p className="font-semibold">{leadsSearch ? 'No results found' : 'No leads yet'}</p>
             </div>
           )}
 
@@ -1120,7 +1120,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         <td className="px-4 py-3 text-gray-500 text-xs hidden sm:table-cell">{lead.source || '—'}</td>
                         <td className="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">{lead.landing_pages?.title || '—'}</td>
                         <td className="px-4 py-3 text-gray-400 text-xs hidden sm:table-cell whitespace-nowrap">
-                          {new Date(lead.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(lead.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           {lead.phone && (
@@ -1143,10 +1143,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-400 flex items-center justify-between flex-wrap gap-2">
                 <span>
                   {filteredAllLeads.length} lead{filteredAllLeads.length !== 1 ? 's' : ''}
-                  {leadsSearch && allLeads.length !== filteredAllLeads.length && ` daripada ${allLeads.length}`}
+                  {leadsSearch && allLeads.length !== filteredAllLeads.length && ` of ${allLeads.length}`}
                   {selectedLeads.size > 0 && (
                     <button onClick={() => setSelectedLeads(new Set())} className="ml-3 text-gray-400 hover:text-gray-600 font-semibold underline">
-                      Nyah pilih semua
+                      Deselect all
                     </button>
                   )}
                 </span>
@@ -1182,8 +1182,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
         pages.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Globe className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p className="font-semibold">Belum ada landing page</p>
-            <p className="text-sm mt-1">Klik &quot;Landing Page Baru&quot; untuk bermula</p>
+            <p className="font-semibold">No landing pages yet</p>
+            <p className="text-sm mt-1">Klik &quot;New Landing Page&quot; untuk bermula</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1241,7 +1241,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 <button
                   onClick={() => shareWa(page)}
                   className="p-2 text-gray-400 hover:text-[#25D366] hover:bg-green-50 rounded-lg transition-colors"
-                  title="Kongsi via WhatsApp"
+                  title="Share via WhatsApp"
                 >
                   <MessageCircle className="h-4 w-4" />
                 </button>
@@ -1251,7 +1251,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Lihat page"
+                  title="View page"
                 >
                   <ExternalLink className="h-4 w-4" />
                 </a>
@@ -1268,7 +1268,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   onClick={() => handleDelete(page)}
                   disabled={deleting === page.id}
                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title="Padam"
+                  title="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -1287,7 +1287,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
                 <p className="font-bold text-gray-900">Leads — {leadsPage.title}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{leadCount(leadsPage)} kenalan</p>
+                <p className="text-xs text-gray-400 mt-0.5">{leadCount(leadsPage)} contacts</p>
               </div>
               <button onClick={() => setLeadsPage(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
                 <X className="h-4 w-4 text-gray-500" />
@@ -1296,10 +1296,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-2">
               {leadsLoading && (
-                <p className="text-sm text-gray-400 text-center py-8">Memuatkan...</p>
+                <p className="text-sm text-gray-400 text-center py-8">Loading...</p>
               )}
               {!leadsLoading && leads.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-8">Tiada leads lagi</p>
+                <p className="text-sm text-gray-400 text-center py-8">No leads yet</p>
               )}
               {leads.map(lead => (
                 <div key={lead.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
@@ -1314,13 +1314,13 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1.5 text-[#25D366] hover:bg-green-50 rounded-lg transition-colors"
-                        title="Hubungi via WA"
+                        title="Contact via WA"
                       >
                         <MessageCircle className="h-4 w-4" />
                       </a>
                     )}
                     <span className="text-[11px] text-gray-400">
-                      {new Date(lead.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(lead.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>
