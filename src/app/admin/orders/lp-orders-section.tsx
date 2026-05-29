@@ -117,8 +117,15 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status }),
     })
-    if (!res.ok) toast.error('Failed to update')
-    else { toast.success(`Status → ${status}`); refresh() }
+    if (!res.ok) { toast.error('Failed to update'); setUpdating(null); return }
+    toast.success(`Status → ${status}`)
+    // Send WA to customer
+    fetch('/api/admin/landing-pages/notify-customer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: id, status }),
+    }).catch(() => {})
+    refresh()
     setUpdating(null)
   }
 

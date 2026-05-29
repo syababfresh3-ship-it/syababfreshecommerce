@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { RefreshCw, Search, Users, ShoppingBag, TrendingUp, Phone, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -138,8 +138,8 @@ export default function TiktokSyncPage() {
                 {filtered.length === 0 ? (
                   <tr><td colSpan={6} className="px-5 py-12 text-center text-gray-400 text-sm">No results</td></tr>
                 ) : filtered.map(c => (
-                  <>
-                    <tr key={c.phone}
+                  <React.Fragment key={c.phone}>
+                    <tr
                       className="hover:bg-gray-50/60 cursor-pointer transition-colors"
                       onClick={() => setExpanded(expanded === c.phone ? null : c.phone)}
                     >
@@ -160,7 +160,7 @@ export default function TiktokSyncPage() {
                       </td>
                     </tr>
                     {expanded === c.phone && (
-                      <tr key={`${c.phone}-detail`} className="bg-gray-50/50">
+                      <tr className="bg-gray-50/50">
                         <td colSpan={6} className="px-5 py-3">
                           <div className="space-y-2">
                             {c.orders.map(o => (
@@ -188,7 +188,7 @@ export default function TiktokSyncPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
