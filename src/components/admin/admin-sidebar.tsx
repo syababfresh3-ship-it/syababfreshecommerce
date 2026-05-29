@@ -42,6 +42,7 @@ const sections = [
       { href: '/admin/broadcast',       label: 'Broadcast WA',   icon: MessageSquare },
       { href: '/admin/landing-pages',  label: 'Landing Pages',  icon: Globe },
       { href: '/admin/media',          label: 'Media Library',  icon: Image },
+      { href: '/admin/tiktok-sync',    label: 'TikTok Customers', icon: ShoppingBag },
     ],
   },
   {
