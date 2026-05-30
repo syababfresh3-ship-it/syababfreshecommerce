@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag, PackageX } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
+import { freeDeliveryActive } from '@/lib/shipping'
 
 interface ProductWithVariants extends Product {
   product_variants?: ProductVariant[]
@@ -48,6 +49,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80 }: Props)
     return sum + price * s.qty
   }, 0)
   const FREE_MIN = freeMin
+  const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const total = subtotal + (deliveryFee ?? 0)
 
   useEffect(() => {
@@ -366,11 +368,11 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80 }: Props)
                         ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
                         : `RM${deliveryFee.toFixed(2)}${fetchingFee ? '...' : ''}`
                       : fetchingFee ? '...'
-                        : subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                        : freeOn && subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
                         : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
-              {subtotal > 0 && subtotal < FREE_MIN && (
+              {freeOn && subtotal > 0 && subtotal < FREE_MIN && (
                 <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '7px 10px', marginBottom: 8, fontSize: 11, color: '#166534', fontWeight: 600 }}>
                   🎁 Tambah RM{(FREE_MIN - subtotal).toFixed(2)} lagi untuk penghantaran <strong>PERCUMA</strong>
                 </div>

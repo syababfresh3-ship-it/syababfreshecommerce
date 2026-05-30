@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Loader2, Save, Store, Truck, Plus, Trash2, Clock, ChevronDown } from 'lucide-react'
 import { ImageUploader } from '@/components/admin/image-uploader'
 import Image from 'next/image'
+import { FREE_DELIVERY_OFF } from '@/lib/shipping'
 
 interface DeliverySlot {
   id: string
@@ -53,7 +54,7 @@ export default function SettingsPage() {
       setLogoUrl(logo.logo_url ?? null)
       setPendingUrl(logo.logo_url ?? null)
       const min = delivery.free_delivery_min ?? 80
-      const enabled = min < 9999
+      const enabled = min < FREE_DELIVERY_OFF
       setFreeDeliveryEnabled(enabled)
       setFreeDeliveryMin(enabled ? min : 80)
       setDefaultFee(delivery.default_delivery_fee ?? 15)
@@ -79,7 +80,7 @@ export default function SettingsPage() {
     const res = await fetch('/api/admin/settings/delivery', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ free_delivery_min: freeDeliveryEnabled ? freeDeliveryMin : 99999, default_delivery_fee: defaultFee, slots }),
+      body: JSON.stringify({ free_delivery_min: freeDeliveryEnabled ? freeDeliveryMin : FREE_DELIVERY_OFF, default_delivery_fee: defaultFee, slots }),
     })
     setSavingDelivery(false)
     if (res.ok) toast.success('Settings pengsendan disave')

@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useLpCart } from '@/lib/stores/lp-cart'
 import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
+import { freeDeliveryActive } from '@/lib/shipping'
 
-interface Props { slug: string }
+interface Props { slug: string; freeMin?: number }
 type Step = 'form' | 'done'
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
-export function LpCartBar({ slug }: Props) {
+export function LpCartBar({ slug, freeMin = 80 }: Props) {
   const items = useLpCart(s => s.items)
   const removeItem = useLpCart(s => s.removeItem)
   const updateQty = useLpCart(s => s.updateQty)
@@ -30,7 +31,8 @@ export function LpCartBar({ slug }: Props) {
 
   useEffect(() => setMounted(true), [])
 
-  const FREE_MIN = 80
+  const FREE_MIN = freeMin
+  const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
   const total = sub + (deliveryFee ?? 0)
 
@@ -240,7 +242,7 @@ export function LpCartBar({ slug }: Props) {
                       <span>Penghantaran</span>
                       <span>
                         {fetchingFee ? '...' : deliveryFee === null
-                          ? sub >= FREE_MIN ? <span className="text-green-600 font-bold">PERCUMA</span> : 'Isi poskod'
+                          ? freeOn && sub >= FREE_MIN ? <span className="text-green-600 font-bold">PERCUMA</span> : 'Isi poskod'
                           : deliveryFee === 0 ? <span className="text-green-600 font-bold">PERCUMA</span> : `RM${deliveryFee.toFixed(2)}`}
                       </span>
                     </div>
@@ -248,7 +250,7 @@ export function LpCartBar({ slug }: Props) {
                       <span>Jumlah</span>
                       <span className="text-green-600">RM{total.toFixed(2)}{deliveryFee === null && sub < FREE_MIN ? '+' : ''}</span>
                     </div>
-                    {sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
+                    {freeOn && sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
                   </div>
 
                   <button type="submit" disabled={submitting || items.length === 0}

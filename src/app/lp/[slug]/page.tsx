@@ -159,7 +159,7 @@ export default async function LandingPage({ params }: Props) {
         })}
       </div>
 
-      <LpCartBar slug={slug} />
+      <LpCartBar slug={slug} freeMin={freeMin} />
       <LpWaShare title={page.title} />
     </div>
   )

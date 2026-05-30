@@ -7,6 +7,7 @@ import { StoreLayout } from '@/components/layout/store-layout'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
+import { freeDeliveryActive } from '@/lib/shipping'
 import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
@@ -858,7 +859,7 @@ export default function CheckoutPage() {
                   Kos penghantaran courier dikira berdasarkan berat item
                 </p>
               )}
-              {!isNationwide && subtotal < freeDeliveryMin && (
+              {!isNationwide && freeDeliveryActive(freeDeliveryMin) && subtotal < freeDeliveryMin && (
                 <p className="text-[11px] text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
                   Tambah RM{(freeDeliveryMin - subtotal).toFixed(2)} untuk penghantaran percuma
                 </p>
