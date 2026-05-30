@@ -67,6 +67,16 @@ function getItemsSummary(items: ExportOrder['items']) {
   return items.map((i) => `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity}`).join(', ')
 }
 
+// Kategori kawasan untuk tapisan pantas:
+//   kl   = Klang Valley (→ Lalamove)
+//   luar = luar Klang Valley, kawasan dikenali (→ Ninja Cold)
+//   lain = kawasan tak dapat dikenali / alamat tak lengkap (perlu semak)
+type AreaFilter = 'all' | 'kl' | 'luar' | 'lain'
+function areaCategory(o: ExportOrder): Exclude<AreaFilter, 'all'> {
+  if (!o.area_known) return 'lain'
+  return o.is_kl ? 'kl' : 'luar'
+}
+
 function csvRow(cells: (string | number)[]) {
   return cells.map((c) => {
     const s = String(c ?? '')
@@ -191,7 +201,10 @@ function printAwb(orders: ExportOrder[]) {
     const postcode = o.postcode ?? ''
     const city = o.city ?? ''
     const state = o.state ?? ''
-    const items = getItemsSummary(o.items)
+    // Item satu baris setiap satu (by point) + kotak tick + qty tebal — supaya packer tak terlepas
+    const itemsList = o.items.map((it) =>
+      `<li><span class="chk"></span><span class="qty">×${it.quantity}</span><span class="iname">${it.product_name}${it.variant_name ? ` (${it.variant_name})` : ''}</span></li>`
+    ).join('')
     const isCod = o.payment_method === 'cod'
 
     return `
@@ -213,8 +226,8 @@ function printAwb(orders: ExportOrder[]) {
         </div>
         <div class="divider"></div>
         <div class="section">
-          <div class="label">ITEM</div>
-          <div class="items">${items}</div>
+          <div class="label">ITEM (${o.items.length})</div>
+          <ul class="items">${itemsList}</ul>
         </div>
         ${o.notes ? `<div class="notes">📝 ${o.notes}</div>` : ''}
         <div class="divider"></div>
@@ -255,7 +268,12 @@ function printAwb(orders: ExportOrder[]) {
     .phone { font-size: 13px; font-weight: 700; color: #0070f3; margin-top: 2px; }
     .address { font-size: 11px; color: #333; margin-top: 4px; line-height: 1.4; }
     .postcode { font-size: 13px; font-weight: 700; color: #333; margin-top: 4px; }
-    .items { font-size: 11px; color: #444; line-height: 1.5; }
+    .items { list-style: none; margin-top: 4px; }
+    .items li { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; padding: 4px 0; border-bottom: 1px dotted #e5e5e5; }
+    .items li:last-child { border-bottom: none; }
+    .chk { width: 12px; height: 12px; border: 1.5px solid #333; border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+    .qty { font-weight: 800; color: #111; min-width: 28px; flex-shrink: 0; }
+    .iname { color: #222; line-height: 1.4; }
     .notes { font-size: 10px; color: #c05c00; background: #fff7ed; border-left: 3px solid #f97316; padding: 4px 8px; border-radius: 0 4px 4px 0; margin-top: 6px; }
     .footer { display: flex; justify-content: space-between; font-size: 10px; color: #666; }
     @media print {
@@ -309,6 +327,7 @@ export function ExportsClient({
   const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(defaultTo)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [areaFilter, setAreaFilter] = useState<AreaFilter>('all')
   const [tab, setTab] = useState<'export' | 'import'>('export')
   const [trackingText, setTrackingText] = useState('')
   const [importCarrier, setImportCarrier] = useState('ninja_cold')
@@ -321,13 +340,40 @@ export function ExportsClient({
     router.push(`/admin/shipping/exports?${p}`)
   }
 
+  // Kiraan setiap kategori (untuk badge chip)
+  const areaCounts = useMemo(() => {
+    const c = { all: orders.length, kl: 0, luar: 0, lain: 0 }
+    for (const o of orders) c[areaCategory(o)]++
+    return c
+  }, [orders])
+
+  // Order yang dipaparkan ikut tapisan kawasan semasa
+  const visibleOrders = useMemo(
+    () => areaFilter === 'all' ? orders : orders.filter((o) => areaCategory(o) === areaFilter),
+    [orders, areaFilter]
+  )
+
+  // "Select All" hanya tindak ke atas order yang sedang dipaparkan (terhad tapisan)
+  const allVisibleSelected = visibleOrders.length > 0 && visibleOrders.every((o) => selected.has(o.id))
+
   function toggleAll() {
-    if (selected.size === orders.length) {
-      setSelected(new Set())
-    } else {
-      setSelected(new Set(orders.map((o) => o.id)))
-    }
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) {
+        visibleOrders.forEach((o) => next.delete(o.id))
+      } else {
+        visibleOrders.forEach((o) => next.add(o.id))
+      }
+      return next
+    })
   }
+
+  const AREA_TABS: { key: AreaFilter; label: string }[] = [
+    { key: 'all',  label: 'Semua' },
+    { key: 'kl',   label: 'LK' },
+    { key: 'luar', label: 'Luar LK' },
+    { key: 'lain', label: 'Lain-lain' },
+  ]
 
   function toggleOne(id: string) {
     setSelected((prev) => {
@@ -462,11 +508,23 @@ export function ExportsClient({
                 <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">KV = Klang Valley</span>
                 <span className="text-gray-400">→ Fresh+KV: Lalamove · Fresh+Others: Ninja Cold · Dry: Poslaju</span>
               </div>
+              {/* Tapisan kawasan — tick & bulk generate ikut LK / Luar LK / Lain-lain */}
+              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+                {AREA_TABS.map((t) => (
+                  <button key={t.key} onClick={() => setAreaFilter(t.key)}
+                    className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
+                      areaFilter === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}>
+                    {t.label} <span className="text-xs text-gray-400">{areaCounts[t.key]}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className="flex flex-wrap gap-2 items-center">
-                <button onClick={toggleAll}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
-                  {selected.size === orders.length ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-400" />}
-                  {selected.size === orders.length ? 'Deselect All' : `Select All (${orders.length})`}
+                <button onClick={toggleAll} disabled={visibleOrders.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                  {allVisibleSelected ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-400" />}
+                  {allVisibleSelected ? 'Deselect' : `Select All (${visibleOrders.length})`}
                 </button>
 
                 <span className="text-xs text-gray-400 px-1">{selected.size} diselect</span>
@@ -514,7 +572,7 @@ export function ExportsClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {orders.map((o) => {
+                  {visibleOrders.map((o) => {
                     const isSelected = selected.has(o.id)
                     const missingAddress = !o.full_address && !o.postcode
 
@@ -595,6 +653,13 @@ export function ExportsClient({
                       </tr>
                     )
                   })}
+                  {visibleOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-400">
+                        Tiada order dalam kategori «{AREA_TABS.find((t) => t.key === areaFilter)?.label}»
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
