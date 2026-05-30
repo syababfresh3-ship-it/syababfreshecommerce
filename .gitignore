@@ -46,3 +46,4 @@ next-env.d.ts
 * 4.*
 * 5.*
 package-lock 2.json
+tmp/
