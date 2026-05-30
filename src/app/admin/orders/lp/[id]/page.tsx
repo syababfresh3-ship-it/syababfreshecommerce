@@ -34,7 +34,7 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
     ? order.items
     : [{ product_name: order.product_name, variant_name: order.variant_name, quantity: order.quantity, unit_price: order.unit_price }]
 
-  const isPaid = ['fpx', 'ewallet'].includes(order.payment_method) && order.status !== 'pending'
+  const isPaid = ['fpx', 'ewallet'].includes(order.payment_method) && order.payment_status === 'paid'
   const lpTitle = (order.landing_pages as any)?.title ?? 'LP'
 
   return (

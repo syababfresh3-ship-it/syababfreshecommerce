@@ -27,6 +27,7 @@ interface LpOrder {
   status: string
   total: number
   payment_method: string
+  payment_status?: string
   name: string
   phone: string
   address: string

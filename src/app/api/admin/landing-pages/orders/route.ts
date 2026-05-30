@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   let query = supabase!
     .from('lp_guest_orders')
-    .select('id, order_number, name, phone, address, postcode, product_name, variant_name, quantity, unit_price, delivery_fee, total, payment_method, status, notes, source, created_at, landing_pages(title, slug)')
+    .select('id, order_number, name, phone, address, postcode, product_name, variant_name, quantity, unit_price, delivery_fee, total, payment_method, payment_status, status, notes, source, created_at, landing_pages(title, slug)')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -21,7 +21,13 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+
+  // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
+  // never completed payment. COD/bank orders always show.
+  const visible = (data ?? []).filter((o: any) =>
+    ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
+  )
+  return NextResponse.json(visible)
 }
 
 export async function PATCH(request: Request) {

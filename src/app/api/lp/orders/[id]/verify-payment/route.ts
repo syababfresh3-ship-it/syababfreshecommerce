@@ -49,7 +49,7 @@ export async function POST(
   // pending→confirmed transition proceeds to send notifications)
   const { data: updated } = await supabase
     .from('lp_guest_orders')
-    .update({ status: 'confirmed' })
+    .update({ status: 'confirmed', payment_status: 'paid' })
     .eq('id', orderId)
     .eq('status', 'pending')
     .select('id')

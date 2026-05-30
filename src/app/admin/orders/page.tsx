@@ -137,12 +137,16 @@ export default async function AdminOrdersPage({
     getOrders(status, q, date),
     getStatusCounts(),
     supabaseForLp.from('lp_guest_orders')
-      .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
+      .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
       .not('status', 'in', '(delivered,cancelled)')
       .order('created_at', { ascending: false })
       .limit(100),
   ])
-  const allLpOrders = lpOrdersRes.data ?? []
+  // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
+  // never paid. COD/bank orders always show (no online payment to wait for).
+  const allLpOrders = (lpOrdersRes.data ?? []).filter((o: any) =>
+    ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
+  )
   const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending')
 
   // Transform LP orders to match Order shape for the table
@@ -152,7 +156,7 @@ export default async function AdminOrdersPage({
     status: lp.status,
     total: lp.total,
     payment_method: lp.payment_method,
-    payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) && lp.status !== 'pending' ? 'paid' : 'unpaid',
+    payment_status: lp.payment_status ?? 'unpaid',
     created_at: lp.created_at,
     delivery_slot: null,
     needs_approval: false,

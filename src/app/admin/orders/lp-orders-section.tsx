@@ -14,6 +14,7 @@ interface LpOrder {
   postcode?: string | null
   notes?: string | null
   status: string
+  payment_status?: string
   total: number
   payment_method: string
   delivery_fee: number
@@ -144,7 +145,8 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
           const items: any[] = Array.isArray(lp.items) && lp.items.length > 0
             ? lp.items
             : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity, unit_price: lp.unit_price }]
-          const isPaid = lp.payment_method === 'fpx' || lp.payment_method === 'ewallet'
+          const isOnline = lp.payment_method === 'fpx' || lp.payment_method === 'ewallet'
+          const isPaid = isOnline && lp.payment_status === 'paid'
           const nextAction = STATUS_FLOW[lp.status]
 
           return (
@@ -154,7 +156,7 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
                 <span className="text-xs font-bold text-rose-700 truncate max-w-[60%]">{lp.landing_pages?.title ?? 'LP'}</span>
                 <div className="flex items-center gap-1.5">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {isPaid ? '✓ Paid' : payLabel[lp.payment_method] ?? lp.payment_method}
+                    {isPaid ? '✓ Paid' : isOnline ? 'Belum Bayar' : payLabel[lp.payment_method] ?? lp.payment_method}
                   </span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_BADGE[lp.status] ?? 'bg-gray-100 text-gray-500'}`}>
                     {lp.status}

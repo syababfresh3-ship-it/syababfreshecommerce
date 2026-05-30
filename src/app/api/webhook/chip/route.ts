@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     // Try LP guest order
     const { data: lpOrder } = await supabase
       .from('lp_guest_orders')
-      .update({ status: 'confirmed' })
+      .update({ status: 'confirmed', payment_status: 'paid' })
       .eq('id', orderId)
       .eq('status', 'pending')
       .select('id, order_number, name, phone, total, items, payment_method, landing_pages(title)')
