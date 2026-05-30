@@ -207,6 +207,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const chipData = await chipRes.json()
     if (!chipData.checkout_url) return NextResponse.json({ error: 'Tiada checkout URL' }, { status: 502 })
 
+    // Store CHIP purchase id so the success page can verify payment directly (webhook fallback)
+    if (chipData.id) {
+      await supabase.from('lp_guest_orders').update({ payment_ref: chipData.id }).eq('id', order.id)
+    }
+
     return NextResponse.json({ checkoutUrl: chipData.checkout_url, order_number: order.order_number })
   }
 

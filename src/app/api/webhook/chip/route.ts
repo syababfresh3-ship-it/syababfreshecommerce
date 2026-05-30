@@ -1,9 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
-import { createHmac, timingSafeEqual } from 'crypto'
+import { createVerify } from 'crypto'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 import { sendAdminPush } from '@/lib/push'
+
+export const runtime = 'nodejs'
+
+const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
+
+// CHIP signs callbacks with RSA (PKCS#1 v1.5, SHA256, base64) — verified with a
+// public key, NOT an HMAC secret. There are two delivery mechanisms, each signed
+// with a DIFFERENT key, so we accept the signature if EITHER key verifies:
+//   1. per-purchase success_callback  → signed with the ACCOUNT key (GET /public_key/)
+//   2. registered dashboard webhook   → signed with that WEBHOOK's own key (CHIP_PUBLIC_KEY)
+let cachedAccountKey: string | null = null
+
+async function fetchAccountPublicKey(): Promise<string | null> {
+  if (cachedAccountKey) return cachedAccountKey
+  const secret = process.env.CHIP_SECRET_KEY
+  if (!secret) return null
+  try {
+    const res = await fetch(`${CHIP_API_URL}/public_key/`, {
+      headers: { Authorization: `Bearer ${secret}` },
+    })
+    if (!res.ok) {
+      console.error('[chip-webhook] public_key fetch failed:', res.status)
+      return null
+    }
+    // CHIP returns the PEM either as a bare JSON string or { public_key: "..." }
+    const data = await res.json()
+    const pem = (typeof data === 'string' ? data : data?.public_key ?? '').replace(/\\n/g, '\n')
+    if (pem) cachedAccountKey = pem
+    return pem || null
+  } catch (err) {
+    console.error('[chip-webhook] public_key fetch error:', err)
+    return null
+  }
+}
+
+// All candidate keys to verify an incoming signature against.
+async function getChipPublicKeys(): Promise<string[]> {
+  const keys: string[] = []
+  // Registered-webhook key (set CHIP_PUBLIC_KEY to the key shown when you create
+  // the webhook in the CHIP dashboard). PEM may be pasted with literal \n.
+  const fromEnv = process.env.CHIP_PUBLIC_KEY
+  if (fromEnv) keys.push(fromEnv.replace(/\\n/g, '\n'))
+  // Account key for per-purchase success_callback
+  const accountKey = await fetchAccountPublicKey()
+  if (accountKey) keys.push(accountKey)
+  return keys
+}
+
+function verifySignature(rawBody: string, signature: string, publicKeyPem: string): boolean {
+  try {
+    return createVerify('RSA-SHA256').update(rawBody).verify(publicKeyPem, signature, 'base64')
+  } catch (err) {
+    console.error('[chip-webhook] signature verify error:', err)
+    return false
+  }
+}
 
 export async function POST(req: NextRequest) {
   let rawBody: string
@@ -15,35 +71,55 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  // Verify CHIP webhook signature — mandatory, no fallback
-  const secret = process.env.CHIP_SECRET_KEY
-  if (!secret) {
-    console.error('[chip-webhook] CHIP_SECRET_KEY not configured')
+  const supabase = createAdminClient()
+  const signature = req.headers.get('x-signature')
+
+  // Defensive payload parsing — a registered webhook wraps the purchase as
+  // { event_type, purchase }, but a per-purchase success_callback POSTs the
+  // bare Purchase object (status/reference/id at the top level).
+  const purchase = body.purchase ?? body
+  const eventType: string | null = body.event_type ?? null
+  const purchaseStatus: string | null = purchase?.status ?? null
+  const orderId: string | null = purchase?.reference ?? null
+
+  // Verify CHIP signature (RSA public-key — mandatory). Accept if any candidate key verifies.
+  const publicKeys = await getChipPublicKeys()
+  const verified = !!(signature && publicKeys.some(k => verifySignature(rawBody, signature, k)))
+
+  // Audit log every callback (regardless of verification) for debugging / replay
+  await supabase.from('webhook_logs').insert({
+    source: 'chip',
+    event_type: eventType,
+    reference: orderId,
+    status: purchaseStatus,
+    verified,
+    raw: body,
+  }).then(({ error }) => { if (error) console.error('[chip-webhook] log insert error:', error.message) })
+
+  if (publicKeys.length === 0) {
+    console.error('[chip-webhook] No CHIP public key available (set CHIP_PUBLIC_KEY or CHIP_SECRET_KEY)')
     return NextResponse.json({ error: 'Payment gateway misconfigured' }, { status: 503 })
   }
-  const signature = req.headers.get('x-signature')
   if (!signature) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
   }
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
-  const sigBuf = Buffer.from(signature, 'hex')
-  const expBuf = Buffer.from(expected, 'hex')
-  const valid = sigBuf.length === expBuf.length && timingSafeEqual(sigBuf, expBuf)
-  if (!valid) {
+  if (!verified) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  const { event_type, purchase } = body
-  console.log('[chip-webhook] event:', event_type, 'reference:', purchase?.reference, 'status:', purchase?.status)
+  console.log('[chip-webhook] event:', eventType, 'reference:', orderId, 'status:', purchaseStatus)
 
-  const orderId = purchase?.reference
   if (!orderId) return NextResponse.json({ ok: true })
 
-  const supabase = createAdminClient()
+  // Resolve outcome — prefer event_type when present, else fall back to purchase status
+  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired']
+  const FAILURE_STATUSES = ['error', 'cancelled', 'expired']
+  const outcome = eventType
+    ? (eventType === 'purchase.paid' ? 'paid' : FAILURE_EVENTS.includes(eventType) ? 'failed' : 'other')
+    : (purchaseStatus === 'paid' ? 'paid' : FAILURE_STATUSES.includes(purchaseStatus ?? '') ? 'failed' : 'other')
 
   // Auto-cancel order if payment failed, cancelled, or expired
-  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired']
-  if (FAILURE_EVENTS.includes(event_type)) {
+  if (outcome === 'failed') {
     await Promise.all([
       supabase.from('orders').update({ status: 'cancelled', payment_status: 'failed' }).eq('id', orderId).eq('payment_status', 'unpaid'),
       supabase.from('lp_guest_orders').update({ status: 'cancelled' }).eq('id', orderId).eq('status', 'pending'),
@@ -51,7 +127,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  if (event_type !== 'purchase.paid') {
+  if (outcome !== 'paid') {
     return NextResponse.json({ ok: true })
   }
 
@@ -59,7 +135,7 @@ export async function POST(req: NextRequest) {
   // Use maybeSingle() to avoid PGRST116 error when LP order ID is passed (not in orders table)
   const { data: updated } = await supabase
     .from('orders')
-    .update({ payment_status: 'paid', status: 'confirmed' })
+    .update({ payment_status: 'paid', status: 'confirmed', confirmed_at: new Date().toISOString() })
     .eq('id', orderId)
     .eq('payment_status', 'unpaid')
     .select(`

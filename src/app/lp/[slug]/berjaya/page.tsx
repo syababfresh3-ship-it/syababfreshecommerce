@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { LpPaymentVerifier } from './lp-payment-verifier'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
   // Fetch order details
   const order = pesanan ? await supabase
     .from('lp_guest_orders')
-    .select('order_number, name, phone, total, delivery_fee, payment_method, items, product_name, variant_name, quantity, unit_price')
+    .select('id, status, order_number, name, phone, total, delivery_fee, payment_method, items, product_name, variant_name, quantity, unit_price')
     .eq('order_number', pesanan)
     .single()
     .then(r => r.data) : null
@@ -40,6 +41,11 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafafa', fontFamily: "'DM Sans', sans-serif" }}>
+      {/* Confirm FPX payment directly with CHIP if the webhook hasn't landed yet */}
+      {order && order.status === 'pending' && ['fpx', 'ewallet'].includes(order.payment_method) && (
+        <LpPaymentVerifier orderId={order.id} />
+      )}
+
       {/* Meta Pixel */}
       {page.meta_pixel_id && (
         <script dangerouslySetInnerHTML={{ __html: `
