@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, Settings2, Globe, Shield,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -16,6 +16,7 @@ const sections = [
     label: 'OPERATIONS',
     items: [
       { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
+      { href: '/admin/quick-order',          label: 'Quick Order',     icon: MessageSquare },
       { href: '/admin/orders',             label: 'Orders',          icon: ShoppingBag },
       { href: '/admin/inventory',          label: 'Inventory',        icon: Boxes },
       { href: '/admin/refunds',            label: 'Refund',           icon: RotateCcw,   badge: 'refunds' },
@@ -52,7 +53,8 @@ const sections = [
       { href: '/admin/analytics', label: 'Analytics',      icon: BarChart2 },
       { href: '/admin/delivery',  label: 'Delivery Zones', icon: MapPin },
       { href: '/admin/payments',  label: 'Payment Methods',  icon: CreditCard },
-      { href: '/admin/settings',  label: 'Tetapan Kedai',  icon: Settings2 },
+      { href: '/admin/settings',  label: 'Store Settings',  icon: Settings2 },
+      { href: '/admin/settings/whatsapp', label: 'WA Templates', icon: MessageCircle },
       { href: '/admin/team',      label: 'Pengguna Admin', icon: Shield },
     ],
   },

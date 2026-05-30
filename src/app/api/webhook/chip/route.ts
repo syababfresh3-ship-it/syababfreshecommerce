@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Idempotency — only process if still unpaid
+  // Use maybeSingle() to avoid PGRST116 error when LP order ID is passed (not in orders table)
   const { data: updated } = await supabase
     .from('orders')
     .update({ payment_status: 'paid', status: 'confirmed' })
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       order_items(product_id, variant_id, product_name, quantity, unit_price, variant_name),
       profiles(full_name, phone, email, loyalty_tiers(multiplier))
     `)
-    .single()
+    .maybeSingle()
 
   if (!updated) {
     console.log('[chip-webhook] not in orders table, trying lp_guest_orders for:', orderId)
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
       .eq('id', orderId)
       .eq('status', 'pending')
       .select('id, order_number, name, phone, total, items, payment_method, landing_pages(title)')
-      .single()
+      .maybeSingle()
 
     console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
     if (lpOrder) {

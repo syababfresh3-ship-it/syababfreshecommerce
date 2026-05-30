@@ -1,0 +1,12 @@
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":"  We detected TypeScript in your project and reconfigured your tsconfig.json file for you."}
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":"  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:\n"}
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":"  \t- include was updated to add '/tmp/syababfresh-next/types/**/*.ts'"}
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":"  \t- include was updated to add '/tmp/syababfresh-next/dev/types/**/*.ts'"}
+{"timestamp":"00:00:02.377","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:02.444","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:00:02.459","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:00:03.470","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:28.711","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:30.370","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
+{"timestamp":"00:01:33.984","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}

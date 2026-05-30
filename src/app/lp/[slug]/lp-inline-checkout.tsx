@@ -320,12 +320,15 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
                   <Truck style={{ width: 13, height: 13 }} /> Penghantaran
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {fetchingFee ? '...' : postcodeBlocked
+                  {postcodeBlocked
                     ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Tidak tersedia ✗</span>
-                    : deliveryFee === null
-                      ? subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span> : <span style={{ color: '#9ca3af' }}>Isi poskod</span>
-                      : deliveryFee === 0 ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
-                      : `RM${deliveryFee.toFixed(2)}`}
+                    : deliveryFee !== null
+                      ? deliveryFee === 0
+                        ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                        : `RM${deliveryFee.toFixed(2)}${fetchingFee ? '...' : ''}`
+                      : fetchingFee ? '...'
+                        : subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                        : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
               {subtotal < FREE_MIN && (

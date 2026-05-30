@@ -25,11 +25,11 @@ interface ProductSelection {
 }
 
 export function LpMultiCheckout({ products, stocks, slug, freeMin = 80 }: Props) {
-  // Init each product: first active variant selected, qty=1
+  // Init: only first product qty=1, rest qty=0
   const initSelections = (): ProductSelection[] =>
-    products.map(p => {
+    products.map((p, i) => {
       const active = (p.product_variants ?? []).filter(v => v.is_active).sort((a, b) => a.sort_order - b.sort_order)
-      return { product: p, selectedVariant: active[0] ?? null, qty: 1 }
+      return { product: p, selectedVariant: active[0] ?? null, qty: i === 0 ? 1 : 0 }
     })
 
   const [selections, setSelections] = useState<ProductSelection[]>(initSelections)
@@ -359,12 +359,15 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80 }: Props)
                   <Truck style={{ width: 13, height: 13 }} /> Penghantaran
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {fetchingFee ? '...' : postcodeBlocked
+                  {postcodeBlocked
                     ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Tidak tersedia ✗</span>
-                    : deliveryFee === null
-                      ? subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span> : <span style={{ color: '#9ca3af' }}>Isi poskod</span>
-                      : deliveryFee === 0 ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
-                      : `RM${deliveryFee.toFixed(2)}`}
+                    : deliveryFee !== null
+                      ? deliveryFee === 0
+                        ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                        : `RM${deliveryFee.toFixed(2)}${fetchingFee ? '...' : ''}`
+                      : fetchingFee ? '...'
+                        : subtotal >= FREE_MIN ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                        : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
               {subtotal > 0 && subtotal < FREE_MIN && (

@@ -7,7 +7,7 @@ export async function GET() {
 
   const { data, error } = await supabase!
     .from('products')
-    .select('id, name, slug, price, image_url, category_id, categories(name)')
+    .select('id, name, slug, price, image_url, category_id, categories(name), product_variants(id, name, price, is_active, sort_order)')
     .eq('is_active', true)
     .order('name')
 

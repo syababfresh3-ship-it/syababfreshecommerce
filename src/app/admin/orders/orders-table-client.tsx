@@ -112,11 +112,16 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
     if (!window.confirm(`Change ${selected.size} orders to "${BULK_STATUSES.find(s => s.value === bulkStatus)?.label}"?`)) return
     setBulkLoading(true)
     let failed = 0
+    // Build a map of id → isLp for selected orders
+    const lpIds = new Set(orders.filter(o => (o as any)._isLp && selected.has(o.id)).map(o => o.id))
     await Promise.all([...selected].map(async id => {
-      const res = await fetch(`/api/admin/orders/${id}`, {
+      const isLp = lpIds.has(id)
+      const url = isLp ? '/api/admin/landing-pages/orders' : `/api/admin/orders/${id}`
+      const body = isLp ? { id, status: bulkStatus } : { status: bulkStatus }
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: bulkStatus }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) failed++
     }))
