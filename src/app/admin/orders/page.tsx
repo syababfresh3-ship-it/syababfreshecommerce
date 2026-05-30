@@ -61,7 +61,7 @@ async function getOrders(status?: string, q?: string, date?: string) {
   const supabase = createAdminClient()
   let query = supabase
     .from('orders')
-    .select('id, order_number, status, total, payment_status, payment_method, delivery_slot, created_at, user_id')
+    .select('id, order_number, status, total, payment_status, payment_method, delivery_slot, delivery_method, created_at, user_id')
     .order('created_at', { ascending: false })
     .limit(500)
 
@@ -136,7 +136,7 @@ export default async function AdminOrdersPage({
 
   // Apply the same status/date filters to LP orders as regular orders (q is post-filtered below)
   let lpQuery = supabaseForLp.from('lp_guest_orders')
-    .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
+    .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
     .order('created_at', { ascending: false })
     .limit(100)
   if (status) lpQuery = lpQuery.eq('status', status)
@@ -176,6 +176,7 @@ export default async function AdminOrdersPage({
     payment_status: lp.payment_status ?? 'unpaid',
     created_at: lp.created_at,
     delivery_slot: null,
+    delivery_method: lp.delivery_method,
     needs_approval: false,
     user_id: null,
     profiles: { full_name: lp.name, phone: lp.phone },

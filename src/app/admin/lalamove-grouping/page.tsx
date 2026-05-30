@@ -34,6 +34,7 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
     .from('orders')
     .select('id, order_number, status, payment_status, total, delivery_address, delivery_slot, notes, created_at, user_id, address_id')
     .in('status', ['confirmed', 'preparing', 'delivering'])
+    .neq('delivery_method', 'pickup')   // order ambil sendiri tak masuk grouping
     .gte('created_at', rangeStart.toISOString())
     .order('created_at', { ascending: true })
 

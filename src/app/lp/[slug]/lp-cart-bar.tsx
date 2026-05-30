@@ -6,12 +6,12 @@ import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
 import { freeDeliveryActive } from '@/lib/shipping'
 
-interface Props { slug: string; freeMin?: number }
+interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean }
 type Step = 'form' | 'done'
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
-export function LpCartBar({ slug, freeMin = 80 }: Props) {
+export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) {
   const items = useLpCart(s => s.items)
   const removeItem = useLpCart(s => s.removeItem)
   const updateQty = useLpCart(s => s.updateQty)
@@ -28,13 +28,18 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [orderResult, setOrderResult] = useState<{ order_number: string; total: number } | null>(null)
+  // Penghantaran vs ambil sendiri (pickup)
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+  const [pickupDate, setPickupDate] = useState('')
+  const isPickup = pickupEnabled && deliveryMethod === 'pickup'
+  const pickupMinDate = new Date().toISOString().split('T')[0]
 
   useEffect(() => setMounted(true), [])
 
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
-  const total = sub + (deliveryFee ?? 0)
+  const total = sub + (isPickup ? 0 : (deliveryFee ?? 0))
 
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); return }
@@ -71,7 +76,11 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
     e.preventDefault()
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan no. telefon'); return }
-    if (!form.address.trim() || form.address.trim().length < 10) { toast.error('Sila masukkan alamat lengkap'); return }
+    if (isPickup) {
+      if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
+    } else if (!form.address.trim() || form.address.trim().length < 10) {
+      toast.error('Sila masukkan alamat lengkap'); return
+    }
     if (!form.payment_method) { toast.error('Sila pilih kaedah bayaran'); return }
 
     const params = new URLSearchParams(window.location.search)
@@ -85,10 +94,12 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
         body: JSON.stringify({
           name: form.name.trim(),
           phone: form.phone.trim(),
-          address: form.address.trim(),
-          postcode: form.postcode.trim() || null,
+          address: isPickup ? '' : form.address.trim(),
+          postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null,
           payment_method: form.payment_method,
+          delivery_method: deliveryMethod,
+          pickup_date: isPickup ? pickupDate : null,
           source,
           items: items.map(i => ({
             product_id: i.productId,
@@ -118,7 +129,8 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
       `${itemLines}\n\n` +
       `🔢 No. Pesanan: *${orderResult.order_number}*\n` +
       `💰 Jumlah: *RM${orderResult.total.toFixed(2)}*\n` +
-      `🏠 Alamat: ${form.address}\n\nTerima kasih!`
+      (isPickup ? `🏪 Ambil Sendiri di kedai${pickupDate ? ` (${pickupDate})` : ''}` : `🏠 Alamat: ${form.address}`) +
+      `\n\nTerima kasih!`
     )
     window.open(`https://wa.me/?text=${msg}`, '_blank', 'noopener')
   }
@@ -206,14 +218,37 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="No. telefon (cth: 0123456789)" required className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                   </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                    <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Alamat penghantaran lengkap" required rows={3} className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
-                  </div>
-                  <div className="relative">
-                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="Poskod (cth: 47810)" className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
-                  </div>
+
+                  {/* Penghantaran vs Ambil Sendiri */}
+                  {pickupEnabled && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setDeliveryMethod('delivery')}
+                        className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${!isPickup ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'}`}>🚚 Penghantaran</button>
+                      <button type="button" onClick={() => setDeliveryMethod('pickup')}
+                        className={`p-3 rounded-xl border-2 text-sm font-bold transition-all ${isPickup ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'}`}>🏪 Ambil Sendiri</button>
+                    </div>
+                  )}
+
+                  {isPickup ? (
+                    <>
+                      <div className="bg-green-50 rounded-xl p-3 text-xs text-gray-600 leading-relaxed">
+                        <p className="font-bold text-green-700 mb-0.5">🏪 Ambil di kedai — SyababFresh, Bangi</p>
+                        Kompleks Premis Usahawan SME Bank Bangi, Seksyen 16, 43650 Bandar New Bangi · Isnin–Sabtu, 9 pagi–6 petang
+                      </div>
+                      <input type="date" value={pickupDate} min={pickupMinDate} onChange={e => setPickupDate(e.target.value)} required className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    </>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                        <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Alamat penghantaran lengkap" required rows={3} className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 resize-none" />
+                      </div>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="Poskod (cth: 47810)" className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                      </div>
+                    </>
+                  )}
                   <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Nota tambahan (pilihan)" className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
 
                   {/* Payment */}
@@ -239,18 +274,20 @@ export function LpCartBar({ slug, freeMin = 80 }: Props) {
                       <span>RM{sub.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span>Penghantaran</span>
+                      <span>{isPickup ? 'Ambil Sendiri' : 'Penghantaran'}</span>
                       <span>
-                        {fetchingFee ? '...' : deliveryFee === null
+                        {isPickup
+                          ? <span className="text-green-600 font-bold">PERCUMA</span>
+                          : fetchingFee ? '...' : deliveryFee === null
                           ? freeOn && sub >= FREE_MIN ? <span className="text-green-600 font-bold">PERCUMA</span> : 'Isi poskod'
                           : deliveryFee === 0 ? <span className="text-green-600 font-bold">PERCUMA</span> : `RM${deliveryFee.toFixed(2)}`}
                       </span>
                     </div>
                     <div className="flex justify-between font-black text-gray-900 border-t border-gray-200 pt-1.5 text-base">
                       <span>Jumlah</span>
-                      <span className="text-green-600">RM{total.toFixed(2)}{deliveryFee === null && sub < FREE_MIN ? '+' : ''}</span>
+                      <span className="text-green-600">RM{total.toFixed(2)}{!isPickup && deliveryFee === null && sub < FREE_MIN ? '+' : ''}</span>
                     </div>
-                    {freeOn && sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
+                    {!isPickup && freeOn && sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
                   </div>
 
                   <button type="submit" disabled={submitting || items.length === 0}

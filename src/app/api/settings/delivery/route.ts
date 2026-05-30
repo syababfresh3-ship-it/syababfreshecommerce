@@ -12,6 +12,7 @@ export async function GET() {
       free_delivery_min: Number(map.free_delivery_min ?? 80),
       default_delivery_fee: Number(map.default_delivery_fee ?? 15),
       slots,
+      pickup_enabled: map.pickup_enabled !== 'false',   // default: dibenarkan
     },
     { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=30' } }
   )

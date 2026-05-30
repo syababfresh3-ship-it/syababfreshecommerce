@@ -69,6 +69,12 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
   cancelled:  { label: 'Pesanan Dibatal',     icon: XCircle,       color: 'text-red-500'    },
 }
 
+// Untuk order ambil sendiri (pickup) — status 'delivering' bermaksud sedia diambil
+const pickupStatusConfig: Record<string, { label: string; icon: any; color: string }> = {
+  delivering: { label: 'Sedia Diambil',  icon: Package,      color: 'text-orange-500' },
+  delivered:  { label: 'Telah Diambil',  icon: CheckCircle2, color: 'text-green-500'  },
+}
+
 const paymentLabels: Record<string, string> = {
   fpx:           'FPX Online Banking',
   ewallet:       'E-Wallet',
@@ -114,7 +120,8 @@ export default async function OrderDetailPage({
   if ('notAuthed' in result) redirect(`/login?redirect=/orders/${id}${isNew ? '?new=1' : ''}`)
   const order = result
 
-  const config = statusConfig[order.status] ?? statusConfig.pending
+  const isPickup = order.delivery_method === 'pickup'
+  const config = (isPickup && pickupStatusConfig[order.status]) || statusConfig[order.status] || statusConfig.pending
   const StatusIcon = config.icon
 
   const slotMatch = order.notes?.match(/^Slot:\s*([^|]+)/)
@@ -471,8 +478,8 @@ export default async function OrderDetailPage({
                     <TimelineItem icon={Clock}        label="Pesanan Dibuat"     time={order.created_at}    done                         color="text-gray-500" />
                     <TimelineItem icon={CheckCircle2} label="Pesanan Disahkan"   time={order.confirmed_at}  done={!!order.confirmed_at}  color="text-blue-500" />
                     <TimelineItem icon={Package}      label="Sedang Disediakan"  time={order.preparing_at}  done={!!order.preparing_at}  color="text-purple-500" />
-                    <TimelineItem icon={Truck}        label="Dalam Penghantaran" time={order.delivering_at} done={!!order.delivering_at} color="text-orange-500" />
-                    <TimelineItem icon={CheckCircle2} label="Pesanan Selesai"    time={order.delivered_at}  done={!!order.delivered_at}  color="text-green-500" last />
+                    <TimelineItem icon={isPickup ? Package : Truck} label={isPickup ? 'Sedia Diambil' : 'Dalam Penghantaran'} time={order.delivering_at} done={!!order.delivering_at} color="text-orange-500" />
+                    <TimelineItem icon={CheckCircle2} label={isPickup ? 'Telah Diambil' : 'Pesanan Selesai'} time={order.delivered_at}  done={!!order.delivered_at}  color="text-green-500" last />
                   </div>
                 )}
               </div>

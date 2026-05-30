@@ -343,7 +343,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
     let outsideKV = 0
     for (const order of filteredOrders) {
       const zone = getZone(getPostcode(order))
-      if (!zone) { outsideKV++; continue }   // luar Klang Valley — tak disertakan (guna courier lain)
+      if (!zone) { outsideKV++; continue }   // luar LK — tak disertakan (guna courier lain)
       groupMap.get(zone.id)!.orders.push(order)
     }
     const result = Array.from(groupMap.values()).filter((g) => g.orders.length > 0)
@@ -351,7 +351,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
     setGenerated(true)
     setSaved(false)
     const grouped = filteredOrders.length - outsideKV
-    toast.success(`${grouped} order KV dibahagikan kepada ${result.length} zon${outsideKV ? ` · ${outsideKV} luar KV diabaikan` : ''}`)
+    toast.success(`${grouped} order LK dibahagikan kepada ${result.length} zon${outsideKV ? ` · ${outsideKV} luar LK diabaikan` : ''}`)
   }
 
   // Save all groups to DB
@@ -548,9 +548,9 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-sm font-bold text-gray-900">
-                {groups.filter((g) => g.orders.length > 0).length} zon · {groups.reduce((n, g) => n + g.orders.length, 0)} order KV
+                {groups.filter((g) => g.orders.length > 0).length} zon · {groups.reduce((n, g) => n + g.orders.length, 0)} order LK
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">Order luar Klang Valley tidak disertakan · guna dropdown untuk pindah zon</p>
+              <p className="text-xs text-gray-400 mt-0.5">Order luar LK tidak disertakan · guna dropdown untuk pindah zon</p>
             </div>
             <div className="flex items-center gap-2">
               {/* Save badge */}

@@ -56,6 +56,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-black text-gray-900 font-mono">{order.order_number}</h1>
               <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">LP</span>
+              {order.delivery_method === 'pickup' && (
+                <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">PICKUP</span>
+              )}
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border capitalize ${statusCls[order.status] ?? 'bg-gray-50 text-gray-500'}`}>
                 {order.status}
               </span>
@@ -87,6 +90,12 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                 <div className="flex items-start gap-2.5">
                   <MapPin className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
                   <span className="text-gray-600 leading-relaxed text-xs">{order.address}{order.postcode ? `, ${order.postcode}` : ''}</span>
+                </div>
+              )}
+              {order.delivery_method === 'pickup' && order.pickup_date && (
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-medium text-gray-400 w-12">Pickup</span>
+                  <span className="font-semibold text-purple-700">📅 {new Date(order.pickup_date).toLocaleDateString('en-MY')}</span>
                 </div>
               )}
             </div>

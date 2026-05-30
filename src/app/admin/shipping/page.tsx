@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import {
   Package, Zap, Truck, MapPin, Loader2, Settings, Save, Eye, EyeOff,
-  ChevronUp, ArrowRight, Scale, Plus, Trash2, Pencil, Check, X,
+  ChevronUp, ArrowRight, Scale, Plus, Trash2, Pencil, Check, X, Store,
 } from 'lucide-react'
 import type { ShippingCarrier } from '@/types'
 
@@ -31,9 +31,9 @@ const CARRIER_META: Record<string, { icon: React.ElementType; color: string; bg:
 
 const CARRIER_FIELDS: Record<string, { key: string; label: string; placeholder: string; secret?: boolean }[]> = {
   poslaju: [
-    { key: 'api_key',         label: 'API Key (EasyParcel / MyDHL)', placeholder: 'Masukkan API Key', secret: true },
-    { key: 'api_secret',      label: 'API Secret',                   placeholder: 'Masukkan API Secret', secret: true },
-    { key: 'pickup_point_id', label: 'Pickup Point ID',              placeholder: 'cth: PP001' },
+    { key: 'api_key',         label: 'API Key (EasyParcel / MyDHL)', placeholder: 'Enter API Key', secret: true },
+    { key: 'api_secret',      label: 'API Secret',                   placeholder: 'Enter API Secret', secret: true },
+    { key: 'pickup_point_id', label: 'Pickup Point ID',              placeholder: 'e.g. PP001' },
   ],
   ninja_cold: [
     { key: 'client_id',     label: 'Client ID',     placeholder: 'Ninja Van Client ID' },
@@ -41,7 +41,7 @@ const CARRIER_FIELDS: Record<string, { key: string; label: string; placeholder: 
   ],
   line_clear: [
     { key: 'api_key',     label: 'API Key',     placeholder: 'Line Clear API Key', secret: true },
-    { key: 'branch_code', label: 'Branch Code', placeholder: 'cth: KUL' },
+    { key: 'branch_code', label: 'Branch Code', placeholder: 'e.g. KUL' },
   ],
   lalamove: [
     { key: 'app_key',    label: 'App Key',    placeholder: 'Lalamove App Key' },
@@ -66,6 +66,10 @@ export default function ShippingPage() {
   const [newTier, setNewTier] = useState<{ min_kg: string; max_kg: string; fee: string } | null>(null)
   const [savingTier, setSavingTier] = useState(false)
 
+  // Self-collect (pickup) — global on/off for the checkout option
+  const [pickupEnabled, setPickupEnabled] = useState(true)
+  const [pickupToggling, setPickupToggling] = useState(false)
+
   async function load() {
     const supabase = createClient()
     const { data } = await supabase
@@ -80,7 +84,32 @@ export default function ShippingPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load(); loadTiers() }, [])
+  useEffect(() => { load(); loadTiers(); loadPickup() }, [])
+
+  async function loadPickup() {
+    try {
+      const res = await fetch('/api/settings/delivery')
+      const json = await res.json()
+      setPickupEnabled(json.pickup_enabled !== false)
+    } catch { /* keep default */ }
+  }
+
+  async function togglePickup() {
+    setPickupToggling(true)
+    const next = !pickupEnabled
+    const res = await fetch('/api/admin/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'pickup_enabled', value: next ? 'true' : 'false' }),
+    })
+    if (!res.ok) {
+      toast.error('Failed to update')
+    } else {
+      setPickupEnabled(next)
+      toast.success(next ? 'Self-collect enabled' : 'Self-collect disabled')
+    }
+    setPickupToggling(false)
+  }
 
   async function loadTiers() {
     setTiersLoading(true)
@@ -106,18 +135,18 @@ export default function ShippingPage() {
         fee: parseFloat(editValues.fee),
       }),
     })
-    if (!res.ok) { toast.error('Failed save'); setSavingTier(false); return }
-    toast.success('Kadar diupdate')
+    if (!res.ok) { toast.error('Failed to save'); setSavingTier(false); return }
+    toast.success('Rate updated')
     setEditingTier(null)
     await loadTiers()
     setSavingTier(false)
   }
 
   async function deleteTier(tierId: string) {
-    if (!confirm('Delete tier ini?')) return
+    if (!confirm('Delete this tier?')) return
     const res = await fetch(`/api/admin/shipping/weight-tiers/${tierId}`, { method: 'DELETE' })
-    if (!res.ok) { toast.error('Failed delete'); return }
-    toast.success('Tier didelete')
+    if (!res.ok) { toast.error('Failed to delete'); return }
+    toast.success('Tier deleted')
     setTiers(prev => prev.filter(t => t.id !== tierId))
   }
 
@@ -134,8 +163,8 @@ export default function ShippingPage() {
         fee: parseFloat(newTier.fee),
       }),
     })
-    if (!res.ok) { toast.error('Failed tambah'); setSavingTier(false); return }
-    toast.success('Tier ditambah')
+    if (!res.ok) { toast.error('Failed to add'); setSavingTier(false); return }
+    toast.success('Tier added')
     setNewTier(null)
     await loadTiers()
     setSavingTier(false)
@@ -165,7 +194,7 @@ export default function ShippingPage() {
       body: JSON.stringify({ config: configs[carrierId] ?? {} }),
     })
     if (!res.ok) {
-      toast.error('Failed save konfigurasi')
+      toast.error('Failed to save configuration')
     } else {
       toast.success('Configuration saved')
       setExpanded(null)
@@ -189,9 +218,9 @@ export default function ShippingPage() {
     <div className="p-4 md:p-6 max-w-2xl">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Shipping Pengsendan & Kurier Couriers</h1>
+          <h1 className="text-xl font-bold text-gray-900">Shipping & Couriers</h1>
           <p className="text-sm text-gray-400 mt-0.5">
-            {carriers.filter(c => c.is_active).length} daripada {carriers.length} kurier active
+            {carriers.filter(c => c.is_active).length} of {carriers.length} couriers active
           </p>
         </div>
         <div className="flex gap-2">
@@ -210,6 +239,37 @@ export default function ShippingPage() {
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
+      </div>
+
+      {/* Self-collect (pickup) toggle — controls the option shown at checkout */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-3 flex items-center gap-4">
+        <div className="p-3 rounded-xl shrink-0 bg-purple-100">
+          <Store className="h-5 w-5 text-purple-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-gray-900 leading-tight">Self-Collect (Pickup)</p>
+          <p className="text-xs text-gray-400 mt-0.5">Let customers pick up at the store — no delivery fee, no courier.</p>
+        </div>
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border shrink-0 ${
+          pickupEnabled ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-400 border-gray-200'
+        }`}>
+          {pickupEnabled ? 'On' : 'Off'}
+        </span>
+        <button
+          onClick={togglePickup}
+          disabled={pickupToggling}
+          className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-50 ${
+            pickupEnabled ? 'bg-green-500' : 'bg-gray-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 flex items-center justify-center ${
+              pickupEnabled ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          >
+            {pickupToggling && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
+          </span>
+        </button>
       </div>
 
       {loading ? (
@@ -258,7 +318,7 @@ export default function ShippingPage() {
                       ? 'bg-green-50 text-green-700 border-green-200'
                       : 'bg-gray-50 text-gray-400 border-gray-200'
                   }`}>
-                    {carrier.is_active ? 'Active' : 'Mati'}
+                    {carrier.is_active ? 'Active' : 'Off'}
                   </span>
 
                   <button
@@ -394,13 +454,13 @@ export default function ShippingPage() {
                               type="number" step="0.01" min="0"
                               value={editValues.max_kg}
                               onChange={e => setEditValues(v => ({ ...v, max_kg: e.target.value }))}
-                              placeholder="ke atas"
+                              placeholder="and above"
                               className="w-24 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                             />
                           </div>
                         ) : (
                           <span className="font-mono text-gray-700">
-                            {tier.min_kg} – {tier.max_kg != null ? tier.max_kg : 'ke atas'} kg
+                            {tier.min_kg} – {tier.max_kg != null ? tier.max_kg : 'and above'} kg
                           </span>
                         )}
                       </td>
@@ -464,7 +524,7 @@ export default function ShippingPage() {
                             type="number" step="0.01" min="0"
                             value={newTier.max_kg}
                             onChange={e => setNewTier(v => v ? { ...v, max_kg: e.target.value } : v)}
-                            placeholder="max (kosong = ke atas)"
+                            placeholder="max (empty = no limit)"
                             className="w-36 border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                           />
                           <span className="text-xs text-gray-400">kg</span>

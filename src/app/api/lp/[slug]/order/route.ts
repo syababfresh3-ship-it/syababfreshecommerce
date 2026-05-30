@@ -29,14 +29,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
   const body = await request.json().catch(() => ({}))
-  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items } = body
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date } = body
+
+  const isPickup = delivery_method === 'pickup'
+  const PICKUP_ADDRESS = 'Ambil Sendiri — SyababFresh, Bangi'
 
   // Validate required fields
   if (!name || typeof name !== 'string' || name.trim().length < 2)
     return NextResponse.json({ error: 'Nama diperlukan' }, { status: 400 })
   if (!phone || typeof phone !== 'string' || !/^[0-9+\s-]{8,15}$/.test(phone.trim()))
     return NextResponse.json({ error: 'No. telefon tidak sah' }, { status: 400 })
-  if (!address || typeof address !== 'string' || address.trim().length < 10)
+  // Alamat tak wajib untuk pickup (ambil sendiri di kedai)
+  if (!isPickup && (!address || typeof address !== 'string' || address.trim().length < 10))
     return NextResponse.json({ error: 'Alamat terlalu pendek' }, { status: 400 })
   if (!Array.isArray(items) || items.length === 0)
     return NextResponse.json({ error: 'Tiada item dalam pesanan' }, { status: 400 })
@@ -107,7 +111,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
-  if (subtotal >= FREE_MIN) {
+  if (isPickup) {
+    deliveryFee = 0   // ambil sendiri — tiada caj penghantaran
+  } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
@@ -156,9 +162,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       page_id: page.id,
       name: name.trim(),
       phone: phone.trim(),
-      address: address.trim(),
-      postcode: postcode?.trim() || null,
+      address: isPickup ? PICKUP_ADDRESS : address.trim(),
+      postcode: isPickup ? null : (postcode?.trim() || null),
       notes: notes?.trim() || null,
+      delivery_method: isPickup ? 'pickup' : 'delivery',
+      pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
       product_id: first.product_id,
       variant_id: first.variant_id || null,
       product_name: first.product_name,

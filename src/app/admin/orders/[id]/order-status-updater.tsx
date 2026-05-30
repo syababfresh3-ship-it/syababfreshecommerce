@@ -26,12 +26,21 @@ interface OrderStatusUpdaterProps {
   orderId: string
   userId: string
   currentStatus: string
+  deliveryMethod?: string
 }
 
-export function OrderStatusUpdater({ orderId, userId, currentStatus }: OrderStatusUpdaterProps) {
+// Untuk order ambil sendiri (pickup), status 'delivering' bermaksud "sedia diambil"
+// — bukan "dalam penghantaran". Push diubah ikut konteks.
+const pickupPushMessages: Record<string, { title: string; body: string }> = {
+  delivering: { title: 'Sedia Diambil 🎉', body: 'Pesanan anda sedia untuk diambil di kedai SyababFresh, Bangi.' },
+  delivered:  { title: 'Pesanan Diterima 🎉', body: 'Terima kasih! Pesanan anda telah diambil.' },
+}
+
+export function OrderStatusUpdater({ orderId, userId, currentStatus, deliveryMethod }: OrderStatusUpdaterProps) {
   const [status, setStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const isPickup = deliveryMethod === 'pickup'
 
   async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newStatus = e.target.value
@@ -50,12 +59,12 @@ export function OrderStatusUpdater({ orderId, userId, currentStatus }: OrderStat
       setStatus(newStatus)
       toast.success('Status diupdate')
       // Notify customer via WhatsApp + Push (fire & forget)
-      const push = pushMessages[newStatus]
+      const push = (isPickup && pickupPushMessages[newStatus]) || pushMessages[newStatus]
       Promise.all([
         fetch('/api/notify-customer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, status: newStatus }),
+          body: JSON.stringify({ orderId, status: newStatus, deliveryMethod }),
         }),
         push ? fetch('/api/push/send', {
           method: 'POST',

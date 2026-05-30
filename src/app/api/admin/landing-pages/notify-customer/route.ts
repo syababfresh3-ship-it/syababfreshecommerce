@@ -12,18 +12,35 @@ export async function POST(request: Request) {
 
   const { data: order } = await supabase!
     .from('lp_guest_orders')
-    .select('order_number, name, phone')
+    .select('order_number, name, phone, delivery_method')
     .eq('id', orderId)
     .single()
 
   if (!order?.phone) return NextResponse.json({ skipped: true, reason: 'no phone' })
 
-  const templates = await getWaTemplates()
-  const message = buildStatusMessage(templates, status, {
-    name: order.name,
-    order_number: order.order_number,
-    tracking_url: trackingUrl,
-  })
+  const isPickup = order.delivery_method === 'pickup'
+
+  // Pickup: status 'delivering' = sedia diambil (bukan dalam penghantaran)
+  let message: string | null
+  if (isPickup && status === 'delivering') {
+    message = [
+      `Hai ${order.name} 🌿`,
+      ``,
+      `Pesanan *${order.order_number}* anda sudah sedia untuk diambil! 🎉`,
+      ``,
+      `📍 *Lokasi:* SyababFresh, Kompleks Premis Usahawan SME Bank Bangi, Seksyen 16, Bandar New Bangi`,
+      `🕐 *Waktu:* Isnin–Sabtu, 9 pagi – 6 petang`,
+      ``,
+      `Jumpa di kedai! _SyababFresh 🌿_`,
+    ].join('\n')
+  } else {
+    const templates = await getWaTemplates()
+    message = buildStatusMessage(templates, status, {
+      name: order.name,
+      order_number: order.order_number,
+      tracking_url: trackingUrl,
+    })
+  }
   if (!message) return NextResponse.json({ skipped: true, reason: 'no template for status' })
 
   sendWhatsApp(order.phone, message).catch(() => {})

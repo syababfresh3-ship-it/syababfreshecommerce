@@ -47,6 +47,7 @@ export default async function LandingPage({ params }: Props) {
   ])
   const page = pageRes.data
   const freeMin = Number(appSettings.free_delivery_min ?? 80)
+  const pickupEnabled = appSettings.pickup_enabled !== 'false'
 
   if (!page) notFound()
 
@@ -126,13 +127,13 @@ export default async function LandingPage({ params }: Props) {
             if (checkoutProducts.length > 1) {
               const stocks: Record<string, number | null> = {}
               checkoutProducts.forEach(p => { stocks[p!.id] = stockByProductId.get(p!.id) ?? null })
-              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} />
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
             }
 
             // Single product
             const checkoutProduct = checkoutProducts[0]!
             const checkoutStock = stockByProductId.get(checkoutProduct.id) ?? null
-            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} />
+            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
           }
 
           // {{product:slug}} — add-to-cart widget (cart bar flow)
@@ -159,7 +160,7 @@ export default async function LandingPage({ params }: Props) {
         })}
       </div>
 
-      <LpCartBar slug={slug} freeMin={freeMin} />
+      <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
       <LpWaShare title={page.title} />
     </div>
   )

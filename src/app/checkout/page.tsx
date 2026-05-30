@@ -12,7 +12,7 @@ import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
-  Lock, ChevronRight, Pencil, Truck, XCircle,
+  Lock, ChevronRight, Pencil, Truck, XCircle, Store,
 } from 'lucide-react'
 import type { Address } from '@/types'
 
@@ -62,7 +62,12 @@ export default function CheckoutPage() {
   const [freeDeliveryMin, setFreeDeliveryMin] = useState(80)
   const [zoneBaseFee, setZoneBaseFee] = useState<number>(15)
   const [slotConfigs, setSlotConfigs] = useState<SlotConfig[]>(DEFAULT_SLOTS)
-  const deliveryFee = subtotal >= freeDeliveryMin ? 0 : zoneBaseFee
+  // Pilihan penghantaran vs ambil sendiri (pickup)
+  const [pickupEnabled, setPickupEnabled] = useState(false)
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+  const [pickupDate, setPickupDate] = useState('')
+  const isPickup = pickupEnabled && deliveryMethod === 'pickup'
+  const deliveryFee = isPickup ? 0 : (subtotal >= freeDeliveryMin ? 0 : zoneBaseFee)
 
   const slots = buildDeliverySlots(slotConfigs)
   const [loading, setLoading] = useState(false)
@@ -105,6 +110,7 @@ export default function CheckoutPage() {
         if (d.free_delivery_min != null) setFreeDeliveryMin(d.free_delivery_min)
         if (d.default_delivery_fee != null) setZoneBaseFee(d.default_delivery_fee)
         if (Array.isArray(d.slots) && d.slots.length > 0) setSlotConfigs(d.slots)
+        setPickupEnabled(d.pickup_enabled !== false)
       })
       .catch(() => {})
   }, [])
@@ -281,6 +287,15 @@ export default function CheckoutPage() {
   // Nationwide = luar KV tapi semua item boleh pos → delivery 1–3 hari lori sejuk
   const isNationwide = postcodeValid === false && localOnlyItems.length === 0 && items.length > 0
 
+  // Lokasi pickup (ambil sendiri) — kedai Bangi
+  const STORE = {
+    name: 'SyababFresh',
+    address: 'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, Bandar New Bangi, 43650 Selangor',
+    mapsUrl: 'https://www.google.com/maps/search/?api=1&query=Kompleks+Premis+Usahawan+SME+Bank+Bangi',
+    hours: 'Isnin – Sabtu · 9:00 pagi – 6:00 petang',
+  }
+  const pickupMinDate = new Date().toISOString().split('T')[0]
+
   if (items.length === 0) {
     return (
       <StoreLayout>
@@ -296,11 +311,15 @@ export default function CheckoutPage() {
     e.preventDefault()
     if (!form.recipient_name.trim()) { toast.error('Sila masukkan nama penerima'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan nombor telefon penerima'); return }
-    if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
 
-    if (localOnlyItems.length > 0) {
-      toast.error(`Item berikut hanya boleh dihantar dalam Klang Valley: ${localOnlyItems.join(', ')}`)
-      return
+    if (isPickup) {
+      if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
+    } else {
+      if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
+      if (localOnlyItems.length > 0) {
+        toast.error(`Item berikut hanya boleh dihantar dalam Klang Valley: ${localOnlyItems.join(', ')}`)
+        return
+      }
     }
 
     setLoading(true)
@@ -323,10 +342,14 @@ export default function CheckoutPage() {
           variant_id: variant?.id ?? null,
           quantity,
         })),
-        postcode: postcode || null,
+        postcode: isPickup ? null : (postcode || null),
         payment_method: form.payment_method,
-        delivery_address: `${form.recipient_name} | ${form.phone}\n${form.full_address}`,
-        delivery_slot: isNationwide ? null : (slots.find(s => s.value === form.delivery_slot)?.label ?? null),
+        delivery_address: isPickup
+          ? `${form.recipient_name} | ${form.phone}\nAmbil Sendiri — ${STORE.name}, Bangi`
+          : `${form.recipient_name} | ${form.phone}\n${form.full_address}`,
+        delivery_slot: isPickup ? null : (isNationwide ? null : (slots.find(s => s.value === form.delivery_slot)?.label ?? null)),
+        delivery_method: deliveryMethod,
+        pickup_date: isPickup ? pickupDate : null,
         notes: form.notes || null,
         promo_code: appliedPromo?.code ?? null,
         use_points: usePoints,
@@ -443,8 +466,76 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        {/* ── Kaedah terima: Penghantaran vs Ambil Sendiri ── */}
+        {pickupEnabled && (
+        <div className={card}>
+          <div className="px-4 pt-4 pb-4">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2">Kaedah Terima</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setDeliveryMethod('delivery')}
+                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all active:scale-[0.98] ${
+                  !isPickup ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700' : 'border-gray-100 bg-white text-gray-500'
+                }`}
+              >
+                <Truck className="h-4 w-4" /> Penghantaran
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeliveryMethod('pickup')}
+                className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all active:scale-[0.98] ${
+                  isPickup ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700' : 'border-gray-100 bg-white text-gray-500'
+                }`}
+              >
+                <Store className="h-4 w-4" /> Ambil Sendiri
+              </button>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* ── PICKUP: lokasi kedai + tarikh ambil ──────────── */}
+        {isPickup && (
+          <div className={card}>
+            <div className="px-4 pt-4 pb-4 space-y-3">
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Lokasi Pickup</p>
+              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-3 flex items-start gap-2.5">
+                <MapPin className="h-4 w-4 text-brand-fresh-600 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-brand-fresh-700">{STORE.name} — Bangi</p>
+                  <p className="text-xs text-gray-600 mt-0.5 leading-snug">{STORE.address}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">🕐 {STORE.hours}</p>
+                  <a
+                    href={STORE.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-fresh-600 mt-1.5"
+                  >
+                    <MapPin className="h-3 w-3" /> Buka di Google Maps
+                  </a>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Tarikh Ambil <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={pickupDate}
+                  min={pickupMinDate}
+                  onChange={(e) => setPickupDate(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                />
+                <p className="text-[11px] text-gray-400 mt-1.5">Kami akan WhatsApp anda bila pesanan sedia diambil di kedai.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── 1. DELIVERY ADDRESS ──────────────────────────── */}
         {/* payment step UI: show clean selected address card by default, expand to edit */}
+        {!isPickup && (<>
         <div className={card}>
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
             <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Alamat Penghantaran</p>
@@ -681,6 +772,7 @@ export default function CheckoutPage() {
             </span>
           </div>
         </div>
+        </>)}
 
         {/* ── 3. PAYMENT METHOD ────────────────────────────── */}
         {/* payment step UI: large icon cards — each method is a distinct tappable block */}

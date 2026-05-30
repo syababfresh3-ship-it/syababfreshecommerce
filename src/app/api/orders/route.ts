@@ -19,7 +19,10 @@ export async function POST(request: Request) {
     items, postcode, payment_method,
     delivery_address, delivery_slot, notes,
     promo_code, use_points,
+    delivery_method, pickup_date,
   } = body
+
+  const isPickup = delivery_method === 'pickup'
 
   // Basic guards
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'Tiada item dalam pesanan' }, { status: 400 })
@@ -122,7 +125,10 @@ export async function POST(request: Request) {
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
-  if (subtotal >= FREE_DELIVERY_MIN) {
+  if (isPickup) {
+    // Ambil sendiri — tiada caj penghantaran, langkau semua logik zon
+    deliveryFee = 0
+  } else if (subtotal >= FREE_DELIVERY_MIN) {
     deliveryFee = 0
   } else if (postcode && typeof postcode === 'string' && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase
@@ -242,6 +248,8 @@ export async function POST(request: Request) {
       delivery_address,
       promo_code_id: appliedPromo?.id ?? null,
       delivery_slot: delivery_slot ?? null,
+      delivery_method: isPickup ? 'pickup' : 'delivery',
+      pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
       notes: notes || null,
       needs_approval: needsApproval,
     })

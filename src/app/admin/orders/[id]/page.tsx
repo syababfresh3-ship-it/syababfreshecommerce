@@ -65,7 +65,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
             Refund Terperinci
           </Link>
-          <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} />
+          <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} deliveryMethod={order.delivery_method} />
         </div>
       </div>
 
@@ -118,10 +118,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Delivery Address + Slot */}
-      {(order.delivery_address || order.delivery_slot) && (
+      {/* Delivery Address + Slot / Pickup */}
+      {(order.delivery_address || order.delivery_slot || order.delivery_method === 'pickup') && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-4">
-          <h2 className="font-semibold text-gray-900 mb-2">Pengsendan</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <h2 className="font-semibold text-gray-900">{order.delivery_method === 'pickup' ? 'Ambil Sendiri (Pickup)' : 'Pengsendan'}</h2>
+            {order.delivery_method === 'pickup' && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">PICKUP</span>
+            )}
+          </div>
+          {order.delivery_method === 'pickup' && order.pickup_date && (
+            <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">📅 Tarikh ambil: {new Date(order.pickup_date).toLocaleDateString('en-MY')}</p>
+          )}
           {order.delivery_slot && (
             <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">🕐 {order.delivery_slot}</p>
           )}

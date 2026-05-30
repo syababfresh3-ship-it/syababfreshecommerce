@@ -11,13 +11,14 @@ interface Props {
   stock: number | null
   slug: string
   freeMin?: number
+  pickupEnabled?: boolean
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
 const v = (name: string, fallback: string) => `var(${name}, ${fallback})`
 
-export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) {
+export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEnabled = false }: Props) {
   const activeVariants = (product.product_variants ?? [])
     .filter(v => v.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -35,13 +36,18 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
   const [postcodeBlocked, setPostcodeBlocked] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<{ order_number: string; total: number; payment_method: string } | null>(null)
+  // Penghantaran vs ambil sendiri (pickup)
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+  const [pickupDate, setPickupDate] = useState('')
+  const isPickup = pickupEnabled && deliveryMethod === 'pickup'
+  const pickupMinDate = new Date().toISOString().split('T')[0]
 
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price)
   const comparePrice = selectedVariant ? selectedVariant.compare_price : product.compare_price
   const subtotal = displayPrice * qty
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
-  const total = subtotal + (deliveryFee ?? 0)
+  const total = subtotal + (isPickup ? 0 : (deliveryFee ?? 0))
   const savedAmt = comparePrice && Number(comparePrice) > displayPrice ? (Number(comparePrice) - displayPrice) * qty : 0
 
   useEffect(() => {
@@ -71,7 +77,11 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
     if (hasVariants && !selectedVariant) { toast.error('Sila pilih saiz'); return }
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan no. telefon'); return }
-    if (!form.address.trim() || form.address.trim().length < 10) { toast.error('Sila masukkan alamat lengkap'); return }
+    if (isPickup) {
+      if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
+    } else if (!form.address.trim() || form.address.trim().length < 10) {
+      toast.error('Sila masukkan alamat lengkap'); return
+    }
     if (!paymentMethod) { toast.error('Sila pilih kaedah bayaran'); return }
 
     const params = new URLSearchParams(window.location.search)
@@ -84,8 +94,9 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(), phone: form.phone.trim(),
-          address: form.address.trim(), postcode: form.postcode.trim() || null,
+          address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
+          delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
           items: [{ product_id: product.id, variant_id: selectedVariant?.id ?? null,
             product_name: product.name, variant_name: selectedVariant?.name ?? null,
             quantity: qty, unit_price: displayPrice }],
@@ -107,7 +118,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
       `• ${product.name}${variantLine} × ${qty} — RM${(displayPrice * qty).toFixed(2)}\n\n` +
       `🔢 No. Pesanan: *${result.order_number}*\n` +
       `💰 Jumlah: *RM${result.total.toFixed(2)}*\n` +
-      `🏠 Alamat: ${form.address}\n\nTerima kasih!`
+      (isPickup ? `🏪 Ambil Sendiri di kedai${pickupDate ? ` (${pickupDate})` : ''}` : `🏠 Alamat: ${form.address}`) +
+      `\n\nTerima kasih!`
     )
     window.open(`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT ?? ''}?text=${msg}`, '_blank', 'noopener')
   }
@@ -260,21 +272,59 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
               <label style={labelStyle}>NO. TELEFON</label>
               <input style={inputStyle} type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="cth: 0123456789" required />
             </div>
-            <div>
-              <label style={labelStyle}>ALAMAT PENGHANTARAN</label>
-              <textarea style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 } as React.CSSProperties} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="No. rumah, jalan, taman, bandar..." required rows={3} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>
-                <label style={labelStyle}>POSKOD</label>
-                <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" />
-                {postcodeBlocked && <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4 }}>⚠️ Penghantaran tidak tersedia ke kawasan ini</p>}
+
+            {/* Penghantaran vs Ambil Sendiri */}
+            {pickupEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {([['delivery', '🚚 Penghantaran'], ['pickup', '🏪 Ambil Sendiri']] as const).map(([m, label]) => {
+                  const active = deliveryMethod === m
+                  return (
+                    <button key={m} type="button" onClick={() => setDeliveryMethod(m)}
+                      style={{
+                        padding: '10px 8px', borderRadius: 12, fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                        border: active ? `2px solid ${v('--cherry','#9C0F30')}` : '2px solid #e5e7eb',
+                        background: active ? v('--cherry-light','#fef2f2') : '#fafafa',
+                        color: active ? v('--cherry','#9C0F30') : '#6b7280',
+                      }}>{label}</button>
+                  )
+                })}
               </div>
-              <div>
-                <label style={labelStyle}>NOTA (PILIHAN)</label>
-                <input style={inputStyle} type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Arahan khas..." />
-              </div>
-            </div>
+            )}
+
+            {isPickup ? (
+              <>
+                <div style={{ background: v('--cherry-light','#fef2f2'), borderRadius: 12, padding: '12px 14px', fontSize: 12, lineHeight: 1.5, color: '#374151' }}>
+                  <p style={{ fontWeight: 800, color: v('--cherry','#9C0F30'), marginBottom: 2 }}>🏪 Ambil di kedai — SyababFresh, Bangi</p>
+                  Kompleks Premis Usahawan SME Bank Bangi, Seksyen 16, 43650 Bandar New Bangi · Isnin–Sabtu, 9 pagi–6 petang
+                </div>
+                <div>
+                  <label style={labelStyle}>TARIKH AMBIL</label>
+                  <input style={inputStyle} type="date" value={pickupDate} min={pickupMinDate} onChange={e => setPickupDate(e.target.value)} required />
+                </div>
+                <div>
+                  <label style={labelStyle}>NOTA (PILIHAN)</label>
+                  <input style={inputStyle} type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Arahan khas..." />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label style={labelStyle}>ALAMAT PENGHANTARAN</label>
+                  <textarea style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 } as React.CSSProperties} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} placeholder="No. rumah, jalan, taman, bandar..." required rows={3} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={labelStyle}>POSKOD</label>
+                    <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" />
+                    {postcodeBlocked && <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4 }}>⚠️ Penghantaran tidak tersedia ke kawasan ini</p>}
+                  </div>
+                  <div>
+                    <label style={labelStyle}>NOTA (PILIHAN)</label>
+                    <input style={inputStyle} type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Arahan khas..." />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -319,10 +369,12 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280', marginBottom: 10, alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Truck style={{ width: 13, height: 13 }} /> Penghantaran
+                  <Truck style={{ width: 13, height: 13 }} /> {isPickup ? 'Ambil Sendiri' : 'Penghantaran'}
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {postcodeBlocked
+                  {isPickup
+                    ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
+                    : postcodeBlocked
                     ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Tidak tersedia ✗</span>
                     : deliveryFee !== null
                       ? deliveryFee === 0
@@ -333,7 +385,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
                         : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
-              {freeOn && subtotal < FREE_MIN && (
+              {!isPickup && freeOn && subtotal < FREE_MIN && (
                 <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '7px 10px', marginBottom: 10, fontSize: 11, color: '#166534', fontWeight: 600 }}>
                   🎁 Tambah RM{(FREE_MIN - subtotal).toFixed(2)} lagi untuk penghantaran <strong>PERCUMA</strong>
                 </div>
@@ -341,7 +393,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80 }: Props) 
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid #f3f4f6', paddingTop: 10 }}>
                 <span style={{ fontWeight: 900, fontSize: 15, color: '#111' }}>JUMLAH</span>
                 <span style={{ fontWeight: 900, fontSize: 20, color: v('--cherry','#9C0F30') }}>
-                  RM{total.toFixed(2)}{deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}
+                  RM{total.toFixed(2)}{!isPickup && deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}
                 </span>
               </div>
             </div>

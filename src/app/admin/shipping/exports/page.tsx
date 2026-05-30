@@ -12,6 +12,7 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
     .from('orders')
     .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address')
     .in('status', ['confirmed', 'preparing', 'delivering'])
+    .neq('delivery_method', 'pickup')   // order ambil sendiri tak perlu dihantar
     .gte('created_at', from)
     .lte('created_at', to)
     .order('created_at', { ascending: false })
@@ -41,7 +42,7 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
-  // KV postcode prefixes: KL 50-60, Putrajaya 62-63, Selangor 40-48, Shah Alam 40xxx, Klang 41xxx, etc.
+  // LK (Lembah Klang) postcode prefixes: KL 50-60, Putrajaya 62-63, Selangor 40-48, Shah Alam 40xxx, Klang 41xxx, etc.
   function isKlPostcode(pc: string | null | undefined): boolean | null {
     if (!pc || pc.length !== 5) return null
     const n = parseInt(pc, 10)

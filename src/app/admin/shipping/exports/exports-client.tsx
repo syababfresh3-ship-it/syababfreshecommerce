@@ -67,9 +67,9 @@ function getItemsSummary(items: ExportOrder['items']) {
   return items.map((i) => `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity}`).join(', ')
 }
 
-// Kategori kawasan untuk tapisan pantas:
-//   kl   = Klang Valley (→ Lalamove)
-//   luar = luar Klang Valley, kawasan dikenali (→ Ninja Cold)
+// Kategori kawasan untuk tapisan pantas (label UI: LK / Pos / Lain-lain):
+//   kl   = LK, Lembah Klang (→ Lalamove)
+//   luar = Pos, luar LK tapi kawasan dikenali (→ Ninja Cold / Poslaju)
 //   lain = kawasan tak dapat dikenali / alamat tak lengkap (perlu semak)
 type AreaFilter = 'all' | 'kl' | 'luar' | 'lain'
 function areaCategory(o: ExportOrder): Exclude<AreaFilter, 'all'> {
@@ -201,10 +201,12 @@ function printAwb(orders: ExportOrder[]) {
     const postcode = o.postcode ?? ''
     const city = o.city ?? ''
     const state = o.state ?? ''
-    // Item satu baris setiap satu (by point) + kotak tick + qty tebal — supaya packer tak terlepas
-    const itemsList = o.items.map((it) =>
-      `<li><span class="chk"></span><span class="qty">×${it.quantity}</span><span class="iname">${it.product_name}${it.variant_name ? ` (${it.variant_name})` : ''}</span></li>`
-    ).join('')
+    // Item satu baris setiap satu (by point) + kotak tick — supaya packer tak terlepas.
+    // Papar ×N hanya bila pesan ≥2 unit; ×1 disorok sebab keliru dgn "(N pack)" dalam nama variant.
+    const itemsList = o.items.map((it) => {
+      const qty = it.quantity > 1 ? `<span class="qty">×${it.quantity}</span>` : ''
+      return `<li><span class="chk"></span>${qty}<span class="iname">${it.product_name}${it.variant_name ? ` (${it.variant_name})` : ''}</span></li>`
+    }).join('')
     const isCod = o.payment_method === 'cod'
 
     return `
@@ -371,7 +373,7 @@ export function ExportsClient({
   const AREA_TABS: { key: AreaFilter; label: string }[] = [
     { key: 'all',  label: 'Semua' },
     { key: 'kl',   label: 'LK' },
-    { key: 'luar', label: 'Luar LK' },
+    { key: 'luar', label: 'Pos' },
     { key: 'lain', label: 'Lain-lain' },
   ]
 
@@ -505,10 +507,10 @@ export function ExportsClient({
               <div className="flex flex-wrap gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>Fresh Items (cold)</span>
                 <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Dry Items</span>
-                <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">KV = Klang Valley</span>
-                <span className="text-gray-400">→ Fresh+KV: Lalamove · Fresh+Others: Ninja Cold · Dry: Poslaju</span>
+                <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">LK = Lembah Klang</span>
+                <span className="text-gray-400">→ Fresh+LK: Lalamove · Pos (luar LK): Ninja Cold · Dry: Poslaju</span>
               </div>
-              {/* Tapisan kawasan — tick & bulk generate ikut LK / Luar LK / Lain-lain */}
+              {/* Tapisan kawasan — tick & bulk generate ikut LK / Pos / Lain-lain */}
               <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-fit">
                 {AREA_TABS.map((t) => (
                   <button key={t.key} onClick={() => setAreaFilter(t.key)}
@@ -636,7 +638,7 @@ export function ExportsClient({
                           </p>
                           {o.area_known && (
                             <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${o.is_kl ? 'bg-orange-50 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
-                              {o.is_kl ? 'LK' : 'Luar KL'}
+                              {o.is_kl ? 'LK' : 'Pos'}
                             </span>
                           )}
                         </td>

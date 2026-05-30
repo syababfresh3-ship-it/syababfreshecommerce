@@ -204,6 +204,9 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                 <Link href={`/admin/orders/${order.id}`} className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
+                    {order.delivery_method === 'pickup' && (
+                      <span className="text-[9px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">PICKUP</span>
+                    )}
                     <span className={`text-[10px] font-semibold ${action.color}`}>{action.label}</span>
                   </div>
                   <p className="text-sm font-semibold text-gray-900">{order.profiles?.full_name ?? '—'}</p>
@@ -280,6 +283,9 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                       </Link>
                       {(order as any)._isLp && (
                         <span className="text-xs font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
+                      )}
+                      {order.delivery_method === 'pickup' && (
+                        <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">PICKUP</span>
                       )}
                     </div>
                     {(order as any)._lpTitle && (
