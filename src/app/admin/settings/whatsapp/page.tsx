@@ -14,15 +14,21 @@ const TEMPLATES = [
   },
   {
     key: 'wa_tmpl_order_received',
-    label: '📋 Order Received',
-    description: 'Sent when COD/Bank Transfer order is placed',
-    vars: ['{name}', '{order_number}'],
+    label: '📋 Order Received (COD/Bank)',
+    description: 'Mesej penuh bila order COD/Bank Transfer dibuat (LP). Reply prompt + footer ditambah automatik.',
+    vars: ['{name}', '{order_number}', '{lp_title}', '{items}', '{total}', '{payment_method}', '{app_url}'],
   },
   {
     key: 'wa_tmpl_payment_confirmed',
     label: '💳 Payment Confirmed (FPX)',
-    description: 'Sent when FPX payment is completed',
-    vars: ['{name}', '{order_number}'],
+    description: 'Mesej penuh bila bayaran FPX berjaya (LP). Reply prompt + footer ditambah automatik.',
+    vars: ['{name}', '{order_number}', '{lp_title}', '{items}', '{total}', '{app_url}'],
+  },
+  {
+    key: 'wa_tmpl_reply_prompt',
+    label: '💬 Reply Prompt',
+    description: 'Ajakan customer balas "YA" pada notifikasi order LP — untuk two-way comms (kurangkan risiko WA banned)',
+    vars: [],
   },
   {
     key: 'wa_tmpl_confirmed',
@@ -101,30 +107,38 @@ export default function WhatsAppTemplatesPage() {
   }
 
   function buildPreview(key: string) {
-    const tpl = templates[key] ?? ''
-    const greeting = templates.wa_tmpl_greeting ?? DEFAULT_TEMPLATES.wa_tmpl_greeting
-    const footer = templates.wa_tmpl_footer ?? DEFAULT_TEMPLATES.wa_tmpl_footer
+    const tpl = templates[key] ?? DEFAULT_TEMPLATES[key] ?? ''
+    const sample: Record<string, string> = {
+      name: 'Ahmad',
+      order_number: 'LP-20260530-0001',
+      lp_title: 'Pre-Order Cherry Uzbekistan',
+      items: '• Cherry Uzbekistan (500g) × 2 — RM89.00',
+      total: '89.00',
+      payment_method: 'Bayar Semasa Terima (COD)',
+      app_url: 'https://shop.syababfresh.my',
+      tracking_url: 'https://tracking.ninjavan.co/my/...',
+    }
+    const render = (t: string) => t.replace(/\{(\w+)\}/g, (_, k) => sample[k] ?? `{${k}}`)
+    const footer = render(templates.wa_tmpl_footer ?? DEFAULT_TEMPLATES.wa_tmpl_footer)
+    const replyPrompt = render(templates.wa_tmpl_reply_prompt ?? DEFAULT_TEMPLATES.wa_tmpl_reply_prompt)
 
-    if (key === 'wa_tmpl_greeting' || key === 'wa_tmpl_footer') {
-      return tpl.replace('{name}', 'Ahmad')
+    // Standalone snippets
+    if (key === 'wa_tmpl_greeting' || key === 'wa_tmpl_footer' || key === 'wa_tmpl_reply_prompt') {
+      return render(tpl)
     }
 
-    const lines = [
-      greeting.replace('{name}', 'Ahmad'),
-      '',
-      tpl.replace('{name}', 'Ahmad').replace('{order_number}', 'LP-20260530-0001').replace('{total}', 'RM89.00').replace('{tracking_url}', 'https://tracking.ninjavan.co/my/...'),
-      '',
-      '📦 No. Pesanan: *LP-20260530-0001*',
-    ]
+    // Full-body order-confirmation messages: body + reply prompt + footer
+    if (key === 'wa_tmpl_order_received' || key === 'wa_tmpl_payment_confirmed') {
+      return [render(tpl), '', replyPrompt, '', footer].join('\n')
+    }
 
+    // Status updates: greeting + body + order number (+ tracking) + footer
+    const greeting = render(templates.wa_tmpl_greeting ?? DEFAULT_TEMPLATES.wa_tmpl_greeting)
+    const lines = [greeting, '', render(tpl), '', `📦 No. Pesanan: *${sample.order_number}*`]
     if (key === 'wa_tmpl_delivering') {
-      lines.push('')
-      lines.push('🔗 *Link Penghantaran:*')
-      lines.push('https://tracking.ninjavan.co/my/...')
+      lines.push('', '🔗 *Link Penghantaran:*', sample.tracking_url)
     }
-
-    lines.push('')
-    lines.push(footer)
+    lines.push('', footer)
     return lines.join('\n')
   }
 
@@ -150,7 +164,7 @@ export default function WhatsAppTemplatesPage() {
       {/* Variable hint */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-5 text-sm text-blue-700">
         <p className="font-bold mb-1">Available variables:</p>
-        <p className="text-xs font-mono">{'{name}'} — customer name &nbsp;·&nbsp; {'{order_number}'} — order no. &nbsp;·&nbsp; {'{total}'} — order total &nbsp;·&nbsp; {'{tracking_url}'} — tracking link</p>
+        <p className="text-xs font-mono">{'{name}'} — customer name &nbsp;·&nbsp; {'{order_number}'} — order no. &nbsp;·&nbsp; {'{total}'} — order total &nbsp;·&nbsp; {'{tracking_url}'} — tracking link &nbsp;·&nbsp; {'{items}'} — senarai item &nbsp;·&nbsp; {'{lp_title}'} — tajuk LP &nbsp;·&nbsp; {'{payment_method}'} — kaedah bayar &nbsp;·&nbsp; {'{app_url}'} — link app</p>
         <p className="text-xs mt-1 opacity-70">Use *text* for bold in WhatsApp</p>
       </div>
 

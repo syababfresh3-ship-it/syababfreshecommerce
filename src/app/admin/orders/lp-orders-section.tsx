@@ -41,6 +41,7 @@ const STATUS_BADGE: Record<string, string> = {
   delivering: 'bg-orange-100 text-orange-700',
   delivered:  'bg-green-100 text-green-700',
   cancelled:  'bg-red-100 text-red-600',
+  refunded:   'bg-amber-100 text-amber-700',
 }
 
 const payLabel: Record<string, string> = { fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Bank Transfer' }

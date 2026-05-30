@@ -133,20 +133,37 @@ export default async function AdminOrdersPage({
 }) {
   const { status, q, date } = await searchParams
   const supabaseForLp = createAdminClient()
+
+  // Apply the same status/date filters to LP orders as regular orders (q is post-filtered below)
+  let lpQuery = supabaseForLp.from('lp_guest_orders')
+    .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (status) lpQuery = lpQuery.eq('status', status)
+  else lpQuery = lpQuery.not('status', 'in', '(delivered,cancelled,refunded)')
+  const lpRange = dateRange(date)
+  if (lpRange.gte) lpQuery = lpQuery.gte('created_at', lpRange.gte)
+  if (lpRange.lt)  lpQuery = lpQuery.lt('created_at', lpRange.lt)
+
   const [orders, counts, lpOrdersRes] = await Promise.all([
     getOrders(status, q, date),
     getStatusCounts(),
-    supabaseForLp.from('lp_guest_orders')
-      .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
-      .not('status', 'in', '(delivered,cancelled)')
-      .order('created_at', { ascending: false })
-      .limit(100),
+    lpQuery,
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
-  const allLpOrders = (lpOrdersRes.data ?? []).filter((o: any) =>
+  let allLpOrders = (lpOrdersRes.data ?? []).filter((o: any) =>
     ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
   )
+  // Search filter — match order number, customer name, or phone
+  if (q) {
+    const lower = q.toLowerCase()
+    allLpOrders = allLpOrders.filter((o: any) =>
+      o.order_number?.toLowerCase().includes(lower) ||
+      o.name?.toLowerCase().includes(lower) ||
+      o.phone?.includes(q)
+    )
+  }
   const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending')
 
   // Transform LP orders to match Order shape for the table

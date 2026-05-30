@@ -66,9 +66,8 @@ export async function POST(
     )
   }
 
-  // ── Loyalty points ───────────────────────────────────────────────
+  // ── Loyalty redeem (deduction only; earning happens on delivery) ──
   const pointsUsed = order.points_used ?? 0
-  const total = Number(order.total)
 
   // Get user's loyalty multiplier
   const { data: profile } = await supabase
@@ -76,8 +75,9 @@ export async function POST(
     .select('email, phone, loyalty_tiers(multiplier)')
     .eq('id', user.id)
     .single()
-  const multiplier = (profile as any)?.loyalty_tiers?.multiplier ?? 1
 
+  // Redeem deduction happens now (at order placement) so points can't be double-spent.
+  // Earned points + spend are awarded on delivery (see admin orders PATCH → 'delivered').
   if (pointsUsed > 0) {
     await supabase.from('loyalty_transactions').insert({
       user_id: user.id, order_id: orderId,
@@ -86,17 +86,6 @@ export async function POST(
     })
     await supabase.rpc('increment_points', { uid: user.id, pts: -pointsUsed })
   }
-
-  const MAX_POINTS = 5000
-  const earned = Math.min(Math.floor(total * multiplier), MAX_POINTS)
-  await supabase.from('loyalty_transactions').insert({
-    user_id: user.id, order_id: orderId,
-    points: earned, type: 'earn', description: 'Pembelian',
-  })
-  await Promise.all([
-    supabase.rpc('increment_points', { uid: user.id, pts: earned }),
-    supabase.rpc('increment_spend', { uid: user.id, amount: total }),
-  ])
 
   // ── Promo usage ──────────────────────────────────────────────────
   if (order.promo_code_id) {
@@ -121,5 +110,5 @@ export async function POST(
     fbp,
   }).catch(() => {})
 
-  return NextResponse.json({ ok: true, earnedPoints: earned })
+  return NextResponse.json({ ok: true })
 }

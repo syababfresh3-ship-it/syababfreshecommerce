@@ -4,6 +4,7 @@ import { sendWhatsApp } from '@/lib/murpati'
 import { createVerify } from 'crypto'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 import { sendAdminPush } from '@/lib/push'
+import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
 
 export const runtime = 'nodejs'
 
@@ -160,29 +161,23 @@ export async function POST(req: NextRequest) {
     console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
     if (lpOrder) {
       const lp = lpOrder as any
+      // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
       const lpTitle = lp.landing_pages?.title ?? 'SyababFresh'
       const itemLines = ((lp.items as any[]) ?? [])
         .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
         .join('\n')
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+      const templates = await getWaTemplates()
 
-      // WhatsApp to customer
-      sendWhatsApp(lp.phone, [
-        `Terima kasih ${lp.name}! 🌿`,
-        ``,
-        `✅ *Bayaran FPX Diterima*`,
-        `📦 No. Pesanan: *${lp.order_number}*`,
-        `🛍️ ${lpTitle}`,
-        ``,
-        itemLines,
-        ``,
-        `💰 Jumlah: *RM${Number(lp.total).toFixed(2)}*`,
-        ``,
-        `Daftar akaun untuk track order & dapat loyalty points:`,
-        `👉 ${appUrl}/daftar`,
-        ``,
-        `SyababFresh 🌿`,
-      ].join('\n')).catch(() => {})
+      // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
+      sendWhatsApp(lp.phone, buildConfirmationMessage(templates, 'payment_confirmed', {
+        name: lp.name,
+        order_number: lp.order_number,
+        lp_title: lpTitle,
+        items: itemLines,
+        total: Number(lp.total).toFixed(2),
+        app_url: appUrl,
+      })).catch(() => {})
 
       // WhatsApp to admin
       const adminPhone = process.env.ADMIN_WHATSAPP
@@ -214,8 +209,6 @@ export async function POST(req: NextRequest) {
     user_id, total, order_number, payment_method, delivery_address, delivery_slot, notes,
     points_used, promo_code_id, order_items, profiles,
   } = updated as any
-
-  const multiplier = profiles?.loyalty_tiers?.multiplier ?? 1
 
   // Deduct inventory per item — variant items use deduct_variant_stock, others use FIFO batches
   const deductResults = await Promise.all(
@@ -262,20 +255,8 @@ export async function POST(req: NextRequest) {
     await supabase.rpc('increment_points', { uid: user_id, pts: -points_used })
   }
 
-  // Award earned loyalty points
-  const MAX_POINTS_PER_ORDER = 5000
-  const earnedPoints = Math.min(Math.floor(Number(total) * multiplier), MAX_POINTS_PER_ORDER)
-  await supabase.from('loyalty_transactions').insert({
-    user_id,
-    order_id: orderId,
-    points: earnedPoints,
-    type: 'earn',
-    description: `Pembelian ${order_number}`,
-  })
-  await Promise.all([
-    supabase.rpc('increment_points', { uid: user_id, pts: earnedPoints }),
-    supabase.rpc('increment_spend', { uid: user_id, amount: Number(total) }),
-  ])
+  // Earned points + spend are awarded on delivery (see admin orders PATCH → 'delivered'),
+  // not at payment. Only the redeem deduction above happens here.
 
   // Increment promo usage now that payment is confirmed
   if (promo_code_id) {

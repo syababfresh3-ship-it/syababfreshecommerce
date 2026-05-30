@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
+import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
 
 export const runtime = 'nodejs'
 
@@ -57,30 +58,24 @@ export async function POST(
 
   if (!updated) return NextResponse.json({ status: 'confirmed' }) // already processed by webhook
 
+  // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
   const lp = order as any
   const lpTitle = lp.landing_pages?.title ?? 'SyababFresh'
   const itemLines = ((lp.items as any[]) ?? [])
     .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
     .join('\n')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+  const templates = await getWaTemplates()
 
-  // WhatsApp to customer
-  sendWhatsApp(lp.phone, [
-    `Terima kasih ${lp.name}! 🌿`,
-    ``,
-    `✅ *Bayaran FPX Diterima*`,
-    `📦 No. Pesanan: *${lp.order_number}*`,
-    `🛍️ ${lpTitle}`,
-    ``,
-    itemLines,
-    ``,
-    `💰 Jumlah: *RM${Number(lp.total).toFixed(2)}*`,
-    ``,
-    `Daftar akaun untuk track order & dapat loyalty points:`,
-    `👉 ${appUrl}/daftar`,
-    ``,
-    `SyababFresh 🌿`,
-  ].join('\n')).catch(() => {})
+  // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
+  sendWhatsApp(lp.phone, buildConfirmationMessage(templates, 'payment_confirmed', {
+    name: lp.name,
+    order_number: lp.order_number,
+    lp_title: lpTitle,
+    items: itemLines,
+    total: Number(lp.total).toFixed(2),
+    app_url: appUrl,
+  })).catch(() => {})
 
   // WhatsApp + push to admin
   const adminPhone = process.env.ADMIN_WHATSAPP

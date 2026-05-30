@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
+import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
@@ -221,23 +222,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`
   ).join('\n')
   const payLabel: Record<string, string> = { cod: 'Bayar Semasa Terima (COD)', bank_transfer: 'Pindahan Bank' }
-  sendWhatsApp(phone.trim(), [
-    `Terima kasih ${name.trim()}! 🌿`,
-    ``,
-    `📋 *Pesanan Diterima*`,
-    `📦 No. Pesanan: *${order.order_number}*`,
-    `🛍️ ${page.title}`,
-    ``,
-    itemLines,
-    ``,
-    `💰 Jumlah: *RM${Number(order.total).toFixed(2)}*`,
-    `💳 Kaedah Bayar: ${payLabel[payment_method] ?? payment_method}`,
-    ``,
-    `Daftar akaun untuk track order & dapat loyalty points:`,
-    `👉 ${appUrl}/daftar`,
-    ``,
-    `SyababFresh 🌿`,
-  ].join('\n')).catch(() => {})
+  const templates = await getWaTemplates()
+
+  // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
+  sendWhatsApp(phone.trim(), buildConfirmationMessage(templates, 'order_received', {
+    name: name.trim(),
+    order_number: order.order_number,
+    lp_title: page.title,
+    items: itemLines,
+    total: Number(order.total).toFixed(2),
+    payment_method: payLabel[payment_method] ?? payment_method,
+    app_url: appUrl,
+  })).catch(() => {})
 
   return NextResponse.json({
     ok: true,

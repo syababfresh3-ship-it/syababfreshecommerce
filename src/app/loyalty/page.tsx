@@ -103,7 +103,7 @@ export default async function LoyaltyPage() {
               {totalPoints.toLocaleString()}
             </p>
             <p className="text-white/60 text-sm mt-1.5">
-              Boleh guna untuk <span className="text-white font-bold">RM{(totalPoints / 10).toFixed(2)}</span> diskaun 🎁
+              Boleh guna untuk <span className="text-white font-bold">RM{(totalPoints / 100).toFixed(2)}</span> diskaun 🎁
             </p>
 
             <div className="flex items-center gap-2 mt-4 flex-wrap">

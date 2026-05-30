@@ -1,4 +1,7 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { awardLpLoyalty } from '@/lib/lp-loyalty'
+import { reverseLpLoyalty } from '@/lib/loyalty-reverse'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -17,7 +20,7 @@ export async function GET(request: Request) {
 
   if (pageId) query = query.eq('page_id', pageId)
   if (status) query = query.eq('status', status)
-  else query = query.not('status', 'in', '(delivered,cancelled)')
+  else query = query.not('status', 'in', '(delivered,cancelled,refunded)')
 
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -43,7 +46,7 @@ export async function PATCH(request: Request) {
 
   // Status update
   if (status !== undefined) {
-    const VALID = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled']
+    const VALID = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled', 'refunded']
     if (!VALID.includes(status)) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     update.status = status
   }
@@ -65,5 +68,22 @@ export async function PATCH(request: Request) {
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Loyalty side-effects on terminal status changes (use service role for the RPCs)
+  if (status === 'delivered' || status === 'refunded') {
+    const admin = createAdminClient()
+    const { data: lp } = await admin
+      .from('lp_guest_orders')
+      .select('id, order_number, phone, total, payment_method, payment_status')
+      .eq('id', id)
+      .single()
+    if (lp) {
+      // Delivered (payment received, incl. COD/bank) → award if phone matches a profile.
+      // Refunded → reverse the points + spend previously awarded. Both idempotent.
+      if (status === 'delivered') await awardLpLoyalty(admin, lp).catch(() => {})
+      else await reverseLpLoyalty(admin, lp).catch(() => {})
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }

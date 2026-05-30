@@ -259,7 +259,7 @@ export default function CheckoutPage() {
     setPromoLoading(false)
   }
 
-  const POINTS_RATE = 10
+  const POINTS_RATE = 100 // 100 mata = RM1 (1% pulangan asas)
   const pointsDiscount = usePoints ? Math.min(userPoints / POINTS_RATE, subtotal + deliveryFee) : 0
   const pointsUsed = usePoints ? Math.min(userPoints, Math.floor((subtotal + deliveryFee) * POINTS_RATE)) : 0
 

@@ -10,6 +10,7 @@ const TEMPLATE_KEYS = [
   'wa_tmpl_cancelled',
   'wa_tmpl_order_received',
   'wa_tmpl_payment_confirmed',
+  'wa_tmpl_reply_prompt',
   'wa_tmpl_footer',
   'wa_tmpl_greeting',
 ]

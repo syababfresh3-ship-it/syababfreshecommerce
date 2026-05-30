@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { awardLpLoyalty } from '@/lib/lp-loyalty'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -41,6 +42,21 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
   if (type === 'recovery') {
     return NextResponse.redirect(new URL('/reset-password', request.url))
+  }
+
+  // Retroactive loyalty: credit delivered LP orders that match this user's phone
+  // (e.g. they ordered via a landing page as a guest, then registered later)
+  if (data.user) {
+    try {
+      const adminDb = createAdminClient()
+      const { data: prof } = await adminDb.from('profiles').select('phone').eq('id', data.user.id).single()
+      if (prof?.phone) {
+        const { data: lpOrders } = await adminDb.rpc('lp_orders_for_phone', { p_phone: prof.phone })
+        for (const o of (lpOrders ?? [])) {
+          await awardLpLoyalty(adminDb, o)
+        }
+      }
+    } catch { /* non-fatal */ }
   }
 
   // Track referral for OAuth signups — use admin client directly, no HTTP fetch
