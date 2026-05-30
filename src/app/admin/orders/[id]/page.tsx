@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+import Link from 'next/link'
 import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import { OrderStatusUpdater } from './order-status-updater'
@@ -17,7 +18,7 @@ async function getOrder(id: string) {
 
   const [{ data: profile }, { data: shipment }, { data: carriers }] = await Promise.all([
     supabase.from('profiles').select('full_name, phone, email').eq('id', order.user_id).single(),
-    supabase.from('order_shipments').select('*, shipping_carriers(*)').eq('order_id', id).maybeSingle(),
+    supabase.from('order_shipments').select('*, shipping_carriers(*)').eq('order_id', id).is('refund_id', null).maybeSingle(),
     supabase.from('shipping_carriers').select('*').eq('is_active', true).order('sort_order'),
   ])
 
@@ -60,6 +61,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {order.payment_status === 'paid' && order.status !== 'refunded' && (
             <RefundButton orderId={order.id} amount={order.total} />
           )}
+          <Link href={`/admin/refunds/new?orderId=${order.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+            Refund Terperinci
+          </Link>
           <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} />
         </div>
       </div>

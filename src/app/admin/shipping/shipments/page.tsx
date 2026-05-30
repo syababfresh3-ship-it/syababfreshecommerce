@@ -156,6 +156,9 @@ export default async function ShipmentsPage({
                       >
                         {s.orders?.order_number ?? '—'}
                       </Link>
+                      {s.refund_id && (
+                        <span className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 align-middle">GANTI</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="font-semibold text-gray-900 text-sm">{s.profile?.full_name ?? '—'}</div>

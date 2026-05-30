@@ -94,6 +94,7 @@ async function getOrder(id: string) {
     .from('order_shipments')
     .select('*, shipping_carriers(id, name)')
     .eq('order_id', id)
+    .is('refund_id', null)
     .maybeSingle()
 
   return { ...data, shipment: shipment ?? null }

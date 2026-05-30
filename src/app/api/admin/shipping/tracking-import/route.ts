@@ -43,19 +43,23 @@ export async function POST(req: Request) {
       continue
     }
 
-    // Upsert shipment
-    const { error: upsertErr } = await admin
+    // Upsert PRIMARY shipment (refund_id is null) — leave replacement shipments alone
+    const shipRow = {
+      order_id: order.id,
+      carrier_id: carrier_id ?? 'ninja_cold',
+      tracking_number: tracking_number.trim(),
+      status: 'in_transit',
+      shipped_at: new Date().toISOString(),
+    }
+    const { data: existingShip } = await admin
       .from('order_shipments')
-      .upsert(
-        {
-          order_id: order.id,
-          carrier_id: carrier_id ?? 'ninja_cold',
-          tracking_number: tracking_number.trim(),
-          status: 'in_transit',
-          shipped_at: new Date().toISOString(),
-        },
-        { onConflict: 'order_id' }
-      )
+      .select('id')
+      .eq('order_id', order.id)
+      .is('refund_id', null)
+      .maybeSingle()
+    const { error: upsertErr } = existingShip
+      ? await admin.from('order_shipments').update(shipRow).eq('id', existingShip.id)
+      : await admin.from('order_shipments').insert(shipRow)
 
     if (upsertErr) {
       errors.push(`Gagal simpan tracking untuk ${order_number}: ${upsertErr.message}`)

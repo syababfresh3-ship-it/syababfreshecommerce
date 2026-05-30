@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { handleOrderDelivered } from '@/lib/order-delivered'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendTrackingEmail } from '@/lib/zeptomail'
@@ -76,20 +77,27 @@ export async function POST(request: Request) {
     }
   }
 
-  const { data: shipment, error } = await supabase
+  // Upsert PRIMARY shipment (refund_id is null) — replacement shipments (refund-linked)
+  // are managed separately via the refunds module and must not be touched here.
+  const row = {
+    order_id,
+    carrier_id,
+    tracking_number: tracking_number ?? null,
+    tracking_url,
+    estimated_delivery: estimated_delivery ?? null,
+    notes: notes ?? null,
+    status: status ?? 'pending',
+    updated_at: new Date().toISOString(),
+  }
+  const { data: existing } = await supabase
     .from('order_shipments')
-    .upsert({
-      order_id,
-      carrier_id,
-      tracking_number: tracking_number ?? null,
-      tracking_url,
-      estimated_delivery: estimated_delivery ?? null,
-      notes: notes ?? null,
-      status: status ?? 'pending',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'order_id' })
-    .select()
-    .single()
+    .select('id')
+    .eq('order_id', order_id)
+    .is('refund_id', null)
+    .maybeSingle()
+  const { data: shipment, error } = existing
+    ? await supabase.from('order_shipments').update(row).eq('id', existing.id).select().single()
+    : await supabase.from('order_shipments').insert(row).select().single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -102,11 +110,14 @@ export async function POST(request: Request) {
       .eq('id', order_id)
       .in('status', ['pending', 'confirmed', 'preparing'])
   } else if (status === 'delivered') {
-    await supabase
+    const { data: synced } = await supabase
       .from('orders')
       .update({ status: 'delivered', delivered_at: now })
       .eq('id', order_id)
       .neq('status', 'cancelled')
+      .select('id')
+    // Loyalty + referral + affiliate, only if the order actually transitioned
+    if (synced && synced.length) await handleOrderDelivered(supabase, order_id)
   }
 
   // Notify customer via WhatsApp + Email if tracking info available

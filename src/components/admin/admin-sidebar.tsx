@@ -81,10 +81,9 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           .select('id', { count: 'exact', head: true })
           .in('status', ['pending', 'confirmed', 'preparing', 'delivering']),
         supabase
-          .from('orders')
+          .from('refunds')
           .select('id', { count: 'exact', head: true })
-          .eq('status', 'cancelled')
-          .eq('payment_status', 'paid'),
+          .in('status', ['pending', 'processing']),
       ])
       setCounts({ fulfillment: ful.count ?? 0, refunds: ref.count ?? 0 })
     }

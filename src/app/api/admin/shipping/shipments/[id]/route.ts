@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { handleOrderDelivered } from '@/lib/order-delivered'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -21,7 +22,7 @@ export async function PATCH(
   // Fetch existing shipment to get carrier template and order_id
   const { data: existing } = await supabase
     .from('order_shipments')
-    .select('order_id, carrier_id, tracking_number, shipping_carriers(tracking_url_template)')
+    .select('order_id, carrier_id, tracking_number, refund_id, shipping_carriers(tracking_url_template)')
     .eq('id', id)
     .single()
 
@@ -53,13 +54,20 @@ export async function PATCH(
     update.delivered_at = now
   }
 
-  // Sync order status
-  if (body.status === 'delivered') {
-    await supabase
+  // Sync order status — SKIP for replacement (refund-linked) shipments: the order's
+  // own lifecycle is already done (delivered + refunded); a ganti shipment moving must
+  // not flip the order back to delivered or re-run delivered side-effects.
+  if (existing.refund_id) {
+    // no order-status sync for replacement shipments
+  } else if (body.status === 'delivered') {
+    const { data: synced } = await supabase
       .from('orders')
       .update({ status: 'delivered', delivered_at: now })
       .eq('id', existing.order_id)
       .neq('status', 'cancelled')
+      .select('id')
+    // Loyalty + referral + affiliate, only if the order actually transitioned
+    if (synced && synced.length) await handleOrderDelivered(supabase, existing.order_id)
   } else if (body.status && ['picked_up', 'in_transit', 'out_for_delivery'].includes(body.status)) {
     await supabase
       .from('orders')
