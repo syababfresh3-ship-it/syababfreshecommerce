@@ -293,7 +293,6 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       }
 
       // Rebuild groups from saved batches
-      const orderIdSet = new Set(batches.flatMap((b) => b.delivery_batch_orders.map((bo) => bo.order_id)))
       const ordersMap = new Map(orders.map((o) => [o.id, o]))
 
       const restoredGroups: ZoneGroup[] = KV_ZONES.map((zone) => ({
@@ -317,15 +316,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
         }
       }
 
-      // Put unassigned orders into Lain-lain
-      for (const order of orders) {
-        if (!orderIdSet.has(order.id)) {
-          const othersGroup = restoredGroups.find((g) => g.zone.id === 'others')
-          if (othersGroup) othersGroup.orders.push(order)
-        }
-      }
-
-      setGroups(restoredGroups.filter((g) => g.orders.length > 0 || g.zone.id === 'others'))
+      setGroups(restoredGroups.filter((g) => g.orders.length > 0))
       setGenerated(true)
       setSaved(true)
       toast.success(`${batches.length} batch dimuatkan semula`)
@@ -349,16 +340,18 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
     for (const zone of KV_ZONES) {
       groupMap.set(zone.id, { zone, orders: [], status: 'draft' })
     }
+    let outsideKV = 0
     for (const order of filteredOrders) {
-      const postcode = getPostcode(order)
-      const zone = getZone(postcode)
+      const zone = getZone(getPostcode(order))
+      if (!zone) { outsideKV++; continue }   // luar Klang Valley — tak disertakan (guna courier lain)
       groupMap.get(zone.id)!.orders.push(order)
     }
-    const result = Array.from(groupMap.values()).filter((g) => g.orders.length > 0 || g.zone.id === 'others')
+    const result = Array.from(groupMap.values()).filter((g) => g.orders.length > 0)
     setGroups(result)
     setGenerated(true)
     setSaved(false)
-    toast.success(`${filteredOrders.length} order dibahagikan kepada ${result.filter((g) => g.orders.length > 0).length} zon`)
+    const grouped = filteredOrders.length - outsideKV
+    toast.success(`${grouped} order KV dibahagikan kepada ${result.length} zon${outsideKV ? ` · ${outsideKV} luar KV diabaikan` : ''}`)
   }
 
   // Save all groups to DB
@@ -555,9 +548,9 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-sm font-bold text-gray-900">
-                {groups.filter((g) => g.orders.length > 0).length} zon · {filteredCount} order
+                {groups.filter((g) => g.orders.length > 0).length} zon · {groups.reduce((n, g) => n + g.orders.length, 0)} order KV
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">Gunakan dropdown di setiap order untuk pindah zon</p>
+              <p className="text-xs text-gray-400 mt-0.5">Order luar Klang Valley tidak disertakan · guna dropdown untuk pindah zon</p>
             </div>
             <div className="flex items-center gap-2">
               {/* Save badge */}

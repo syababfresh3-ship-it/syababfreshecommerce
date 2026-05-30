@@ -66,22 +66,17 @@ export const KV_ZONES: ZoneConfig[] = [
     color: 'pink',
     emoji: '🌳',
   },
-  {
-    id: 'others',
-    name: 'Lain-lain',
-    prefixes: [],
-    color: 'gray',
-    emoji: '📍',
-  },
 ]
 
-export function getZone(postcode: string | null | undefined): ZoneConfig {
-  if (!postcode) return KV_ZONES[KV_ZONES.length - 1]
+// Pulang null bila poskod tiada atau bukan Klang Valley — order sebegini LUAR
+// liputan Lalamove same-day, jadi tidak dimasukkan ke dalam mana-mana zon.
+export function getZone(postcode: string | null | undefined): ZoneConfig | null {
+  if (!postcode) return null
   const p = postcode.trim()
   for (const zone of KV_ZONES) {
     if (zone.prefixes.some((prefix) => p.startsWith(prefix))) return zone
   }
-  return KV_ZONES[KV_ZONES.length - 1]
+  return null
 }
 
 // Extract 5-digit postcode from free-text address string
