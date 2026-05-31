@@ -189,6 +189,7 @@ export async function sendPaymentConfirmedEmail(params: {
   deliveryAddress: string | null
   deliverySlot: string | null
   notes: string | null
+  receiptUrl?: string   // optional link to the official receipt page
 }) {
   const html = layout('Pembayaran Disahkan', `
     <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai, <strong>${params.customerName}</strong>!</p>
@@ -224,6 +225,11 @@ export async function sendPaymentConfirmedEmail(params: {
     </div>` : ''}
 
     ${params.notes ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">📝 Nota: ${params.notes}</p>` : ''}
+
+    ${params.receiptUrl ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 0;"><tr><td align="center">
+      <a href="${params.receiptUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:12px 30px;border-radius:10px;">📄 Lihat / Muat Turun Resit Rasmi</a>
+    </td></tr></table>` : ''}
 
     <p style="margin:24px 0 0;font-size:13px;color:#6b7280;line-height:1.6;">
       🚚 Kami akan maklumkan anda bila pesanan dalam penghantaran. Anggaran masa tiba: <strong>2–4 jam</strong> selepas pengesahan.

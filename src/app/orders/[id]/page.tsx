@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   CheckCircle2, Clock, Package, Truck, XCircle,
-  MapPin, CreditCard, ChevronRight, Home, ExternalLink,
+  MapPin, CreditCard, ChevronRight, Home, ExternalLink, FileText,
 } from 'lucide-react'
 import { ReorderButton } from './reorder-button'
 import { CancelButton } from './cancel-button'
@@ -131,6 +131,9 @@ export default async function OrderDetailPage({
 
   const isBankTransfer = order.payment_method === 'bank_transfer'
   const isUnpaidBankTransfer = isBankTransfer && order.payment_status === 'unpaid'
+  // Receipt is available once money is in: online paid, or COD/bank received on delivery.
+  const canShowReceipt = order.payment_status === 'paid' ||
+    (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')
   const isFpxPending = isNew && ['fpx', 'ewallet', 'online'].includes(order.payment_method) && order.payment_status === 'unpaid'
   const bankProps = {
     bankName: process.env.BANK_NAME ?? 'Maybank',
@@ -410,6 +413,15 @@ export default async function OrderDetailPage({
                 <Home className="h-4 w-4 text-gray-400" />
                 Kembali ke Home
               </Link>
+              {canShowReceipt && (
+                <Link
+                  href={`/resit/${order.id}`}
+                  className="w-full flex items-center justify-center gap-2 bg-white text-gray-600 font-semibold py-3.5 rounded-2xl text-sm border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.05)] active:scale-[0.98] transition-transform"
+                >
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  Lihat Resit
+                </Link>
+              )}
             </div>
 
             {/* GROUPED CONVERSION ZONE: Beli Semula + repeat nudge in one visual block */}
@@ -592,6 +604,15 @@ export default async function OrderDetailPage({
             {/* Actions */}
             <div className="space-y-2.5">
               <ReorderButton items={order.order_items ?? []} />
+              {canShowReceipt && (
+                <Link
+                  href={`/resit/${order.id}`}
+                  className="w-full flex items-center justify-center gap-2 bg-white text-gray-600 font-semibold py-3.5 rounded-2xl text-sm border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.05)] active:scale-[0.98] transition-transform"
+                >
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  Lihat Resit
+                </Link>
+              )}
               {order.status === 'pending' && (
                 <CancelButton orderId={order.id} createdAt={order.created_at} />
               )}

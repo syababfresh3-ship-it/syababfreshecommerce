@@ -82,6 +82,7 @@ export async function confirmLpGuestOrder(
       deliveryAddress: order.address ?? null,
       deliverySlot: null,
       notes: null,
+      receiptUrl: `${appUrl}/resit/${order.id}`,
     }).catch(() => {})
   }
 
@@ -201,6 +202,7 @@ export async function confirmStorefrontOrder(
       deliveryAddress: delivery_address ?? null,
       deliverySlot: delivery_slot ?? null,
       notes: notes ?? null,
+      receiptUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/resit/${orderId}`,
     }).catch(err => console.error('[confirm-order] email error:', err))
   }
 
