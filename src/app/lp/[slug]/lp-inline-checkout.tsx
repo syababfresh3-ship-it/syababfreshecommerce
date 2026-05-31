@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
 import { freeDeliveryActive } from '@/lib/shipping'
+import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
+import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 
 interface Props {
   product: Product & { product_variants?: ProductVariant[] }
@@ -41,13 +43,24 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   const [pickupDate, setPickupDate] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
   const pickupMinDate = new Date().toISOString().split('T')[0]
+  // Kod promosi
+  const [promoInput, setPromoInput] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  // Mata loyalty (login-pilihan)
+  const loyalty = useLpLoyalty()
+  const [usePoints, setUsePoints] = useState(false)
 
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price)
   const comparePrice = selectedVariant ? selectedVariant.compare_price : product.compare_price
   const subtotal = displayPrice * qty
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
-  const total = subtotal + (isPickup ? 0 : (deliveryFee ?? 0))
+  const discount = promoDiscount(appliedPromo, subtotal)
+  const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  const redeemable = Math.max(0, subtotal + fee - discount)
+  const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
+  const total = Math.max(0, subtotal + fee - discount - ptsDiscount)
   const savedAmt = comparePrice && Number(comparePrice) > displayPrice ? (Number(comparePrice) - displayPrice) * qty : 0
 
   useEffect(() => {
@@ -71,6 +84,17 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   }, [slug, subtotal, qty])
 
   useEffect(() => { fetchFee(form.postcode) }, [form.postcode, fetchFee])
+
+  async function applyPromo() {
+    const code = promoInput.trim()
+    if (!code) return
+    setPromoLoading(true)
+    const { promo, error } = await lookupPromo(code, subtotal)
+    setPromoLoading(false)
+    if (error || !promo) { toast.error(error ?? 'Kod tidak sah'); setAppliedPromo(null); return }
+    setAppliedPromo(promo)
+    toast.success(`Kod ${promo.code} digunakan!`)
+  }
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -97,6 +121,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
+          promo_code: appliedPromo?.code ?? null,
+          use_points: loyalty.loggedIn && usePoints,
           items: [{ product_id: product.id, variant_id: selectedVariant?.id ?? null,
             product_name: product.name, variant_name: selectedVariant?.name ?? null,
             quantity: qty, unit_price: displayPrice }],
@@ -354,6 +380,43 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
             </div>
           )}
 
+          {/* Kod promosi */}
+          <div style={{ marginBottom: 14 }}>
+            {appliedPromo ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 12, padding: '10px 14px' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎟️ {appliedPromo.code} — diskaun RM{discount.toFixed(2)}</span>
+                <button type="button" onClick={() => { setAppliedPromo(null); setPromoInput('') }} style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>Buang</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input style={{ ...inputStyle, flex: 1 }} type="text" value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())} placeholder="Kod promosi (pilihan)" />
+                <button type="button" onClick={applyPromo} disabled={promoLoading || !promoInput.trim()}
+                  style={{ padding: '0 18px', borderRadius: 12, border: 'none', background: v('--cherry','#9C0F30'), color: '#fff', fontWeight: 800, fontSize: 13, cursor: promoLoading || !promoInput.trim() ? 'not-allowed' : 'pointer', opacity: promoLoading || !promoInput.trim() ? 0.5 : 1 }}>
+                  {promoLoading ? '...' : 'Guna'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Mata Loyalty (login-pilihan) */}
+          {loyalty.loggedIn ? (loyalty.points > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: '10px 14px', marginBottom: 14 }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>⭐ Mata Loyalty</p>
+                <p style={{ fontSize: 11, color: '#a16207' }}>{loyalty.points} mata · jimat hingga RM{(loyalty.points / 100).toFixed(2)}</p>
+              </div>
+              <button type="button" onClick={() => setUsePoints(v => !v)}
+                style={{ padding: '6px 16px', borderRadius: 999, border: 'none', fontSize: 12, fontWeight: 800, cursor: 'pointer', background: usePoints ? '#16a34a' : '#e5e7eb', color: usePoints ? '#fff' : '#6b7280' }}>
+                {usePoints ? '✓ Guna' : 'Guna'}
+              </button>
+            </div>
+          )) : (
+            <button type="button" onClick={() => { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname) }}
+              style={{ width: '100%', textAlign: 'center', padding: 10, borderRadius: 12, border: '1.5px dashed #fde68a', background: '#fffbeb', color: '#92400e', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginBottom: 14 }}>
+              🔓 Log masuk untuk guna Mata Loyalty
+            </button>
+          )}
+
           {/* Order Summary Card */}
           <div style={{ borderRadius: 14, overflow: 'hidden', border: '1.5px solid #e5e7eb', marginBottom: 16 }}>
             <div style={{ background: '#f9fafb', padding: '10px 16px', borderBottom: '1px solid #e5e7eb' }}>
@@ -367,6 +430,18 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                 <span>{product.name}{selectedVariant ? ` · ${selectedVariant.name}` : ''} × {qty}</span>
                 <span style={{ fontWeight: 700, color: '#111' }}>RM{subtotal.toFixed(2)}</span>
               </div>
+              {appliedPromo && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a', marginBottom: 8 }}>
+                  <span>Diskaun ({appliedPromo.code})</span>
+                  <span style={{ fontWeight: 700 }}>−RM{discount.toFixed(2)}</span>
+                </div>
+              )}
+              {ptsDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#d97706', marginBottom: 8 }}>
+                  <span>⭐ Mata Loyalty</span>
+                  <span style={{ fontWeight: 700 }}>−RM{ptsDiscount.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6b7280', marginBottom: 10, alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Truck style={{ width: 13, height: 13 }} /> {isPickup ? 'Ambil Sendiri' : 'Penghantaran'}

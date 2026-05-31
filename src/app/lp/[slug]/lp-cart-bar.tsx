@@ -5,6 +5,8 @@ import { useLpCart } from '@/lib/stores/lp-cart'
 import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
 import { freeDeliveryActive } from '@/lib/shipping'
+import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
+import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 
 interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean }
 type Step = 'form' | 'done'
@@ -33,13 +35,24 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
   const [pickupDate, setPickupDate] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
   const pickupMinDate = new Date().toISOString().split('T')[0]
+  // Kod promosi
+  const [promoInput, setPromoInput] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
+  const [promoLoading, setPromoLoading] = useState(false)
+  // Mata loyalty (login-pilihan)
+  const loyalty = useLpLoyalty()
+  const [usePoints, setUsePoints] = useState(false)
 
   useEffect(() => setMounted(true), [])
 
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
-  const total = sub + (isPickup ? 0 : (deliveryFee ?? 0))
+  const discount = promoDiscount(appliedPromo, sub)
+  const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  const redeemable = Math.max(0, sub + fee - discount)
+  const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
+  const total = Math.max(0, sub + fee - discount - ptsDiscount)
 
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); return }
@@ -72,6 +85,17 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
     }
   }
 
+  async function applyPromo() {
+    const code = promoInput.trim()
+    if (!code) return
+    setPromoLoading(true)
+    const { promo, error } = await lookupPromo(code, sub)
+    setPromoLoading(false)
+    if (error || !promo) { toast.error(error ?? 'Kod tidak sah'); setAppliedPromo(null); return }
+    setAppliedPromo(promo)
+    toast.success(`Kod ${promo.code} digunakan!`)
+  }
+
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
@@ -100,6 +124,8 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
           payment_method: form.payment_method,
           delivery_method: deliveryMethod,
           pickup_date: isPickup ? pickupDate : null,
+          promo_code: appliedPromo?.code ?? null,
+          use_points: loyalty.loggedIn && usePoints,
           source,
           items: items.map(i => ({
             product_id: i.productId,
@@ -267,12 +293,50 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
                     <p className="text-xs text-gray-400 text-center py-2">Memuatkan kaedah bayaran...</p>
                   )}
 
+                  {/* Kod promosi */}
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                      <span className="text-sm font-bold text-green-700">🎟️ {appliedPromo.code} — diskaun RM{discount.toFixed(2)}</span>
+                      <button type="button" onClick={() => { setAppliedPromo(null); setPromoInput('') }} className="text-xs font-bold text-red-600">Buang</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input type="text" value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())} placeholder="Kod promosi (pilihan)" className="flex-1 px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                      <button type="button" onClick={applyPromo} disabled={promoLoading || !promoInput.trim()} className="px-5 bg-green-500 text-white rounded-xl font-bold text-sm disabled:opacity-40">{promoLoading ? '...' : 'Guna'}</button>
+                    </div>
+                  )}
+
+                  {/* Mata Loyalty (login-pilihan) */}
+                  {loyalty.loggedIn ? (loyalty.points > 0 && (
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                      <div>
+                        <p className="text-sm font-bold text-amber-800">⭐ Mata Loyalty</p>
+                        <p className="text-[11px] text-amber-600">{loyalty.points} mata · jimat hingga RM{(loyalty.points / 100).toFixed(2)}</p>
+                      </div>
+                      <button type="button" onClick={() => setUsePoints(v => !v)} className={`px-4 py-1.5 rounded-full text-xs font-bold ${usePoints ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{usePoints ? '✓ Guna' : 'Guna'}</button>
+                    </div>
+                  )) : (
+                    <button type="button" onClick={() => { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname) }} className="w-full text-center py-2.5 rounded-xl border border-dashed border-amber-300 bg-amber-50 text-amber-800 text-xs font-bold">🔓 Log masuk untuk guna Mata Loyalty</button>
+                  )}
+
                   {/* Summary */}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-1.5 text-sm">
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal ({count()} item)</span>
                       <span>RM{sub.toFixed(2)}</span>
                     </div>
+                    {appliedPromo && (
+                      <div className="flex justify-between text-green-600 font-medium">
+                        <span>Diskaun ({appliedPromo.code})</span>
+                        <span>−RM{discount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {ptsDiscount > 0 && (
+                      <div className="flex justify-between text-amber-600 font-medium">
+                        <span>⭐ Mata Loyalty</span>
+                        <span>−RM{ptsDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-600">
                       <span>{isPickup ? 'Ambil Sendiri' : 'Penghantaran'}</span>
                       <span>

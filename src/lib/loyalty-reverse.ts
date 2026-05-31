@@ -44,9 +44,10 @@ export async function reverseOrderLoyalty(
   return { reversed: true, net }
 }
 
-// Reverse loyalty for a refunded LP guest order. LP earn transactions carry no
-// order_id (FK points at public.orders), so we locate them by the order number in
-// the description. LP guests don't redeem points, so only earned + spend are reversed.
+// Reverse loyalty for a cancelled/refunded LP guest order. LP loyalty transactions
+// carry no order_id (FK points at public.orders), so we locate them by order number
+// in the description. Reverses BOTH earned (on delivery) and redeemed (logged-in)
+// points. Idempotent via a prior `Refund LP <no>` adjustment.
 export async function reverseLpLoyalty(
   supabase: SupabaseClient,
   lp: { id: string; order_number: string; total: number | string }
@@ -59,25 +60,31 @@ export async function reverseLpLoyalty(
     .limit(1)
   if (rev && rev.length) return { reversed: false, reason: 'already_reversed' }
 
-  const { data: earns } = await supabase
-    .from('loyalty_transactions')
-    .select('user_id, points')
-    .eq('type', 'earn')
-    .ilike('description', `Pembelian LP ${lp.order_number}%`)
-  if (!earns || earns.length === 0) return { reversed: false, reason: 'no_loyalty' }
+  const [{ data: earns }, { data: redeems }] = await Promise.all([
+    supabase.from('loyalty_transactions').select('user_id, points').eq('type', 'earn').ilike('description', `Pembelian LP ${lp.order_number}%`),
+    supabase.from('loyalty_transactions').select('user_id, points').eq('type', 'redeem').ilike('description', `Redeem % LP ${lp.order_number}%`),
+  ])
 
-  const userId = earns[0].user_id as string
-  const earned = earns.reduce((a, t) => a + t.points, 0)
-  if (earned <= 0) return { reversed: false, reason: 'no_loyalty' }
+  const earned = (earns ?? []).reduce((a, t) => a + t.points, 0)        // positive
+  const redeemedNeg = (redeems ?? []).reduce((a, t) => a + t.points, 0) // negative
+  if (earned === 0 && redeemedNeg === 0) return { reversed: false, reason: 'no_loyalty' }
 
+  const userId = (earns?.[0]?.user_id ?? redeems?.[0]?.user_id) as string | undefined
+  if (!userId) return { reversed: false, reason: 'no_loyalty' }
+
+  // Remove earned (−earned) + give back redeemed (−redeemedNeg = positive)
+  const net = -earned - redeemedNeg
   await supabase.from('loyalty_transactions').insert({
     user_id: userId,
     order_id: null,
-    points: -earned,
+    points: net,
     type: 'adjustment',
-    description: `Refund LP ${lp.order_number} — reverse loyalty (${earned} mata)`,
+    description: `Refund LP ${lp.order_number} — reverse loyalty (earned ${earned}, redeem ${-redeemedNeg})`,
   })
-  await supabase.rpc('increment_points', { uid: userId, pts: -earned })
-  await supabase.rpc('increment_spend', { uid: userId, amount: -Number(lp.total) })
+  await supabase.rpc('increment_points', { uid: userId, pts: net })
+  // Spend was only added when points were EARNED (on delivery) — only reverse it then
+  if (earned > 0) {
+    await supabase.rpc('increment_spend', { uid: userId, amount: -Number(lp.total) })
+  }
   return { reversed: true }
 }

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
@@ -29,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
   const body = await request.json().catch(() => ({}))
-  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date } = body
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points } = body
 
   const isPickup = delivery_method === 'pickup'
   const PICKUP_ADDRESS = 'Ambil Sendiri — SyababFresh, Bangi'
@@ -57,6 +58,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   const supabase = createAdminClient()
+
+  // Auth pilihan — pembeli LP yang login boleh tebus mata loyalty (guest kekal dibenarkan)
+  const userClient = await createClient()
+  const { data: { user: authUser } } = await userClient.auth.getUser()
+  const userId = authUser?.id ?? null
 
   // Get landing page
   const { data: page } = await supabase
@@ -147,7 +153,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
   }
 
-  const total = subtotal + deliveryFee
+  // ── Validate promo code server-side (guest — had global sahaja) ──
+  let promoCodeId: string | null = null
+  let discount = 0
+  if (promo_code && typeof promo_code === 'string') {
+    const code = promo_code.trim().toUpperCase()
+    const { data: promo } = await supabase
+      .from('promo_codes')
+      .select('id, type, value, min_order, max_uses, uses_count, expires_at, active')
+      .eq('code', code)
+      .maybeSingle()
+    if (!promo || !promo.active) return NextResponse.json({ error: 'Kod promosi tidak sah atau tidak aktif' }, { status: 400 })
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) return NextResponse.json({ error: 'Kod promosi sudah tamat tempoh' }, { status: 400 })
+    if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) return NextResponse.json({ error: 'Kod promosi sudah mencapai had penggunaan' }, { status: 400 })
+    if (subtotal < Number(promo.min_order)) return NextResponse.json({ error: `Min. pesanan RM${Number(promo.min_order).toFixed(2)} untuk kod ini` }, { status: 400 })
+    discount = promo.type === 'percentage'
+      ? Math.min((subtotal * Number(promo.value)) / 100, subtotal)
+      : Math.min(Number(promo.value), subtotal)
+    promoCodeId = promo.id
+  }
+
+  // ── Loyalty redemption (logged-in sahaja; baki mata dibaca server-side) ──
+  let pointsUsed = 0
+  let pointsDiscount = 0
+  if (userId && use_points) {
+    const { data: prof } = await supabase.from('profiles').select('total_points').eq('id', userId).single()
+    const userPoints = Number(prof?.total_points ?? 0)
+    const redeemable = Math.max(0, subtotal + deliveryFee - discount) // jumlah yang mata boleh offset
+    pointsUsed = Math.min(userPoints, Math.floor(redeemable * 100)) // 100 mata = RM1
+    pointsDiscount = pointsUsed / 100
+  }
+
+  const total = Math.max(0, subtotal + deliveryFee - discount - pointsDiscount)
 
   // Generate order number
   const { data: orderNumber } = await supabase.rpc('generate_lp_order_number')
@@ -167,6 +204,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       notes: notes?.trim() || null,
       delivery_method: isPickup ? 'pickup' : 'delivery',
       pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
+      promo_code_id: promoCodeId,
+      discount,
+      user_id: userId,
+      points_used: pointsUsed,
+      points_discount: pointsDiscount,
       product_id: first.product_id,
       variant_id: first.variant_id || null,
       product_name: first.product_name,
@@ -190,12 +232,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       return NextResponse.json({ error: 'Payment gateway tidak dikonfigurasi' }, { status: 503 })
     }
     const appUrl = getAppUrl()
-    const products = validatedItems.map(i => ({
-      name: `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''}`,
-      price: Math.round(Number(i.unit_price) * 100),
-      quantity: i.quantity,
-    }))
-    if (deliveryFee > 0) products.push({ name: 'Kos Penghantaran', price: Math.round(deliveryFee * 100), quantity: 1 })
+    // Ada diskaun (promo / mata) → hantar satu baris = total supaya Chip caj tepat (elak baris negatif).
+    // Tiada diskaun → itemize macam biasa (resit lebih kemas).
+    const hasDiscount = discount > 0 || pointsDiscount > 0
+    const products = hasDiscount
+      ? [{ name: `Pesanan ${order.order_number}`, price: Math.round(Number(total) * 100), quantity: 1 }]
+      : validatedItems.map(i => ({
+          name: `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''}`,
+          price: Math.round(Number(i.unit_price) * 100),
+          quantity: i.quantity,
+        }))
+    if (!hasDiscount && deliveryFee > 0) products.push({ name: 'Kos Penghantaran', price: Math.round(deliveryFee * 100), quantity: 1 })
 
     const chipRes = await fetch(`${CHIP_API_URL}/purchases/`, {
       method: 'POST',
@@ -222,6 +269,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
 
     return NextResponse.json({ checkoutUrl: chipData.checkout_url, order_number: order.order_number })
+  }
+
+  // COD / bank_transfer — promo uses naik sekarang (FPX dikira dalam webhook selepas bayar)
+  if (promoCodeId) {
+    await supabase.rpc('increment_promo_uses', { promo_id: promoCodeId })
+  }
+
+  // COD / bank_transfer — tolak mata ditebus sekarang (FPX ditangguh ke webhook/verify selepas bayar)
+  if (pointsUsed > 0 && userId) {
+    await supabase.from('loyalty_transactions').insert({
+      user_id: userId, order_id: null, points: -pointsUsed, type: 'redeem',
+      description: `Redeem ${pointsUsed} mata untuk LP ${order.order_number}`,
+    })
+    await supabase.rpc('increment_points', { uid: userId, pts: -pointsUsed })
   }
 
   // COD / bank_transfer — hantar WhatsApp terus (FPX handled in webhook after payment)

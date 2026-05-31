@@ -19,7 +19,7 @@ export async function POST(
 
   const { data: order } = await supabase
     .from('lp_guest_orders')
-    .select('id, order_number, name, phone, total, items, payment_method, status, payment_ref, landing_pages(title)')
+    .select('id, order_number, name, phone, total, items, payment_method, status, payment_ref, promo_code_id, user_id, points_used, landing_pages(title)')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -57,6 +57,19 @@ export async function POST(
     .maybeSingle()
 
   if (!updated) return NextResponse.json({ status: 'confirmed' }) // already processed by webhook
+
+  // Promo uses naik sekali sahaja — guard `updated` di atas pastikan hanya pemenang race buat ini
+  if ((order as any).promo_code_id) {
+    await supabase.rpc('increment_promo_uses', { promo_id: (order as any).promo_code_id })
+  }
+  // Tolak mata ditebus (FPX) — guard yang sama pastikan sekali sahaja
+  if ((order as any).points_used > 0 && (order as any).user_id) {
+    await supabase.from('loyalty_transactions').insert({
+      user_id: (order as any).user_id, order_id: null, points: -(order as any).points_used, type: 'redeem',
+      description: `Redeem ${(order as any).points_used} mata untuk LP ${order.order_number}`,
+    })
+    await supabase.rpc('increment_points', { uid: (order as any).user_id, pts: -(order as any).points_used })
+  }
 
   // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
   const lp = order as any

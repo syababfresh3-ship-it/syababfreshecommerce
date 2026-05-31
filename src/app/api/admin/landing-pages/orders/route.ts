@@ -70,16 +70,16 @@ export async function PATCH(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Loyalty side-effects on terminal status changes (use service role for the RPCs)
-  if (status === 'delivered' || status === 'refunded') {
+  if (status === 'delivered' || status === 'refunded' || status === 'cancelled') {
     const admin = createAdminClient()
     const { data: lp } = await admin
       .from('lp_guest_orders')
-      .select('id, order_number, phone, total, payment_method, payment_status')
+      .select('id, order_number, phone, total, payment_method, payment_status, user_id')
       .eq('id', id)
       .single()
     if (lp) {
-      // Delivered (payment received, incl. COD/bank) → award if phone matches a profile.
-      // Refunded → reverse the points + spend previously awarded. Both idempotent.
+      // Delivered (payment received, incl. COD/bank) → award (user_id, atau match telefon).
+      // Refunded/cancelled → reverse earned + redeemed (mata ditebus dipulang). Semua idempotent.
       if (status === 'delivered') await awardLpLoyalty(admin, lp).catch(() => {})
       else await reverseLpLoyalty(admin, lp).catch(() => {})
     }

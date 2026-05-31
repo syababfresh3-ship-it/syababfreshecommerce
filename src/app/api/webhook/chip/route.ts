@@ -155,12 +155,24 @@ export async function POST(req: NextRequest) {
       .update({ status: 'confirmed', payment_status: 'paid' })
       .eq('id', orderId)
       .eq('status', 'pending')
-      .select('id, order_number, name, phone, total, items, payment_method, landing_pages(title)')
+      .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, landing_pages(title)')
       .maybeSingle()
 
     console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
     if (lpOrder) {
       const lp = lpOrder as any
+      // Promo uses naik sekarang yang bayaran FPX disahkan (COD dikira masa buat order)
+      if (lp.promo_code_id) {
+        await supabase.rpc('increment_promo_uses', { promo_id: lp.promo_code_id })
+      }
+      // Tolak mata ditebus (FPX) — guard flip pending→confirmed pastikan sekali sahaja
+      if (lp.points_used > 0 && lp.user_id) {
+        await supabase.from('loyalty_transactions').insert({
+          user_id: lp.user_id, order_id: null, points: -lp.points_used, type: 'redeem',
+          description: `Redeem ${lp.points_used} mata untuk LP ${lp.order_number}`,
+        })
+        await supabase.rpc('increment_points', { uid: lp.user_id, pts: -lp.points_used })
+      }
       // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
       const lpTitle = lp.landing_pages?.title ?? 'SyababFresh'
       const itemLines = ((lp.items as any[]) ?? [])

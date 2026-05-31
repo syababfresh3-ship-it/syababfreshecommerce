@@ -119,6 +119,18 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                 <span className="text-gray-500">Delivery Fee</span>
                 <span>RM{Number(order.delivery_fee ?? 0).toFixed(2)}</span>
               </div>
+              {Number(order.discount ?? 0) > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>−RM{Number(order.discount).toFixed(2)}</span>
+                </div>
+              )}
+              {Number(order.points_discount ?? 0) > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>⭐ Mata Loyalty ({order.points_used})</span>
+                  <span>−RM{Number(order.points_discount).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between border-t border-gray-100 pt-2 font-bold">
                 <span>Total</span>
                 <span className="text-gray-900">RM{Number(order.total).toFixed(2)}</span>

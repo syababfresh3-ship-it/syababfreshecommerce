@@ -11,7 +11,7 @@ export async function awardLpLoyalty(
   supabase: SupabaseClient,
   lp: {
     id: string; order_number: string; phone: string; total: number | string
-    payment_method?: string | null; payment_status?: string | null
+    payment_method?: string | null; payment_status?: string | null; user_id?: string | null
   }
 ): Promise<{ awarded: boolean; userId?: string; points?: number }> {
   // Payment guard: online (fpx/ewallet) must be paid; COD/bank settle on delivery.
@@ -20,9 +20,16 @@ export async function awardLpLoyalty(
     || lp.payment_method === 'cod' || lp.payment_method === 'bank_transfer'
   if (!settled) return { awarded: false }
 
-  // Match a registered profile by phone (normalized — last 9 digits)
-  const { data: match } = await supabase.rpc('find_profile_by_phone', { p_phone: lp.phone })
-  const profile = Array.isArray(match) ? match[0] : match
+  // Identify the customer: prefer the linked account (logged-in LP order),
+  // else match a registered profile by phone (normalized — last 9 digits).
+  let profile: { id: string; multiplier?: number | null } | null = null
+  if (lp.user_id) {
+    const { data } = await supabase.from('profiles').select('id, loyalty_tiers(multiplier)').eq('id', lp.user_id).single()
+    if (data) profile = { id: data.id, multiplier: (data.loyalty_tiers as any)?.multiplier ?? 1 }
+  } else {
+    const { data: match } = await supabase.rpc('find_profile_by_phone', { p_phone: lp.phone })
+    profile = Array.isArray(match) ? match[0] : match
+  }
   if (!profile?.id) return { awarded: false }
 
   // Claim the award — only the first caller flips the flag from false → true
