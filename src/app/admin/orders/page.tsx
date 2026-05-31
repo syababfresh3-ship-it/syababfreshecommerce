@@ -126,33 +126,51 @@ async function getStatusCounts() {
   return { needAction, confirmed, preparing, delivering }
 }
 
+const LP_SELECT =
+  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)'
+
+// Fetch ALL matching LP orders, paging past PostgREST's 1000-row-per-request cap.
+// At ~90 orders/day a fixed limit silently hides older paid orders within weeks,
+// so we loop .range() until a short page signals the end. Display paging is done
+// client-side in OrdersTableClient.
+async function getAllLpOrders(status?: string, date?: string) {
+  const supabase = createAdminClient()
+  const { gte, lt } = dateRange(date)
+  const CHUNK = 1000
+  const all: any[] = []
+  for (let from = 0; ; from += CHUNK) {
+    let q = supabase
+      .from('lp_guest_orders')
+      .select(LP_SELECT)
+      .order('created_at', { ascending: false })
+      .range(from, from + CHUNK - 1)
+    if (status) q = q.eq('status', status)
+    else q = q.not('status', 'in', '(delivered,cancelled,refunded)')
+    if (gte) q = q.gte('created_at', gte)
+    if (lt) q = q.lt('created_at', lt)
+    const { data, error } = await q
+    if (error || !data || data.length === 0) break
+    all.push(...data)
+    if (data.length < CHUNK) break
+  }
+  return all
+}
+
 export default async function AdminOrdersPage({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string; q?: string; date?: string }>
 }) {
   const { status, q, date } = await searchParams
-  const supabaseForLp = createAdminClient()
 
-  // Apply the same status/date filters to LP orders as regular orders (q is post-filtered below)
-  let lpQuery = supabaseForLp.from('lp_guest_orders')
-    .select('id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)')
-    .order('created_at', { ascending: false })
-    .limit(100)
-  if (status) lpQuery = lpQuery.eq('status', status)
-  else lpQuery = lpQuery.not('status', 'in', '(delivered,cancelled,refunded)')
-  const lpRange = dateRange(date)
-  if (lpRange.gte) lpQuery = lpQuery.gte('created_at', lpRange.gte)
-  if (lpRange.lt)  lpQuery = lpQuery.lt('created_at', lpRange.lt)
-
-  const [orders, counts, lpOrdersRes] = await Promise.all([
+  const [orders, counts, lpRows] = await Promise.all([
     getOrders(status, q, date),
     getStatusCounts(),
-    lpQuery,
+    getAllLpOrders(status, date),
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
-  let allLpOrders = (lpOrdersRes.data ?? []).filter((o: any) =>
+  let allLpOrders = lpRows.filter((o: any) =>
     ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
   )
   // Search filter — match order number, customer name, or phone
