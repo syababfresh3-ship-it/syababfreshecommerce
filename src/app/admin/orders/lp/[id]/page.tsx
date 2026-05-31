@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Phone, MapPin, Package, Mail, Calendar } from 'lucide-react'
 import { LpOrderActions } from './lp-order-actions'
 import { LpShipmentPanel } from './lp-shipment-panel'
+import { ReceiptActions } from '../../receipt-actions'
 
 const statusCls: Record<string, string> = {
   pending:    'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -68,6 +69,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
             </p>
           </div>
         </div>
+        {(order.payment_status === 'paid' || (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')) && (
+          <ReceiptActions orderId={order.id} canSend={!!order.phone} />
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
