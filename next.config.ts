@@ -37,12 +37,16 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Optimize imej melalui Supabase Storage transformation (bukan Vercel) —
+    // jimat kuota Image Optimization + Edge Requests Vercel.
+    loader: 'custom',
+    loaderFile: './src/lib/supabase-image-loader.ts',
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.supabase.co',
         port: '',
-        pathname: '/storage/v1/object/public/**',
+        pathname: '/storage/v1/**',
       },
     ],
   },
