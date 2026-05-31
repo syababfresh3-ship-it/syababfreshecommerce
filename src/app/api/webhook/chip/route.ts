@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { sendWhatsApp } from '@/lib/murpati'
 import { createVerify } from 'crypto'
-import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
-import { sendAdminPush } from '@/lib/push'
-import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
+import { confirmLpGuestOrder, confirmStorefrontOrder, normalizeChipPem } from '@/lib/order-confirm'
 
 export const runtime = 'nodejs'
 
@@ -31,7 +28,7 @@ async function fetchAccountPublicKey(): Promise<string | null> {
     }
     // CHIP returns the PEM either as a bare JSON string or { public_key: "..." }
     const data = await res.json()
-    const pem = (typeof data === 'string' ? data : data?.public_key ?? '').replace(/\\n/g, '\n')
+    const pem = normalizeChipPem(typeof data === 'string' ? data : data?.public_key ?? '')
     if (pem) cachedAccountKey = pem
     return pem || null
   } catch (err) {
@@ -44,9 +41,10 @@ async function fetchAccountPublicKey(): Promise<string | null> {
 async function getChipPublicKeys(): Promise<string[]> {
   const keys: string[] = []
   // Registered-webhook key (set CHIP_PUBLIC_KEY to the key shown when you create
-  // the webhook in the CHIP dashboard). PEM may be pasted with literal \n.
-  const fromEnv = process.env.CHIP_PUBLIC_KEY
-  if (fromEnv) keys.push(fromEnv.replace(/\\n/g, '\n'))
+  // the webhook in the CHIP dashboard). normalizeChipPem rebuilds a wrapped PEM
+  // even when the env var is stored as a single line without newlines.
+  const fromEnv = normalizeChipPem(process.env.CHIP_PUBLIC_KEY)
+  if (fromEnv) keys.push(fromEnv)
   // Account key for per-purchase success_callback
   const accountKey = await fetchAccountPublicKey()
   if (accountKey) keys.push(accountKey)
@@ -75,13 +73,12 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const signature = req.headers.get('x-signature')
 
-  // Defensive payload parsing — a registered webhook wraps the purchase as
-  // { event_type, purchase }, but a per-purchase success_callback POSTs the
-  // bare Purchase object (status/reference/id at the top level).
-  const purchase = body.purchase ?? body
+  // CHIP puts reference/status at the TOP LEVEL for both the registered dashboard
+  // webhook (rich payload) and the per-purchase success_callback (bare Purchase).
+  // The nested `purchase` sub-object is configuration only — it has no reference/status.
   const eventType: string | null = body.event_type ?? null
-  const purchaseStatus: string | null = purchase?.status ?? null
-  const orderId: string | null = purchase?.reference ?? null
+  const purchaseStatus: string | null = body.status ?? body.purchase?.status ?? null
+  const orderId: string | null = body.reference ?? body.purchase?.reference ?? null
 
   // Verify CHIP signature (RSA public-key — mandatory). Accept if any candidate key verifies.
   const publicKeys = await getChipPublicKeys()
@@ -113,7 +110,7 @@ export async function POST(req: NextRequest) {
   if (!orderId) return NextResponse.json({ ok: true })
 
   // Resolve outcome — prefer event_type when present, else fall back to purchase status
-  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired']
+  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired', 'purchase.payment_failure']
   const FAILURE_STATUSES = ['error', 'cancelled', 'expired']
   const outcome = eventType
     ? (eventType === 'purchase.paid' ? 'paid' : FAILURE_EVENTS.includes(eventType) ? 'failed' : 'other')
@@ -132,222 +129,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  // Idempotency — only process if still unpaid
-  // Use maybeSingle() to avoid PGRST116 error when LP order ID is passed (not in orders table)
-  const { data: updated } = await supabase
-    .from('orders')
-    .update({ payment_status: 'paid', status: 'confirmed', confirmed_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .eq('payment_status', 'unpaid')
-    .select(`
-      id, user_id, total, order_number, payment_method,
-      delivery_address, delivery_slot, notes, points_used, promo_code_id,
-      order_items(product_id, variant_id, product_name, quantity, unit_price, variant_name),
-      profiles(full_name, phone, email, loyalty_tiers(multiplier))
-    `)
-    .maybeSingle()
-
-  if (!updated) {
-    console.log('[chip-webhook] not in orders table, trying lp_guest_orders for:', orderId)
-    // Try LP guest order
-    const { data: lpOrder } = await supabase
-      .from('lp_guest_orders')
-      .update({ status: 'confirmed', payment_status: 'paid' })
-      .eq('id', orderId)
-      .eq('status', 'pending')
-      .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, landing_pages(title)')
-      .maybeSingle()
-
-    console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
-    if (lpOrder) {
-      const lp = lpOrder as any
-      // Promo uses naik sekarang yang bayaran FPX disahkan (COD dikira masa buat order)
-      if (lp.promo_code_id) {
-        await supabase.rpc('increment_promo_uses', { promo_id: lp.promo_code_id })
-      }
-      // Tolak mata ditebus (FPX) — guard flip pending→confirmed pastikan sekali sahaja
-      if (lp.points_used > 0 && lp.user_id) {
-        await supabase.from('loyalty_transactions').insert({
-          user_id: lp.user_id, order_id: null, points: -lp.points_used, type: 'redeem',
-          description: `Redeem ${lp.points_used} mata untuk LP ${lp.order_number}`,
-        })
-        await supabase.rpc('increment_points', { uid: lp.user_id, pts: -lp.points_used })
-      }
-      // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
-      const lpTitle = lp.landing_pages?.title ?? 'SyababFresh'
-      const itemLines = ((lp.items as any[]) ?? [])
-        .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
-        .join('\n')
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
-      const templates = await getWaTemplates()
-
-      // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
-      sendWhatsApp(lp.phone, buildConfirmationMessage(templates, 'payment_confirmed', {
-        name: lp.name,
-        order_number: lp.order_number,
-        lp_title: lpTitle,
-        items: itemLines,
-        total: Number(lp.total).toFixed(2),
-        app_url: appUrl,
-      })).catch(() => {})
-
-      // Email selari WA (kalau customer isi email)
-      if (lp.email) {
-        sendPaymentConfirmedEmail({
-          to: lp.email,
-          customerName: lp.name,
-          orderNumber: lp.order_number,
-          items: ((lp.items as any[]) ?? []).map((i: any) => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
-          total: Number(lp.total),
-          deliveryAddress: lp.address ?? null,
-          deliverySlot: null,
-          notes: null,
-        }).catch(() => {})
-      }
-
-      // WhatsApp to admin
-      const adminPhone = process.env.ADMIN_WHATSAPP
-      if (adminPhone) {
-        sendWhatsApp(adminPhone, [
-          `🛒 *Pesanan LP Baru — ${lp.order_number}*`,
-          ``,
-          `👤 *Pelanggan:* ${lp.name}`,
-          `📱 *Telefon:* ${lp.phone}`,
-          `🛍️ ${lpTitle}`,
-          ``,
-          itemLines,
-          ``,
-          `💰 *Jumlah:* RM${Number(lp.total).toFixed(2)}`,
-          `💳 *Bayaran:* FPX ✅ Dibayar`,
-        ].join('\n')).catch(() => {})
-        sendAdminPush({
-          title: `💳 LP FPX Dibayar — ${lp.order_number}`,
-          body: `${lp.name} · RM${Number(lp.total).toFixed(2)}`,
-          url: '/admin/fulfillment',
-          tag: 'payment-confirmed',
-        }).catch(() => {})
-      }
-    }
-    return NextResponse.json({ ok: true })
+  // Idempotent confirm — shared logic (also used by verify-payment fallback + cron).
+  // Try storefront first; if it's not a storefront order (or already confirmed), try LP.
+  const storefront = await confirmStorefrontOrder(supabase, orderId)
+  if (storefront !== 'confirmed') {
+    await confirmLpGuestOrder(supabase, orderId)
   }
-
-  const {
-    user_id, total, order_number, payment_method, delivery_address, delivery_slot, notes,
-    points_used, promo_code_id, order_items, profiles,
-  } = updated as any
-
-  // Deduct inventory per item — variant items use deduct_variant_stock, others use FIFO batches
-  const deductResults = await Promise.all(
-    (order_items ?? []).map((item: any) =>
-      item.variant_id
-        ? supabase.rpc('deduct_variant_stock', { p_variant_id: item.variant_id, p_quantity: item.quantity })
-        : supabase.rpc('deduct_inventory', { p_product_id: item.product_id, p_quantity: item.quantity })
-    )
-  )
-
-  const oversoldItems = (order_items ?? []).filter((_: any, i: number) => deductResults[i].error)
-  if (oversoldItems.length > 0) {
-    const names = oversoldItems.map((i: any) => i.product_name).join(', ')
-    await supabase
-      .from('orders')
-      .update({ admin_notes: `⚠️ STOK TIDAK MENCUKUPI: ${names}. Hubungi pelanggan.` })
-      .eq('id', orderId)
-
-    // Send urgent separate WhatsApp alert — don't rely on admin noticing the order note
-    const adminPhone = process.env.ADMIN_WHATSAPP
-    if (adminPhone) {
-      const urgentMsg = [
-        `🚨 *STOK TIDAK MENCUKUPI — Tindakan Diperlukan*`,
-        ``,
-        `Pesanan *${order_number}* telah dibayar (RM${Number(total).toFixed(2)}) tetapi stok tidak mencukupi:`,
-        ...oversoldItems.map((i: any) => `• ${i.product_name}`),
-        ``,
-        `Sila hubungi pelanggan: *${profiles?.full_name ?? '—'}* (${profiles?.phone ?? '—'})`,
-        `untuk maklumkan kelewatan / tawaran penggantian.`,
-      ].join('\n')
-      sendWhatsApp(adminPhone, urgentMsg).catch(() => {})
-    }
-  }
-
-  // Deduct loyalty points used (points_used stored on order, safe to apply now that payment confirmed)
-  if (points_used > 0) {
-    await supabase.from('loyalty_transactions').insert({
-      user_id,
-      order_id: orderId,
-      points: -points_used,
-      type: 'redeem',
-      description: `Redeem ${points_used} mata untuk ${order_number}`,
-    })
-    await supabase.rpc('increment_points', { uid: user_id, pts: -points_used })
-  }
-
-  // Earned points + spend are awarded on delivery (see admin orders PATCH → 'delivered'),
-  // not at payment. Only the redeem deduction above happens here.
-
-  // Increment promo usage now that payment is confirmed
-  if (promo_code_id) {
-    await supabase.rpc('increment_promo_uses', { promo_id: promo_code_id })
-  }
-
-  // Send payment confirmed email to customer
-  const customerEmail = profiles?.email
-  if (customerEmail) {
-    sendPaymentConfirmedEmail({
-      to: customerEmail,
-      customerName: profiles?.full_name ?? 'Pelanggan',
-      orderNumber: order_number,
-      items: (order_items ?? []).map((i: any) => ({
-        name: i.product_name,
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-        variant_name: i.variant_name ?? null,
-      })),
-      total: Number(total),
-      deliveryAddress: delivery_address ?? null,
-      deliverySlot: delivery_slot ?? null,
-      notes: notes ?? null,
-    }).catch(err => console.error('[chip-webhook] email error:', err))
-  }
-
-  // Notify admin via WhatsApp
-  const adminPhone = process.env.ADMIN_WHATSAPP
-  if (adminPhone) {
-    const paymentLabel: Record<string, string> = {
-      fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank',
-    }
-    const itemLines = (order_items ?? [])
-      .map((i: any) => `• ${i.product_name} x${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
-      .join('\n')
-    const stockWarning = oversoldItems.length > 0
-      ? `\n\n⚠️ *STOK TIDAK MENCUKUPI:* ${oversoldItems.map((i: any) => i.product_name).join(', ')}`
-      : ''
-    const message = [
-      `🛒 *Pesanan Baru — ${order_number}*`,
-      ``,
-      `👤 *Pelanggan:* ${profiles?.full_name ?? '—'}`,
-      `📱 *Telefon:* ${profiles?.phone ?? '—'}`,
-      ``,
-      `🧺 *Item:*`,
-      itemLines,
-      ``,
-      `💰 *Jumlah:* RM${Number(total).toFixed(2)}`,
-      `💳 *Bayaran:* ${paymentLabel[payment_method] ?? payment_method} ✅ Dibayar`,
-      ``,
-      `📍 *Alamat:*`,
-      delivery_address ?? '—',
-      notes ? `\n📝 *Nota:* ${notes}` : '',
-      stockWarning,
-    ].filter(Boolean).join('\n')
-    sendWhatsApp(adminPhone, message).catch(() => {})
-  }
-
-  // Push notification to all admin devices
-  sendAdminPush({
-    title: `💳 FPX Dibayar — ${order_number}`,
-    body: `${profiles?.full_name ?? 'Pelanggan'} · RM${Number(total).toFixed(2)}`,
-    url: '/admin/fulfillment',
-    tag: 'payment-confirmed',
-  }).catch(() => {})
 
   return NextResponse.json({ ok: true })
 }
