@@ -9,8 +9,14 @@ const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 const FAILED_STATUSES = ['error', 'cancelled', 'expired']
 
 // Safety net for CHIP payments the webhook + browser fallback both missed.
-// Polls CHIP for every still-pending online order that has a stored purchase id
-// and reconciles it: paid → confirm (+ notify), failed/expired → cancel.
+// Two passes:
+//   1) Poll CHIP for every still-pending online order that has a stored
+//      purchase id (payment_ref) → paid: confirm, failed/expired: cancel.
+//   2) Replay logged purchase.paid webhooks — covers orders whose payment_ref
+//      was never stored, and historical webhooks dropped before this fix. The
+//      reference + chip purchase id are read straight from the raw payload and
+//      re-verified against CHIP before confirming (so it's safe even though the
+//      original webhook failed signature verification).
 // Authorize via `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron sends this).
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization')
@@ -42,9 +48,10 @@ export async function GET(req: Request) {
   const summary = {
     lp: { checked: 0, confirmed: 0, cancelled: 0 },
     storefront: { checked: 0, confirmed: 0, cancelled: 0 },
+    replay: { scanned: 0, confirmed: 0 },
   }
 
-  // ── LP guest orders ────────────────────────────────────────────────
+  // ── Pass 1a: LP guest orders with a stored purchase id ──────────────
   const { data: lpRows } = await supabase
     .from('lp_guest_orders')
     .select('id, payment_ref')
@@ -67,12 +74,12 @@ export async function GET(req: Request) {
     }
   }
 
-  // ── Storefront orders ──────────────────────────────────────────────
+  // ── Pass 1b: storefront orders with a stored purchase id ────────────
   const { data: ordRows } = await supabase
     .from('orders')
     .select('id, payment_ref')
     .eq('payment_status', 'unpaid')
-    .in('payment_method', ['fpx', 'ewallet', 'online'])
+    .in('payment_method', ['fpx', 'ewallet'])
     .not('payment_ref', 'is', null)
     .gte('created_at', windowStart)
     .lte('created_at', minAge)
@@ -89,6 +96,60 @@ export async function GET(req: Request) {
         .update({ status: 'cancelled', payment_status: 'failed' })
         .eq('id', row.id).eq('payment_status', 'unpaid')
       summary.storefront.cancelled++
+    }
+  }
+
+  // ── Pass 2: replay logged purchase.paid webhooks ────────────────────
+  // Catches orders Pass 1 can't (payment_ref null) and webhooks dropped before
+  // the reference/signature fix. We re-verify each against CHIP before trusting.
+  // Match both delivery shapes: the dashboard webhook (event_type='purchase.paid')
+  // and the per-purchase success_callback (bare Purchase: status='paid', no event_type).
+  const { data: paidLogs } = await supabase
+    .from('webhook_logs')
+    .select('raw')
+    .eq('source', 'chip')
+    .or('event_type.eq.purchase.paid,status.eq.paid')
+    .gte('created_at', windowStart)
+    .order('created_at', { ascending: false })
+    .limit(1000)
+
+  const seen = new Set<string>()
+  for (const log of paidLogs ?? []) {
+    const raw = (log.raw ?? {}) as any
+    const ref: string | undefined = raw.reference ?? raw.purchase?.reference
+    const chipId: string | undefined = raw.id
+    if (!ref || !chipId || seen.has(ref)) continue
+    seen.add(ref)
+
+    // Only do work if the order is still unconfirmed — cheap DB check first.
+    const { data: ord } = await supabase
+      .from('orders')
+      .select('id, payment_ref, payment_status')
+      .eq('id', ref)
+      .maybeSingle()
+
+    if (ord) {
+      if (ord.payment_status === 'paid') continue
+      summary.replay.scanned++
+      if (await chipStatus(chipId) !== 'paid') continue
+      if (!ord.payment_ref) await supabase.from('orders').update({ payment_ref: chipId }).eq('id', ref)
+      const r = await confirmStorefrontOrder(supabase, ref)
+      if (r === 'confirmed') summary.replay.confirmed++
+      continue
+    }
+
+    const { data: lp } = await supabase
+      .from('lp_guest_orders')
+      .select('id, payment_ref, status')
+      .eq('id', ref)
+      .maybeSingle()
+    if (lp) {
+      if (lp.status !== 'pending') continue
+      summary.replay.scanned++
+      if (await chipStatus(chipId) !== 'paid') continue
+      if (!lp.payment_ref) await supabase.from('lp_guest_orders').update({ payment_ref: chipId }).eq('id', ref)
+      const r = await confirmLpGuestOrder(supabase, ref)
+      if (r === 'confirmed') summary.replay.confirmed++
     }
   }
 

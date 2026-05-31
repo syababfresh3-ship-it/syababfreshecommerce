@@ -125,8 +125,7 @@ export async function confirmStorefrontOrder(
     .select(`
       id, user_id, total, order_number, payment_method,
       delivery_address, delivery_slot, notes, points_used, promo_code_id,
-      order_items(product_id, variant_id, product_name, quantity, unit_price, variant_name),
-      profiles(full_name, phone, email, loyalty_tiers(multiplier))
+      order_items(product_id, variant_id, product_name, quantity, unit_price, variant_name)
     `)
     .maybeSingle()
 
@@ -134,8 +133,19 @@ export async function confirmStorefrontOrder(
 
   const {
     user_id, total, order_number, payment_method, delivery_address, delivery_slot, notes,
-    points_used, promo_code_id, order_items, profiles,
+    points_used, promo_code_id, order_items,
   } = updated as any
+
+  // `profiles` has no direct FK to `orders`, so PostgREST can't embed it in the
+  // UPDATE … RETURNING above — including it errors the whole statement (PGRST200)
+  // and the paid/confirmed flip never persists. Fetch the profile separately.
+  const { data: profiles } = user_id
+    ? await supabase
+        .from('profiles')
+        .select('full_name, phone, email, loyalty_tiers(multiplier)')
+        .eq('id', user_id)
+        .maybeSingle()
+    : { data: null }
 
   // Deduct inventory per item — variant items use deduct_variant_stock, others FIFO batches
   const deductResults = await Promise.all(
