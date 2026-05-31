@@ -117,6 +117,12 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
                   <p style={{ lineHeight: 1.6 }}>✅ Bayaran FPX diterima. Pesanan anda sedang diproses &amp; akan dihantar mengikut jadual. Team kami akan hubungi anda untuk update penghantaran.</p>
                 </div>
 
+                {/* Official receipt — LP guests have no /orders page, so this is their access point */}
+                <a href={`/resit/${order.id}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', background: '#16a34a', color: '#fff', borderRadius: 14, fontWeight: 700, fontSize: 14, textDecoration: 'none', marginBottom: 10, boxSizing: 'border-box' }}>
+                  📄 Lihat / Muat Turun Resit Rasmi
+                </a>
+
                 {/* Register CTA */}
                 <a href={`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/daftar`}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', padding: '13px', background: '#9C0F30', color: '#fff', borderRadius: 14, fontWeight: 700, fontSize: 14, textDecoration: 'none', marginBottom: 10, boxSizing: 'border-box' }}>

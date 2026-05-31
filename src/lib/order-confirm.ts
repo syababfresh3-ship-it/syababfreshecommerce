@@ -69,6 +69,7 @@ export async function confirmLpGuestOrder(
     items: itemLines,
     total: Number(order.total).toFixed(2),
     app_url: appUrl,
+    receipt_url: `${appUrl}/resit/${order.id}`,
   })).catch(() => {})
 
   // Email selari WA (kalau customer isi email)

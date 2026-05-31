@@ -41,6 +41,7 @@ export function buildConfirmationMessage(
   vars: {
     name: string; order_number: string; lp_title?: string
     items?: string; total?: string; payment_method?: string; app_url?: string
+    receipt_url?: string
   }
 ): string {
   const fullVars: Record<string, string> = {
@@ -54,9 +55,14 @@ export function buildConfirmationMessage(
   }
   const tmplKey = `wa_tmpl_${type}`
   const body = renderTemplate(templates[tmplKey] ?? DEFAULT_TEMPLATES[tmplKey], fullVars)
+  // LP guests have no /orders page — surface the official receipt right in the
+  // paid-confirmation message (always, regardless of any custom template).
+  const receiptLine = type === 'payment_confirmed' && vars.receipt_url
+    ? `\n📄 Resit rasmi:\n${vars.receipt_url}`
+    : ''
   const replyPrompt = templates.wa_tmpl_reply_prompt ?? DEFAULT_TEMPLATES.wa_tmpl_reply_prompt
   const footer = templates.wa_tmpl_footer ?? DEFAULT_TEMPLATES.wa_tmpl_footer
-  return [body, '', replyPrompt, '', footer].join('\n')
+  return [body + receiptLine, '', replyPrompt, '', footer].join('\n')
 }
 
 export function buildStatusMessage(
