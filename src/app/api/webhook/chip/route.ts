@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
       .update({ status: 'confirmed', payment_status: 'paid' })
       .eq('id', orderId)
       .eq('status', 'pending')
-      .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, landing_pages(title)')
+      .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, landing_pages(title)')
       .maybeSingle()
 
     console.log('[chip-webhook] lp_guest_orders update result:', lpOrder ? `confirmed ${(lpOrder as any).order_number}` : 'no match')
@@ -190,6 +190,20 @@ export async function POST(req: NextRequest) {
         total: Number(lp.total).toFixed(2),
         app_url: appUrl,
       })).catch(() => {})
+
+      // Email selari WA (kalau customer isi email)
+      if (lp.email) {
+        sendPaymentConfirmedEmail({
+          to: lp.email,
+          customerName: lp.name,
+          orderNumber: lp.order_number,
+          items: ((lp.items as any[]) ?? []).map((i: any) => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
+          total: Number(lp.total),
+          deliveryAddress: lp.address ?? null,
+          deliverySlot: null,
+          notes: null,
+        }).catch(() => {})
+      }
 
       // WhatsApp to admin
       const adminPhone = process.env.ADMIN_WHATSAPP

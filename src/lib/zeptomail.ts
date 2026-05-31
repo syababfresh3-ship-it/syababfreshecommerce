@@ -247,7 +247,7 @@ export async function sendDeliveryStatusEmail(params: {
   customerName: string
   orderNumber: string
   status: string
-  orderId: string
+  orderId?: string   // optional — LP guest orders tiada halaman /orders, jadi butang disorok
 }) {
   type StatusConfig = { subject: string; headline: string; message: string; badgeText: string; badgeColor: string }
 
@@ -302,10 +302,11 @@ export async function sendDeliveryStatusEmail(params: {
       </p>
     </div>` : ''}
 
+    ${params.orderId ? `
     <a href="${process.env.NEXT_PUBLIC_APP_URL}/orders/${params.orderId}"
        style="display:inline-block;background:#16a34a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 24px;border-radius:10px;text-decoration:none;">
       Lihat Pesanan →
-    </a>
+    </a>` : ''}
 
     <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">Ada masalah? Hubungi kami via WhatsApp dan kami akan selesaikan segera.</p>
   `)

@@ -27,6 +27,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Pastikan fail SOP markdown dibundle untuk halaman /admin/sop di production
+  outputFileTracingIncludes: {
+    '/admin/sop': ['./docs/SOP-admin.md'],
+  },
   turbopack: {
     resolveAlias: {
       '@supabase/auth-js': '@supabase/auth-js/dist/module/index.js',

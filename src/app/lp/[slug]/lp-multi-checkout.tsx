@@ -37,7 +37,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
     })
 
   const [selections, setSelections] = useState<ProductSelection[]>(initSelections)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', postcode: '', notes: '' })
   const [paymentMethod, setPaymentMethod] = useState('')
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
@@ -130,7 +130,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: form.name.trim(), phone: form.phone.trim(),
+          name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || null,
           address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
@@ -331,6 +331,13 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
             <div>
               <label style={labelStyle}>NO. TELEFON</label>
               <input style={inputStyle} type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="cth: 0123456789" required />
+            </div>
+            <div>
+              <label style={labelStyle}>EMAIL</label>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', fontSize: 11, color: '#92400e', lineHeight: 1.5, marginBottom: 6 }}>
+                📧 Masukkan email untuk terima <strong>resit rasmi</strong> &amp; <strong>kemaskini status pesanan</strong> anda.
+              </div>
+              <input style={inputStyle} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="cth: nama@email.com" />
             </div>
 
             {/* Penghantaran vs Ambil Sendiri */}

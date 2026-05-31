@@ -86,6 +86,12 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                 <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                 <a href={`tel:${order.phone}`} className="text-blue-600 hover:underline">{order.phone}</a>
               </div>
+              {order.email && (
+                <div className="flex items-center gap-2.5">
+                  <Mail className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                  <a href={`mailto:${order.email}`} className="text-blue-600 hover:underline break-all">{order.email}</a>
+                </div>
+              )}
               {order.address && (
                 <div className="flex items-start gap-2.5">
                   <MapPin className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />

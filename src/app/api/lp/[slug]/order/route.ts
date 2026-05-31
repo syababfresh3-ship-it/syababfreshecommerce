@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
+import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
@@ -30,10 +31,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
   const body = await request.json().catch(() => ({}))
-  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points } = body
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email } = body
 
   const isPickup = delivery_method === 'pickup'
   const PICKUP_ADDRESS = 'Ambil Sendiri — SyababFresh, Bangi'
+  // Email pilihan — bila sah, hantar email selari WhatsApp
+  const customerEmail = (typeof email === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()))
+    ? email.trim().toLowerCase() : null
 
   // Validate required fields
   if (!name || typeof name !== 'string' || name.trim().length < 2)
@@ -209,6 +213,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       user_id: userId,
       points_used: pointsUsed,
       points_discount: pointsDiscount,
+      email: customerEmail,
       product_id: first.product_id,
       variant_id: first.variant_id || null,
       product_name: first.product_name,
@@ -303,6 +308,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     payment_method: payLabel[payment_method] ?? payment_method,
     app_url: appUrl,
   })).catch(() => {})
+
+  // Email selari WA (kalau customer isi email)
+  if (customerEmail) {
+    sendOrderConfirmationEmail({
+      to: customerEmail,
+      customerName: name.trim(),
+      orderNumber: order.order_number,
+      items: validatedItems.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
+      total: Number(order.total),
+      deliveryAddress: isPickup ? PICKUP_ADDRESS : address.trim(),
+      deliverySlot: null,
+      paymentMethod: payment_method,
+      notes: notes?.trim() || null,
+    }).catch(() => {})
+  }
 
   return NextResponse.json({
     ok: true,

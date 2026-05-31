@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLpCart } from '@/lib/stores/lp-cart'
 import { toast } from 'sonner'
-import { ShoppingBag, X, Minus, Plus, User, Phone, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
+import { ShoppingBag, X, Minus, Plus, User, Phone, Mail, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
@@ -25,7 +25,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
   const [step, setStep] = useState<Step>('form')
   const [mounted, setMounted] = useState(false)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
-  const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', postcode: '', notes: '', payment_method: '' })
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -118,6 +118,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
         body: JSON.stringify({
           name: form.name.trim(),
           phone: form.phone.trim(),
+          email: form.email.trim() || null,
           address: isPickup ? '' : form.address.trim(),
           postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null,
@@ -243,6 +244,13 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="No. telefon (cth: 0123456789)" required className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-[11px] text-amber-800 leading-snug">
+                    📧 Masukkan email untuk terima <strong>resit rasmi</strong> &amp; <strong>kemaskini status pesanan</strong> anda.
+                  </div>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="Email anda" className="w-full pl-9 pr-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                   </div>
 
                   {/* Penghantaran vs Ambil Sendiri */}
