@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Download, Printer, Upload, CheckSquare, Square, Loader2,
   FileDown, Package, RefreshCw, Check,
-  AlertCircle,
+  AlertCircle, Eye, EyeOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,6 +33,7 @@ export interface ExportOrder {
   recipient_name: string | null
   recipient_phone: string | null
   items: { product_name: string; quantity: number; variant_name: string | null; is_shippable: boolean }[]
+  exported_at: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -329,6 +330,17 @@ function printAwb(orders: ExportOrder[]) {
   setTimeout(() => win.print(), 400)
 }
 
+// Template CSV untuk admin — tajuk lajur + baris contoh setiap kurier supaya staf
+// tahu susunan yang betul & tak silap format. Lalamove guna LINK (bukan nombor).
+function downloadTrackingTemplate() {
+  downloadCsv('tracking-import-template.csv', [
+    csvRow(['order_number', 'carrier_id', 'tracking_number']),
+    csvRow(['SYB-20260512-0001', 'ninja_cold', 'NVMY1234567890']),
+    csvRow(['SYB-20260512-0002', 'poslaju', 'EE123456789MY']),
+    csvRow(['LP-20260512-0003', 'lalamove', 'https://link.lalamove.com/abc123']),
+  ])
+}
+
 // ─── Tracking import parser ────────────────────────────────────────────────────
 
 function parseTrackingCsv(text: string): { order_number: string; carrier_id: string; tracking_number: string }[] {
@@ -347,7 +359,8 @@ function parseTrackingCsv(text: string): { order_number: string; carrier_id: str
     const cells = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''))
     const order_number = cells[orderCol]?.trim()
     const tracking_number = cells[trackingCol]?.trim()
-    const carrier_id = carrierCol >= 0 ? (cells[carrierCol]?.trim() || 'ninja_cold') : 'ninja_cold'
+    // Biar kosong bila tiada lajur carrier — pemanggil isi dgn Default Courier dipilih
+    const carrier_id = carrierCol >= 0 ? (cells[carrierCol]?.trim() || '') : ''
     if (!order_number || !tracking_number) return []
     return [{ order_number, carrier_id, tracking_number }]
   })
@@ -369,6 +382,7 @@ export function ExportsClient({
   const [to, setTo] = useState(defaultTo)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [areaFilter, setAreaFilter] = useState<AreaFilter>('all')
+  const [hideExported, setHideExported] = useState(true)
   const [tab, setTab] = useState<'export' | 'import'>('export')
   const [trackingText, setTrackingText] = useState('')
   const [importCarrier, setImportCarrier] = useState('ninja_cold')
@@ -388,11 +402,16 @@ export function ExportsClient({
     return c
   }, [orders])
 
-  // Order yang dipaparkan ikut tapisan kawasan semasa
+  // Order yang dipaparkan ikut tapisan kawasan + sembunyi yang sudah export
   const visibleOrders = useMemo(
-    () => areaFilter === 'all' ? orders : orders.filter((o) => areaCategory(o) === areaFilter),
-    [orders, areaFilter]
+    () => orders.filter((o) =>
+      (areaFilter === 'all' || areaCategory(o) === areaFilter) &&
+      (!hideExported || !o.exported_at)
+    ),
+    [orders, areaFilter, hideExported]
   )
+
+  const exportedCount = useMemo(() => orders.filter((o) => o.exported_at).length, [orders])
 
   // "Select All" hanya tindak ke atas order yang sedang dipaparkan (terhad tapisan)
   const allVisibleSelected = visibleOrders.length > 0 && visibleOrders.every((o) => selected.has(o.id))
@@ -429,22 +448,54 @@ export function ExportsClient({
     [orders, selected]
   )
 
-  function handleExportNinja() {
+  // Stamp exported orders so they drop off the list (default hidden) — prevents
+  // a second staff shipping the same order. Best-effort; file already downloaded.
+  async function markExported(ids: string[]) {
+    try {
+      const res = await fetch('/api/admin/shipping/mark-exported', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      })
+      const data = await res.json().catch(() => ({}))
+      const already: { order_number: string; exported_at: string }[] = data.already ?? []
+      if (already.length > 0) {
+        const shown = already.slice(0, 5).map((a) => a.order_number).join(', ')
+        const more = already.length > 5 ? ` +${already.length - 5} lagi` : ''
+        const when = new Date(already[0].exported_at).toLocaleString('en-MY', {
+          day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit',
+        })
+        toast.warning(
+          `⚠️ ${already.length} order ni DAH di-export sebelum ni (cth ${when}): ${shown}${more}. Staf lain mungkin dah proses — semak sebelum hantar!`,
+          { duration: 12000 }
+        )
+      }
+      setSelected(new Set())
+      router.refresh()
+    } catch { /* non-fatal */ }
+  }
+
+  async function handleExportNinja() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
+    const ids = selectedOrders.map((o) => o.id)
     exportNinjaCold(selectedOrders)
-    toast.success(`${selectedOrders.length} orders diexport (Ninja Cold)`)
+    toast.success(`${ids.length} orders diexport (Ninja Cold)`)
+    await markExported(ids)
   }
 
   async function handleExportPoslaju() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
+    const ids = selectedOrders.map((o) => o.id)
     await exportPoslaju(selectedOrders)
-    toast.success(`${selectedOrders.length} orders diexport (Poslaju)`)
+    toast.success(`${ids.length} orders diexport (Poslaju)`)
+    await markExported(ids)
   }
 
   async function handleExportLalamove() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
+    const ids = selectedOrders.map((o) => o.id)
     await exportLalamove(selectedOrders)
-    toast.success(`${selectedOrders.length} orders diexport (Lalamove)`)
+    toast.success(`${ids.length} orders diexport (Lalamove)`)
+    await markExported(ids)
   }
 
   function handlePrintAwb() {
@@ -456,16 +507,32 @@ export function ExportsClient({
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      setTrackingText(String(ev.target?.result ?? ''))
+    if (/\.xlsx?$/i.test(file.name)) {
+      // Fail Excel dari portal kurier (Poslaju/EasyParcel) — baca sheet pertama,
+      // tukar ke CSV supaya logik parsing sedia ada terus boleh guna. SheetJS
+      // lazy-load supaya tak membengkak bundle awal.
+      reader.onload = async (ev) => {
+        try {
+          const XLSX = await import('xlsx')
+          const wb = XLSX.read(ev.target?.result, { type: 'array' })
+          const ws = wb.Sheets[wb.SheetNames[0]]
+          setTrackingText(XLSX.utils.sheet_to_csv(ws))
+        } catch {
+          toast.error('Gagal baca fail Excel')
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    } else {
+      reader.onload = (ev) => setTrackingText(String(ev.target?.result ?? ''))
+      reader.readAsText(file)
     }
-    reader.readAsText(file)
   }
 
+  // Default Courier dipakai pada baris yang fail-nya tiada lajur carrier
   const parsedRows = useMemo(() => {
     if (!trackingText.trim()) return []
-    return parseTrackingCsv(trackingText)
-  }, [trackingText])
+    return parseTrackingCsv(trackingText).map((r) => ({ ...r, carrier_id: r.carrier_id || importCarrier }))
+  }, [trackingText, importCarrier])
 
   async function handleImport() {
     if (parsedRows.length === 0) { toast.error('No data untuk diimport'); return }
@@ -475,7 +542,7 @@ export function ExportsClient({
       const res = await fetch('/api/admin/shipping/tracking-import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows: parsedRows.map((r) => ({ ...r, carrier_id: r.carrier_id || importCarrier })) }),
+        body: JSON.stringify({ rows: parsedRows }),
       })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? 'Failed import'); return }
@@ -555,16 +622,25 @@ export function ExportsClient({
                 <span className="flex items-center gap-1 ml-4 font-medium text-orange-600">LK = Lembah Klang</span>
                 <span className="text-gray-400">→ Fresh+LK: Lalamove · Pos (luar LK): Ninja Cold · Dry: Poslaju</span>
               </div>
-              {/* Tapisan kawasan — tick & bulk generate ikut LK / Pos / Lain-lain */}
-              <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-                {AREA_TABS.map((t) => (
-                  <button key={t.key} onClick={() => setAreaFilter(t.key)}
-                    className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-                      areaFilter === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                    }`}>
-                    {t.label} <span className="text-xs text-gray-400">{areaCounts[t.key]}</span>
-                  </button>
-                ))}
+              {/* Tapisan kawasan + sembunyi yang sudah export */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+                  {AREA_TABS.map((t) => (
+                    <button key={t.key} onClick={() => setAreaFilter(t.key)}
+                      className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
+                        areaFilter === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}>
+                      {t.label} <span className="text-xs text-gray-400">{areaCounts[t.key]}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setHideExported((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-xl border transition-colors ${
+                    hideExported ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                  }`}>
+                  {hideExported ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  {hideExported ? `Sorok sudah export (${exportedCount})` : 'Tunjuk semua'}
+                </button>
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
@@ -658,6 +734,11 @@ export function ExportsClient({
                           {o.payment_method === 'cod' && (
                             <span className="ml-1.5 text-[9px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">COD</span>
                           )}
+                          {o.exported_at && (
+                            <span className="ml-1.5 text-[9px] font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                              ✓ Export {new Date(o.exported_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'numeric' })}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{getRecipientName(o) || '—'}</p>
@@ -731,10 +812,20 @@ export function ExportsClient({
 
             {/* Format hint */}
             <div className="bg-gray-50 rounded-xl p-4 text-xs font-mono text-gray-500 space-y-1">
-              <p className="font-semibold text-gray-700 font-sans text-[11px] mb-2">Format CSV yang diterima:</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-semibold text-gray-700 font-sans text-[11px]">Format CSV yang diterima:</p>
+                <button
+                  onClick={downloadTrackingTemplate}
+                  className="flex items-center gap-1 font-sans text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                >
+                  <FileDown className="h-3.5 w-3.5" />Muat turun template
+                </button>
+              </div>
               <p>order_number,carrier_id,tracking_number</p>
               <p className="text-gray-400">SYB-20260512-0001,ninja_cold,NVMY1234567890</p>
               <p className="text-gray-400">SYB-20260512-0002,poslaju,EE123456789MY</p>
+              <p className="text-gray-400 break-all">LP-20260512-0003,lalamove,https://link.lalamove.com/abc123</p>
+              <p className="font-sans text-[10px] text-gray-400 pt-1">Lalamove: tampal <span className="font-semibold">link</span> (bukan nombor).</p>
             </div>
 
             {/* Default carrier */}
@@ -754,14 +845,14 @@ export function ExportsClient({
 
             {/* File upload */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Upload fail CSV</label>
-              <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Upload fail CSV / Excel</label>
+              <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleFileUpload} className="hidden" />
               <button
                 onClick={() => fileRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors w-full justify-center"
               >
                 <Upload className="h-4 w-4" />
-                Select fail CSV
+                Select fail CSV / Excel (.xlsx)
               </button>
             </div>
 

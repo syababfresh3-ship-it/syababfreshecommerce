@@ -19,9 +19,9 @@ Sistem cadang kurier automatik di **Admin → Shipping → Export & Import** (la
 
 | Jenis item | Kawasan | Kurier | Cara keluarkan |
 |---|---|---|---|
-| Fresh (sejuk) | **LK** (Lembah Klang) | **Lalamove** (same-day) | Lalamove Grouping |
-| Fresh (sejuk) | **Pos** (luar LK) | **Ninja Cold** | Export Ninja Cold CSV |
-| Dry sahaja | mana-mana | **Poslaju** | Export Poslaju CSV |
+| Fresh (sejuk) | **LK** (Lembah Klang) | **Lalamove** (same-day) | Lalamove Grouping (atau Lalamove XLSX) |
+| Fresh (sejuk) | **Pos** (luar LK) | **Ninja Cold** | Export **Ninja Cold CSV** |
+| Dry sahaja | mana-mana | **Poslaju** | Export **Poslaju XLSX** |
 | Fresh, zon tak dikenali | — | **semak dulu** | Betulkan alamat/poskod order |
 
 > Petanda item: 🟢 hijau = item fresh (cold), 🟡 kuning = item dry.
@@ -39,19 +39,30 @@ Sistem cadang kurier automatik di **Admin → Shipping → Export & Import** (la
 5. Klik **Save Batch** untuk simpan. Tukar status batch: **Draft → Ready for Lalamove → Booked → Selesai**.
 6. Guna **Muatkan Tersave** untuk buka semula batch tarikh tertentu.
 
-### 1.3 Order Ninja Cold / Poslaju — CSV
+### 1.3 Export fail kurier (Ninja Cold / Poslaju / Lalamove)
 
 **Admin → Shipping → Export & Import** (`/admin/shipping/exports`), tab **Export & Print**
 
 1. Pilih julat tarikh (**From / To**) → **Filter**.
 2. Guna **chip filter kawasan** untuk asingkan: **Semua / LK / Pos / Lain-lain** (ada kiraan setiap satu).
 3. Klik **Select All** (hanya tick order dalam filter semasa) atau tick manual. Pilihan kekal walau tukar filter.
-4. Generate ikut kurier:
-   - **Pos** (fresh, luar LK) → **Ninja Cold CSV**
-   - **Dry** → **Poslaju CSV**
-5. Upload CSV ke portal kurier (Ninja / EasyParcel) → portal jana AWB + tracking number.
+4. Generate ikut kurier (butang ikut warna):
+   - **Pos** (fresh, luar LK) → 🔵 **Ninja Cold CSV** → upload ke portal Ninja.
+   - **Dry** → 🔴 **Poslaju XLSX** → upload ke EasyParcel/portal Poslaju.
+   - **LK** (fresh) → 🟡 **Lalamove XLSX** — helaian rujukan untuk *key-in* ke app Lalamove (telefon dlm bentuk `01x`). _Untuk same-day LK guna **Lalamove Groups** (1.2) lebih senang — Lalamove XLSX cuma alternatif._
+5. Fail XLSX/CSV terus muat turun. Nombor telefon & poskod kekal betul (tak jadi notasi saintifik).
 
-> Alamat tak lengkap = baris kelabu + amaran. Betulkan order dulu sebelum export.
+> **Format fail:** Ninja Cold = **CSV** (template import portal Ninja). Poslaju & Lalamove = **XLSX** (Excel) supaya angka panjang tak rosak.
+
+> **Alamat tak lengkap** = baris kelabu + amaran ⚠️. Betulkan order dulu sebelum export.
+
+#### ✓ Auto-tanda "sudah export" — elak hantar dua kali
+
+Sebaik je fail dijana, order yang dipilih **auto-ditanda "sudah export"** (badge hijau **✓ Export [tarikh]**) dan **hilang dari senarai** secara default.
+
+- Toggle **"Sorok sudah export (n)"** (atas kanan) — hidup = sorok yang dah export; matikan = **Tunjuk semua** (untuk semak/export semula).
+- Kalau staf lain cuba export semula order yang **dah** di-export, sistem **beri amaran** ⚠️ ("order ni DAH di-export sebelum ni …") supaya tak hantar 2 kali.
+- Maknanya: **satu order = satu kali export**. Kalau betul-betul perlu export semula (cth silap fail), matikan toggle dulu.
 
 ### 1.4 Cetak slip pek (Print AWB)
 
@@ -88,14 +99,20 @@ Customer boleh pilih **Ambil Sendiri** semasa checkout — pesanan diambil di ke
 **Admin → Shipping → Export & Import**, tab **Import Tracking**
 
 1. Dari portal kurier, download semula Excel/CSV (ada tracking number).
-2. Format diterima: `order_number,carrier_id,tracking_number` (satu baris satu order).
-3. Pilih **Default Courier** (kalau CSV tak ada lajur carrier).
-4. Upload fail **atau** tampal data → semak *preview* baris dikesan.
+2. Format diterima: `order_number,carrier_id,tracking_number` (satu baris satu order). Klik **Muat turun template** untuk dapatkan fail contoh siap dengan tajuk lajur.
+3. Pilih **Default Courier** (kalau CSV tak ada lajur carrier) — cth `ninja_cold`, `poslaju`, `lalamove`, `line_clear`.
+4. Upload fail **CSV atau Excel (.xlsx)** — fail dari portal Poslaju/EasyParcel boleh terus upload tanpa tukar format — **atau** tampal data. Semak *preview* baris dikesan.
 5. Klik **Import** → untuk setiap order yang padan, sistem auto:
    - simpan **no tracking** + **jana link tracking** (dari template carrier),
    - naik status order ke **Dihantar** (`delivering`, kalau masih confirmed/preparing),
    - **hantar WA + push + email** ke customer ("Dalam Penghantaran 🚚" + link).
 6. Semak ringkasan **berjaya / gagal**. Baris gagal lazimnya sebab `order_number` tak padan — betulkan & import semula (import semula = ganti tracking lama, selamat).
+
+> **Sokong order kedai (SYB-) & order LP (LP-) sekali.** Tampal kedua-dua jenis dalam satu fail pun boleh — sistem cari padanan dalam kedua-dua tempat secara automatik. Tak perlu asingkan.
+
+> **Ninja/Poslaju vs Lalamove:**
+> - **Ninja / Poslaju** bagi **nombor tracking** → masukkan nombor dalam lajur `tracking_number`. Sistem jana link tracking sendiri.
+> - **Lalamove** tak bagi nombor — dia bagi **link share** je. Tampal **link penuh** (`https://...`) dalam lajur `tracking_number`, set carrier `lalamove`. Sistem kesan ia link → simpan sebagai **Link Penghantaran** dan WhatsApp customer hantar link tu terus. ✅ Boleh.
 
 ### 2.2 Tandakan order selesai
 
