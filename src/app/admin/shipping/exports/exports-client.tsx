@@ -63,6 +63,14 @@ function getRecipientPhone(o: ExportOrder) {
   return digits
 }
 
+// Local 0-prefixed format (01xxxxxxxx) — what you type into the Lalamove app.
+function getRecipientPhoneLocal(o: ExportOrder) {
+  let d = (o.recipient_phone ?? o.phone ?? '').replace(/\D/g, '')
+  if (d.startsWith('60')) d = '0' + d.slice(2)
+  else if (!d.startsWith('0') && d.length >= 9) d = '0' + d
+  return d
+}
+
 function getItemsSummary(items: ExportOrder['items']) {
   return items.map((i) => `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity}`).join(', ')
 }
@@ -96,6 +104,17 @@ function downloadCsv(filename: string, rows: string[]) {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+// XLSX export — strings in the AOA become text cells, so long phone numbers and
+// postcodes keep their leading zero and don't become scientific notation in Excel.
+// SheetJS is lazy-loaded so it never bloats the admin page's initial bundle.
+async function downloadXlsx(filename: string, sheetName: string, aoa: (string | number)[][]) {
+  const XLSX = await import('xlsx')
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  XLSX.writeFile(wb, filename)
 }
 
 // ─── CSV generators ───────────────────────────────────────────────────────────
@@ -150,42 +169,62 @@ function exportNinjaCold(orders: ExportOrder[]) {
   downloadCsv(`ninja-cold-${today}.csv`, [header, ...rows])
 }
 
-function exportPoslaju(orders: ExportOrder[]) {
-  const header = csvRow([
+async function exportPoslaju(orders: ExportOrder[]) {
+  const header = [
     'Sender Name', 'Sender Email', 'Sender Contact', 'Sender Address', 'Sender Postcode',
     'Receiver Name', 'Receiver Email', 'Receiver Contact No', 'Receiver Address', 'Receiver Postcode',
     'Item Weight', 'Item Width', 'Item Length', 'Item Height',
     'Category', 'Sender Ref No', 'Item Description', 'Parcel Notes',
     'COD Amount', 'Insurance',
+  ]
+
+  const rows: (string | number)[][] = orders.map((o) => [
+    SENDER.name,                // Sender Name
+    SENDER.email,               // Sender Email
+    SENDER.phone,               // Sender Contact (text — keeps shape)
+    SENDER.address,             // Sender Address
+    SENDER.postcode,            // Sender Postcode
+    getRecipientName(o),        // Receiver Name
+    '',                         // Receiver Email
+    getRecipientPhone(o),       // Receiver Contact No (text — no scientific notation)
+    o.full_address ?? '',       // Receiver Address
+    o.postcode ?? '',           // Receiver Postcode (text)
+    1,                          // Item Weight
+    0,                          // Item Width
+    0,                          // Item Length
+    0,                          // Item Height
+    'Parcel',                   // Category
+    o.order_number,             // Sender Ref No
+    getItemsSummary(o.items),   // Item Description
+    o.notes ?? '',              // Parcel Notes
+    0,                          // COD Amount
+    0,                          // Insurance
   ])
 
-  const rows = orders.map((o) =>
-    csvRow([
-      SENDER.name,                // Sender Name
-      SENDER.email,               // Sender Email
-      SENDER.phone,               // Sender Contact
-      SENDER.address,             // Sender Address
-      SENDER.postcode,            // Sender Postcode
-      getRecipientName(o),        // Receiver Name
-      '',                         // Receiver Email
-      getRecipientPhone(o),       // Receiver Contact No
-      o.full_address ?? '',       // Receiver Address
-      o.postcode ?? '',           // Receiver Postcode
-      '1',                        // Item Weight
-      '0',                        // Item Width
-      '0',                        // Item Length
-      '0',                        // Item Height
-      'Parcel',                   // Category
-      o.order_number,             // Sender Ref No
-      getItemsSummary(o.items),   // Item Description
-      o.notes ?? '',              // Parcel Notes
-      '0',                        // COD Amount
-      '0',                        // Insurance
-    ])
-  )
+  const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
+  await downloadXlsx(`poslaju-${today}.xlsx`, 'Poslaju', [header, ...rows])
+}
+
+// Lalamove (LK) — no fixed import template, so this is a clean reference sheet the
+// admin keys into the Lalamove app. Phone in local 01x form; numbers stay as text.
+async function exportLalamove(orders: ExportOrder[]) {
+  const header = ['No', 'Order No', 'Penerima', 'Telefon', 'Alamat Penuh', 'Poskod', 'Bandar', 'Item', 'COD (RM)', 'Nota']
+
+  const rows: (string | number)[][] = orders.map((o, i) => [
+    i + 1,
+    o.order_number,
+    getRecipientName(o),
+    getRecipientPhoneLocal(o),
+    o.full_address ?? '',
+    o.postcode ?? '',
+    o.city ?? '',
+    getItemsSummary(o.items),
+    o.payment_method === 'cod' ? Number(o.total).toFixed(2) : '',
+    o.notes ?? '',
+  ])
 
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
-  downloadCsv(`poslaju-${today}.csv`, [header, ...rows])
+  await downloadXlsx(`lalamove-${today}.xlsx`, 'Lalamove', [header, ...rows])
 }
 
 // ─── AWB Print ────────────────────────────────────────────────────────────────
@@ -396,10 +435,16 @@ export function ExportsClient({
     toast.success(`${selectedOrders.length} orders diexport (Ninja Cold)`)
   }
 
-  function handleExportPoslaju() {
+  async function handleExportPoslaju() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
-    exportPoslaju(selectedOrders)
+    await exportPoslaju(selectedOrders)
     toast.success(`${selectedOrders.length} orders diexport (Poslaju)`)
+  }
+
+  async function handleExportLalamove() {
+    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
+    await exportLalamove(selectedOrders)
+    toast.success(`${selectedOrders.length} orders diexport (Lalamove)`)
   }
 
   function handlePrintAwb() {
@@ -459,7 +504,7 @@ export function ExportsClient({
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Export & Import Shipping</h1>
-          <p className="text-sm text-gray-400">Ninja Cold CSV · Poslaju CSV · AWB Slip · Import Tracking</p>
+          <p className="text-sm text-gray-400">Ninja Cold CSV · Lalamove XLSX · Poslaju XLSX · AWB Slip</p>
         </div>
       </div>
 
@@ -537,10 +582,15 @@ export function ExportsClient({
                     className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors">
                     <Download className="h-3.5 w-3.5" />Ninja Cold CSV
                   </button>
+                  <button onClick={handleExportLalamove}
+                    disabled={selected.size === 0}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-sm font-semibold rounded-xl hover:bg-amber-600 disabled:opacity-40 transition-colors">
+                    <FileDown className="h-3.5 w-3.5" />Lalamove XLSX
+                  </button>
                   <button onClick={handleExportPoslaju}
                     disabled={selected.size === 0}
                     className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-40 transition-colors">
-                    <Download className="h-3.5 w-3.5" />Poslaju CSV
+                    <FileDown className="h-3.5 w-3.5" />Poslaju XLSX
                   </button>
                   <button onClick={handlePrintAwb}
                     disabled={selected.size === 0}
