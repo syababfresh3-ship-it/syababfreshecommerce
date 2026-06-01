@@ -92,7 +92,7 @@ async function loadReceipt(id: string): Promise<Receipt | null | 'unpaid'> {
   const { data: lp } = await supabase
     .from('lp_guest_orders')
     .select(
-      'id, order_number, name, address, status, payment_status, payment_method, total, delivery_fee, created_at, items, product_name, variant_name, quantity, unit_price'
+      'id, order_number, name, address, status, payment_status, payment_method, total, delivery_fee, discount, created_at, items, product_name, variant_name, quantity, unit_price'
     )
     .eq('id', id)
     .maybeSingle()
@@ -121,7 +121,7 @@ async function loadReceipt(id: string): Promise<Receipt | null | 'unpaid'> {
       isPaid: true,
       items,
       deliveryFee: Number(lp.delivery_fee ?? 0),
-      discount: 0,
+      discount: Number(lp.discount ?? 0),
       total: Number(lp.total),
     }
   }

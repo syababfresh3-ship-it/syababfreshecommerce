@@ -10,7 +10,8 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
   const body = await request.json()
-  const { name, phone, address, postcode, notes, payment_method, items, source = 'whatsapp' } = body
+  const { name, phone, address, postcode, notes, payment_method, items, source = 'whatsapp', discount } = body
+  const discountNum = Math.max(0, Number(discount) || 0)
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
   if (!phone?.trim()) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
@@ -65,7 +66,9 @@ export async function POST(request: Request) {
     if (zone) deliveryFee = Number(zone.delivery_fee)
   }
 
-  const total = subtotal + deliveryFee
+  // Sales-negotiated discount (manual). Capped so total never goes below 0.
+  const appliedDiscount = Math.min(discountNum, subtotal + deliveryFee)
+  const total = subtotal + deliveryFee - appliedDiscount
 
   // Get a page_id for WhatsApp source (use first LP or null)
   const { data: whatsappPage } = await supabase.from('landing_pages').select('id').eq('is_active', true).limit(1).maybeSingle()
@@ -88,6 +91,7 @@ export async function POST(request: Request) {
     quantity: first.quantity,
     unit_price: first.unit_price,
     delivery_fee: deliveryFee,
+    discount: appliedDiscount,
     total,
     payment_method: payment_method ?? 'bank_transfer',
     source,
@@ -108,6 +112,7 @@ export async function POST(request: Request) {
     ``,
     itemLines,
     ``,
+    ...(appliedDiscount > 0 ? [`🎁 Diskaun: -RM${appliedDiscount.toFixed(2)}`] : []),
     `💰 Total: *RM${Number(order.total).toFixed(2)}*`,
     ``,
     `Register for order history & loyalty points:`,

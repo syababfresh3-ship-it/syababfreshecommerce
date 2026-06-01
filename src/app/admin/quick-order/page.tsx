@@ -20,7 +20,7 @@ export default function QuickOrderPage() {
   const [search, setSearch] = useState('')
   const [showPicker, setShowPicker] = useState(false)
   const [items, setItems] = useState<OrderItem[]>([])
-  const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: '' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: '', discount: '' })
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +32,8 @@ export default function QuickOrderPage() {
 
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
   const FREE_MIN = 80
-  const total = subtotal + (deliveryFee ?? 0)
+  const discountNum = Math.max(0, parseFloat(form.discount) || 0)
+  const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discountNum)
 
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); return }
@@ -86,6 +87,7 @@ export default function QuickOrderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          discount: discountNum,
           items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty })),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
         }),
@@ -98,7 +100,7 @@ export default function QuickOrderPage() {
   }
 
   function reset() {
-    setItems([]); setForm(f => ({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name }))
+    setItems([]); setForm(f => ({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name, discount: '' }))
     setSuccess(null); setDeliveryFee(null)
   }
 
@@ -237,6 +239,16 @@ export default function QuickOrderPage() {
               <div className="flex justify-between text-gray-500">
                 <span>Delivery</span>
                 <span>{fetchingFee ? '...' : deliveryFee === null ? (subtotal >= FREE_MIN ? <span className="text-green-600 font-bold">FREE</span> : '—') : deliveryFee === 0 ? <span className="text-green-600 font-bold">FREE</span> : `RM${deliveryFee.toFixed(2)}`}</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-500">
+                <span>Diskaun (RM)</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.discount}
+                  onChange={e => setForm(f => ({ ...f, discount: e.target.value }))}
+                  placeholder="0.00"
+                  className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
+                />
               </div>
               <div className="flex justify-between font-black text-base border-t border-gray-100 pt-1.5">
                 <span>TOTAL</span><span>RM{total.toFixed(2)}{deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}</span>
