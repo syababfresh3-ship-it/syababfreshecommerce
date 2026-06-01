@@ -9,7 +9,7 @@ interface Props {
   productId: string
 }
 
-const EMPTY_FORM = { name: '', price: '', compare_price: '', stock: '0', sku: '' }
+const EMPTY_FORM = { name: '', price: '', compare_price: '', weight_kg: '', stock: '0', sku: '' }
 
 export function VariantManager({ productId }: Props) {
   const [variants, setVariants] = useState<ProductVariant[]>([])
@@ -39,6 +39,7 @@ export function VariantManager({ productId }: Props) {
         name: form.name,
         price: parseFloat(form.price),
         compare_price: form.compare_price || null,
+        weight_grams: form.weight_kg ? Math.round(parseFloat(form.weight_kg) * 1000) : null,
         stock: parseInt(form.stock) || 0,
         sku: form.sku || null,
         sort_order: variants.length,
@@ -166,7 +167,7 @@ export function VariantManager({ productId }: Props) {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Price (RM) *</label>
                 <input
@@ -184,6 +185,16 @@ export function VariantManager({ productId }: Props) {
                   value={form.compare_price}
                   onChange={e => setForm(p => ({ ...p, compare_price: e.target.value }))}
                   placeholder="–"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Berat (kg)</label>
+                <input
+                  type="number" step="0.1" min="0"
+                  value={form.weight_kg}
+                  onChange={e => setForm(p => ({ ...p, weight_kg: e.target.value }))}
+                  placeholder="cth: 5"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
@@ -268,6 +279,18 @@ export function VariantManager({ productId }: Props) {
                       onChange={e => patchEdit(v.id, 'compare_price', e.target.value || null)}
                       placeholder="–"
                       className="w-full text-sm text-gray-500 border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
+
+                  {/* Weight (kg) — drives weight-based shipping tiers */}
+                  <div className="shrink-0 w-20">
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Berat (kg)</p>
+                    <input
+                      type="number" step="0.1" min="0"
+                      value={getVal(v, 'weight_grams') == null ? '' : Number(getVal(v, 'weight_grams')) / 1000}
+                      onChange={e => patchEdit(v.id, 'weight_grams', e.target.value ? Math.round(parseFloat(e.target.value) * 1000) : null)}
+                      placeholder="–"
+                      className="w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
 
