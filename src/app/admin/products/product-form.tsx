@@ -28,6 +28,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     price: product?.price?.toString() ?? '',
     compare_price: product?.compare_price?.toString() ?? '',
     unit: product?.unit ?? 'kg',
+    weight_kg: product?.weight_grams ? (product.weight_grams / 1000).toString() : '',
     category_id: product?.category_id ?? '',
     is_active: product?.is_active ?? true,
     is_featured: product?.is_featured ?? false,
@@ -77,6 +78,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       price: parseFloat(form.price),
       compare_price: form.compare_price ? parseFloat(form.compare_price) : null,
       unit: form.unit,
+      weight_grams: form.weight_kg ? Math.round(parseFloat(form.weight_kg) * 1000) : null,
       category_id: form.category_id || null,
       image_url: imageUrl,
       images: extraImages.filter(Boolean) as string[],
@@ -197,7 +199,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">Price & Unit</h2>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Price (RM) *</label>
             <input
@@ -238,6 +240,21 @@ export function ProductForm({ categories, product }: ProductFormProps) {
                 <option key={u} value={u}>{u}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Berat (kg)</label>
+            <input
+              name="weight_kg"
+              type="number"
+              step="0.1"
+              min="0"
+              value={form.weight_kg}
+              onChange={handleChange}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="cth: 1"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">Untuk kira kos shipping (Ninja Cold luar KV). Variant ada berat sendiri.</p>
           </div>
         </div>
       </div>

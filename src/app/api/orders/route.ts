@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
   const [productsRes, variantsRes] = await Promise.all([
     productIds.length > 0
-      ? supabase.from('products').select('id, name, price, image_url, is_active').in('id', productIds)
+      ? supabase.from('products').select('id, name, price, image_url, is_active, weight_grams').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
       ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, image_url, is_active)').in('id', variantIds)
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         subtotal: itemSubtotal,
         variant_id: null,
         variant_name: null,
-        weight_grams: null,
+        weight_grams: (product as any).weight_grams ?? null,
       })
     }
   }

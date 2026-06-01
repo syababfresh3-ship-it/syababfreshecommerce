@@ -83,7 +83,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const [productsRes, variantsRes] = await Promise.all([
     productIds.length > 0
-      ? supabase.from('products').select('id, name, price, is_active').in('id', productIds)
+      ? supabase.from('products').select('id, name, price, is_active, weight_grams').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
       ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active)').in('id', variantIds)
@@ -138,7 +138,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         // Non-KL: weight-based Ninja Cold pricing
         const totalWeightKg = validatedItems.reduce((sum, i) => {
           const variant = i.variant_id ? variantMap.get(i.variant_id) : null
-          const wg = (variant as any)?.weight_grams ?? 500
+          const product = !i.variant_id ? productMap.get(i.product_id) : null
+          const wg = (variant as any)?.weight_grams ?? (product as any)?.weight_grams ?? 500
           return sum + (wg * i.quantity) / 1000
         }, 0)
         const { data: tier } = await supabase
