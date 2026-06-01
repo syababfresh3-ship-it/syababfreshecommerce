@@ -20,7 +20,7 @@ export default function QuickOrderPage() {
   const [search, setSearch] = useState('')
   const [showPicker, setShowPicker] = useState(false)
   const [items, setItems] = useState<OrderItem[]>([])
-  const [form, setForm] = useState({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: '', discount: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: '', discount: '' })
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -100,7 +100,7 @@ export default function QuickOrderPage() {
   }
 
   function reset() {
-    setItems([]); setForm(f => ({ name: '', phone: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name, discount: '' }))
+    setItems([]); setForm(f => ({ name: '', phone: '', email: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name, discount: '' }))
     setSuccess(null); setDeliveryFee(null)
   }
 
@@ -163,6 +163,11 @@ export default function QuickOrderPage() {
               <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} required
                 placeholder="01XXXXXXXX" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">EMAIL <span className="text-gray-300 font-normal">(untuk emel pengesahan)</span></label>
+            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="email@contoh.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">ADDRESS *</label>

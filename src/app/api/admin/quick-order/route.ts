@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
+import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 
 export async function POST(request: Request) {
   const { forbidden } = await requireAdmin()
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
   const body = await request.json()
-  const { name, phone, address, postcode, notes, payment_method, items, source = 'whatsapp', discount } = body
+  const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount } = body
   const discountNum = Math.max(0, Number(discount) || 0)
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
     page_id: whatsappPage?.id ?? null,
     name: name.trim(),
     phone: phone.trim(),
+    email: email?.trim() || null,
     address: address.trim(),
     postcode: postcode?.trim() || null,
     notes: notes?.trim() || null,
@@ -120,6 +122,21 @@ export async function POST(request: Request) {
     ``,
     `SyababFresh 🌿`,
   ].join('\n')).catch(() => {})
+
+  // Email confirmation (optional — only if staff captured an email)
+  if (email?.trim()) {
+    sendOrderConfirmationEmail({
+      to: email.trim(),
+      customerName: name.trim(),
+      orderNumber: order.order_number,
+      items: validatedItems.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
+      total: Number(order.total),
+      deliveryAddress: address.trim(),
+      deliverySlot: null,
+      paymentMethod: payment_method ?? 'bank_transfer',
+      notes: notes?.trim() || null,
+    }).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true, order_number: order.order_number, total: order.total })
 }
