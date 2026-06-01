@@ -10,8 +10,8 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
 
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address')
-    .in('status', ['confirmed', 'preparing', 'delivering'])
+    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at')
+    .in('status', ['confirmed', 'preparing'])   // 'delivering' = dah ada tracking → keluar dari senarai
     .neq('delivery_method', 'pickup')   // order ambil sendiri tak perlu dihantar
     .gte('created_at', from)
     .lte('created_at', to)
@@ -105,6 +105,7 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
       recipient_name: address?.recipient_name ?? profile?.full_name ?? null,
       recipient_phone: address?.recipient_phone ?? profile?.phone ?? null,
       items: itemsMap.get(o.id) ?? [],
+      exported_at: (o as any).exported_at ?? null,
     }
   })
 }
@@ -133,8 +134,8 @@ export default async function ShippingExportsPage({
   const [orders, lpOrdersRes] = await Promise.all([
     getOrders(fromISO, toISO),
     supabaseAdmin.from('lp_guest_orders')
-      .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price')
-      .in('status', ['confirmed', 'preparing', 'delivering'])
+      .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price, exported_at')
+      .in('status', ['confirmed', 'preparing'])
       .gte('created_at', fromISO)
       .lte('created_at', toISO)
       .order('created_at', { ascending: false }),
@@ -180,6 +181,7 @@ export default async function ShippingExportsPage({
       recipient_name: lp.name,
       recipient_phone: lp.phone,
       items,
+      exported_at: lp.exported_at ?? null,
     }
   })
 
