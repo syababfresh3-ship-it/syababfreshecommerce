@@ -5,17 +5,22 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ExportsClient, type ExportOrder } from './exports-client'
 
-async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
+// pickup=false → order hantar (untuk tab Export). pickup=true → order ambil sendiri
+// (untuk tab Pickup). Aliran pengayaan (profil/alamat/item) sama untuk dua-dua.
+async function getOrders(from: string, to: string, pickup: boolean): Promise<ExportOrder[]> {
   const supabase = createAdminClient()
 
-  const { data: orders } = await supabase
+  let q = supabase
     .from('orders')
-    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at')
-    .in('status', ['confirmed', 'preparing'])   // 'delivering' = dah ada tracking → keluar dari senarai
-    .neq('delivery_method', 'pickup')   // order ambil sendiri tak perlu dihantar
+    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at, pickup_date')
+    // Export: confirmed/preparing sahaja (delivering = dah ada tracking → keluar).
+    // Pickup: sertakan 'delivering' (= sedia diambil) supaya staf boleh tanda "Dah Diambil".
+    .in('status', pickup ? ['confirmed', 'preparing', 'delivering'] : ['confirmed', 'preparing'])
     .gte('created_at', from)
     .lte('created_at', to)
     .order('created_at', { ascending: false })
+  q = pickup ? q.eq('delivery_method', 'pickup') : q.neq('delivery_method', 'pickup')
+  const { data: orders } = await q
 
   if (!orders || orders.length === 0) return []
 
@@ -59,7 +64,6 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
 
   const itemsMap = new Map<string, { product_name: string; quantity: number; variant_name: string | null; is_shippable: boolean }[]>()
   const hasFreshMap = new Map<string, boolean>() // order_id → has any non-shippable item
-  const hasKnownFreshMap = new Map<string, boolean>() // order_id → at least one item had product info
 
   for (const item of itemsRes.data ?? []) {
     const productInfo = ((item.products as unknown) as { is_shippable: boolean } | null)
@@ -69,7 +73,6 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
     existing.push({ product_name: item.product_name, quantity: item.quantity, variant_name: item.variant_name, is_shippable: isShippable })
     itemsMap.set(item.order_id, existing)
     if (!isShippable) hasFreshMap.set(item.order_id, true)
-    if (productInfo !== null) hasKnownFreshMap.set(item.order_id, true)
   }
 
   return orders.map((o) => {
@@ -106,8 +109,57 @@ async function getOrders(from: string, to: string): Promise<ExportOrder[]> {
       recipient_phone: address?.recipient_phone ?? profile?.phone ?? null,
       items: itemsMap.get(o.id) ?? [],
       exported_at: (o as any).exported_at ?? null,
+      source: 'order' as const,
+      user_id: o.user_id ?? null,
+      pickup_date: (o as any).pickup_date ?? null,
     }
   })
+}
+
+// ── LP guest orders → ExportOrder ──────────────────────────────────────────────
+function extractPostcodeFromAddr(addr: string | null): string | null {
+  if (!addr) return null
+  const m = addr.match(/\b(\d{5})\b/)
+  return m ? m[1] : null
+}
+function isKlPostcode(pc: string | null): boolean {
+  if (!pc) return false
+  const n = parseInt(pc, 10)
+  return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000)
+}
+function mapLpOrder(lp: any): ExportOrder {
+  const postcode = lp.postcode ?? extractPostcodeFromAddr(lp.address)
+  const items = (Array.isArray(lp.items) && lp.items.length > 0
+    ? lp.items
+    : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity }]
+  ).map((i: any) => ({ product_name: i.product_name, quantity: i.quantity, variant_name: i.variant_name ?? null, is_shippable: false }))
+  return {
+    id: lp.id,
+    order_number: lp.order_number,
+    status: lp.status,
+    payment_method: lp.payment_method,
+    payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
+    total: lp.total,
+    notes: lp.notes ?? null,
+    created_at: lp.created_at,
+    full_name: lp.name,
+    phone: lp.phone,
+    email: lp.email ?? null,
+    full_address: lp.address ?? null,
+    city: null,
+    postcode,
+    state: null,
+    is_kl: isKlPostcode(postcode),
+    area_known: !!postcode,
+    has_fresh: true,
+    recipient_name: lp.name,
+    recipient_phone: lp.phone,
+    items,
+    exported_at: lp.exported_at ?? null,
+    source: 'lp' as const,
+    user_id: lp.user_id ?? null,
+    pickup_date: lp.pickup_date ?? null,
+  }
 }
 
 export default async function ShippingExportsPage({
@@ -131,63 +183,33 @@ export default async function ShippingExportsPage({
   const toISO = `${toDate}T23:59:59+08:00`
 
   const supabaseAdmin = createAdminClient()
-  const [orders, lpOrdersRes] = await Promise.all([
-    getOrders(fromISO, toISO),
+  const [deliveryOrders, pickupStoreOrders, lpRes] = await Promise.all([
+    getOrders(fromISO, toISO, false),
+    getOrders(fromISO, toISO, true),
     supabaseAdmin.from('lp_guest_orders')
-      .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price, exported_at')
-      .in('status', ['confirmed', 'preparing'])
+      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id')
+      .in('status', ['confirmed', 'preparing', 'delivering'])   // delivering disertakan utk pickup; dibuang dari tab export di bawah
       .gte('created_at', fromISO)
       .lte('created_at', toISO)
       .order('created_at', { ascending: false }),
   ])
 
-  // Transform LP orders to ExportOrder shape
-  function extractPostcodeFromAddr(addr: string | null): string | null {
-    if (!addr) return null
-    const m = addr.match(/\b(\d{5})\b/)
-    return m ? m[1] : null
-  }
-  function isKlPostcode(pc: string | null): boolean {
-    if (!pc) return false
-    const n = parseInt(pc, 10)
-    return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000)
-  }
+  const lpTagged = (lpRes.data ?? []).map((lp: any) => ({ order: mapLpOrder(lp), pickup: lp.delivery_method === 'pickup', status: lp.status }))
+  // Export: pickup dibuang + delivering dibuang (kekal seperti asal). Pickup: semua status pickup.
+  const lpDelivery = lpTagged.filter((x) => !x.pickup && x.status !== 'delivering').map((x) => x.order)
+  const lpPickup = lpTagged.filter((x) => x.pickup).map((x) => x.order)
 
-  const lpOrders: typeof orders = (lpOrdersRes.data ?? []).map((lp: any) => {
-    const postcode = lp.postcode ?? extractPostcodeFromAddr(lp.address)
-    const items = (Array.isArray(lp.items) && lp.items.length > 0
-      ? lp.items
-      : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity }]
-    ).map((i: any) => ({ product_name: i.product_name, quantity: i.quantity, variant_name: i.variant_name ?? null, is_shippable: false }))
-    return {
-      id: lp.id,
-      order_number: lp.order_number,
-      status: lp.status,
-      payment_method: lp.payment_method,
-      payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
-      total: lp.total,
-      notes: lp.notes ?? null,
-      created_at: lp.created_at,
-      full_name: lp.name,
-      phone: lp.phone,
-      email: null,
-      full_address: lp.address ?? null,
-      city: null,
-      postcode,
-      state: null,
-      is_kl: isKlPostcode(postcode),
-      area_known: !!postcode,
-      has_fresh: true,
-      recipient_name: lp.name,
-      recipient_phone: lp.phone,
-      items,
-      exported_at: lp.exported_at ?? null,
-    }
-  })
-
-  const allOrders = [...orders, ...lpOrders].sort(
+  // Tab Export — order hantar sahaja (pickup dibuang)
+  const allOrders = [...deliveryOrders, ...lpDelivery].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
-  return <ExportsClient orders={allOrders} defaultFrom={fromDate} defaultTo={toDate} />
+  // Tab Pickup — order ambil sendiri (kedai + LP), susun ikut tarikh ambil paling awal
+  const pickupOrders = [...pickupStoreOrders, ...lpPickup].sort((a, b) => {
+    const da = a.pickup_date ? new Date(a.pickup_date).getTime() : Infinity
+    const db = b.pickup_date ? new Date(b.pickup_date).getTime() : Infinity
+    return da - db || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+
+  return <ExportsClient orders={allOrders} pickupOrders={pickupOrders} defaultFrom={fromDate} defaultTo={toDate} />
 }

@@ -34,6 +34,9 @@ export interface ExportOrder {
   recipient_phone: string | null
   items: { product_name: string; quantity: number; variant_name: string | null; is_shippable: boolean }[]
   exported_at: string | null
+  source: 'order' | 'lp'
+  user_id: string | null
+  pickup_date: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -466,14 +469,29 @@ function parseTrackingCsv(text: string): { order_number: string; carrier_id: str
   })
 }
 
+// ─── Pickup status flow ──────────────────────────────────────────────────────
+// Untuk order pickup, 'delivering' = "Sedia Diambil" (bukan dalam penghantaran).
+const PICKUP_PUSH: Record<string, { title: string; body: string }> = {
+  delivering: { title: 'Sedia Diambil 🎉', body: 'Pesanan anda sedia untuk diambil di kedai SyababFresh, Bangi.' },
+  delivered: { title: 'Pesanan Diterima 🎉', body: 'Terima kasih! Pesanan anda telah diambil.' },
+}
+// Langkah seterusnya bagi setiap status semasa (butang tindakan di senarai pickup)
+const PICKUP_NEXT: Record<string, { next: string; label: string } | undefined> = {
+  confirmed: { next: 'preparing', label: 'Mula Sedia' },
+  preparing: { next: 'delivering', label: 'Sedia Diambil' },
+  delivering: { next: 'delivered', label: 'Dah Diambil' },
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export function ExportsClient({
   orders,
+  pickupOrders,
   defaultFrom,
   defaultTo,
 }: {
   orders: ExportOrder[]
+  pickupOrders: ExportOrder[]
   defaultFrom: string
   defaultTo: string
 }) {
@@ -483,11 +501,12 @@ export function ExportsClient({
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [areaFilter, setAreaFilter] = useState<AreaFilter>('all')
   const [hideExported, setHideExported] = useState(true)
-  const [tab, setTab] = useState<'export' | 'import'>('export')
+  const [tab, setTab] = useState<'export' | 'import' | 'pickup'>('export')
   const [trackingText, setTrackingText] = useState('')
   const [importCarrier, setImportCarrier] = useState('ninja_cold')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ ok: number; fail: number; errors: string[] } | null>(null)
+  const [pickupBusy, setPickupBusy] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function applyFilter() {
@@ -608,6 +627,63 @@ export function ExportsClient({
     printPickList(selectedOrders)
   }
 
+  // ── Pickup tab ──────────────────────────────────────────────────────────────
+  const selectedPickup = useMemo(() => pickupOrders.filter((o) => selected.has(o.id)), [pickupOrders, selected])
+
+  function handlePickupPickList() {
+    if (selectedPickup.length === 0) { toast.error('Select order pickup dahulu'); return }
+    printPickList(selectedPickup)
+  }
+
+  const allPickupSelected = pickupOrders.length > 0 && pickupOrders.every((o) => selected.has(o.id))
+  function togglePickupAll() {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allPickupSelected) pickupOrders.forEach((o) => next.delete(o.id))
+      else pickupOrders.forEach((o) => next.add(o.id))
+      return next
+    })
+  }
+
+  // Advance pickup ke status seterusnya + notify customer. Guna endpoint sedia ada
+  // ikut sumber order (kedai vs LP) — sama macam panel order biasa.
+  async function updatePickupStatus(o: ExportOrder, next: string) {
+    setPickupBusy(o.id)
+    try {
+      if (o.source === 'lp') {
+        const res = await fetch('/api/admin/landing-pages/orders', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: o.id, status: next }),
+        })
+        if (!res.ok) throw new Error()
+        fetch('/api/admin/landing-pages/notify-customer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: o.id, status: next }),
+        }).catch(() => {})
+      } else {
+        const res = await fetch(`/api/admin/orders/${o.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: next }),
+        })
+        if (!res.ok) throw new Error()
+        fetch('/api/notify-customer', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: o.id, status: next, deliveryMethod: 'pickup' }),
+        }).catch(() => {})
+        const push = PICKUP_PUSH[next]
+        if (push && o.user_id) fetch('/api/push/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: o.user_id, title: push.title, body: push.body, url: `/orders/${o.id}` }),
+        }).catch(() => {})
+      }
+      toast.success(`${o.order_number} → ${next === 'delivering' ? 'Sedia Diambil' : next}`)
+      router.refresh()
+    } catch {
+      toast.error('Gagal kemaskini status')
+    }
+    setPickupBusy(null)
+  }
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -682,7 +758,7 @@ export function ExportsClient({
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-6 w-fit">
-        {([['export', 'Export & Print'], ['import', 'Import Tracking']] as const).map(([key, label]) => (
+        {([['export', 'Export & Print'], ['import', 'Import Tracking'], ['pickup', 'Pickup']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -691,6 +767,9 @@ export function ExportsClient({
             }`}
           >
             {label}
+            {key === 'pickup' && pickupOrders.length > 0 && (
+              <span className="ml-1.5 text-[10px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{pickupOrders.length}</span>
+            )}
           </button>
         ))}
       </div>
@@ -1029,6 +1108,123 @@ export function ExportsClient({
               <li>Import balik di sini — sistem auto-update status "Dalam Transit"</li>
             </ol>
           </div>
+        </div>
+      )}
+
+      {tab === 'pickup' && (
+        <div className="space-y-5">
+          {/* Filter tarikh (kongsi dgn tab lain) */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">From</label>
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase tracking-wide">To</label>
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+              <button onClick={applyFilter}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 transition-colors">
+                <RefreshCw className="h-3.5 w-3.5" />Filter
+              </button>
+            </div>
+          </div>
+
+          {pickupOrders.length === 0 ? (
+            <div className="text-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-100">
+              <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="font-semibold">Tiada order pickup dalam julat tarikh ini</p>
+              <p className="text-sm mt-1">Order ambil sendiri akan muncul di sini</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2 items-center">
+                <button onClick={togglePickupAll}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                  {allPickupSelected ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-400" />}
+                  {allPickupSelected ? 'Deselect' : `Select All (${pickupOrders.length})`}
+                </button>
+                <span className="text-xs text-gray-400 px-1">{selectedPickup.length} diselect</span>
+                <button onClick={handlePickupPickList} disabled={selectedPickup.length === 0}
+                  className="flex items-center gap-1.5 ml-auto px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
+                  <ClipboardList className="h-3.5 w-3.5" />Senarai Pack
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="w-10 px-4 py-3"></th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">No. Orders</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Penerima</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Item</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Tarikh Ambil</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {pickupOrders.map((o) => {
+                      const isSelected = selected.has(o.id)
+                      const step = PICKUP_NEXT[o.status]
+                      const busy = pickupBusy === o.id
+                      return (
+                        <tr key={o.id} className={`transition-colors ${isSelected ? 'bg-indigo-50' : 'hover:bg-gray-50'}`}>
+                          <td className="px-4 py-3 cursor-pointer" onClick={() => toggleOne(o.id)}>
+                            {isSelected ? <CheckSquare className="h-4 w-4 text-indigo-600" /> : <Square className="h-4 w-4 text-gray-300" />}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono font-bold text-xs text-gray-700">{o.order_number}</span>
+                            {o.source === 'lp' && <span className="ml-1.5 text-[9px] font-bold bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded">LP</span>}
+                            <span className="ml-1.5 text-[9px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">PICKUP</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-gray-800">{getRecipientName(o) || '—'}</p>
+                            <p className="text-xs text-gray-400">{o.recipient_phone ?? o.phone ?? '—'}</p>
+                          </td>
+                          <td className="px-4 py-3 max-w-[220px]">
+                            <div className="space-y-0.5">
+                              {o.items.map((item, i) => (
+                                <div key={i} className="flex items-center gap-1.5 text-xs">
+                                  <span className={item.is_shippable ? 'text-amber-500' : 'text-green-500'}>●</span>
+                                  <span className="text-gray-700 truncate max-w-[160px]">
+                                    {item.product_name}{item.variant_name ? ` (${item.variant_name})` : ''} ×{item.quantity}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs font-semibold text-gray-700">
+                              {o.pickup_date
+                                ? new Date(o.pickup_date).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[o.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                                {o.status === 'delivering' ? 'sedia diambil' : o.status}
+                              </span>
+                              {step && (
+                                <button onClick={() => updatePickupStatus(o, step.next)} disabled={busy}
+                                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40 transition-colors">
+                                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}{step.label}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
