@@ -1,8 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
-import { sendWhatsApp } from '@/lib/murpati'
-import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { NextResponse } from 'next/server'
 
@@ -50,6 +48,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Poskod wajib untuk penghantaran — supaya zon kurier dapat ditentukan (LK/Pos)
   if (!isPickup && !/^\d{5}$/.test(String(postcode ?? '').trim()))
     return NextResponse.json({ error: 'Poskod diperlukan (5 digit)' }, { status: 400 })
+  // Email wajib — notifikasi customer (pengesahan/status) kini guna email
+  if (!customerEmail)
+    return NextResponse.json({ error: 'Email yang sah diperlukan' }, { status: 400 })
   if (!Array.isArray(items) || items.length === 0)
     return NextResponse.json({ error: 'Tiada item dalam pesanan' }, { status: 400 })
   if (items.length > 20)
@@ -295,25 +296,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   // COD / bank_transfer — hantar WhatsApp terus (FPX handled in webhook after payment)
-  const appUrl = getAppUrl()
-  const itemLines = validatedItems.map(i =>
-    `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`
-  ).join('\n')
-  const payLabel: Record<string, string> = { cod: 'Bayar Semasa Terima (COD)', bank_transfer: 'Pindahan Bank' }
-  const templates = await getWaTemplates()
+  // Nota: WhatsApp pengesahan order ke customer DIBUANG — guna email sahaja
+  // (kurangkan risiko ban WA tidak rasmi). WA ke customer kini hanya untuk tracking.
 
-  // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
-  sendWhatsApp(phone.trim(), buildConfirmationMessage(templates, 'order_received', {
-    name: name.trim(),
-    order_number: order.order_number,
-    lp_title: page.title,
-    items: itemLines,
-    total: Number(order.total).toFixed(2),
-    payment_method: payLabel[payment_method] ?? payment_method,
-    app_url: appUrl,
-  })).catch(() => {})
-
-  // Email selari WA (kalau customer isi email)
+  // Email pengesahan order (email kini wajib masa order)
   if (customerEmail) {
     sendOrderConfirmationEmail({
       to: customerEmail,

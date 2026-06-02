@@ -2,7 +2,6 @@ import { requireAdmin } from '@/lib/supabase/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
-import { sendWhatsApp } from '@/lib/murpati'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 
 export async function POST(request: Request) {
@@ -18,6 +17,7 @@ export async function POST(request: Request) {
   if (!phone?.trim()) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
   if (!address?.trim()) return NextResponse.json({ error: 'Address required' }, { status: 400 })
   if (!/^\d{5}$/.test(String(postcode ?? '').trim())) return NextResponse.json({ error: 'Poskod diperlukan (5 digit)' }, { status: 400 })
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email ?? '').trim())) return NextResponse.json({ error: 'Email yang sah diperlukan' }, { status: 400 })
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'At least 1 item required' }, { status: 400 })
 
   // Validate items + get server-side prices
@@ -104,27 +104,10 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // WA confirmation to customer
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
-  const itemLines = validatedItems.map(i => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(i.unit_price * i.quantity).toFixed(2)}`).join('\n')
-  sendWhatsApp(phone.trim(), [
-    `Hi ${name.trim()}! 🌿`,
-    ``,
-    `✅ *Order Confirmed*`,
-    `📦 Order No: *${order.order_number}*`,
-    ``,
-    itemLines,
-    ``,
-    ...(appliedDiscount > 0 ? [`🎁 Diskaun: -RM${appliedDiscount.toFixed(2)}`] : []),
-    `💰 Total: *RM${Number(order.total).toFixed(2)}*`,
-    ``,
-    `Register for order history & loyalty points:`,
-    `👉 ${appUrl}/daftar`,
-    ``,
-    `SyababFresh 🌿`,
-  ].join('\n')).catch(() => {})
+  // Nota: WA pengesahan ke customer DIBUANG — guna email sahaja (kurangkan risiko
+  // ban WA tidak rasmi). WA ke customer kini hanya untuk tracking.
 
-  // Email confirmation (optional — only if staff captured an email)
+  // Email confirmation (email kini wajib)
   if (email?.trim()) {
     sendOrderConfirmationEmail({
       to: email.trim(),

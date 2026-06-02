@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
-import { getWaTemplates, buildConfirmationMessage } from '@/lib/wa-templates'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 
 // CHIP's RSA public key may be stored as a single line (no newlines) in the
@@ -59,20 +58,11 @@ export async function confirmLpGuestOrder(
     .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
     .join('\n')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
-  const templates = await getWaTemplates()
 
-  // WhatsApp to customer — fully template-driven (editable in /admin/settings/whatsapp)
-  sendWhatsApp(order.phone, buildConfirmationMessage(templates, 'payment_confirmed', {
-    name: order.name,
-    order_number: order.order_number,
-    lp_title: lpTitle,
-    items: itemLines,
-    total: Number(order.total).toFixed(2),
-    app_url: appUrl,
-    receipt_url: `${appUrl}/resit/${order.id}`,
-  })).catch(() => {})
+  // Nota: WhatsApp ke customer untuk pengesahan bayaran DIBUANG — guna email sahaja
+  // (kurangkan risiko ban WA tidak rasmi). WA ke customer kini hanya untuk tracking.
 
-  // Email selari WA (kalau customer isi email)
+  // Email pengesahan bayaran (email kini wajib masa order)
   if (order.email) {
     sendPaymentConfirmedEmail({
       to: order.email,
