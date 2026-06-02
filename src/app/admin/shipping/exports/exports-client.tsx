@@ -391,7 +391,7 @@ function printPickList(orders: ExportOrder[]) {
   win.document.write(`<!DOCTYPE html>
 <html>
 <head>
-  <title>Senarai Tarik — SyababFresh</title>
+  <title>Senarai Pack — SyababFresh</title>
   <meta charset="utf-8">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -420,7 +420,7 @@ function printPickList(orders: ExportOrder[]) {
 <body>
   <div class="head">
     <div>
-      <div class="title">SENARAI TARIK</div>
+      <div class="title">SENARAI PACK</div>
       <div class="sub">Rujukan pack — tarik stok ikut kuantiti</div>
     </div>
     <div class="meta">
@@ -776,7 +776,7 @@ export function ExportsClient({
                   <button onClick={handlePrintPickList}
                     disabled={selected.size === 0}
                     className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
-                    <ClipboardList className="h-3.5 w-3.5" />Senarai Tarik
+                    <ClipboardList className="h-3.5 w-3.5" />Senarai Pack
                   </button>
                   <button onClick={handlePrintAwb}
                     disabled={selected.size === 0}

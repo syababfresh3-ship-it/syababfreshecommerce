@@ -64,18 +64,18 @@ Sebaik je fail dijana, order yang dipilih **auto-ditanda "sudah export"** (badge
 - Kalau staf lain cuba export semula order yang **dah** di-export, sistem **beri amaran** ⚠️ ("order ni DAH di-export sebelum ni …") supaya tak hantar 2 kali.
 - Maknanya: **satu order = satu kali export**. Kalau betul-betul perlu export semula (cth silap fail), matikan toggle dulu.
 
-### 1.4 Senarai Tarik (pick list — tarik stok)
+### 1.4 Senarai Pack (pick list — tarik stok)
 
 **Admin → Shipping → Export & Import**, tab **Export & Print**
 
-1. Tick order yang nak diproses → klik 🟢 **Senarai Tarik**.
+1. Tick order yang nak diproses → klik 🟢 **Senarai Pack**.
 2. Buka helaian sedia cetak yang **kumpulkan semua item** dari order dipilih + **jumlah kuantiti**:
    - Setiap **variant dikira berasingan** (cth *Ceri Uzbekistan (1kg) ×30* dan *Ceri Uzbekistan (500g) ×20* = 2 baris berbeza).
    - Dipisah **❄️ Fresh (cold)** dan **📦 Dry** — sebab ditarik dari peti sejuk vs rak.
    - Setiap baris ada **☐ kotak tick** untuk operasi tanda bila siap tarik.
 3. Guna senarai ni untuk **tarik stok sekali gus** sebelum pack — tak perlu kira order satu-satu.
 
-> Beza dengan **Print AWB**: Senarai Tarik = **jumlah keseluruhan** (berapa nak tarik). Print AWB = **slip per-order** (untuk pack & tampal pada bungkusan).
+> Beza dengan **Print AWB**: Senarai Pack = **jumlah keseluruhan** (berapa nak tarik). Print AWB = **slip per-order** (untuk pack & tampal pada bungkusan).
 
 ### 1.5 Cetak slip pek (Print AWB)
 
