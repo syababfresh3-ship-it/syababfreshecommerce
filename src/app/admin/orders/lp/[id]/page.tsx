@@ -2,9 +2,10 @@ export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Phone, MapPin, Package, Mail, Calendar } from 'lucide-react'
+import { ArrowLeft, Package, Calendar } from 'lucide-react'
 import { LpOrderActions } from './lp-order-actions'
 import { LpShipmentPanel } from './lp-shipment-panel'
+import { LpCustomerEdit } from './lp-customer-edit'
 import { ReceiptActions } from '../../receipt-actions'
 
 const statusCls: Record<string, string> = {
@@ -78,38 +79,17 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
         {/* Left column */}
         <div className="lg:col-span-1 space-y-4">
 
-          {/* Customer Details */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h2 className="font-semibold text-gray-900 mb-3">Customer Details</h2>
-            <div className="space-y-2.5 text-sm">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xs font-medium text-gray-400 w-12">Name</span>
-                <span className="font-semibold text-gray-900">{order.name}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                <a href={`tel:${order.phone}`} className="text-blue-600 hover:underline">{order.phone}</a>
-              </div>
-              {order.email && (
-                <div className="flex items-center gap-2.5">
-                  <Mail className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                  <a href={`mailto:${order.email}`} className="text-blue-600 hover:underline break-all">{order.email}</a>
-                </div>
-              )}
-              {order.address && (
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
-                  <span className="text-gray-600 leading-relaxed text-xs">{order.address}{order.postcode ? `, ${order.postcode}` : ''}</span>
-                </div>
-              )}
-              {order.delivery_method === 'pickup' && order.pickup_date && (
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-medium text-gray-400 w-12">Pickup</span>
-                  <span className="font-semibold text-purple-700">📅 {new Date(order.pickup_date).toLocaleDateString('en-MY')}</span>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Customer Details (boleh edit — termasuk poskod) */}
+          <LpCustomerEdit
+            orderId={order.id}
+            name={order.name}
+            phone={order.phone}
+            email={order.email ?? null}
+            address={order.address ?? null}
+            postcode={(order as any).postcode ?? null}
+            deliveryMethod={(order as any).delivery_method ?? null}
+            pickupDate={(order as any).pickup_date ?? null}
+          />
 
           {/* Payment Details */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
