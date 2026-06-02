@@ -114,6 +114,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
     if (activeSelections.length === 0) { toast.error('Sila pilih sekurang-kurangnya 1 produk'); return }
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan no. telefon'); return }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Sila masukkan email yang sah'); return }
     if (isPickup) {
       if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
     } else if (!form.address.trim() || form.address.trim().length < 10) {
@@ -220,8 +221,9 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
     </div>
   )
 
-  // Poskod tak sah (untuk penghantaran) ATAU kawasan disekat → halang submit
-  const postcodeBad = postcodeBlocked || (!isPickup && !/^\d{5}$/.test(form.postcode.trim()))
+  // Poskod tak sah (untuk penghantaran) ATAU kawasan disekat, atau email tak sah → halang submit
+  const emailBad = !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())
+  const postcodeBad = postcodeBlocked || (!isPickup && !/^\d{5}$/.test(form.postcode.trim())) || emailBad
 
   /* ── MAIN FORM ── */
   return (
@@ -340,9 +342,9 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
             <div>
               <label style={labelStyle}>EMAIL</label>
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '8px 12px', fontSize: 11, color: '#92400e', lineHeight: 1.5, marginBottom: 6 }}>
-                📧 Masukkan email untuk terima <strong>resit rasmi</strong> &amp; <strong>kemaskini status pesanan</strong> anda.
+                📧 <strong>Wajib</strong> — resit rasmi &amp; kemaskini status pesanan dihantar ke email anda.
               </div>
-              <input style={inputStyle} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="cth: nama@email.com" />
+              <input style={inputStyle} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="cth: nama@email.com" required />
             </div>
 
             {/* Penghantaran vs Ambil Sendiri */}

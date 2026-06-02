@@ -81,6 +81,7 @@ export default function QuickOrderPage() {
     e.preventDefault()
     if (items.length === 0) { toast.error('Add at least 1 product'); return }
     if (!/^\d{5}$/.test(form.postcode.trim())) { toast.error('Poskod diperlukan (5 digit)'); return }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Email yang sah diperlukan'); return }
     setSubmitting(true)
     try {
       const res = await fetch('/api/admin/quick-order', {
@@ -166,8 +167,8 @@ export default function QuickOrderPage() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">EMAIL <span className="text-gray-300 font-normal">(untuk emel pengesahan)</span></label>
-            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+            <label className="text-xs font-semibold text-gray-500 block mb-1">EMAIL <span className="text-red-500">*</span> <span className="text-gray-300 font-normal">(notifikasi customer guna email)</span></label>
+            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required
               placeholder="email@contoh.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
           </div>
           <div>
@@ -263,7 +264,7 @@ export default function QuickOrderPage() {
           )}
         </div>
 
-        <button type="submit" disabled={submitting || items.length === 0 || !/^\d{5}$/.test(form.postcode.trim())}
+        <button type="submit" disabled={submitting || items.length === 0 || !/^\d{5}$/.test(form.postcode.trim()) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())}
           className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-base hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg">
           {submitting ? <><RefreshCw className="h-5 w-5 animate-spin" /> Creating...</> : <><MessageCircle className="h-5 w-5" /> Create Order + Send WA</>}
         </button>
