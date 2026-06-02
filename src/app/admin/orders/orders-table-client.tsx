@@ -214,6 +214,11 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                     )}
                     <span className={`text-[10px] font-semibold ${action.color}`}>{action.label}</span>
                   </div>
+                  {(order as any)._lpTitle && (
+                    <span className="inline-block mb-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
+                      🏷 {(order as any)._lpTitle}
+                    </span>
+                  )}
                   <p className="text-sm font-semibold text-gray-900">{order.profiles?.full_name ?? '—'}</p>
                   {order.profiles?.phone && <p className="text-xs text-gray-400">{order.profiles.phone}</p>}
                   {order.delivery_slot && <p className="text-[10px] text-blue-600 font-medium mt-0.5">🕐 {order.delivery_slot}</p>}
@@ -295,7 +300,9 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                       )}
                     </div>
                     {(order as any)._lpTitle && (
-                      <span className="text-xs text-rose-400 mt-0.5 block truncate max-w-[140px]">{(order as any)._lpTitle}</span>
+                      <span className="inline-block mt-1 text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-md truncate max-w-[200px]" title={(order as any)._lpTitle}>
+                        🏷 {(order as any)._lpTitle}
+                      </span>
                     )}
                     {order.delivery_slot && (
                       <span className="text-xs text-blue-600 mt-0.5 block">🕐 {order.delivery_slot}</span>

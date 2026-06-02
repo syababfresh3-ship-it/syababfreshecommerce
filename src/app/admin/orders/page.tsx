@@ -57,7 +57,9 @@ function dateRange(preset?: string): { gte?: string; lt?: string } {
   return {}
 }
 
-async function getOrders(status?: string, q?: string, date?: string) {
+type Bounds = { gte?: string; lt?: string; lte?: string }
+
+async function getOrders(status: string | undefined, q: string | undefined, bounds: Bounds) {
   const supabase = createAdminClient()
   let query = supabase
     .from('orders')
@@ -67,9 +69,9 @@ async function getOrders(status?: string, q?: string, date?: string) {
 
   if (status) query = query.eq('status', status)
 
-  const { gte, lt } = dateRange(date)
-  if (gte) query = query.gte('created_at', gte)
-  if (lt)  query = query.lt('created_at', lt)
+  if (bounds.gte) query = query.gte('created_at', bounds.gte)
+  if (bounds.lt)  query = query.lt('created_at', bounds.lt)
+  if (bounds.lte) query = query.lte('created_at', bounds.lte)
 
   const { data: orders, error } = await query
   if (error || !orders || orders.length === 0) return []
@@ -127,15 +129,17 @@ async function getStatusCounts() {
 }
 
 const LP_SELECT =
-  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, landing_pages(title, slug)'
+  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, landing_pages(title, slug)'
 
 // Fetch ALL matching LP orders, paging past PostgREST's 1000-row-per-request cap.
 // At ~90 orders/day a fixed limit silently hides older paid orders within weeks,
 // so we loop .range() until a short page signals the end. Display paging is done
 // client-side in OrdersTableClient.
-async function getAllLpOrders(status?: string, date?: string) {
+// pageId set = ditapis ke satu LP (mod attribution) → tunjuk SEMUA status (termasuk
+// delivered) supaya kiraan sales penuh. Tanpa pageId, sorok yang dah selesai.
+async function getAllLpOrders(status: string | undefined, bounds: Bounds, pageId?: string) {
   const supabase = createAdminClient()
-  const { gte, lt } = dateRange(date)
+  const { gte, lt, lte } = bounds
   const CHUNK = 1000
   const all: any[] = []
   for (let from = 0; ; from += CHUNK) {
@@ -145,9 +149,11 @@ async function getAllLpOrders(status?: string, date?: string) {
       .order('created_at', { ascending: false })
       .range(from, from + CHUNK - 1)
     if (status) q = q.eq('status', status)
-    else q = q.not('status', 'in', '(delivered,cancelled,refunded)')
+    else if (!pageId) q = q.not('status', 'in', '(delivered,cancelled,refunded)')
+    if (pageId) q = q.eq('page_id', pageId)
     if (gte) q = q.gte('created_at', gte)
     if (lt) q = q.lt('created_at', lt)
+    if (lte) q = q.lte('created_at', lte)
     const { data, error } = await q
     if (error || !data || data.length === 0) break
     all.push(...data)
@@ -156,17 +162,41 @@ async function getAllLpOrders(status?: string, date?: string) {
   return all
 }
 
+// Senarai LP untuk dropdown tapisan
+async function getLandingPages() {
+  const supabase = createAdminClient()
+  const { data } = await supabase
+    .from('landing_pages')
+    .select('id, title, slug')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as { id: string; title: string; slug: string }[]
+}
+
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; date?: string }>
+  searchParams: Promise<{ status?: string; q?: string; date?: string; lp?: string; from?: string; to?: string }>
 }) {
-  const { status, q, date } = await searchParams
+  const { status, q, date, lp, from, to } = await searchParams
 
-  const [orders, counts, lpRows] = await Promise.all([
-    getOrders(status, q, date),
+  // Tarikh: julat custom (from/to, MYT) mengatasi preset. 'to' inklusif (lte 23:59:59).
+  const bounds: Bounds = (from || to)
+    ? {
+        ...(from ? { gte: `${from}T00:00:00+08:00` } : {}),
+        ...(to ? { lte: `${to}T23:59:59+08:00` } : {}),
+      }
+    : dateRange(date)
+
+  // Sumber: 'storefront' = kedai sahaja; UUID = LP tertentu sahaja (kedai tiada attribution); else dua-dua.
+  const storefrontOnly = lp === 'storefront'
+  const lpPageId = lp && lp !== 'storefront' ? lp : undefined
+  const lpSpecific = !!lpPageId
+
+  const [orders, counts, lpRows, landingPages] = await Promise.all([
+    lpSpecific ? Promise.resolve([] as Awaited<ReturnType<typeof getOrders>>) : getOrders(status, q, bounds),
     getStatusCounts(),
-    getAllLpOrders(status, date),
+    storefrontOnly ? Promise.resolve([] as any[]) : getAllLpOrders(status, bounds, lpPageId),
+    getLandingPages(),
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
@@ -214,6 +244,16 @@ export default async function AdminOrdersPage({
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
+  // Ringkasan header (ikut tapisan semasa)
+  const totalRm = allOrders.reduce((s, o) => s + Number((o as any).total || 0), 0)
+  const lpLabel = lpSpecific
+    ? (landingPages.find((p) => p.id === lpPageId)?.title ?? 'LP')
+    : storefrontOnly ? 'Storefront sahaja' : null
+  const presetLabel = date
+    ? (date === 'hari-ini' ? 'Today' : date === 'semalam' ? 'Yesterday' : date === '7-hari' ? 'Last 7 Days' : 'This Month')
+    : null
+  const rangeLabel = (from || to) ? `${from ?? '…'} – ${to ?? '…'}` : presetLabel
+
   const summaryItems = [
     { icon: Zap,          label: 'Perlu Confirm', count: counts.needAction, color: 'text-red-600 bg-red-50 border-red-200',      status: 'pending' },
     { icon: Package,      label: 'Confirmed',     count: counts.confirmed,  color: 'text-blue-600 bg-blue-50 border-blue-200',    status: 'confirmed' },
@@ -229,10 +269,14 @@ export default async function AdminOrdersPage({
           <h1 className="text-xl font-bold text-gray-900">Orders</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             <span className="font-semibold text-gray-600">{allOrders.length}</span> records
+            <span className="text-gray-300"> · </span>
+            <span className="font-semibold text-gray-600">RM{totalRm.toFixed(2)}</span>
             {status ? <span className="text-gray-300"> · </span> : ''}
             {status ? <span className="text-gray-500">{statusConfig[status]?.label ?? status}</span> : ''}
-            {date ? <span className="text-gray-300"> · </span> : ''}
-            {date ? <span className="text-blue-500 font-medium">{date === 'hari-ini' ? 'Today' : date === 'semalam' ? 'Yesterday' : date === '7-hari' ? 'Last 7 Days' : 'This Month'}</span> : ''}
+            {lpLabel ? <span className="text-gray-300"> · </span> : ''}
+            {lpLabel ? <span className="text-rose-500 font-medium">{lpLabel}</span> : ''}
+            {rangeLabel ? <span className="text-gray-300"> · </span> : ''}
+            {rangeLabel ? <span className="text-blue-500 font-medium">{rangeLabel}</span> : ''}
           </p>
         </div>
         <a
@@ -276,7 +320,7 @@ export default async function AdminOrdersPage({
         </div>
       )}
 
-      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} /></Suspense>
+      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} activeLp={lp} activeFrom={from} activeTo={to} landingPages={landingPages} /></Suspense>
 
       <OrdersTableClient orders={allOrders as any} searchQuery={q} />
 
