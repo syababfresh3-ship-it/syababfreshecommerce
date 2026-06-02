@@ -17,6 +17,7 @@ export async function POST(request: Request) {
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
   if (!phone?.trim()) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
   if (!address?.trim()) return NextResponse.json({ error: 'Address required' }, { status: 400 })
+  if (!/^\d{5}$/.test(String(postcode ?? '').trim())) return NextResponse.json({ error: 'Poskod diperlukan (5 digit)' }, { status: 400 })
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'At least 1 item required' }, { status: 400 })
 
   // Validate items + get server-side prices

@@ -80,6 +80,7 @@ export default function QuickOrderPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (items.length === 0) { toast.error('Add at least 1 product'); return }
+    if (!/^\d{5}$/.test(form.postcode.trim())) { toast.error('Poskod diperlukan (5 digit)'); return }
     setSubmitting(true)
     try {
       const res = await fetch('/api/admin/quick-order', {
@@ -177,7 +178,7 @@ export default function QuickOrderPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-semibold text-gray-500 block mb-1">POSTCODE</label>
-              <input value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} maxLength={5}
+              <input value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} maxLength={5} required
                 placeholder="47810" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
             </div>
             <div>
@@ -262,7 +263,7 @@ export default function QuickOrderPage() {
           )}
         </div>
 
-        <button type="submit" disabled={submitting || items.length === 0}
+        <button type="submit" disabled={submitting || items.length === 0 || !/^\d{5}$/.test(form.postcode.trim())}
           className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-base hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg">
           {submitting ? <><RefreshCw className="h-5 w-5 animate-spin" /> Creating...</> : <><MessageCircle className="h-5 w-5" /> Create Order + Send WA</>}
         </button>

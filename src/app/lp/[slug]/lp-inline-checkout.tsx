@@ -105,6 +105,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
       if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
     } else if (!form.address.trim() || form.address.trim().length < 10) {
       toast.error('Sila masukkan alamat lengkap'); return
+    } else if (!/^\d{5}$/.test(form.postcode.trim())) {
+      toast.error('Sila masukkan poskod (5 digit)'); return
     }
     if (!paymentMethod) { toast.error('Sila pilih kaedah bayaran'); return }
 
@@ -210,6 +212,9 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
     color: '#fff', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   } as React.CSSProperties)
   const stepTitle: React.CSSProperties = { fontWeight: 800, fontSize: 14, color: '#111', letterSpacing: '0.03em' }
+
+  // Poskod tak sah (untuk penghantaran) ATAU kawasan disekat → halang submit
+  const postcodeBad = postcodeBlocked || (!isPickup && !/^\d{5}$/.test(form.postcode.trim()))
 
   return (
     <div style={{ borderRadius: 20, overflow: 'hidden', background: v('--cream','#fff'), boxShadow: '0 8px 40px rgba(0,0,0,0.10)' }}>
@@ -348,7 +353,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <label style={labelStyle}>POSKOD</label>
-                    <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" />
+                    <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" required />
                     {postcodeBlocked && <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4 }}>⚠️ Penghantaran tidak tersedia ke kawasan ini</p>}
                   </div>
                   <div>
@@ -482,13 +487,13 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           </div>
 
           {/* Submit */}
-          <button type="submit" disabled={submitting || postcodeBlocked}
+          <button type="submit" disabled={submitting || postcodeBad}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: '16px', borderRadius: 14, border: 'none', cursor: submitting || postcodeBlocked ? 'not-allowed' : 'pointer',
-              background: submitting || postcodeBlocked ? '#9ca3af' : v('--cherry','#9C0F30'),
+              padding: '16px', borderRadius: 14, border: 'none', cursor: submitting || postcodeBad ? 'not-allowed' : 'pointer',
+              background: submitting || postcodeBad ? '#9ca3af' : v('--cherry','#9C0F30'),
               color: '#fff', fontWeight: 900, fontSize: 16, fontFamily: 'inherit',
-              boxShadow: submitting || postcodeBlocked ? 'none' : '0 6px 24px rgba(156,15,48,0.35)',
+              boxShadow: submitting || postcodeBad ? 'none' : '0 6px 24px rgba(156,15,48,0.35)',
               transition: 'all 0.2s',
             }}>
             {submitting ? 'Menghantar...' : (

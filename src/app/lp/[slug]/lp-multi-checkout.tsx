@@ -118,6 +118,8 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
       if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
     } else if (!form.address.trim() || form.address.trim().length < 10) {
       toast.error('Sila masukkan alamat lengkap'); return
+    } else if (!/^\d{5}$/.test(form.postcode.trim())) {
+      toast.error('Sila masukkan poskod (5 digit)'); return
     }
     if (!paymentMethod) { toast.error('Sila pilih kaedah bayaran'); return }
 
@@ -217,6 +219,9 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
       </div>
     </div>
   )
+
+  // Poskod tak sah (untuk penghantaran) ATAU kawasan disekat → halang submit
+  const postcodeBad = postcodeBlocked || (!isPickup && !/^\d{5}$/.test(form.postcode.trim()))
 
   /* ── MAIN FORM ── */
   return (
@@ -382,7 +387,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>
                     <label style={labelStyle}>POSKOD</label>
-                    <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" />
+                    <input style={{ ...inputStyle, borderColor: postcodeBlocked ? '#ef4444' : undefined }} type="text" inputMode="numeric" maxLength={5} value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} placeholder="cth: 47810" required />
                     {postcodeBlocked && <p style={{ fontSize: 11, color: '#ef4444', fontWeight: 700, marginTop: 4 }}>⚠️ Penghantaran tidak tersedia ke kawasan ini</p>}
                   </div>
                   <div>
@@ -520,14 +525,14 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
             </div>
           </div>
 
-          <button type="submit" disabled={submitting || activeSelections.length === 0 || postcodeBlocked}
+          <button type="submit" disabled={submitting || activeSelections.length === 0 || postcodeBad}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: 16, borderRadius: 14, border: 'none',
-              cursor: submitting || activeSelections.length === 0 || postcodeBlocked ? 'not-allowed' : 'pointer',
-              background: submitting || activeSelections.length === 0 || postcodeBlocked ? '#9ca3af' : cv('--cherry', '#9C0F30'),
+              cursor: submitting || activeSelections.length === 0 || postcodeBad ? 'not-allowed' : 'pointer',
+              background: submitting || activeSelections.length === 0 || postcodeBad ? '#9ca3af' : cv('--cherry', '#9C0F30'),
               color: '#fff', fontWeight: 900, fontSize: 16, fontFamily: 'inherit',
-              boxShadow: activeSelections.length === 0 || postcodeBlocked ? 'none' : '0 6px 24px rgba(156,15,48,0.35)',
+              boxShadow: activeSelections.length === 0 || postcodeBad ? 'none' : '0 6px 24px rgba(156,15,48,0.35)',
               transition: 'all 0.2s',
             }}>
             <Lock style={{ width: 16, height: 16 }} />
