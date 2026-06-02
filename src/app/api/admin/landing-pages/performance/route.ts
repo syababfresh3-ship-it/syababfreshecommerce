@@ -10,7 +10,7 @@ export async function GET() {
       .select('id, title, slug, is_active, view_count, created_at')
       .order('created_at', { ascending: false }),
     supabase!.from('lp_guest_orders')
-      .select('page_id, total, status, created_at'),
+      .select('page_id, total, status, payment_method, payment_status, created_at'),
     supabase!.from('landing_page_leads')
       .select('page_id, created_at'),
   ])
@@ -25,9 +25,14 @@ export async function GET() {
     const pageLeads = leads.filter(l => l.page_id === page.id)
 
     const totalOrders = pageOrders.length
-    const confirmedOrders = pageOrders.filter(o => o.status === 'confirmed' || o.status === 'preparing' || o.status === 'delivering' || o.status === 'delivered').length
-    const revenue = pageOrders
-      .filter(o => o.status !== 'cancelled')
+    // "Sah" (pipeline) — order yang admin/ sistem dah sahkan; buang pending, cancelled, refunded.
+    const ACTIVE = ['confirmed', 'preparing', 'delivering', 'delivered']
+    const activeOrders = pageOrders.filter(o => ACTIVE.includes(o.status))
+    const confirmedOrders = activeOrders.length
+    const revenue = activeOrders.reduce((sum, o) => sum + Number(o.total), 0)
+    // "Dah bayar" — wang sebenar diterima: online payment_status='paid', atau COD/bank dah delivered.
+    const revenuePaid = activeOrders
+      .filter(o => o.payment_status === 'paid' || o.status === 'delivered')
       .reduce((sum, o) => sum + Number(o.total), 0)
     const totalLeads = pageLeads.length
     const views = page.view_count ?? 0
@@ -46,6 +51,7 @@ export async function GET() {
       orders: totalOrders,
       confirmed_orders: confirmedOrders,
       revenue,
+      revenue_paid: revenuePaid,
       aov,
       order_rate: orderRate,
       lead_rate: leadRate,

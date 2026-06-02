@@ -79,7 +79,7 @@ type AdminTab = 'pages' | 'orders' | 'leads' | 'performance'
 interface LpPerf {
   id: string; title: string; slug: string; is_active: boolean; created_at: string
   views: number; leads: number; orders: number; confirmed_orders: number
-  revenue: number; aov: number; order_rate: number; lead_rate: number
+  revenue: number; revenue_paid: number; aov: number; order_rate: number; lead_rate: number
 }
 
 const STATUS_CONFIG = {
@@ -1224,12 +1224,13 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           {!perfLoading && sortedPerf.length > 0 && (
             <>
               {/* Summary cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {[
                   { label: 'Total Views', value: sortedPerf.reduce((s, p) => s + p.views, 0).toLocaleString(), icon: '👁️' },
-                  { label: 'Total Orders', value: sortedPerf.reduce((s, p) => s + p.orders, 0), icon: '🛒' },
-                  { label: 'Total Revenue', value: `RM${sortedPerf.reduce((s, p) => s + p.revenue, 0).toFixed(0)}`, icon: '💰' },
                   { label: 'Total Leads', value: sortedPerf.reduce((s, p) => s + p.leads, 0), icon: '👥' },
+                  { label: 'Total Orders', value: sortedPerf.reduce((s, p) => s + p.orders, 0), icon: '🛒' },
+                  { label: 'Revenue (Sah)', value: `RM${sortedPerf.reduce((s, p) => s + p.revenue, 0).toFixed(0)}`, icon: '💰' },
+                  { label: 'Revenue (Dah Bayar)', value: `RM${sortedPerf.reduce((s, p) => s + p.revenue_paid, 0).toFixed(0)}`, icon: '✅' },
                 ].map(s => (
                   <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3">
                     <p className="text-xs text-gray-400 mb-1">{s.icon} {s.label}</p>
@@ -1251,7 +1252,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           { col: 'lead_rate', label: 'Lead Rate' },
                           { col: 'orders', label: 'Orders' },
                           { col: 'order_rate', label: 'Order Rate' },
-                          { col: 'revenue', label: 'Revenue' },
+                          { col: 'revenue', label: 'Revenue (Sah)' },
+                          { col: 'revenue_paid', label: 'Dah Bayar' },
                           { col: 'aov', label: 'AOV' },
                         ] as { col: keyof LpPerf; label: string }[]).map(h => (
                           <th key={h.col}
@@ -1296,6 +1298,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           <td className="px-4 py-3.5 text-right font-black text-gray-900">
                             {p.revenue > 0 ? `RM${p.revenue.toFixed(0)}` : '—'}
                           </td>
+                          <td className="px-4 py-3.5 text-right font-bold text-green-700">
+                            {p.revenue_paid > 0 ? `RM${p.revenue_paid.toFixed(0)}` : '—'}
+                          </td>
                           <td className="px-4 py-3.5 text-right text-gray-600">
                             {p.aov > 0 ? `RM${p.aov.toFixed(0)}` : '—'}
                           </td>
@@ -1312,7 +1317,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </div>
 
               <p className="text-xs text-gray-400 text-center">
-                Click column headers to sort · Lead Rate = leads/views · Order Rate = orders/views
+                Click column headers to sort · Lead Rate = leads/views · Order Rate = orders/views<br />
+                Revenue (Sah) = order disahkan (buang pending/cancelled) · Dah Bayar = wang sebenar diterima (online paid / COD delivered)
               </p>
             </>
           )}
