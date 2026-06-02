@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Download, Printer, Upload, CheckSquare, Square, Loader2,
   FileDown, Package, RefreshCw, Check,
-  AlertCircle, Eye, EyeOff,
+  AlertCircle, Eye, EyeOff, ClipboardList,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -341,6 +341,106 @@ function downloadTrackingTemplate() {
   ])
 }
 
+// ─── Pick list (senarai tarik) ──────────────────────────────────────────────────
+
+interface PickRow { product_name: string; variant_name: string | null; quantity: number; is_shippable: boolean }
+
+// Kumpul item merentas order yang dipilih. Setiap VARIANT dikira berasingan
+// (cth Ceri 1kg vs Ceri 500g = 2 baris). Pisah fresh (cold) dan dry sebab
+// ditarik dari tempat berbeza (peti sejuk vs rak).
+function buildPickList(orders: ExportOrder[]): { fresh: PickRow[]; dry: PickRow[] } {
+  const map = new Map<string, PickRow>()
+  for (const o of orders) {
+    for (const it of o.items) {
+      const key = `${it.product_name}__${it.variant_name ?? ''}`
+      const ex = map.get(key)
+      if (ex) ex.quantity += it.quantity
+      else map.set(key, { product_name: it.product_name, variant_name: it.variant_name, quantity: it.quantity, is_shippable: it.is_shippable })
+    }
+  }
+  const byName = (a: PickRow, b: PickRow) =>
+    a.product_name.localeCompare(b.product_name) || (a.variant_name ?? '').localeCompare(b.variant_name ?? '')
+  const all = [...map.values()]
+  return {
+    fresh: all.filter((x) => !x.is_shippable).sort(byName),
+    dry: all.filter((x) => x.is_shippable).sort(byName),
+  }
+}
+
+function printPickList(orders: ExportOrder[]) {
+  const win = window.open('', '_blank')
+  if (!win) return
+
+  const { fresh, dry } = buildPickList(orders)
+  const totalTypes = fresh.length + dry.length
+  const totalUnits = [...fresh, ...dry].reduce((s, x) => s + x.quantity, 0)
+
+  const rowHtml = (it: PickRow) =>
+    `<li><span class="chk"></span><span class="iname">${it.product_name}${it.variant_name ? ` <span class="variant">(${it.variant_name})</span>` : ''}</span><span class="qty">×${it.quantity}</span></li>`
+
+  const sectionHtml = (title: string, items: PickRow[]) =>
+    items.length
+      ? `<div class="group">
+           <div class="group-title">${title}<span class="group-count">${items.length} jenis</span></div>
+           <ul class="items">${items.map(rowHtml).join('')}</ul>
+         </div>`
+      : ''
+
+  const today = new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Senarai Tarik — SyababFresh</title>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #fff; color: #111; padding: 24px; max-width: 720px; margin: 0 auto; }
+    .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 4px; }
+    .title { font-size: 22px; font-weight: 900; letter-spacing: 0.5px; }
+    .sub { font-size: 12px; color: #666; margin-top: 2px; }
+    .meta { text-align: right; font-size: 12px; color: #444; }
+    .meta b { font-size: 15px; color: #111; }
+    .group { margin-top: 18px; }
+    .group-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .group-title.fresh { background: #ecfdf5; color: #047857; }
+    .group-title.dry { background: #fff7ed; color: #c2410c; }
+    .group-count { font-size: 10px; font-weight: 700; opacity: 0.8; }
+    .items { list-style: none; margin-top: 6px; }
+    .items li { display: flex; align-items: center; gap: 12px; padding: 9px 8px; border-bottom: 1px solid #eee; }
+    .chk { width: 18px; height: 18px; border: 2px solid #333; border-radius: 4px; flex-shrink: 0; }
+    .iname { flex: 1; font-size: 15px; font-weight: 600; }
+    .variant { color: #2563eb; font-weight: 700; }
+    .qty { font-size: 18px; font-weight: 900; min-width: 56px; text-align: right; }
+    .foot { margin-top: 20px; border-top: 2px solid #111; padding-top: 8px; font-size: 12px; color: #666; display: flex; justify-content: space-between; }
+    .empty { text-align: center; color: #999; padding: 40px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <div class="title">SENARAI TARIK</div>
+      <div class="sub">Rujukan pack — tarik stok ikut kuantiti</div>
+    </div>
+    <div class="meta">
+      <div>${today}</div>
+      <div><b>${orders.length}</b> order · <b>${totalTypes}</b> jenis · <b>${totalUnits}</b> unit</div>
+    </div>
+  </div>
+  ${totalTypes === 0 ? '<div class="empty">Tiada item.</div>' : ''}
+  ${sectionHtml('❄️ Fresh (cold)', fresh).replace('class="group-title"', 'class="group-title fresh"')}
+  ${sectionHtml('📦 Dry', dry).replace('class="group-title"', 'class="group-title dry"')}
+  <div class="foot">
+    <span>SyababFresh — Operasi Pack</span>
+    <span>Tick setiap baris bila siap tarik</span>
+  </div>
+</body>
+</html>`)
+  win.document.close()
+  setTimeout(() => win.print(), 400)
+}
+
 // ─── Tracking import parser ────────────────────────────────────────────────────
 
 function parseTrackingCsv(text: string): { order_number: string; carrier_id: string; tracking_number: string }[] {
@@ -501,6 +601,11 @@ export function ExportsClient({
   function handlePrintAwb() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
     printAwb(selectedOrders)
+  }
+
+  function handlePrintPickList() {
+    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
+    printPickList(selectedOrders)
   }
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -667,6 +772,11 @@ export function ExportsClient({
                     disabled={selected.size === 0}
                     className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-40 transition-colors">
                     <FileDown className="h-3.5 w-3.5" />Poslaju XLSX
+                  </button>
+                  <button onClick={handlePrintPickList}
+                    disabled={selected.size === 0}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-xl hover:bg-teal-700 disabled:opacity-40 transition-colors">
+                    <ClipboardList className="h-3.5 w-3.5" />Senarai Tarik
                   </button>
                   <button onClick={handlePrintAwb}
                     disabled={selected.size === 0}

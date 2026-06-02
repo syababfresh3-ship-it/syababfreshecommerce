@@ -64,7 +64,20 @@ Sebaik je fail dijana, order yang dipilih **auto-ditanda "sudah export"** (badge
 - Kalau staf lain cuba export semula order yang **dah** di-export, sistem **beri amaran** ⚠️ ("order ni DAH di-export sebelum ni …") supaya tak hantar 2 kali.
 - Maknanya: **satu order = satu kali export**. Kalau betul-betul perlu export semula (cth silap fail), matikan toggle dulu.
 
-### 1.4 Cetak slip pek (Print AWB)
+### 1.4 Senarai Tarik (pick list — tarik stok)
+
+**Admin → Shipping → Export & Import**, tab **Export & Print**
+
+1. Tick order yang nak diproses → klik 🟢 **Senarai Tarik**.
+2. Buka helaian sedia cetak yang **kumpulkan semua item** dari order dipilih + **jumlah kuantiti**:
+   - Setiap **variant dikira berasingan** (cth *Ceri Uzbekistan (1kg) ×30* dan *Ceri Uzbekistan (500g) ×20* = 2 baris berbeza).
+   - Dipisah **❄️ Fresh (cold)** dan **📦 Dry** — sebab ditarik dari peti sejuk vs rak.
+   - Setiap baris ada **☐ kotak tick** untuk operasi tanda bila siap tarik.
+3. Guna senarai ni untuk **tarik stok sekali gus** sebelum pack — tak perlu kira order satu-satu.
+
+> Beza dengan **Print AWB**: Senarai Tarik = **jumlah keseluruhan** (berapa nak tarik). Print AWB = **slip per-order** (untuk pack & tampal pada bungkusan).
+
+### 1.5 Cetak slip pek (Print AWB)
 
 1. Tick order → **Print AWB**.
 2. Setiap slip ada bahagian **ITEM senarai by-point** dengan **☐ kotak tick**.
@@ -72,11 +85,11 @@ Sebaik je fail dijana, order yang dipilih **auto-ditanda "sudah export"** (badge
    - Bilangan keping dalam satu unit rujuk **nama variant** (cth `(3 pack)`), bukan `×`.
 3. **Packer wajib tick setiap item** semasa pack supaya tiada terlepas. Semak `ITEM (n)` = bilangan baris.
 
-### 1.5 Selepas pack
+### 1.6 Selepas pack
 
 - Tukar status order ke **Preparing** masa mula pack, dan **Dihantar** (`delivering`) bila dah serah ke kurier.
 
-### 1.6 Order Pickup (Ambil Sendiri)
+### 1.7 Order Pickup (Ambil Sendiri)
 
 Customer boleh pilih **Ambil Sendiri** semasa checkout — pesanan diambil di kedai Bangi, **tiada caj penghantaran**, dan customer pilih **tarikh ambil**.
 
@@ -124,7 +137,7 @@ Customer boleh pilih **Ambil Sendiri** semasa checkout — pesanan diambil di ke
 | Dah serah ke kurier / dalam perjalanan | **Dihantar** (`delivering`) |
 | Customer dah terima | **Delivered** |
 
-- Setiap perubahan **hantar push ke customer** (cth "Dalam Penghantaran 🚚", "Order Delivered 🎉"). Untuk order **pickup**, `delivering` papar **"Sedia Diambil 🎉"** (lihat 1.6).
+- Setiap perubahan **hantar push ke customer** (cth "Dalam Penghantaran 🚚", "Order Delivered 🎉"). Untuk order **pickup**, `delivering` papar **"Sedia Diambil 🎉"** (lihat 1.7).
 - **Jangan** set `Delivered` sebelum betul-betul sampai (atau diambil, untuk pickup).
 - Order COD: pastikan duit dah terima sebelum tutup.
 
