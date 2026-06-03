@@ -138,7 +138,7 @@ function mapLpOrder(lp: any): ExportOrder {
     order_number: lp.order_number,
     status: lp.status,
     payment_method: lp.payment_method,
-    payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
+    payment_status: lp.payment_status ?? 'unpaid',
     total: lp.total,
     notes: lp.notes ?? null,
     created_at: lp.created_at,
@@ -187,7 +187,7 @@ export default async function ShippingExportsPage({
     getOrders(fromISO, toISO, false),
     getOrders(fromISO, toISO, true),
     supabaseAdmin.from('lp_guest_orders')
-      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id')
+      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id')
       .in('status', ['confirmed', 'preparing', 'delivering'])   // delivering disertakan utk pickup; dibuang dari tab export di bawah
       .gte('created_at', fromISO)
       .lte('created_at', toISO)
@@ -199,13 +199,19 @@ export default async function ShippingExportsPage({
   const lpDelivery = lpTagged.filter((x) => !x.pickup && x.status !== 'delivering').map((x) => x.order)
   const lpPickup = lpTagged.filter((x) => x.pickup).map((x) => x.order)
 
+  // Order online (fpx/ewallet) yang BELUM bayar tak boleh dihantar — elak ia bocor ke
+  // export & jadi AWB pendua. COD/bank transfer ship macam biasa (bayar masa hantar).
+  // Polisi sama dengan senarai Orders (isPaidOrOffline).
+  const isPayable = (o: ExportOrder) =>
+    ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
+
   // Tab Export — order hantar sahaja (pickup dibuang)
-  const allOrders = [...deliveryOrders, ...lpDelivery].sort(
+  const allOrders = [...deliveryOrders, ...lpDelivery].filter(isPayable).sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
   // Tab Pickup — order ambil sendiri (kedai + LP), susun ikut tarikh ambil paling awal
-  const pickupOrders = [...pickupStoreOrders, ...lpPickup].sort((a, b) => {
+  const pickupOrders = [...pickupStoreOrders, ...lpPickup].filter(isPayable).sort((a, b) => {
     const da = a.pickup_date ? new Date(a.pickup_date).getTime() : Infinity
     const db = b.pickup_date ? new Date(b.pickup_date).getTime() : Infinity
     return da - db || new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
