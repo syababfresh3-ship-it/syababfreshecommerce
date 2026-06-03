@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -51,6 +51,8 @@ const sections = [
     label: 'OTHER',
     items: [
       { href: '/admin/customers', label: 'Customers',     icon: Users },
+      { href: '/admin/contacts',  label: 'All Contacts',  icon: Users },
+      { href: '/admin/resellers', label: 'Reseller',      icon: Store },
       { href: '/admin/analytics', label: 'Analytics',      icon: BarChart2 },
       { href: '/admin/delivery',  label: 'Delivery Zones', icon: MapPin },
       { href: '/admin/payments',  label: 'Payment Methods',  icon: CreditCard },

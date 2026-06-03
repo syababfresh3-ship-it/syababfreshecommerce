@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { getAppSettings } from '@/lib/app-settings'
+import { upsertCustomer } from '@/lib/customers'
 
 interface CartItem {
   product_id: string
@@ -282,6 +283,12 @@ export async function POST(request: Request) {
     if (Object.keys(updates).length > 0) {
       await supabase.from('profiles').update(updates).eq('id', user.id)
     }
+    // CRM master — daftar/segar kenalan storefront (best-effort)
+    if (parsedPhone) upsertCustomer({
+      phone: parsedPhone, source: 'store', name: parsedName || null,
+      email: user.email ?? null, address: delivery_address, userId: user.id,
+      lastOrderAt: new Date().toISOString(),
+    }).catch(() => {})
   }
 
   return NextResponse.json({

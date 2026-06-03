@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { sendCapiLead } from '@/lib/meta-capi'
+import { upsertCustomer } from '@/lib/customers'
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -41,6 +42,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // CRM master — daftar kenalan dari lead (best-effort)
+  if (phone) upsertCustomer({ phone, source: 'lead', name }).catch(() => {})
 
   sendCapiLead({
     leadId: lead.id,

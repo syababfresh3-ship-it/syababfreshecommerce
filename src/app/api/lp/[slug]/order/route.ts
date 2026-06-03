@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
+import { upsertCustomer } from '@/lib/customers'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
@@ -235,6 +236,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // CRM master — daftar/segar kenalan ikut phone (best-effort, tak block order)
+  upsertCustomer({
+    phone: phone.trim(),
+    source: 'lp',
+    name: name.trim(),
+    email: customerEmail,
+    address: isPickup ? null : address.trim(),
+    postcode: isPickup ? null : (postcode?.trim() || null),
+    userId,
+    lastOrderAt: new Date().toISOString(),
+  }).catch(() => {})
 
   // FPX / e-wallet — redirect to Chip payment gateway
   if (payment_method === 'fpx' || payment_method === 'ewallet') {

@@ -68,6 +68,8 @@ function badge(text: string, color = '#16a34a') {
   return `<span style="display:inline-block;background:${color};color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:0.5px;">${text}</span>`
 }
 
+// Pulang true bila email berjaya dihantar (penghantar lama abaikan nilai pulang —
+// selamat). Broadcast guna nilai ni untuk kira sent/failed.
 async function send(opts: {
   from: string
   fromName: string
@@ -75,10 +77,10 @@ async function send(opts: {
   toName: string
   subject: string
   html: string
-}) {
+}): Promise<boolean> {
   if (!API_KEY) {
     console.warn('[zeptomail] ZEPTOMAIL_API_KEY not set — skipping email')
-    return
+    return false
   }
 
   try {
@@ -100,9 +102,12 @@ async function send(opts: {
     if (!res.ok) {
       const text = await res.text()
       console.error(`[zeptomail] ${res.status} error:`, text)
+      return false
     }
+    return true
   } catch (err) {
     console.error('[zeptomail] fetch failed:', err)
+    return false
   }
 }
 
@@ -453,6 +458,30 @@ export async function sendPaymentReminderEmail(params: {
     to: params.to,
     toName: params.customerName,
     subject: `⏳ Selesaikan pembayaran pesanan ${params.orderNumber} — SyababFresh`,
+    html,
+  })
+}
+
+// ─── email 6: broadcast CRM (mesej bebas admin → balut brand) ──────────────────
+// Mesej ditaip admin (teks biasa, {nama} sudah digantikan oleh pemanggil). Kita
+// esc + tukar newline ke <br>, balut dalam layout() berbrand. Guna FROM_NOREPLY.
+// Pulang true bila berjaya supaya broadcast boleh kira sent/failed.
+export async function sendBroadcastEmail(params: {
+  to: string
+  toName: string | null
+  subject: string
+  message: string
+}): Promise<boolean> {
+  const bodyHtml = esc(params.message).replace(/\n/g, '<br/>')
+  const html = layout(params.subject, `
+    <div style="font-size:14px;color:#374151;line-height:1.7;">${bodyHtml}</div>
+  `)
+  return send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.toName ?? 'Pelanggan',
+    subject: params.subject,
     html,
   })
 }
