@@ -2,6 +2,16 @@
   "name": "syababfresh",
   "version": "0.1.0",
   "private": true,
+  "comment_browserslist": "Sasaran browser moden — buang polyfill legacy (Array.at, flat, Object.fromEntries, dll). Versi ini >4 tahun, selamat untuk trafik MY 2026 termasuk in-app webview FB/TikTok.",
+  "browserslist": [
+    "chrome >= 100",
+    "edge >= 100",
+    "firefox >= 100",
+    "safari >= 15.4",
+    "ios_saf >= 15.4",
+    "and_chr >= 100",
+    "not dead"
+  ],
   "scripts": {
     "dev": "NODE_OPTIONS='--max-http-header-size=65536' next dev -p 3006",
     "build": "next build",

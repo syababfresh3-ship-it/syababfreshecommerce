@@ -22,6 +22,7 @@ export default function supabaseImageLoader({
   if (!src.includes(OBJECT_MARKER)) return src
   const base = src.split('?')[0].replace(OBJECT_MARKER, RENDER_PATH)
   const w = Math.min(width, MAX_WIDTH)
-  const q = quality ?? 70
+  // 62 = jimat ~bytes (PSI "improve image delivery") tapi masih tajam untuk foto produk
+  const q = quality ?? 62
   return `${base}?width=${w}&quality=${q}`
 }

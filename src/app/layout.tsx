@@ -91,9 +91,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const pixels = await getPixelConfig()
+  // Origin Supabase Storage (sumber semua imej produk) — preconnect supaya browser
+  // buka sambungan awal → imej (calon LCP) mula download lebih cepat.
+  const supabaseOrigin = (() => {
+    try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin } catch { return null }
+  })()
   return (
     <html lang="ms" suppressHydrationWarning>
       <head>
+        {/* Preconnect ke CDN imej Supabase (tanpa crossorigin — padan fetch <img> no-CORS) */}
+        {supabaseOrigin && (
+          <>
+            <link rel="preconnect" href={supabaseOrigin} />
+            <link rel="dns-prefetch" href={supabaseOrigin} />
+          </>
+        )}
+
         {/* PWA Icons */}
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
