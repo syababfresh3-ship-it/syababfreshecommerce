@@ -401,3 +401,58 @@ export async function sendTrackingEmail(params: {
     html,
   })
 }
+
+// ─── email 5: abandoned payment reminder (online order belum dibayar) ──────────
+// Dihantar oleh /api/cron/payment-reminder bila order FPX/e-wallet masih unpaid
+// > 1 jam. payUrl = /api/pay/[id] yang jana semula checkout Chip (tak pernah basi).
+
+export async function sendPaymentReminderEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  total: number
+  payUrl: string
+}) {
+  const html = layout('Selesaikan Pembayaran', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(params.customerName)}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Pesanan anda hampir selesai ⏳</h1>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.6;">
+      Kami perasan pesanan anda belum dibayar. Stok terhad — selesaikan pembayaran
+      sekarang untuk pastikan pesanan anda dikunci.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 16px;margin-bottom:24px;">
+      <tr>
+        <td style="font-size:13px;color:#92400e;">No. Pesanan</td>
+        <td style="font-size:14px;font-weight:700;color:#92400e;text-align:right;">${esc(params.orderNumber)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:13px;color:#92400e;padding-top:6px;">Jumlah Perlu Dibayar</td>
+        <td style="font-size:16px;font-weight:800;color:#b45309;text-align:right;padding-top:6px;">RM${Number(params.total).toFixed(2)}</td>
+      </tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center">
+        <a href="${params.payUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;">
+          💳 Bayar Sekarang
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+      Sudah membayar? Abaikan email ini.<br/>
+      Ada masalah pembayaran? Hubungi kami via WhatsApp.
+    </p>
+  `)
+
+  await send({
+    from: FROM_ORDER,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `⏳ Selesaikan pembayaran pesanan ${params.orderNumber} — SyababFresh`,
+    html,
+  })
+}
