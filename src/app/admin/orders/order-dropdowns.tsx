@@ -19,7 +19,7 @@ const PAYMENT_OPTIONS = [
   { value: 'paid',   label: 'Paid',     cls: 'text-green-700 bg-green-50' },
 ] as const
 
-export function StatusDropdown({ orderId, currentStatus, onUpdate }: { orderId: string; currentStatus: string; onUpdate?: () => void }) {
+export function StatusDropdown({ orderId, currentStatus, isLp, onUpdate }: { orderId: string; currentStatus: string; isLp?: boolean; onUpdate?: () => void }) {
   const [status, setStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -31,10 +31,12 @@ export function StatusDropdown({ orderId, currentStatus, onUpdate }: { orderId: 
     setLoading(true)
     const prev = status
     setStatus(next)
-    const res = await fetch(`/api/admin/orders/${orderId}`, {
+    // LP orders live in lp_guest_orders → guna endpoint berbeza (kalau tidak update
+    // ke jadual `orders` padan 0 baris, pulang ok palsu, & revert bila refresh).
+    const res = await fetch(isLp ? '/api/admin/landing-pages/orders' : `/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
+      body: JSON.stringify(isLp ? { id: orderId, status: next } : { status: next }),
     })
     if (!res.ok) {
       toast.error('Failed to update status')
@@ -70,11 +72,13 @@ export function PaymentDropdown({
   orderId,
   currentStatus,
   paymentMethod,
+  isLp,
   onUpdate,
 }: {
   orderId: string
   currentStatus: string
   paymentMethod: string
+  isLp?: boolean
   onUpdate?: () => void
 }) {
   const [status, setStatus] = useState(currentStatus)
@@ -89,10 +93,11 @@ export function PaymentDropdown({
     setLoading(true)
     const prev = status
     setStatus(next)
-    const res = await fetch(`/api/admin/orders/${orderId}`, {
+    // LP orders → endpoint lp_guest_orders (kalau tidak update no-op senyap → revert).
+    const res = await fetch(isLp ? '/api/admin/landing-pages/orders' : `/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payment_status: next }),
+      body: JSON.stringify(isLp ? { id: orderId, payment_status: next } : { payment_status: next }),
     })
     if (!res.ok) {
       toast.error('Failed to update payment status')

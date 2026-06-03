@@ -38,7 +38,7 @@ export async function PATCH(request: Request) {
   if (forbidden) return forbidden
 
   const body = await request.json()
-  const { id, status, name, phone, address, postcode, notes, courier_id, tracking_number, tracking_url, shipment_notes } = body
+  const { id, status, payment_status, name, phone, address, postcode, notes, courier_id, tracking_number, tracking_url, shipment_notes } = body
 
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
@@ -49,6 +49,13 @@ export async function PATCH(request: Request) {
     const VALID = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled', 'refunded']
     if (!VALID.includes(status)) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     update.status = status
+  }
+
+  // Payment status update (manual confirm COD/bank, atau tanda belum bayar)
+  if (payment_status !== undefined) {
+    const VALID_PAY = ['unpaid', 'paid', 'refunded', 'failed']
+    if (!VALID_PAY.includes(payment_status)) return NextResponse.json({ error: 'Invalid payment_status' }, { status: 400 })
+    update.payment_status = payment_status
   }
 
   // Customer details update

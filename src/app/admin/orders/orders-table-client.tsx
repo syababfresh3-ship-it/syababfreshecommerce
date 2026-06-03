@@ -230,8 +230,8 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                 </div>
               </div>
               <div className="px-4 pb-3 border-t border-gray-50 pt-2 flex items-center gap-3">
-                <StatusDropdown orderId={order.id} currentStatus={order.status} />
-                <PaymentDropdown orderId={order.id} currentStatus={order.payment_status} paymentMethod={order.payment_method} />
+                <StatusDropdown orderId={order.id} currentStatus={order.status} isLp={(order as any)._isLp} />
+                <PaymentDropdown orderId={order.id} currentStatus={order.payment_status} paymentMethod={order.payment_method} isLp={(order as any)._isLp} />
               </div>
             </div>
           )
@@ -320,11 +320,11 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                     <span className={`text-sm ${action.color}`}>{action.label}</span>
                   </td>
                   <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
-                    <StatusDropdown orderId={order.id} currentStatus={order.status} />
+                    <StatusDropdown orderId={order.id} currentStatus={order.status} isLp={(order as any)._isLp} />
                     <div className="text-xs text-gray-400 mt-1">{methodLabel[order.payment_method] ?? ''}</div>
                   </td>
                   <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
-                    <PaymentDropdown orderId={order.id} currentStatus={order.payment_status} paymentMethod={order.payment_method} />
+                    <PaymentDropdown orderId={order.id} currentStatus={order.payment_status} paymentMethod={order.payment_method} isLp={(order as any)._isLp} />
                   </td>
                   <td className="px-4 py-3.5 text-right">
                     <span className="text-sm font-bold text-gray-900">RM{Number(order.total).toFixed(2)}</span>
