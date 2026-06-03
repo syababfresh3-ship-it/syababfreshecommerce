@@ -200,9 +200,11 @@ export default async function AdminOrdersPage({
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
-  let allLpOrders = lpRows.filter((o: any) =>
+  // Polisi sama untuk storefront & LP.
+  const isPaidOrOffline = (o: any) =>
     ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
-  )
+  const visibleOrders = orders.filter(isPaidOrOffline)
+  let allLpOrders = lpRows.filter(isPaidOrOffline)
   // Search filter — match order number, customer name, or phone
   if (q) {
     const lower = q.toLowerCase()
@@ -240,7 +242,7 @@ export default async function AdminOrdersPage({
   }))
 
   // Merge and sort by created_at desc
-  const allOrders = [...orders, ...lpAsOrders].sort(
+  const allOrders = [...visibleOrders, ...lpAsOrders].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
 
