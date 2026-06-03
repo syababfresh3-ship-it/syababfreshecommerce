@@ -30,6 +30,7 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
   const [page, setPage] = useState(1)
   const [openId, setOpenId] = useState<string | null>(null)
   const [broadcastOpen, setBroadcastOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const PAGE_SIZE = 50
 
   const filtered = useMemo(() => {
@@ -58,6 +59,23 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
     resellers: contacts.filter(c => c.is_reseller).length,
   }), [contacts])
 
+  // Pilihan manual: kalau ada yang ditick, broadcast guna yang dipilih sahaja;
+  // jika tiada, fallback ke seluruh senarai tapisan semasa.
+  const selectedContacts = useMemo(() => contacts.filter(c => selected.has(c.id)), [contacts, selected])
+  const allFilteredSelected = filtered.length > 0 && filtered.every(c => selected.has(c.id))
+  const broadcastAudience = selected.size ? selectedContacts : filtered
+  function toggleSelect(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+  function toggleSelectAllFiltered() {
+    setSelected(prev => {
+      const n = new Set(prev)
+      if (allFilteredSelected) filtered.forEach(c => n.delete(c.id))
+      else filtered.forEach(c => n.add(c.id))
+      return n
+    })
+  }
+
   return (
     <div className="max-w-5xl">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -67,7 +85,7 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
         </div>
         <button onClick={() => setBroadcastOpen(true)}
           className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 px-3.5 py-2 rounded-xl shadow-sm">
-          <Send className="h-4 w-4" /> Broadcast
+          <Send className="h-4 w-4" /> Broadcast{selected.size > 0 ? ` (${selected.size})` : ''}
         </button>
       </div>
 
@@ -116,32 +134,45 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
         </div>
       </div>
 
-      <p className="text-xs text-gray-400 mb-2">
-        {filtered.length === 0 ? '0 kenalan'
-          : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} daripada ${filtered.length}`}
-      </p>
+      <div className="flex items-center justify-between mb-2 gap-3">
+        <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
+          <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAllFiltered}
+            disabled={filtered.length === 0} className="rounded text-green-600 focus:ring-green-400" />
+          Pilih semua ({filtered.length})
+        </label>
+        <p className="text-xs text-gray-400">
+          {selected.size > 0
+            ? <span className="text-green-600 font-semibold">{selected.size} dipilih · <button onClick={() => setSelected(new Set())} className="underline hover:text-green-700">kosongkan</button></span>
+            : filtered.length === 0 ? '0 kenalan'
+              : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} daripada ${filtered.length}`}
+        </p>
+      </div>
 
       {/* List */}
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm divide-y divide-gray-50">
         {pageItems.map(c => (
-          <button key={c.id} onClick={() => setOpenId(c.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-            <div className="h-9 w-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-sm shrink-0">{(c.name ?? '?').charAt(0).toUpperCase()}</div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <p className="font-semibold text-gray-900 text-sm truncate">{c.name ?? '—'}</p>
-                {c.is_reseller && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">RESELLER</span>}
+          <div key={c.id} className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 ${selected.has(c.id) ? 'bg-green-50/50' : ''}`}>
+            <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)}
+              className="rounded text-green-600 focus:ring-green-400 shrink-0" />
+            <button onClick={() => setOpenId(c.id)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+              <div className="h-9 w-9 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-sm shrink-0">{(c.name ?? '?').charAt(0).toUpperCase()}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{c.name ?? '—'}</p>
+                  {c.is_reseller && <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">RESELLER</span>}
+                </div>
+                <p className="text-xs text-gray-400 truncate">{c.phone_norm}{c.email ? ` · ${c.email}` : ''}</p>
+                <div className="flex gap-1 mt-1 flex-wrap">
+                  {(c.sources ?? []).map(s => <span key={s} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${SOURCE_STYLE[s] ?? 'bg-gray-100 text-gray-500'}`}>{s}</span>)}
+                  {(c.tags ?? []).map(t => <span key={t} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">#{t}</span>)}
+                </div>
               </div>
-              <p className="text-xs text-gray-400 truncate">{c.phone_norm}{c.email ? ` · ${c.email}` : ''}</p>
-              <div className="flex gap-1 mt-1 flex-wrap">
-                {(c.sources ?? []).map(s => <span key={s} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${SOURCE_STYLE[s] ?? 'bg-gray-100 text-gray-500'}`}>{s}</span>)}
-                {(c.tags ?? []).map(t => <span key={t} className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">#{t}</span>)}
+              <div className="text-right shrink-0">
+                <p className="font-bold text-gray-900 text-sm">RM{Number(c.total_spend).toFixed(0)}</p>
+                <p className="text-xs text-gray-400">{c.order_count} order</p>
               </div>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="font-bold text-gray-900 text-sm">RM{Number(c.total_spend).toFixed(0)}</p>
-              <p className="text-xs text-gray-400">{c.order_count} order</p>
-            </div>
-          </button>
+            </button>
+          </div>
         ))}
         {filtered.length === 0 && <p className="text-sm text-gray-400 py-10 text-center">Tiada kenalan sepadan.</p>}
       </div>
@@ -158,14 +189,14 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
       )}
 
       {openId && <ContactDrawer id={openId} onClose={() => setOpenId(null)} />}
-      {broadcastOpen && <BroadcastDrawer audience={filtered} onClose={() => setBroadcastOpen(false)} />}
+      {broadcastOpen && <BroadcastDrawer audience={broadcastAudience} isManual={selected.size > 0} onClose={() => setBroadcastOpen(false)} />}
     </div>
   )
 }
 
 const CAP = { wa: 200, email: 500 } as const
 
-function BroadcastDrawer({ audience, onClose }: { audience: Contact[]; onClose: () => void }) {
+function BroadcastDrawer({ audience, isManual, onClose }: { audience: Contact[]; isManual?: boolean; onClose: () => void }) {
   const [channel, setChannel] = useState<'wa' | 'email'>('wa')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -212,7 +243,7 @@ function BroadcastDrawer({ audience, onClose }: { audience: Contact[]; onClose: 
           <h2 className="font-bold text-gray-900 flex items-center gap-2"><Send className="h-4 w-4 text-green-600" /> Broadcast</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
         </div>
-        <p className="text-xs text-gray-400 mb-4">Hantar ke {audience.length} kenalan dalam tapisan semasa.</p>
+        <p className="text-xs text-gray-400 mb-4">Hantar ke {audience.length} kenalan {isManual ? 'yang dipilih' : 'dalam tapisan semasa'}.</p>
 
         {/* Channel */}
         <div className="grid grid-cols-2 gap-2 mb-4">
