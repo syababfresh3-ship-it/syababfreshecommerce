@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -40,11 +41,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if ('meta_pixel_id' in body) update.meta_pixel_id = body.meta_pixel_id || null
   if ('google_tag_id' in body) update.google_tag_id = body.google_tag_id || null
 
-  const { error } = await supabase!.from('landing_pages').update(update).eq('id', id)
+  const { data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single()
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Slug sudah digunakan' }, { status: 409 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  // Bust cache LP supaya edit terus nampak (cache 60s tak perlu ditunggu)
+  if (data?.slug) revalidateTag(`lp-${data.slug}`, 'default')
   return NextResponse.json({ ok: true })
 }
 
@@ -53,7 +56,8 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (forbidden) return forbidden
 
   const { id } = await params
-  const { error } = await supabase!.from('landing_pages').delete().eq('id', id)
+  const { data, error } = await supabase!.from('landing_pages').delete().eq('id', id).select('slug').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (data?.slug) revalidateTag(`lp-${data.slug}`, 'default')
   return NextResponse.json({ ok: true })
 }

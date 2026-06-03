@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import Link from 'next/link'
@@ -13,7 +14,42 @@ import { LpCartBar } from './lp-cart-bar'
 import { LpCountdown } from './lp-countdown'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
+// ISR: cache LP setiap slug (trafik iklan tinggi → TTFB rendah = conversion lebih
+// baik). Stok cuma paparan (LP order TIDAK enforce stok), jadi cache 60s selamat.
+// Bust segera bila admin edit LP (tag lp-<slug>) atau edit produk (tag products).
+export const revalidate = 60
+
+// Data LP (page + produk + stok) — cached per-slug. Map dibina di luar cache sebab
+// unstable_cache mengserialize JSON (Map → {}).
+const getLpData = (slug: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createAdminClient()
+      const { data: page } = await supabase
+        .from('landing_pages')
+        .select('title, html_content, meta_pixel_id, google_tag_id')
+        .eq('slug', slug).eq('is_active', true).single()
+      if (!page) return null
+
+      const productSlugs = [...new Set([
+        ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
+        ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map((s: string) => s.trim())).flat(),
+      ])]
+
+      const [productsRes, stockRes] = await Promise.all([
+        productSlugs.length > 0
+          ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active, product_variants(id, name, price, compare_price, weight_grams, is_active, sort_order)').in('slug', productSlugs)
+          : Promise.resolve({ data: [] }),
+        productSlugs.length > 0
+          ? supabase.from('product_stock').select('product_id, available_stock')
+          : Promise.resolve({ data: [] }),
+      ])
+
+      return { page, products: productsRes.data ?? [], stock: stockRes.data ?? [] }
+    },
+    ['lp-data', slug],
+    { revalidate: 60, tags: ['lp', `lp-${slug}`, 'products'] },
+  )()
 
 // Strip <!DOCTYPE>/<html>/<head>/<body> wrappers so the content can be safely
 // injected inside a Next.js page via dangerouslySetInnerHTML without causing
@@ -39,36 +75,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function LandingPage({ params }: Props) {
   const { slug } = await params
-  const supabase = createAdminClient()
 
-  const [pageRes, appSettings] = await Promise.all([
-    supabase.from('landing_pages').select('title, html_content, meta_pixel_id, google_tag_id').eq('slug', slug).eq('is_active', true).single(),
+  const [data, appSettings] = await Promise.all([
+    getLpData(slug),
     getAppSettings(),
   ])
-  const page = pageRes.data
   const freeMin = Number(appSettings.free_delivery_min ?? 80)
   const pickupEnabled = appSettings.pickup_enabled !== 'false'
 
-  if (!page) notFound()
+  if (!data) notFound()
+  const { page, products, stock } = data
 
-  // Extract all {{product:slug}} and {{checkout:slug1,slug2,...}} placeholders
-  const productSlugs = [...new Set([
-    ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
-    ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map((s: string) => s.trim())).flat(),
-  ])]
-
-  // Fetch products + variants + stock in parallel
-  const [productsRes, stockRes] = await Promise.all([
-    productSlugs.length > 0
-      ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active, product_variants(id, name, price, compare_price, weight_grams, is_active, sort_order)').in('slug', productSlugs)
-      : Promise.resolve({ data: [] }),
-    productSlugs.length > 0
-      ? supabase.from('product_stock').select('product_id, available_stock')
-      : Promise.resolve({ data: [] }),
-  ])
-
-  const productsBySlug = new Map((productsRes.data ?? []).map(p => [p.slug, p]))
-  const stockByProductId = new Map((stockRes.data ?? []).map(s => [s.product_id, s.available_stock]))
+  const productsBySlug = new Map(products.map(p => [p.slug, p]))
+  const stockByProductId = new Map(stock.map(s => [s.product_id, s.available_stock]))
 
   const htmlContent = normaliseHtml(page.html_content)
 
