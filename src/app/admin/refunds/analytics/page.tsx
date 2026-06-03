@@ -64,6 +64,14 @@ export default function RefundAnalyticsPage() {
           <h2 className="text-sm font-bold text-gray-900 mb-2">Ikut Bulan</h2>
           {tallyRows(data.byMonth)}
         </section>
+
+        <section className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm col-span-2">
+          <h2 className="text-sm font-bold text-gray-900 mb-2">Ikut Item</h2>
+          {data.byItem && Object.keys(data.byItem).length > 0
+            ? tallyRows(data.byItem)
+            : <p className="text-sm text-gray-400">Tiada data item.</p>}
+          <p className="text-[11px] text-gray-400 mt-2">Ikut produk dalam order yang di-refund. Order berbilang item dikira pada setiap produknya.</p>
+        </section>
       </div>
     </div>
   )
