@@ -204,7 +204,9 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                 <Link href={`/admin/orders/${order.id}`} className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
-                    {(order as any)._isLp ? (
+                    {(order as any)._isManual ? (
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual</span>
+                    ) : (order as any)._isLp ? (
                       <span className="text-[9px] font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
                     ) : (
                       <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Storefront</span>
@@ -290,7 +292,9 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                       <Link href={`/admin/orders/${order.id}`} className="font-mono text-sm text-red-600 hover:underline font-bold">
                         {order.order_number}
                       </Link>
-                      {(order as any)._isLp ? (
+                      {(order as any)._isManual ? (
+                        <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual</span>
+                      ) : (order as any)._isLp ? (
                         <span className="text-xs font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
                       ) : (
                         <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Storefront</span>

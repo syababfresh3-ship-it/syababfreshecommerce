@@ -22,13 +22,20 @@ const dateTabs = [
   { value: 'bulan-ini', label: 'This Month' },
 ]
 
-export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp, activeFrom, activeTo, landingPages = [] }: {
+const payTabs = [
+  { value: '',        label: 'Semua bayaran' },
+  { value: 'unpaid',  label: '🔴 Belum Bayar' },
+  { value: 'paid',    label: '🟢 Sudah Bayar' },
+]
+
+export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp, activeFrom, activeTo, activePay, landingPages = [] }: {
   activeStatus?: string
   activeSearch?: string
   activeDate?: string
   activeLp?: string
   activeFrom?: string
   activeTo?: string
+  activePay?: string
   landingPages?: { id: string; title: string; slug: string }[]
 }) {
   const router = useRouter()
@@ -79,7 +86,7 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp,
     pushParams((p) => { if (value) p.set('date', value); else p.delete('date'); p.delete('from'); p.delete('to') })
   }
 
-  const hasActiveFilters = !!(activeStatus || activeSearch || activeDate || activeLp || activeFrom || activeTo)
+  const hasActiveFilters = !!(activeStatus || activeSearch || activeDate || activeLp || activeFrom || activeTo || activePay)
   const hasCustomRange = !!(activeFrom || activeTo)
 
   return (
@@ -113,6 +120,19 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp,
             <option value="storefront">Storefront sahaja</option>
             {landingPages.map((p) => (
               <option key={p.id} value={p.id}>{p.title}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Payment filter */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <select
+            value={activePay ?? ''}
+            onChange={(e) => setParam('pay', e.target.value)}
+            className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-300"
+          >
+            {payTabs.map((tab) => (
+              <option key={tab.value} value={tab.value}>{tab.label}</option>
             ))}
           </select>
         </div>

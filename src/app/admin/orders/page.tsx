@@ -129,7 +129,7 @@ async function getStatusCounts() {
 }
 
 const LP_SELECT =
-  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, landing_pages(title, slug)'
+  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, source, landing_pages(title, slug)'
 
 // Fetch ALL matching LP orders, paging past PostgREST's 1000-row-per-request cap.
 // At ~90 orders/day a fixed limit silently hides older paid orders within weeks,
@@ -175,9 +175,9 @@ async function getLandingPages() {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; date?: string; lp?: string; from?: string; to?: string }>
+  searchParams: Promise<{ status?: string; q?: string; date?: string; lp?: string; from?: string; to?: string; pay?: string }>
 }) {
-  const { status, q, date, lp, from, to } = await searchParams
+  const { status, q, date, lp, from, to, pay } = await searchParams
 
   // Tarikh: julat custom (from/to, MYT) mengatasi preset. 'to' inklusif (lte 23:59:59).
   const bounds: Bounds = (from || to)
@@ -216,8 +216,13 @@ export default async function AdminOrdersPage({
   }
   const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending')
 
-  // Transform LP orders to match Order shape for the table
-  const lpAsOrders = allLpOrders.map((lp: any) => ({
+  // Transform LP orders to match Order shape for the table.
+  // Order Quick Order (source='whatsapp'/'manual') = order MANUAL, bukan LP sebenar →
+  // badge 'Manual' + jangan tunjuk tajuk LP (kekal _isLp untuk routing/PATCH endpoint LP).
+  const lpAsOrders = allLpOrders.map((lp: any) => {
+    // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>' → guna startsWith
+    const isManual = typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
+    return ({
     id: lp.id,
     order_number: lp.order_number,
     status: lp.status,
@@ -238,13 +243,23 @@ export default async function AdminOrdersPage({
       quantity: i.quantity,
     })),
     _isLp: true,
-    _lpTitle: Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title,
-  }))
+    _isManual: isManual,
+    _lpTitle: isManual ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
+  })
+  })
 
   // Merge and sort by created_at desc
-  const allOrders = [...visibleOrders, ...lpAsOrders].sort(
+  const mergedOrders = [...visibleOrders, ...lpAsOrders].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
+
+  // Tapisan pembayaran (pay=unpaid|paid). Online belum-bayar dah disorok di atas,
+  // jadi 'unpaid' di sini = COD/bank transfer yang belum dikutip.
+  const allOrders = pay === 'unpaid'
+    ? mergedOrders.filter((o: any) => o.payment_status === 'unpaid')
+    : pay === 'paid'
+    ? mergedOrders.filter((o: any) => o.payment_status === 'paid')
+    : mergedOrders
 
   // Ringkasan header (ikut tapisan semasa)
   const totalRm = allOrders.reduce((s, o) => s + Number((o as any).total || 0), 0)
@@ -322,7 +337,7 @@ export default async function AdminOrdersPage({
         </div>
       )}
 
-      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} activeLp={lp} activeFrom={from} activeTo={to} landingPages={landingPages} /></Suspense>
+      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} activeLp={lp} activeFrom={from} activeTo={to} activePay={pay} landingPages={landingPages} /></Suspense>
 
       <OrdersTableClient orders={allOrders as any} searchQuery={q} />
 

@@ -72,15 +72,12 @@ export async function POST(request: Request) {
   const appliedDiscount = Math.min(discountNum, subtotal + deliveryFee)
   const total = subtotal + deliveryFee - appliedDiscount
 
-  // Get a page_id for WhatsApp source (use first LP or null)
-  const { data: whatsappPage } = await supabase.from('landing_pages').select('id').eq('is_active', true).limit(1).maybeSingle()
-
   const { data: orderNumber } = await supabase.rpc('generate_lp_order_number')
   const first = validatedItems[0]
 
   const { data: order, error } = await supabase.from('lp_guest_orders').insert({
     order_number: orderNumber,
-    page_id: whatsappPage?.id ?? null,
+    page_id: null, // order manual — bukan LP (perlu migrasi 066: page_id nullable)
     name: name.trim(),
     phone: phone.trim(),
     email: email?.trim() || null,
