@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { revalidateStorefront } from '@/lib/revalidate-store'
 import { NextResponse } from 'next/server'
 
 const PRODUCT_FIELDS = [
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   const { error } = await supabase!.from('products').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json({ ok: true })
 }
 
@@ -35,5 +37,6 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   const { id } = await params
   const { error } = await supabase!.from('products').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json({ ok: true })
 }

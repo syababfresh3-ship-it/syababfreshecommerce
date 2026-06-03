@@ -17,7 +17,7 @@ export function PixelScripts({ metaPixelId, googleAdsId, googleAdsLabel, gtmId }
         <>
           <Script
             id="meta-pixel"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             dangerouslySetInnerHTML={{
               __html: `
                 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -48,7 +48,7 @@ export function PixelScripts({ metaPixelId, googleAdsId, googleAdsLabel, gtmId }
         <>
           <Script
             id="gtm"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             dangerouslySetInnerHTML={{
               __html: `
                 (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -67,12 +67,12 @@ export function PixelScripts({ metaPixelId, googleAdsId, googleAdsLabel, gtmId }
         <>
           <Script
             id="google-ads"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             src={`https://www.googletagmanager.com/gtag/js?id=${googleAdsId}`}
           />
           <Script
             id="google-ads-init"
-            strategy="afterInteractive"
+            strategy="lazyOnload"
             dangerouslySetInnerHTML={{
               __html: `
                 window.dataLayer = window.dataLayer || [];

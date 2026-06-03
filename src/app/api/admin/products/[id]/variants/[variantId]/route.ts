@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { revalidateStorefront } from '@/lib/revalidate-store'
 import { NextResponse } from 'next/server'
 
 async function adminCheck() {
@@ -32,6 +33,7 @@ export async function PATCH(
 
   const { error } = await supabase.from('product_variants').update(update).eq('id', variantId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json({ ok: true })
 }
 
@@ -45,5 +47,6 @@ export async function DELETE(
 
   const { error } = await supabase.from('product_variants').delete().eq('id', variantId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json({ ok: true })
 }

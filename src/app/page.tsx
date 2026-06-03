@@ -1,5 +1,6 @@
 // homepage conversion optimization
-import { createClient } from '@/lib/supabase/server'
+import { unstable_cache } from 'next/cache'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { StoreLayout } from '@/components/layout/store-layout'
 import Link from 'next/link'
@@ -9,6 +10,9 @@ import { PostcodeChecker } from '@/components/store/postcode-checker'
 import { HomeBanner } from '@/components/store/home-banner'
 import type { Category, Product } from '@/types'
 
+// ISR: serve cached HTML, regenerate setiap 5 minit (kurangkan TTFB → LCP lebih baik)
+export const revalidate = 300
+
 async function getFlashSale() {
   const map = await getAppSettings()
   if (!map.flash_sale_label || !map.flash_sale_ends_at) return null
@@ -16,26 +20,35 @@ async function getFlashSale() {
   return { label: map.flash_sale_label, endsAt: map.flash_sale_ends_at, promoCode: map.flash_sale_promo_code || undefined }
 }
 
+// Data homepage = public (produk/kategori/banner) → cache & ISR-friendly.
+// Guna admin client (TIADA cookie) supaya halaman tak jadi dynamic; revalidate
+// 5 minit. Tag membenarkan admin bust cache bila edit produk/banner.
+const getHomeDataCached = unstable_cache(
+  async () => {
+    const supabase = createAdminClient()
+    const [categoriesRes, featuredRes, promoRes, bannerRes, variantsRes] = await Promise.all([
+      supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
+      supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).eq('is_featured', true).order('sort_order').limit(6),
+      supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).not('compare_price', 'is', null).order('sort_order').limit(4),
+      supabase.from('banners').select('*').eq('is_active', true).order('sort_order').limit(1).maybeSingle(),
+      supabase.from('product_variants').select('product_id').eq('is_active', true),
+    ])
+    return {
+      categories: (categoriesRes.data ?? []) as Category[],
+      featured: (featuredRes.data ?? []) as Product[],
+      promo: (promoRes.data ?? []) as Product[],
+      banner: bannerRes.data ?? null,
+      // unstable_cache mengserialize JSON → simpan array, bina Set di luar cache
+      variantProductIds: [...new Set((variantsRes.data ?? []).map((v) => v.product_id))] as string[],
+    }
+  },
+  ['home-data'],
+  { revalidate: 300, tags: ['products', 'categories', 'banners'] },
+)
+
 async function getHomeData() {
-  const supabase = await createClient()
-
-  const [categoriesRes, featuredRes, promoRes, bannerRes, variantsRes] = await Promise.all([
-    supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
-    supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).eq('is_featured', true).order('sort_order').limit(6),
-    supabase.from('products').select('*, categories(name, slug)').eq('is_active', true).not('compare_price', 'is', null).order('sort_order').limit(4),
-    supabase.from('banners').select('*').eq('is_active', true).order('sort_order').limit(1).maybeSingle(),
-    supabase.from('product_variants').select('product_id').eq('is_active', true),
-  ])
-
-  const variantProductIds = new Set((variantsRes.data ?? []).map((v) => v.product_id))
-
-  return {
-    categories: (categoriesRes.data ?? []) as Category[],
-    featured: (featuredRes.data ?? []) as Product[],
-    promo: (promoRes.data ?? []) as Product[],
-    banner: bannerRes.data ?? null,
-    variantProductIds,
-  }
+  const d = await getHomeDataCached()
+  return { ...d, variantProductIds: new Set(d.variantProductIds) }
 }
 
 const categoryEmoji: Record<string, string> = {
@@ -201,8 +214,9 @@ export default async function HomePage() {
           </div>
           <p className="text-[11px] text-gray-400 font-medium mb-3">500+ order minggu ni</p>
           <div className="grid grid-cols-2 gap-4">
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} hasVariants={variantProductIds.has(product.id)} />
+            {featured.map((product, i) => (
+              // Gambar 4 kad pertama = above-the-fold → priority (calon LCP, jangan lazy)
+              <ProductCard key={product.id} product={product} hasVariants={variantProductIds.has(product.id)} priority={i < 4} />
             ))}
           </div>
         </section>

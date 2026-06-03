@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { revalidateStorefront } from '@/lib/revalidate-store'
 import { NextResponse } from 'next/server'
 
 const BANNER_FIELDS = [
@@ -25,5 +26,6 @@ export async function POST(request: Request) {
 
   const { error, data } = await supabase!.from('banners').insert(insert).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json(data)
 }

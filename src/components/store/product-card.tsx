@@ -13,9 +13,10 @@ interface ProductCardProps {
   product: Product
   stock?: number | null
   hasVariants?: boolean
+  priority?: boolean
 }
 
-export function ProductCard({ product, stock, hasVariants }: ProductCardProps) {
+export function ProductCard({ product, stock, hasVariants, priority = false }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
   const router = useRouter()
 
@@ -54,7 +55,7 @@ export function ProductCard({ product, stock, hasVariants }: ProductCardProps) {
             fill
             className="object-cover scale-[1.28]"
             sizes="(max-width: 640px) 50vw, 220px"
-            priority={false}
+            priority={priority}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-5xl select-none">🍓</div>

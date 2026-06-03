@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { revalidateStorefront } from '@/lib/revalidate-store'
 import { NextResponse } from 'next/server'
 
 async function adminCheck() {
@@ -47,5 +48,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateStorefront()
   return NextResponse.json(data)
 }
