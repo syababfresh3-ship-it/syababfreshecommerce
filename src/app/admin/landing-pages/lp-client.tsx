@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users,
 import Image from 'next/image'
 import { LpSectionBuilder } from './lp-section-builder'
 import { type Section } from '@/lib/lp-sections'
+import { DEFAULT_META_PIXEL_ID } from '@/lib/lp-defaults'
 
 interface LandingPage {
   id: string
@@ -403,7 +404,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   function openCreate() {
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: '', google_tag_id: '' })
+    // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '' })
     setSections([])
     setEditorMode('blocks')
     setEditing(null)
