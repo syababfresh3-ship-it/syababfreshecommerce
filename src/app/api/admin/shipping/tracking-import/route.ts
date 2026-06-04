@@ -213,7 +213,7 @@ export async function POST(req: Request) {
         courier_id: carrier_id,
         tracking_number: tn,
         tracking_url,
-        ...(advance ? { status: 'delivering' } : {}),
+        ...(advance ? { status: 'delivering', delivering_at: now } : {}),
         updated_at: now,
       })
       .eq('id', lp.id)
