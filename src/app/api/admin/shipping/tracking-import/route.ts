@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendWhatsApp } from '@/lib/murpati'
+import { enqueueWhatsApp, type WaOutboxItem } from '@/lib/wa-outbox'
 import { sendTrackingEmail } from '@/lib/zeptomail'
 import { sendUserPush } from '@/lib/push'
 
@@ -43,9 +43,12 @@ export async function POST(req: Request) {
 
   // Notifikasi customer dikumpul & ditunggu di hujung supaya loop laju & tak terputus
   const notifs: Promise<unknown>[] = []
+  // WhatsApp TIDAK dihantar terus — di-enqueue ke wa_outbox & dipacing oleh
+  // cron drainer (elak ban gateway tak rasmi). Email + Push tetap serta-merta.
+  const waQueue: WaOutboxItem[] = []
 
-  // Hantar WhatsApp + Push + Email untuk satu order (storefront ATAU LP).
-  // Contact (name/phone/email/userId) sudah diselesaikan oleh pemanggil.
+  // Push + Email serta-merta; WhatsApp di-enqueue (bukan dihantar) untuk satu order
+  // (storefront ATAU LP). Contact (name/phone/email/userId) sudah diselesaikan oleh pemanggil.
   async function sendNotifications(c: {
     userId: string | null
     name: string
@@ -71,7 +74,7 @@ export async function POST(req: Request) {
         ``,
         `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
       ].join('\n')
-      await sendWhatsApp(c.phone, msg).catch(() => {})
+      waQueue.push({ phone: c.phone, message: msg, orderId: c.orderId, source: 'tracking' })
     }
 
     await sendUserPush(c.userId, {
@@ -235,5 +238,7 @@ export async function POST(req: Request) {
   }
 
   await Promise.allSettled(notifs)
-  return NextResponse.json({ ok, fail: errors.length, errors })
+  // Enqueue semua WA sekali gus dgn jadual berperingkat (dipacing oleh drainer)
+  const queued = await enqueueWhatsApp(waQueue)
+  return NextResponse.json({ ok, fail: errors.length, errors, waQueued: queued })
 }
