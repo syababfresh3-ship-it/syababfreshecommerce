@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Loader2, RefreshCw, Clock, CheckCircle2, XCircle, Send, RotateCcw } from 'lucide-react'
+import { Loader2, RefreshCw, Clock, CheckCircle2, XCircle, Send, RotateCcw, Smartphone, Wifi, WifiOff } from 'lucide-react'
+
+interface Session {
+  session_id: string
+  phone_number?: string
+  device_name?: string
+  status?: string // connected|disconnected|pending|expired|not_found
+  push_name?: string
+  in_pool?: boolean
+}
 
 interface Row {
   id: string
@@ -35,6 +44,25 @@ export default function WaOutboxPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<Filter>('')
   const [busy, setBusy] = useState<string | null>(null)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [sessLoading, setSessLoading] = useState(true)
+  const [sessError, setSessError] = useState<string | null>(null)
+
+  // Status nombor jarang berubah & makan kuota API — muat masa mount + refresh sahaja
+  const loadSessions = useCallback(async () => {
+    setSessLoading(true)
+    try {
+      const res = await fetch('/api/admin/wa-sessions')
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Gagal muat')
+      setSessions(json.sessions ?? [])
+      setSessError(json.ok ? null : json.error)
+    } catch (e) {
+      setSessError(e instanceof Error ? e.message : 'Gagal muat')
+    } finally {
+      setSessLoading(false)
+    }
+  }, [])
 
   const load = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true)
@@ -57,6 +85,8 @@ export default function WaOutboxPage() {
     const iv = setInterval(() => load(false), 15_000)
     return () => clearInterval(iv)
   }, [load])
+
+  useEffect(() => { loadSessions() }, [loadSessions])
 
   async function retry(id: string) {
     setBusy(id)
@@ -111,12 +141,56 @@ export default function WaOutboxPage() {
             </button>
           )}
           <button
-            onClick={() => load(true)}
+            onClick={() => { load(true); loadSessions() }}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
+      </div>
+
+      {/* ── Status nombor WhatsApp (send pool) ── */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Smartphone className="h-4 w-4 text-gray-500" />
+          <h2 className="text-sm font-bold text-gray-700">Nombor WhatsApp</h2>
+          {sessLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-300" />}
+        </div>
+        {sessError ? (
+          <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">{sessError}</p>
+        ) : sessions.length === 0 && !sessLoading ? (
+          <p className="text-xs text-gray-400">Tiada session. Set <code className="font-mono">MURPATI_SESSION_IDS</code> di Vercel.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {sessions.map((s) => {
+              const connected = s.status === 'connected'
+              const missing = s.status === 'not_found'
+              return (
+                <div key={s.session_id} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+                  <div className={`p-2 rounded-lg shrink-0 ${connected ? 'bg-green-100' : missing ? 'bg-gray-100' : 'bg-amber-100'}`}>
+                    {connected ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className={`h-4 w-4 ${missing ? 'text-gray-400' : 'text-amber-600'}`} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm leading-tight truncate">
+                      {s.phone_number ?? s.device_name ?? s.session_id}
+                    </p>
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {s.device_name ?? s.push_name ?? '—'}
+                      {s.in_pool && <span className="ml-1 text-indigo-500 font-medium">• send pool</span>}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border shrink-0 ${
+                    connected ? 'bg-green-50 text-green-700 border-green-200'
+                      : missing ? 'bg-gray-50 text-gray-400 border-gray-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}>
+                    {missing ? 'tak dijumpai' : (s.status ?? 'unknown')}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Stat cards — klik untuk tapis */}

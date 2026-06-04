@@ -15,6 +15,34 @@ function getSessionIds(): string[] {
   return single ? [single] : []
 }
 
+// Session id yg dikonfigur untuk hantar (send pool). Diekspos untuk view admin.
+export function getConfiguredSessionIds(): string[] {
+  return getSessionIds()
+}
+
+export interface MurpatiSession {
+  session_id: string
+  phone_number?: string
+  device_name?: string
+  status?: string // connected|disconnected|pending|expired
+  is_business?: boolean
+  push_name?: string
+}
+
+// Senarai semua session WhatsApp pada akaun Murpati (GET /v1/sessions).
+// Untuk view "nombor aktif ke tak" di admin.
+export async function listSessions(): Promise<{ ok: boolean; sessions: MurpatiSession[]; error?: string }> {
+  if (!API_KEY) return { ok: false, sessions: [], error: 'MURPATI_API_KEY tidak diset' }
+  try {
+    const res = await fetch(`${BASE_URL}/v1/sessions`, { headers: { 'X-API-Key': API_KEY } })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.success) return { ok: false, sessions: [], error: data.error || `HTTP ${res.status}` }
+    return { ok: true, sessions: (data.sessions ?? []) as MurpatiSession[] }
+  } catch (e) {
+    return { ok: false, sessions: [], error: String(e) }
+  }
+}
+
 export async function sendWhatsApp(to: string, message: string) {
   const sessions = getSessionIds()
   if (!API_KEY || sessions.length === 0) {
