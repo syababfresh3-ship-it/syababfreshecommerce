@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+export const maxDuration = 60 // headroom; bulk upsert kini patut siap dlm beberapa saat
 
 import { refreshCustomerAggregates } from '@/lib/customers'
 

@@ -115,23 +115,30 @@ export async function refreshCustomerAggregates(): Promise<{
     fill(p, 'name', pr.full_name); fill(p, 'email', pr.email); seen(p, pr.created_at)
   }
 
+  // Order dikira hanya kalau (a) bukan cancelled/refunded DAN (b) "settled":
+  // online (fpx/ewallet) mesti dah paid; COD/bank transfer dikira (bayar masa hantar).
+  // Tanpa (b), order online abandoned (belum bayar) akan kembungkan order_count/spend.
+  const counts = (o: { status: string; payment_method?: string | null; payment_status?: string | null }) =>
+    !DEAD_STATUS.has(o.status) &&
+    (['fpx', 'ewallet'].includes(o.payment_method ?? '') ? o.payment_status === 'paid' : true)
+
   // storefront orders → key ikut telefon profil
-  const { data: orders } = await supabase.from('orders').select('user_id, total, status, created_at')
+  const { data: orders } = await supabase.from('orders').select('user_id, total, status, payment_method, payment_status, created_at')
   for (const o of orders ?? []) {
     const pr = profileById.get(o.user_id); if (!pr?.phone) continue
     const p = touch(pr.phone); if (!p) continue
     p.sources.add('store'); seen(p, o.created_at)
-    if (!DEAD_STATUS.has(o.status)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+    if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
   }
 
   // LP guest orders
-  const { data: lp } = await supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, created_at')
+  const { data: lp } = await supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at')
   for (const o of lp ?? []) {
     const p = touch(o.phone); if (!p) continue
     p.sources.add('lp')
     fill(p, 'name', o.name); fill(p, 'email', o.email); fill(p, 'address', o.address); fill(p, 'postcode', o.postcode)
     seen(p, o.created_at)
-    if (!DEAD_STATUS.has(o.status)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+    if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
   }
 
   // leads (belum beli)
@@ -149,8 +156,10 @@ export async function refreshCustomerAggregates(): Promise<{
   const { data: existing } = await supabase.from('customers').select('id, phone_norm, sources')
   const existingByPhone = new Map((existing ?? []).map(r => [r.phone_norm as string, r as { id: string; sources: string[] }]))
 
+  const now = new Date().toISOString()
   let written = 0, failed = 0
   const inserts: Record<string, unknown>[] = []
+  const updates: Record<string, unknown>[] = []
 
   for (const p of people) {
     const ex = existingByPhone.get(p.phone_norm)
@@ -162,12 +171,24 @@ export async function refreshCustomerAggregates(): Promise<{
       })
       continue
     }
-    const mergedSources = [...new Set([...(ex.sources ?? []), ...p.sources])]
-    const { error } = await supabase.from('customers').update({
-      order_count: p.order_count, total_spend: p.total_spend,
-      last_order_at: p.last_order_at, sources: mergedSources, updated_at: new Date().toISOString(),
-    }).eq('id', ex.id)
-    if (error) { failed++; console.error('[customers] refresh update error:', error.message) } else written++
+    // Kemas AGREGAT + sources sahaja. Upsert by phone_norm cuma tindih lajur yang
+    // dihantar → name/email/address/tags/is_reseller/consent/first_seen_at kekal.
+    updates.push({
+      phone_norm: p.phone_norm,
+      order_count: p.order_count,
+      total_spend: p.total_spend,
+      last_order_at: p.last_order_at,
+      sources: [...new Set([...(ex.sources ?? []), ...p.sources])],
+      updated_at: now,
+    })
+  }
+
+  // Bulk upsert (chunk) — ganti gelung update satu-satu yang dulu buat N round-trip
+  // berturutan (timeout pada ratusan customer). Kini ~ceil(N/500) round-trip.
+  for (let i = 0; i < updates.length; i += 500) {
+    const chunk = updates.slice(i, i + 500)
+    const { error } = await supabase.from('customers').upsert(chunk, { onConflict: 'phone_norm' })
+    if (error) { failed += chunk.length; console.error('[customers] refresh upsert error:', error.message) } else written += chunk.length
   }
 
   for (let i = 0; i < inserts.length; i += 200) {
