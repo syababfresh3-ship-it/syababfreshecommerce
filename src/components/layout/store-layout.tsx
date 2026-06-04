@@ -1,6 +1,6 @@
 import { MobileHeader } from './mobile-header'
 import { BottomNav } from './bottom-nav'
-import { WhatsAppButton } from './whatsapp-button'
+import { SupportButton } from './support-button'
 import { CartSync } from '@/components/store/cart-sync'
 
 interface StoreLayoutProps {
@@ -18,7 +18,7 @@ export function StoreLayout({ children }: StoreLayoutProps) {
         {children}
       </main>
 
-      <WhatsAppButton />
+      <SupportButton />
       <BottomNav />
     </>
   )
