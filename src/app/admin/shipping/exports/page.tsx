@@ -5,9 +5,20 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ExportsClient, type ExportOrder } from './exports-client'
 
+// Override kurier per-poskod (delivery_zones.courier_override, diset admin di
+// /admin/delivery). 'pos' = paksa Pos walaupun poskod dalam julat LK (Lalamove tak
+// sampai, cth Serendah/KKB/Kerling). 'lalamove' = paksa Lalamove (Pos tak sampai).
+// Tiada override → auto ikut julat poskod.
+type CourierOverride = 'pos' | 'lalamove'
+function applyOverride(ov: CourierOverride | undefined, auto: boolean): boolean {
+  if (ov === 'pos') return false
+  if (ov === 'lalamove') return true
+  return auto
+}
+
 // pickup=false → order hantar (untuk tab Export). pickup=true → order ambil sendiri
 // (untuk tab Pickup). Aliran pengayaan (profil/alamat/item) sama untuk dua-dua.
-async function getOrders(from: string, to: string, pickup: boolean): Promise<ExportOrder[]> {
+async function getOrders(from: string, to: string, pickup: boolean, overrides: Map<string, CourierOverride>, towns: Map<string, string>): Promise<ExportOrder[]> {
   const supabase = createAdminClient()
 
   let q = supabase
@@ -83,8 +94,9 @@ async function getOrders(from: string, to: string, pickup: boolean): Promise<Exp
     const postcode = address?.postcode ?? extractPostcode(o.delivery_address)
     const isKlByState = state ? KL_STATES.has(state) : null
     const isKlByPostcode = postcode ? isKlPostcode(postcode) : null
-    const is_kl = isKlByState ?? isKlByPostcode ?? false
+    const is_kl = applyOverride(postcode ? overrides.get(postcode) : undefined, isKlByState ?? isKlByPostcode ?? false)
     const area_known = isKlByState !== null || isKlByPostcode !== null
+    const post_town = (postcode ? towns.get(postcode) : '') || address?.city || ''
     const has_fresh = hasFreshMap.get(o.id) ?? false
     return {
       id: o.id,
@@ -105,6 +117,7 @@ async function getOrders(from: string, to: string, pickup: boolean): Promise<Exp
       is_kl,
       area_known,
       has_fresh,
+      post_town,
       recipient_name: address?.recipient_name ?? profile?.full_name ?? null,
       recipient_phone: address?.recipient_phone ?? profile?.phone ?? null,
       items: itemsMap.get(o.id) ?? [],
@@ -127,7 +140,7 @@ function isKlPostcode(pc: string | null): boolean {
   const n = parseInt(pc, 10)
   return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000)
 }
-function mapLpOrder(lp: any): ExportOrder {
+function mapLpOrder(lp: any, overrides: Map<string, CourierOverride>, towns: Map<string, string>): ExportOrder {
   const postcode = lp.postcode ?? extractPostcodeFromAddr(lp.address)
   const items = (Array.isArray(lp.items) && lp.items.length > 0
     ? lp.items
@@ -149,9 +162,10 @@ function mapLpOrder(lp: any): ExportOrder {
     city: null,
     postcode,
     state: null,
-    is_kl: isKlPostcode(postcode),
+    is_kl: applyOverride(postcode ? overrides.get(postcode) : undefined, isKlPostcode(postcode)),
     area_known: !!postcode,
     has_fresh: true,
+    post_town: (postcode ? towns.get(postcode) : '') || '',
     recipient_name: lp.name,
     recipient_phone: lp.phone,
     items,
@@ -183,18 +197,39 @@ export default async function ShippingExportsPage({
   const toISO = `${toDate}T23:59:59+08:00`
 
   const supabaseAdmin = createAdminClient()
+
+  // Dari delivery_zones: (a) override kurier — ambil baris yg ada override sahaja (kecil);
+  // (b) Post Town — tapis KL/Selangor je. delivery_zones >1000 baris (cap PostgREST 1000),
+  // jadi JANGAN select semua tanpa tapis. Lalamove export KL sahaja → 357 baris cukup.
+  const KL_STATES_Q = ['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya']
+  const [ovRes, townRes] = await Promise.all([
+    supabaseAdmin.from('delivery_zones').select('postcode, courier_override').not('courier_override', 'is', null),
+    supabaseAdmin.from('delivery_zones').select('postcode, city, area_name').in('state', KL_STATES_Q),
+  ])
+  const overrides = new Map<string, CourierOverride>()
+  for (const r of ovRes.data ?? []) overrides.set(r.postcode, r.courier_override as CourierOverride)
+  // Post Town = nama kawasan spesifik (area_name) — cth poskod 42300 → "Bandar Puncak
+  // Alam" (bukan city "Klang"), 43200 → "Cheras" (bukan "Kajang"). Fallback city.
+  const towns = new Map<string, string>()
+  for (const r of townRes.data ?? []) { const town = r.area_name || r.city; if (town) towns.set(r.postcode, town) }
+
   const [deliveryOrders, pickupStoreOrders, lpRes] = await Promise.all([
-    getOrders(fromISO, toISO, false),
-    getOrders(fromISO, toISO, true),
+    getOrders(fromISO, toISO, false, overrides, towns),
+    getOrders(fromISO, toISO, true, overrides, towns),
     supabaseAdmin.from('lp_guest_orders')
-      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id')
+      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id, source')
       .in('status', ['confirmed', 'preparing', 'delivering'])   // delivering disertakan utk pickup; dibuang dari tab export di bawah
       .gte('created_at', fromISO)
       .lte('created_at', toISO)
       .order('created_at', { ascending: false }),
   ])
 
-  const lpTagged = (lpRes.data ?? []).map((lp: any) => ({ order: mapLpOrder(lp), pickup: lp.delivery_method === 'pickup', status: lp.status }))
+  // Order reseller (B2B) = delivery dirunding/uruskan sendiri → JANGAN masuk shipping
+  // export (bukan penghantaran courier, elak AWB tak guna). Filter di JS, bukan .neq DB
+  // (source NULL pada LP lama akan tersilap dibuang oleh .neq).
+  const lpTagged = (lpRes.data ?? [])
+    .filter((lp: any) => lp.source !== 'reseller')
+    .map((lp: any) => ({ order: mapLpOrder(lp, overrides, towns), pickup: lp.delivery_method === 'pickup', status: lp.status }))
   // Export: pickup dibuang + delivering dibuang (kekal seperti asal). Pickup: semua status pickup.
   const lpDelivery = lpTagged.filter((x) => !x.pickup && x.status !== 'delivering').map((x) => x.order)
   const lpPickup = lpTagged.filter((x) => x.pickup).map((x) => x.order)
