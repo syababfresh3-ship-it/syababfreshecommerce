@@ -300,45 +300,45 @@ function printAwb(orders: ExportOrder[]) {
     @page { size: 105mm 148mm; margin: 4mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Tiada min-height / flex-grow — slip ikut tinggi kandungan supaya tak melebihi
+       satu page A6 (kalau dipaksa isi penuh, baris bawah tertolak ke page 2). */
     .slip {
       width: 97mm;
-      min-height: 140mm;
+      max-height: 139mm;
+      overflow: hidden;
       border: 1.5px solid #222;
       border-radius: 6px;
       padding: 4mm 5mm;
       margin: 0 auto;
-      display: flex;
-      flex-direction: column;
     }
     .page-break { page-break-after: always; }
     .header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .logo { height: 13mm; object-fit: contain; }
+    .logo { height: 11mm; object-fit: contain; }
     .header-right { text-align: right; }
-    .order-num { font-size: 18px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; }
-    .cod-badge { display: inline-block; background: #f97316; color: #fff; font-size: 13px; font-weight: 800; padding: 2px 10px; border-radius: 5px; margin-top: 4px; }
-    .divider { border-top: 1.5px dashed #bbb; margin: 3mm 0; }
+    .order-num { font-size: 16px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; }
+    .cod-badge { display: inline-block; background: #f97316; color: #fff; font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 5px; margin-top: 3px; }
+    .divider { border-top: 1.5px dashed #bbb; margin: 2mm 0; }
     .section { margin-bottom: 1mm; }
-    .grow { flex: 1 1 auto; }
-    .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #777; margin-bottom: 2mm; }
-    .name { font-size: 27px; font-weight: 800; color: #000; line-height: 1.1; }
-    .phone { font-size: 23px; font-weight: 800; color: #0058c7; margin-top: 2mm; letter-spacing: 0.5px; }
-    .address { font-size: 15px; color: #1a1a1a; margin-top: 2.5mm; line-height: 1.35; }
-    .postcode { font-size: 23px; font-weight: 800; color: #000; margin-top: 2mm; letter-spacing: 1px; }
-    .items { list-style: none; margin-top: 2mm; }
-    .items li { display: flex; align-items: flex-start; gap: 9px; font-size: 16px; padding: 2mm 0; border-bottom: 1px dotted #ddd; }
+    .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #777; margin-bottom: 1.5mm; }
+    .name { font-size: 23px; font-weight: 800; color: #000; line-height: 1.1; }
+    .phone { font-size: 20px; font-weight: 800; color: #0058c7; margin-top: 1.5mm; letter-spacing: 0.5px; }
+    .address { font-size: 13px; color: #1a1a1a; margin-top: 1.5mm; line-height: 1.3; }
+    .postcode { font-size: 20px; font-weight: 800; color: #000; margin-top: 1.5mm; letter-spacing: 1px; }
+    .items { list-style: none; margin-top: 1.5mm; }
+    .items li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; padding: 1.5mm 0; border-bottom: 1px dotted #ddd; }
     .items li:last-child { border-bottom: none; }
-    .chk { width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
-    .qty { font-weight: 800; color: #000; min-width: 34px; flex-shrink: 0; }
-    .iname { color: #111; line-height: 1.3; }
-    .notes { font-size: 13px; color: #b45309; background: #fff7ed; border-left: 4px solid #f97316; padding: 2mm 3mm; border-radius: 0 4px 4px 0; margin-top: 3mm; }
-    .amount { display: flex; justify-content: space-between; align-items: center; margin-top: 3mm; padding-top: 3mm; border-top: 1.5px dashed #bbb; }
-    .amount-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
-    .amount-val { font-size: 22px; font-weight: 900; color: #000; }
+    .chk { width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+    .qty { font-weight: 800; color: #000; min-width: 30px; flex-shrink: 0; }
+    .iname { color: #111; line-height: 1.25; }
+    .notes { font-size: 12px; color: #b45309; background: #fff7ed; border-left: 4px solid #f97316; padding: 1.5mm 2.5mm; border-radius: 0 4px 4px 0; margin-top: 2mm; }
+    .amount { display: flex; justify-content: space-between; align-items: center; margin-top: 2mm; padding-top: 2mm; border-top: 1.5px dashed #bbb; }
+    .amount-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
+    .amount-val { font-size: 20px; font-weight: 900; color: #000; }
     /* COD = rider kutip tunai → serlahkan besar */
-    .amount.cod { background: #fff7ed; border: 2px solid #f97316; border-top: 2px solid #f97316; border-radius: 7px; padding: 3mm 4mm; }
-    .amount.cod .amount-label { color: #c2410c; font-size: 13px; }
-    .amount.cod .amount-val { font-size: 28px; color: #c2410c; }
-    .sender { margin-top: 3mm; padding-top: 2.5mm; border-top: 1px dashed #bbb; font-size: 11px; color: #999; text-align: center; }
+    .amount.cod { background: #fff7ed; border: 2px solid #f97316; border-radius: 7px; padding: 2mm 3mm; }
+    .amount.cod .amount-label { color: #c2410c; font-size: 12px; }
+    .amount.cod .amount-val { font-size: 24px; color: #c2410c; }
+    .sender { margin-top: 2mm; padding-top: 2mm; border-top: 1px dashed #bbb; font-size: 10px; color: #999; text-align: center; }
     @media print {
       body { margin: 0; }
       .slip { margin: 0 auto; }
