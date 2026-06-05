@@ -32,6 +32,12 @@ export const SUPPORT_TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'get_refund_status',
+    description:
+      'Semak status aduan/refund pelanggan untuk sesi ini (sama ada masih diproses CS atau sudah diselesaikan, dan butiran resolusi seperti refund/baucar/ganti). Guna bila pelanggan tanya pasal aduan atau refund mereka.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'create_complaint',
     description:
       'Escalate aduan kepada CS manusia dengan ringkasan + butiran kerosakan. Guna SELEPAS kumpul maklumat (dan gambar untuk aduan kualiti). JANGAN janji refund/ganti — ini cuma hantar aduan untuk CS susuli.',
@@ -67,6 +73,7 @@ export const GUEST_TOOLS: Anthropic.Tool[] = SUPPORT_TOOLS.filter((t) => t.name 
 export async function runSupportTool(name: string, input: Record<string, unknown>, ctx: SupportContext): Promise<string> {
   if (name === 'search_products') return searchProducts(ctx.admin, String(input.query ?? ''))
   if (name === 'get_order_status') return getOrderStatus(ctx)
+  if (name === 'get_refund_status') return getRefundStatus(ctx)
   if (name === 'create_complaint')
     return createComplaint(ctx, String(input.category ?? 'lain'), String(input.summary ?? ''), Array.isArray(input.damage_items) ? input.damage_items : [])
   return `Tool tidak dikenali: ${name}`
@@ -124,6 +131,19 @@ async function getOrderStatus(ctx: SupportContext): Promise<string> {
     status: lp.status,
     tracking_no: lp.tracking_number ?? null,
     tracking_url: lp.tracking_url ?? null,
+  })
+}
+
+async function getRefundStatus(ctx: SupportContext): Promise<string> {
+  const { data: c } = await ctx.admin
+    .from('support_complaints')
+    .select('status, category')
+    .eq('id', ctx.complaintId)
+    .maybeSingle()
+  if (!c) return 'Tiada aduan untuk sesi ini.'
+  return JSON.stringify({
+    status_aduan: c.status, // open=baru, escalated=CS sedang uruskan, resolved=selesai, rejected=ditolak
+    kategori: c.category,
   })
 }
 

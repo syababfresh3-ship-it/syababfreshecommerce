@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Loader2, RefreshCw, Headset, AlertCircle, CheckCircle2, Inbox, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Loader2, RefreshCw, Headset, AlertCircle, CheckCircle2, Inbox, ChevronDown, ChevronUp, X, MessageCircle } from 'lucide-react'
 
 interface Row {
   id: string
@@ -135,6 +135,14 @@ export default function SupportPage() {
 
             {expanded === r.id && (
               <div className="border-t border-gray-100 p-4 space-y-3 bg-gray-50/50">
+                {/* Hubungi customer terus (WhatsApp peribadi admin — tiada risiko ban) */}
+                {r.customer_phone && (
+                  <a href={`https://wa.me/${r.customer_phone}?text=${encodeURIComponent(`Hai ${r.customer_name ?? ''}, ini CS SyababFresh tentang aduan pesanan ${r.order_number}. Boleh kami bantu selesaikan? 🌿`)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full bg-green-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-green-700 transition-colors">
+                    <MessageCircle className="h-4 w-4" /> WhatsApp customer ({r.customer_phone})
+                  </a>
+                )}
                 {r.damage_items?.length > 0 && (
                   <div className="bg-white rounded-xl border border-gray-100 p-3">
                     <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Item rosak (untuk refund)</p>
@@ -170,6 +178,7 @@ export default function SupportPage() {
                       </div>
                     ))}
                 </div>
+                {/* Status mudah — refund sebenar diuruskan via WhatsApp + page refund */}
                 <div className="flex gap-2 pt-1">
                   {r.status !== 'resolved' && (
                     <button onClick={() => setStatus(r.id, 'resolved')} disabled={busy === r.id}
