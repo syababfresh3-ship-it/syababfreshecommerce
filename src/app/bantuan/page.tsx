@@ -28,6 +28,7 @@ export default function BantuanPage() {
   const [orderNumber, setOrderNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
+  const [picks, setPicks] = useState<{ order_number: string; status: string; created_at: string }[] | null>(null)
 
   const [token, setToken] = useState('')
   const [guest, setGuest] = useState(false)
@@ -41,22 +42,23 @@ export default function BantuanPage() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, sending])
 
-  async function identify(e: React.FormEvent) {
-    e.preventDefault()
+  async function identify(e?: React.FormEvent, pickOrder?: string) {
+    e?.preventDefault()
     setLoading(true)
     try {
       const res = await fetch('/api/support/identify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber, phone }),
+        body: JSON.stringify({ phone, orderNumber: pickOrder ?? (orderNumber.trim() || undefined) }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal')
+      if (json.orders) { setPicks(json.orders); return } // banyak order → pelanggan pilih
       setToken(json.token)
       setOrder(json.order)
       const prior: Msg[] = json.messages ?? []
       setMessages(prior.length ? prior : [{
         role: 'assistant',
-        content: `Hai ${json.order.name || ''}! 👋 Saya Pembantu SyababFresh. Order *${json.order.number}* anda berstatus *${json.order.status}*. Macam mana saya boleh bantu — semak penghantaran, soalan produk, atau ada masalah dengan buah?`,
+        content: `Hai ${json.order.name || ''}! 👋 Saya Pembantu SyababFresh. Order ${json.order.number} anda berstatus "${json.order.status}". Macam mana saya boleh bantu — semak penghantaran, soalan produk, atau ada masalah dengan buah?`,
       }])
       setStep('chat')
     } catch (e) {
@@ -139,31 +141,54 @@ export default function BantuanPage() {
             <div className="p-2 rounded-xl bg-brand-red-50"><Headset className="h-5 w-5 text-brand-red-600" /></div>
             <h1 className="text-lg font-bold text-gray-900">Bantuan SyababFresh</h1>
           </div>
-          <p className="text-sm text-gray-400 mb-5">Masukkan no order &amp; telefon untuk mula. Pembantu AI kami akan bantu semak penghantaran atau selesaikan masalah.</p>
-          <form onSubmit={identify} className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">No Order</label>
-              <input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="cth LP-20260601-0001"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
+          {picks ? (
+            <>
+              <p className="text-sm text-gray-500 mb-3">Kami jumpa beberapa order untuk nombor ni. Pilih yang mana:</p>
+              <div className="space-y-2">
+                {picks.map((p) => (
+                  <button key={p.order_number} onClick={() => { setPicks(null); identify(undefined, p.order_number) }} disabled={loading}
+                    className="w-full flex items-center justify-between gap-2 border border-gray-200 rounded-xl px-3 py-2.5 text-left hover:border-brand-red-300 hover:bg-brand-red-50/40 disabled:opacity-50 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{p.order_number}</p>
+                      <p className="text-[11px] text-gray-400">{new Date(p.created_at).toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-500 shrink-0">{p.status}</span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setPicks(null)} className="text-xs text-gray-400 hover:text-gray-700 mt-3">← Guna nombor lain</button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-400 mb-5">Masukkan no telefon anda — kami cari order anda automatik. Pembantu AI bantu semak penghantaran atau selesaikan masalah.</p>
+              <form onSubmit={identify} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">No Telefon</label>
+                  <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth 0123456789" inputMode="tel" autoFocus
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
+                </div>
+                <details className="group">
+                  <summary className="text-xs text-gray-400 cursor-pointer select-none hover:text-gray-600">+ Ada no order? (pilihan)</summary>
+                  <input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="cth LP-20260601-0001"
+                    className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" />
+                </details>
+                <button type="submit" disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-brand-red-700 disabled:opacity-50 transition-colors">
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
+                  Cari order saya
+                </button>
+              </form>
+            </>
+          )}
+          {!picks && (
+            <div className="mt-4 pt-4 border-t border-gray-100 text-center">
+              <p className="text-xs text-gray-400 mb-2">Belum buat order?</p>
+              <button onClick={startGuest} disabled={loading}
+                className="text-sm font-medium text-brand-red-600 hover:text-brand-red-700 disabled:opacity-50">
+                Tanya soalan umum (produk, harga, penghantaran) →
+              </button>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">No Telefon</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth 0123456789" inputMode="tel"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
-            </div>
-            <button type="submit" disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-brand-red-700 disabled:opacity-50 transition-colors">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-              Mula
-            </button>
-          </form>
-          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400 mb-2">Belum buat order?</p>
-            <button onClick={startGuest} disabled={loading}
-              className="text-sm font-medium text-brand-red-600 hover:text-brand-red-700 disabled:opacity-50">
-              Tanya soalan umum (produk, harga, penghantaran) →
-            </button>
-          </div>
+          )}
         </div>
       </div>
     )

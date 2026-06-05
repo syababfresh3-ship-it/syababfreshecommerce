@@ -8,7 +8,10 @@ interface ChatOptions {
 }
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-const MODEL = 'claude-sonnet-4-6'
+// Haiku 4.5 = model paling murah (input $1 / output $5 per 1M) — sesuai untuk
+// support volum tinggi. Nota: 'effort' & extended thinking TAK disokong Haiku,
+// jadi tak diset. Boleh naik ke 'claude-sonnet-4-6' kalau perlu kualiti lebih.
+const MODEL = 'claude-haiku-4-5'
 const MAX_TOOL_ITERS = 6
 
 export interface ChatTurn {
@@ -34,10 +37,8 @@ export async function runSupportChat(
   for (let i = 0; i < MAX_TOOL_ITERS; i++) {
     const resp = await client.messages.create({
       model: MODEL,
-      max_tokens: 1500,
+      max_tokens: 600,
       system: [{ type: 'text', text: systemText, cache_control: { type: 'ephemeral' } }],
-      thinking: { type: 'disabled' },
-      output_config: { effort: 'low' },
       tools,
       messages,
     })
