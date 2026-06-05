@@ -30,6 +30,7 @@ export interface ExportOrder {
   is_kl: boolean
   area_known: boolean
   has_fresh: boolean
+  post_town: string
   recipient_name: string | null
   recipient_phone: string | null
   items: { product_name: string; quantity: number; variant_name: string | null; is_shippable: boolean }[]
@@ -209,19 +210,25 @@ async function exportPoslaju(orders: ExportOrder[]) {
   await downloadXlsx(`poslaju-${today}.xlsx`, 'Poslaju', [header, ...rows])
 }
 
-// Lalamove (LK) — no fixed import template, so this is a clean reference sheet the
-// admin keys into the Lalamove app. Phone in local 01x form; numbers stay as text.
+// Lalamove (LK) — sheet rujukan untuk admin keyin manual ke app Lalamove. Kolum
+// "Post Town" (bandar ikut poskod, dari delivery_zones) diasingkan + disusun A-Z supaya
+// senang group/filter ikut kawasan. Telefon dalam format 01x; nombor kekal sebagai teks.
 async function exportLalamove(orders: ExportOrder[]) {
-  const header = ['No', 'Order No', 'Penerima', 'Telefon', 'Alamat Penuh', 'Poskod', 'Bandar', 'Item', 'COD (RM)', 'Nota']
+  const header = ['No', 'Order No', 'Penerima', 'Telefon', 'Post Town', 'Poskod', 'Alamat Penuh', 'Item', 'COD (RM)', 'Nota']
 
-  const rows: (string | number)[][] = orders.map((o, i) => [
+  // Susun A-Z ikut Post Town (kawasan sama berkumpul), pecah seri ikut no. order.
+  const sorted = [...orders].sort((a, b) =>
+    (a.post_town || '').localeCompare(b.post_town || '') || a.order_number.localeCompare(b.order_number)
+  )
+
+  const rows: (string | number)[][] = sorted.map((o, i) => [
     i + 1,
     o.order_number,
     getRecipientName(o),
     getRecipientPhoneLocal(o),
-    o.full_address ?? '',
+    o.post_town || o.city || '',
     o.postcode ?? '',
-    o.city ?? '',
+    o.full_address ?? '',
     getItemsSummary(o.items),
     o.payment_method === 'cod' ? Number(o.total).toFixed(2) : '',
     o.notes ?? '',
@@ -270,16 +277,16 @@ function printAwb(orders: ExportOrder[]) {
           <div class="postcode">${postcode} ${city}${state ? ', ' + state : ''}</div>
         </div>
         <div class="divider"></div>
-        <div class="section">
+        <div class="section grow">
           <div class="label">ITEM (${o.items.length})</div>
           <ul class="items">${itemsList}</ul>
+          ${o.notes ? `<div class="notes">📝 ${o.notes}</div>` : ''}
         </div>
-        ${o.notes ? `<div class="notes">📝 ${o.notes}</div>` : ''}
-        <div class="divider"></div>
-        <div class="footer">
-          <span>Dari: ${SENDER.name} · ${SENDER.city}, ${SENDER.state}</span>
-          <span>RM${Number(o.total).toFixed(2)}</span>
+        <div class="amount ${isCod ? 'cod' : ''}">
+          <span class="amount-label">${isCod ? 'COD — KUTIP' : 'Jumlah'}</span>
+          <span class="amount-val">RM${Number(o.total).toFixed(2)}</span>
         </div>
+        <div class="sender">Dari: ${SENDER.name} · ${SENDER.city}, ${SENDER.state}</div>
       </div>`
   }).join('')
 
@@ -289,41 +296,52 @@ function printAwb(orders: ExportOrder[]) {
   <title>AWB Slip — SyababFresh</title>
   <meta charset="utf-8">
   <style>
+    /* AWB saiz A6 (105×148mm) — penuhkan ruang, teks besar untuk rider & admin */
+    @page { size: 105mm 148mm; margin: 4mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #fff; }
+    body { font-family: Arial, sans-serif; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .slip {
-      width: 10cm;
-      min-height: 14cm;
-      border: 1.5px solid #333;
+      width: 97mm;
+      min-height: 140mm;
+      border: 1.5px solid #222;
       border-radius: 6px;
-      padding: 14px;
-      margin: 10px auto;
-      page-break-after: always;
+      padding: 4mm 5mm;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
     }
     .page-break { page-break-after: always; }
-    .header { display: flex; justify-content: space-between; align-items: center; }
-    .logo { height: 36px; object-fit: contain; }
+    .header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .logo { height: 13mm; object-fit: contain; }
     .header-right { text-align: right; }
-    .order-num { font-size: 13px; font-weight: 900; font-family: monospace; letter-spacing: 1px; }
-    .cod-badge { display: inline-block; background: #f97316; color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-top: 3px; }
-    .divider { border-top: 1px dashed #ccc; margin: 10px 0; }
-    .section { margin-bottom: 6px; }
-    .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 3px; }
-    .name { font-size: 16px; font-weight: 800; color: #111; }
-    .phone { font-size: 13px; font-weight: 700; color: #0070f3; margin-top: 2px; }
-    .address { font-size: 11px; color: #333; margin-top: 4px; line-height: 1.4; }
-    .postcode { font-size: 13px; font-weight: 700; color: #333; margin-top: 4px; }
-    .items { list-style: none; margin-top: 4px; }
-    .items li { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; padding: 4px 0; border-bottom: 1px dotted #e5e5e5; }
+    .order-num { font-size: 18px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; }
+    .cod-badge { display: inline-block; background: #f97316; color: #fff; font-size: 13px; font-weight: 800; padding: 2px 10px; border-radius: 5px; margin-top: 4px; }
+    .divider { border-top: 1.5px dashed #bbb; margin: 3mm 0; }
+    .section { margin-bottom: 1mm; }
+    .grow { flex: 1 1 auto; }
+    .label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #777; margin-bottom: 2mm; }
+    .name { font-size: 27px; font-weight: 800; color: #000; line-height: 1.1; }
+    .phone { font-size: 23px; font-weight: 800; color: #0058c7; margin-top: 2mm; letter-spacing: 0.5px; }
+    .address { font-size: 15px; color: #1a1a1a; margin-top: 2.5mm; line-height: 1.35; }
+    .postcode { font-size: 23px; font-weight: 800; color: #000; margin-top: 2mm; letter-spacing: 1px; }
+    .items { list-style: none; margin-top: 2mm; }
+    .items li { display: flex; align-items: flex-start; gap: 9px; font-size: 16px; padding: 2mm 0; border-bottom: 1px dotted #ddd; }
     .items li:last-child { border-bottom: none; }
-    .chk { width: 12px; height: 12px; border: 1.5px solid #333; border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
-    .qty { font-weight: 800; color: #111; min-width: 28px; flex-shrink: 0; }
-    .iname { color: #222; line-height: 1.4; }
-    .notes { font-size: 10px; color: #c05c00; background: #fff7ed; border-left: 3px solid #f97316; padding: 4px 8px; border-radius: 0 4px 4px 0; margin-top: 6px; }
-    .footer { display: flex; justify-content: space-between; font-size: 10px; color: #666; }
+    .chk { width: 18px; height: 18px; border: 2px solid #333; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+    .qty { font-weight: 800; color: #000; min-width: 34px; flex-shrink: 0; }
+    .iname { color: #111; line-height: 1.3; }
+    .notes { font-size: 13px; color: #b45309; background: #fff7ed; border-left: 4px solid #f97316; padding: 2mm 3mm; border-radius: 0 4px 4px 0; margin-top: 3mm; }
+    .amount { display: flex; justify-content: space-between; align-items: center; margin-top: 3mm; padding-top: 3mm; border-top: 1.5px dashed #bbb; }
+    .amount-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
+    .amount-val { font-size: 22px; font-weight: 900; color: #000; }
+    /* COD = rider kutip tunai → serlahkan besar */
+    .amount.cod { background: #fff7ed; border: 2px solid #f97316; border-top: 2px solid #f97316; border-radius: 7px; padding: 3mm 4mm; }
+    .amount.cod .amount-label { color: #c2410c; font-size: 13px; }
+    .amount.cod .amount-val { font-size: 28px; color: #c2410c; }
+    .sender { margin-top: 3mm; padding-top: 2.5mm; border-top: 1px dashed #bbb; font-size: 11px; color: #999; text-align: center; }
     @media print {
       body { margin: 0; }
-      .slip { margin: 0 auto; border: 1.5px solid #333; }
+      .slip { margin: 0 auto; }
     }
   </style>
 </head>
