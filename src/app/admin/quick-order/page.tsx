@@ -25,15 +25,41 @@ export default function QuickOrderPage() {
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState<{ order_number: string; total: number } | null>(null)
+  // Mod reseller: pilih reseller → harga borong dipersetujui + autofill butiran
+  const [resellers, setResellers] = useState<any[]>([])
+  const [resellerId, setResellerId] = useState('')
+  const [resellerPrices, setResellerPrices] = useState<Map<string, number>>(new Map())
+  // Mod reseller: kos penghantaran dirunding → boleh diubah manual
+  const [deliveryOverride, setDeliveryOverride] = useState('')
+  const [deliveryTouched, setDeliveryTouched] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/landing-pages/products').then(r => r.json()).then(setProducts).catch(() => {})
+    fetch('/api/admin/resellers').then(r => r.json()).then(d => setResellers(Array.isArray(d) ? d : [])).catch(() => {})
   }, [])
+
+  async function selectReseller(id: string) {
+    setResellerId(id)
+    setItems([])
+    setDeliveryOverride(''); setDeliveryTouched(false)
+    if (!id) { setResellerPrices(new Map()); return }
+    const r = resellers.find((x: any) => x.id === id)
+    const c = r?.customers
+    if (c) setForm(f => ({ ...f, name: c.name ?? f.name, phone: c.phone_norm ?? f.phone, email: c.email ?? f.email }))
+    const rows = await fetch(`/api/admin/resellers/${id}/prices`).then(res => res.json()).catch(() => [])
+    const m = new Map<string, number>()
+    for (const p of Array.isArray(rows) ? rows : []) m.set(`${p.product_id}:${p.variant_id ?? ''}`, Number(p.price))
+    setResellerPrices(m)
+  }
+  const priceFor = (productId: string, variantId: string | null, retail: number) =>
+    resellerId ? (resellerPrices.get(`${productId}:${variantId ?? ''}`) ?? retail) : retail
 
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
   const FREE_MIN = 80
   const discountNum = Math.max(0, parseFloat(form.discount) || 0)
-  const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discountNum)
+  // Reseller (B2B): kos penghantaran dirunding → ambil dari input manual. Biasa: auto ikut poskod.
+  const deliveryNum = resellerId ? Math.max(0, parseFloat(deliveryOverride) || 0) : (deliveryFee ?? 0)
+  const total = Math.max(0, subtotal + deliveryNum - discountNum)
 
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); return }
@@ -47,6 +73,11 @@ export default function QuickOrderPage() {
   }, [subtotal, items])
 
   useEffect(() => { if (form.postcode) fetchFee(form.postcode) }, [form.postcode, fetchFee])
+
+  // Reseller: prefill kos auto (ikut poskod) sebagai titik mula — admin bebas ubah selepas itu
+  useEffect(() => {
+    if (resellerId && !deliveryTouched && deliveryFee !== null) setDeliveryOverride(String(deliveryFee))
+  }, [deliveryFee, resellerId, deliveryTouched])
 
   const filtered = search.trim()
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -64,7 +95,7 @@ export default function QuickOrderPage() {
         product_name: product.name,
         variant_name: variant?.name ?? null,
         qty: 1,
-        unit_price: variant ? variant.price : product.price,
+        unit_price: priceFor(product.id, variant?.id ?? null, variant ? variant.price : product.price),
       }])
     }
     setShowPicker(false)
@@ -92,6 +123,8 @@ export default function QuickOrderPage() {
           discount: discountNum,
           items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty })),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
+          reseller_id: resellerId || undefined,
+          delivery_fee: resellerId ? deliveryNum : undefined,
         }),
       })
       const data = await res.json()
@@ -103,7 +136,7 @@ export default function QuickOrderPage() {
 
   function reset() {
     setItems([]); setForm(f => ({ name: '', phone: '', email: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name, discount: '' }))
-    setSuccess(null); setDeliveryFee(null)
+    setSuccess(null); setDeliveryFee(null); setResellerId(''); setResellerPrices(new Map()); setDeliveryOverride(''); setDeliveryTouched(false)
   }
 
   if (success) return (
@@ -153,6 +186,17 @@ export default function QuickOrderPage() {
               <input value={form.staff_name} onChange={e => setForm(f => ({ ...f, staff_name: e.target.value }))}
                 placeholder="Your name" className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 w-28" />
             </div>
+          </div>
+
+          {/* Mod reseller — harga borong dipersetujui */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">ORDER UNTUK RESELLER (pilihan)</label>
+            <select value={resellerId} onChange={e => selectReseller(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-300">
+              <option value="">— Bukan reseller (order biasa) —</option>
+              {resellers.map((r: any) => <option key={r.id} value={r.id}>{r.customers?.name ?? r.customers?.phone_norm} · {r.status}</option>)}
+            </select>
+            {resellerId && <p className="text-[11px] text-violet-600 mt-1">Harga borong dipersetujui digunakan. Produk tanpa harga borong → jatuh ke harga retail (semak sebelum hantar).</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -243,9 +287,19 @@ export default function QuickOrderPage() {
               <div className="flex justify-between text-gray-500">
                 <span>Subtotal</span><span>RM{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-gray-500">
-                <span>Delivery</span>
-                <span>{fetchingFee ? '...' : deliveryFee === null ? (subtotal >= FREE_MIN ? <span className="text-green-600 font-bold">FREE</span> : '—') : deliveryFee === 0 ? <span className="text-green-600 font-bold">FREE</span> : `RM${deliveryFee.toFixed(2)}`}</span>
+              <div className="flex justify-between items-center text-gray-500">
+                <span>Delivery {resellerId && <span className="text-[11px] text-violet-600 font-semibold">(boleh ubah)</span>}</span>
+                {resellerId ? (
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={deliveryOverride}
+                    onChange={e => { setDeliveryOverride(e.target.value); setDeliveryTouched(true) }}
+                    placeholder="0.00"
+                    className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  />
+                ) : (
+                  <span>{fetchingFee ? '...' : deliveryFee === null ? (subtotal >= FREE_MIN ? <span className="text-green-600 font-bold">FREE</span> : '—') : deliveryFee === 0 ? <span className="text-green-600 font-bold">FREE</span> : `RM${deliveryFee.toFixed(2)}`}</span>
+                )}
               </div>
               <div className="flex justify-between items-center text-gray-500">
                 <span>Diskaun (RM)</span>
@@ -258,7 +312,7 @@ export default function QuickOrderPage() {
                 />
               </div>
               <div className="flex justify-between font-black text-base border-t border-gray-100 pt-1.5">
-                <span>TOTAL</span><span>RM{total.toFixed(2)}{deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}</span>
+                <span>TOTAL</span><span>RM{total.toFixed(2)}{!resellerId && deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}</span>
               </div>
             </div>
           )}

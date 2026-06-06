@@ -70,6 +70,8 @@ export const KV_ZONES: ZoneConfig[] = [
 
 // Pulang null bila poskod tiada atau bukan Klang Valley — order sebegini LUAR
 // liputan Lalamove same-day, jadi tidak dimasukkan ke dalam mana-mana zon.
+// Nota: poskod yang admin tanda 'Pos sahaja' (delivery_zones.courier_override) ditapis
+// LEBIH AWAL di server (lalamove-grouping/page.tsx) sebelum sampai ke fungsi ini.
 export function getZone(postcode: string | null | undefined): ZoneConfig | null {
   if (!postcode) return null
   const p = postcode.trim()

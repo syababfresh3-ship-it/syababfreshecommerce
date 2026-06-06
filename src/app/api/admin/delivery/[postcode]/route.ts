@@ -1,7 +1,7 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
 
-const ZONE_UPDATE_FIELDS = ['area_name', 'city', 'state', 'delivery_fee', 'is_active', 'frequency'] as const
+const ZONE_UPDATE_FIELDS = ['area_name', 'city', 'state', 'delivery_fee', 'is_active', 'frequency', 'courier_override'] as const
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ postcode: string }> }) {
   const { supabase, forbidden } = await requireAdmin()

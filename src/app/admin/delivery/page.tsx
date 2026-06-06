@@ -12,6 +12,7 @@ interface Zone {
   state: string
   frequency: string
   is_active: boolean
+  courier_override: 'pos' | 'lalamove' | null
 }
 
 const malaysiaStates = [
@@ -86,6 +87,18 @@ export default function DeliveryZonesPage() {
       body: JSON.stringify({ is_active: !z.is_active }),
     })
     load()
+  }
+
+  // Override kurier per-poskod (auto = ikut julat poskod). 'pos' = paksa Pos (Lalamove
+  // tak sampai); 'lalamove' = paksa Lalamove (Pos tak sampai).
+  async function setOverride(postcode: string, value: '' | 'pos' | 'lalamove') {
+    await fetch(`/api/admin/delivery/${postcode}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courier_override: value || null }),
+    })
+    setZones(prev => prev.map(z => z.postcode === postcode ? { ...z, courier_override: value || null } : z))
+    toast.success(value ? `${postcode} → ${value === 'pos' ? 'Pos sahaja' : 'Lalamove sahaja'}` : `${postcode} → auto`)
   }
 
   async function handleDelete(postcode: string) {
@@ -332,6 +345,7 @@ export default function DeliveryZonesPage() {
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Bandar</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Negeri</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Frekuensi</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kurier</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3" />
             </tr>
@@ -339,7 +353,7 @@ export default function DeliveryZonesPage() {
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center">
+                <td colSpan={8} className="px-5 py-12 text-center">
                   <div className="flex flex-col items-center gap-2 text-gray-400">
                     <MapPin className="h-8 w-8 text-gray-200" />
                     <p className="font-medium">{search ? `No hasil untuk "${search}"` : 'No kawasan pengsendan'}</p>
@@ -357,6 +371,22 @@ export default function DeliveryZonesPage() {
                     <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-lg border ${FREQ_STYLES[z.frequency] ?? 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                       {z.frequency ?? 'Daily'}
                     </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <select
+                      value={z.courier_override ?? ''}
+                      onChange={e => setOverride(z.postcode, e.target.value as '' | 'pos' | 'lalamove')}
+                      title="Override kurier (auto = ikut julat poskod)"
+                      className={`text-xs font-semibold px-2 py-1.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-red-300 ${
+                        z.courier_override === 'pos' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : z.courier_override === 'lalamove' ? 'bg-orange-50 text-orange-700 border-orange-200'
+                        : 'bg-white text-gray-500 border-gray-200'
+                      }`}
+                    >
+                      <option value="">Auto</option>
+                      <option value="pos">Pos sahaja</option>
+                      <option value="lalamove">Lalamove sahaja</option>
+                    </select>
                   </td>
                   <td className="px-5 py-3 text-center">
                     <button

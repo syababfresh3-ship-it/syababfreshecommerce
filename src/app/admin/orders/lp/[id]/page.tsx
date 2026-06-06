@@ -7,6 +7,8 @@ import { LpOrderActions } from './lp-order-actions'
 import { LpShipmentPanel } from './lp-shipment-panel'
 import { LpCustomerEdit } from './lp-customer-edit'
 import { ReceiptActions } from '../../receipt-actions'
+import { ResellerInvoiceActions } from './reseller-invoice-actions'
+import { ResellerDeliveryEdit } from './reseller-delivery-edit'
 
 const statusCls: Record<string, string> = {
   pending:    'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -57,7 +59,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-black text-gray-900 font-mono">{order.order_number}</h1>
-              <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">LP</span>
+              {order.source === 'reseller'
+                ? <span className="text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">Reseller</span>
+                : <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">LP</span>}
               {order.delivery_method === 'pickup' && (
                 <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">PICKUP</span>
               )}
@@ -105,10 +109,14 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                   {isPaid ? '✓ Paid' : 'Pending payment'}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Delivery Fee</span>
-                <span>RM{Number(order.delivery_fee ?? 0).toFixed(2)}</span>
-              </div>
+              {order.source === 'reseller' ? (
+                <ResellerDeliveryEdit orderId={order.id} deliveryFee={Number(order.delivery_fee ?? 0)} />
+              ) : (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Delivery Fee</span>
+                  <span>RM{Number(order.delivery_fee ?? 0).toFixed(2)}</span>
+                </div>
+              )}
               {Number(order.discount ?? 0) > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Discount</span>
@@ -127,6 +135,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
           </div>
+
+          {/* Invois reseller (download + email) */}
+          {order.source === 'reseller' && <ResellerInvoiceActions orderId={order.id} />}
 
           {/* Delivery slot / notes */}
           {order.notes && (

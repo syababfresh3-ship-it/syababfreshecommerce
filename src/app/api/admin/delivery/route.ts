@@ -1,7 +1,7 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
 
-const ZONE_FIELDS = ['postcode', 'area_name', 'city', 'state', 'delivery_fee', 'is_active', 'frequency'] as const
+const ZONE_FIELDS = ['postcode', 'area_name', 'city', 'state', 'delivery_fee', 'is_active', 'frequency', 'courier_override'] as const
 const MAX_BULK_ROWS = 2000
 
 function sanitizeZone(row: Record<string, unknown>) {

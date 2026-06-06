@@ -221,7 +221,8 @@ export default async function AdminOrdersPage({
   // badge 'Manual' + jangan tunjuk tajuk LP (kekal _isLp untuk routing/PATCH endpoint LP).
   const lpAsOrders = allLpOrders.map((lp: any) => {
     // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>' → guna startsWith
-    const isManual = typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
+    const isReseller = lp.source === 'reseller'
+    const isManual = !isReseller && typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
     return ({
     id: lp.id,
     order_number: lp.order_number,
@@ -244,7 +245,8 @@ export default async function AdminOrdersPage({
     })),
     _isLp: true,
     _isManual: isManual,
-    _lpTitle: isManual ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
+    _isReseller: isReseller,
+    _lpTitle: (isManual || isReseller) ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
   })
   })
 

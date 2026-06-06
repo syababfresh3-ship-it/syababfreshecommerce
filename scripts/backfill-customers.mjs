@@ -49,23 +49,28 @@ for (const pr of profiles ?? []) {
   seen(p, pr.created_at)
 }
 
+// Order dikira hanya kalau bukan cancelled/refunded DAN "settled" (online mesti paid;
+// COD/bank dikira). Elak order online abandoned kembungkan order_count/total_spend.
+const counts = (o) => !DEAD.has(o.status) &&
+  (['fpx', 'ewallet'].includes(o.payment_method ?? '') ? o.payment_status === 'paid' : true)
+
 // ── storefront orders → key ikut telefon profil ──────────────────────
-const { data: orders } = await sb.from('orders').select('user_id, total, status, created_at')
+const { data: orders } = await sb.from('orders').select('user_id, total, status, payment_method, payment_status, created_at')
 for (const o of orders ?? []) {
   const pr = profileById.get(o.user_id); if (!pr?.phone) continue
   const p = touch(pr.phone); if (!p) continue
   p.sources.add('store'); seen(p, o.created_at)
-  if (!DEAD.has(o.status)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+  if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
 }
 
 // ── LP guest orders ──────────────────────────────────────────────────
-const { data: lp } = await sb.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, created_at')
+const { data: lp } = await sb.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at')
 for (const o of lp ?? []) {
   const p = touch(o.phone); if (!p) continue
   p.sources.add('lp')
   fill(p, 'name', o.name); fill(p, 'email', o.email); fill(p, 'address', o.address); fill(p, 'postcode', o.postcode)
   seen(p, o.created_at)
-  if (!DEAD.has(o.status)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+  if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
 }
 
 // ── leads (belum beli) ───────────────────────────────────────────────

@@ -12,8 +12,12 @@ export async function awardLpLoyalty(
   lp: {
     id: string; order_number: string; phone: string; total: number | string
     payment_method?: string | null; payment_status?: string | null; user_id?: string | null
+    source?: string | null
   }
 ): Promise<{ awarded: boolean; userId?: string; points?: number }> {
+  // Order borong (reseller) = B2B, bukan retail → tiada mata loyalty.
+  if (lp.source === 'reseller') return { awarded: false }
+
   // Payment guard: online (fpx/ewallet) must be paid; COD/bank settle on delivery.
   // Don't reward an unpaid online order even if it was marked delivered.
   const settled = lp.payment_status === 'paid'

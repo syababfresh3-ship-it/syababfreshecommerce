@@ -10,8 +10,9 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
   const body = await request.json()
-  const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount } = body
+  const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount, reseller_id, delivery_fee } = body
   const discountNum = Math.max(0, Number(discount) || 0)
+  const isReseller = typeof reseller_id === 'string' && reseller_id.length > 0
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
   if (!phone?.trim()) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
@@ -36,6 +37,16 @@ export async function POST(request: Request) {
   const variantMap = new Map((variantsRes.data ?? []).map((v: any) => [v.id, v]))
   const productMap = new Map((productsRes.data ?? []).map((p: any) => [p.id, p]))
 
+  // Order reseller → guna harga dipersetujui (reseller_prices). Fallback retail kalau
+  // belum diset (UI papar amaran). Key: `${product_id}:${variant_id ?? ''}`.
+  const resellerPrice = new Map<string, number>()
+  if (isReseller) {
+    const { data: rp } = await supabase.from('reseller_prices').select('product_id, variant_id, price').eq('reseller_id', reseller_id)
+    for (const r of rp ?? []) resellerPrice.set(`${r.product_id}:${r.variant_id ?? ''}`, Number(r.price))
+  }
+  const agreedPrice = (pid: string, vid: string | null, retail: number) =>
+    isReseller ? (resellerPrice.get(`${pid}:${vid ?? ''}`) ?? retail) : retail
+
   let subtotal = 0
   const validatedItems: any[] = []
 
@@ -43,24 +54,28 @@ export async function POST(request: Request) {
     if (item.variant_id) {
       const variant = variantMap.get(item.variant_id)
       if (!variant || !variant.is_active) return NextResponse.json({ error: `Variant not available` }, { status: 400 })
-      const unitPrice = Number(variant.price)
+      const unitPrice = agreedPrice(variant.product_id, variant.id, Number(variant.price))
       subtotal += unitPrice * item.quantity
       validatedItems.push({ product_id: variant.product_id, variant_id: variant.id, product_name: (variant.products as any)?.name, variant_name: variant.name, quantity: item.quantity, unit_price: unitPrice })
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Product not available` }, { status: 400 })
-      const unitPrice = Number(product.price)
+      const unitPrice = agreedPrice(product.id, null, Number(product.price))
       subtotal += unitPrice * item.quantity
       validatedItems.push({ product_id: product.id, variant_id: null, product_name: product.name, variant_name: null, quantity: item.quantity, unit_price: unitPrice })
     }
   }
 
-  // Delivery fee
+  // Delivery fee. Reseller (B2B) = dirunding → terima override manual dari admin.
+  // Order biasa = auto ikut poskod / free-min (override diabaikan, elak manipulasi klien).
   const appSettings = await getAppSettings()
   const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
   let deliveryFee = Number(appSettings.default_delivery_fee ?? 15)
 
-  if (subtotal >= FREE_MIN) {
+  const deliveryOverride = Number(delivery_fee)
+  if (isReseller && Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
+    deliveryFee = deliveryOverride
+  } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
@@ -94,7 +109,8 @@ export async function POST(request: Request) {
     discount: appliedDiscount,
     total,
     payment_method: payment_method ?? 'bank_transfer',
-    source,
+    source: isReseller ? 'reseller' : source,
+    reseller_id: isReseller ? reseller_id : null,
     items: validatedItems,
     status: 'confirmed', // WA orders already confirmed
   }).select('id, order_number, total').single()

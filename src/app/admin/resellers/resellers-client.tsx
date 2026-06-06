@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search, X, Store, Trash2, Save, BadgeCheck } from 'lucide-react'
+import { Plus, Search, X, Store, Trash2, Save, BadgeCheck, Tag } from 'lucide-react'
 
 interface Customer { id: string; name: string | null; phone_norm: string; email: string | null; order_count: number; total_spend: number; is_reseller?: boolean }
 interface Reseller {
@@ -128,6 +128,9 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
                     <button onClick={() => save(r.id)} className="flex items-center gap-1.5 text-sm font-semibold text-white bg-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-800"><Save className="h-3.5 w-3.5" /> Simpan</button>
                     <button onClick={() => setEditId(null)} className="text-sm text-gray-500 px-3 py-1.5">Batal</button>
                   </div>
+                  <div className="col-span-2 pt-3 border-t border-gray-100">
+                    <ResellerPrices resellerId={r.id} />
+                  </div>
                 </div>
               )}
             </div>
@@ -166,6 +169,79 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Editor harga borong dipersetujui (per reseller, per produk/variant) ─────────
+interface RPrice { id: string; product_id: string; variant_id: string | null; price: number; products: { name: string } | null; product_variants: { name: string } | null }
+interface PProduct { id: string; name: string; price: number; product_variants: { id: string; name: string; price: number; is_active: boolean }[] }
+
+function ResellerPrices({ resellerId }: { resellerId: string }) {
+  const [prices, setPrices] = useState<RPrice[]>([])
+  const [products, setProducts] = useState<PProduct[]>([])
+  const [pid, setPid] = useState('')
+  const [vid, setVid] = useState('')
+  const [price, setPrice] = useState('')
+
+  async function load() {
+    const d = await fetch(`/api/admin/resellers/${resellerId}/prices`).then(r => r.json()).catch(() => [])
+    setPrices(Array.isArray(d) ? d : [])
+  }
+  useEffect(() => {
+    load()
+    fetch('/api/admin/landing-pages/products').then(r => r.json()).then(d => setProducts(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [resellerId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selProduct = products.find(p => p.id === pid)
+  const variants = (selProduct?.product_variants ?? []).filter(v => v.is_active)
+
+  async function add() {
+    if (!pid || !price) { toast.error('Pilih produk & isi harga'); return }
+    const res = await fetch(`/api/admin/resellers/${resellerId}/prices`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_id: pid, variant_id: vid || null, price: Number(price) }),
+    })
+    if (!res.ok) { toast.error((await res.json().catch(() => ({})))?.error ?? 'Gagal'); return }
+    toast.success('Harga disimpan'); setPrice(''); setVid(''); load()
+  }
+  async function del(id: string) {
+    const res = await fetch(`/api/admin/resellers/${resellerId}/prices`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ price_id: id }),
+    })
+    if (!res.ok) { toast.error('Gagal'); return }
+    load()
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1"><Tag className="h-3.5 w-3.5" /> Harga Borong</p>
+      <div className="space-y-1 mb-3">
+        {prices.length === 0 && <p className="text-xs text-gray-400">Belum ada harga dipersetujui — order reseller akan jatuh ke harga retail.</p>}
+        {prices.map(p => (
+          <div key={p.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-1.5">
+            <span className="text-gray-700 truncate">{p.products?.name ?? '—'}{p.product_variants?.name ? ` (${p.product_variants.name})` : ''}</span>
+            <span className="flex items-center gap-2 shrink-0">
+              <span className="font-semibold text-gray-900">RM{Number(p.price).toFixed(2)}</span>
+              <button onClick={() => del(p.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <select value={pid} onChange={e => { setPid(e.target.value); setVid('') }} className="flex-1 min-w-[140px] border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-gray-50">
+          <option value="">Pilih produk…</option>
+          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        {variants.length > 0 && (
+          <select value={vid} onChange={e => setVid(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-gray-50">
+            <option value="">Produk asas</option>
+            {variants.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+          </select>
+        )}
+        <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="RM harga" className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-gray-50" />
+        <button onClick={add} className="text-sm font-semibold text-white bg-rose-600 px-3 py-1.5 rounded-lg hover:bg-rose-700">Tambah</button>
+      </div>
     </div>
   )
 }

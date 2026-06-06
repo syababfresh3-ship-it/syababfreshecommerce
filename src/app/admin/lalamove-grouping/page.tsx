@@ -139,9 +139,16 @@ export default async function LalamoveGroupingPage() {
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
   const rangeStart = new Date(todayStart); rangeStart.setDate(rangeStart.getDate() - 2)
   const [orders, lpOrders] = await Promise.all([getTodayOrders(), getLpOrders(rangeStart)])
-  const allOrders = [...orders, ...lpOrders].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  )
+
+  // Poskod yang ditanda 'Pos sahaja' (delivery_zones.courier_override) → Lalamove tak
+  // sampai, jangan masuk grouping. Admin set di /admin/delivery.
+  const admin = createAdminClient()
+  const { data: ovRows } = await admin.from('delivery_zones').select('postcode').eq('courier_override', 'pos')
+  const posOnly = new Set((ovRows ?? []).map((r) => r.postcode))
+
+  const allOrders = [...orders, ...lpOrders]
+    .filter((o) => !(o.postcode && posOnly.has(o.postcode)))
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto" data-orders={allOrders.length}>

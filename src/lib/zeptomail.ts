@@ -77,6 +77,7 @@ async function send(opts: {
   toName: string
   subject: string
   html: string
+  attachments?: { name: string; contentBase64: string; mimeType?: string }[]
 }): Promise<boolean> {
   if (!API_KEY) {
     console.warn('[zeptomail] ZEPTOMAIL_API_KEY not set — skipping email')
@@ -96,6 +97,9 @@ async function send(opts: {
         to: [{ email_address: { address: opts.to, name: opts.toName } }],
         subject: opts.subject,
         htmlbody: opts.html,
+        ...(opts.attachments?.length
+          ? { attachments: opts.attachments.map(a => ({ content: a.contentBase64, mime_type: a.mimeType ?? 'application/pdf', name: a.name })) }
+          : {}),
       }),
     })
 
@@ -483,5 +487,32 @@ export async function sendBroadcastEmail(params: {
     toName: params.toName ?? 'Pelanggan',
     subject: params.subject,
     html,
+  })
+}
+
+// ─── email 7: invois reseller (PDF attachment) ─────────────────────────────────
+export async function sendResellerInvoiceEmail(params: {
+  to: string
+  toName: string | null
+  invoiceNumber: string
+  total: number
+  pdfBase64: string
+}): Promise<boolean> {
+  const html = layout(`Invois ${params.invoiceNumber}`, `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(params.toName ?? 'Reseller')}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#111827;">Invois ${esc(params.invoiceNumber)}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Terlampir invois borong anda. Jumlah: <strong>RM${Number(params.total).toFixed(2)}</strong>.
+      Terima kasih atas pesanan anda. 🍒
+    </p>
+  `)
+  return send({
+    from: FROM_ORDER,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.toName ?? 'Reseller',
+    subject: `Invois ${params.invoiceNumber} — SyababFresh`,
+    html,
+    attachments: [{ name: `${params.invoiceNumber}.pdf`, contentBase64: params.pdfBase64, mimeType: 'application/pdf' }],
   })
 }
