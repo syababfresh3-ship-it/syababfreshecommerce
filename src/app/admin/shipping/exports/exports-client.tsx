@@ -8,6 +8,7 @@ import {
   AlertCircle, Eye, EyeOff, ClipboardList,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { poslajuTier } from './poslaju-zones'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,6 +89,19 @@ type AreaFilter = 'all' | 'kl' | 'luar' | 'lain'
 function areaCategory(o: ExportOrder): Exclude<AreaFilter, 'all'> {
   if (!o.area_known) return 'lain'
   return o.is_kl ? 'kl' : 'luar'
+}
+
+// Courier berkesan untuk satu order (ambil kira pilihan admin per-order).
+//  • Tiada item fresh → Poslaju (kering)
+//  • Dalam LK → Lalamove
+//  • Luar-LK + fresh → DEFAULT Ninja Cold; admin boleh toggle ke Poslaju
+//    (selamat untuk poskod D1-D2 Semenanjung — lihat poslaju-zones).
+type CourierChoice = 'ninja_cold' | 'poslaju'
+function effectiveCourier(o: ExportOrder, override: Record<string, CourierChoice>): 'ninja_cold' | 'poslaju' | 'lalamove' | null {
+  if (!o.has_fresh) return 'poslaju'
+  if (!o.area_known) return null
+  if (o.is_kl) return 'lalamove'
+  return override[o.id] ?? 'ninja_cold'
 }
 
 function csvRow(cells: (string | number)[]) {
@@ -585,6 +599,12 @@ export function ExportsClient({
     [orders, selected]
   )
 
+  // Pilihan courier per-order (luar-LK fresh): default Ninja, toggle ke Poslaju.
+  const [courierOverride, setCourierOverride] = useState<Record<string, CourierChoice>>({})
+  function toggleCourier(id: string) {
+    setCourierOverride((prev) => ({ ...prev, [id]: prev[id] === 'poslaju' ? 'ninja_cold' : 'poslaju' }))
+  }
+
   // Stamp exported orders so they drop off the list (default hidden) — prevents
   // a second staff shipping the same order. Best-effort; file already downloaded.
   async function markExported(ids: string[]) {
@@ -612,26 +632,29 @@ export function ExportsClient({
   }
 
   async function handleExportNinja() {
-    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
-    const ids = selectedOrders.map((o) => o.id)
-    exportNinjaCold(selectedOrders)
-    toast.success(`${ids.length} orders diexport (Ninja Cold)`)
+    const list = selectedOrders.filter((o) => effectiveCourier(o, courierOverride) === 'ninja_cold')
+    if (list.length === 0) { toast.error('Tiada order Ninja Cold dalam pilihan'); return }
+    const ids = list.map((o) => o.id)
+    exportNinjaCold(list)
+    toast.success(`${ids.length} order export (Ninja Cold)`)
     await markExported(ids)
   }
 
   async function handleExportPoslaju() {
-    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
-    const ids = selectedOrders.map((o) => o.id)
-    await exportPoslaju(selectedOrders)
-    toast.success(`${ids.length} orders diexport (Poslaju)`)
+    const list = selectedOrders.filter((o) => effectiveCourier(o, courierOverride) === 'poslaju')
+    if (list.length === 0) { toast.error('Tiada order Poslaju dalam pilihan'); return }
+    const ids = list.map((o) => o.id)
+    await exportPoslaju(list)
+    toast.success(`${ids.length} order export (Poslaju)`)
     await markExported(ids)
   }
 
   async function handleExportLalamove() {
-    if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
-    const ids = selectedOrders.map((o) => o.id)
-    await exportLalamove(selectedOrders)
-    toast.success(`${ids.length} orders diexport (Lalamove)`)
+    const list = selectedOrders.filter((o) => effectiveCourier(o, courierOverride) === 'lalamove')
+    if (list.length === 0) { toast.error('Tiada order Lalamove dalam pilihan'); return }
+    const ids = list.map((o) => o.id)
+    await exportLalamove(list)
+    toast.success(`${ids.length} order export (Lalamove)`)
     await markExported(ids)
   }
 
@@ -911,17 +934,10 @@ export function ExportsClient({
                     const isSelected = selected.has(o.id)
                     const missingAddress = !o.full_address && !o.postcode
 
-                    // Courier suggestion
-                    let courierBadge = { label: '?', cls: 'bg-gray-100 text-gray-500' }
-                    if (!o.has_fresh) {
-                      courierBadge = { label: 'Poslaju', cls: 'bg-red-100 text-red-700' }
-                    } else if (!o.area_known) {
-                      courierBadge = { label: 'Fresh — zone ?', cls: 'bg-green-100 text-green-700' }
-                    } else if (o.is_kl) {
-                      courierBadge = { label: 'Lalamove', cls: 'bg-orange-100 text-orange-700' }
-                    } else {
-                      courierBadge = { label: 'Ninja Cold', cls: 'bg-blue-100 text-blue-700' }
-                    }
+                    // Courier berkesan + cadangan Poslaju (D1-D2)
+                    const eff = effectiveCourier(o, courierOverride)
+                    const pTier = poslajuTier(o.postcode)         // D1/D2 atau null
+                    const canToggle = o.has_fresh && o.area_known && !o.is_kl  // luar-LK fresh
 
                     return (
                       <tr
@@ -981,9 +997,34 @@ export function ExportsClient({
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${courierBadge.cls}`}>
-                            {courierBadge.label}
-                          </span>
+                          {canToggle ? (
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${eff === 'poslaju' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {eff === 'poslaju' ? `Poslaju${pTier ? ` · ${pTier}` : ''}` : 'Ninja Cold'}
+                              </span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleCourier(o.id) }}
+                                title="Tukar courier untuk order ini"
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border cursor-pointer transition-colors ${
+                                  eff === 'poslaju'
+                                    ? 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                                    : pTier
+                                      ? 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
+                                      : 'border-amber-200 text-amber-600 hover:bg-amber-50'
+                                }`}
+                              >
+                                {eff === 'poslaju'
+                                  ? '↺ Kembali Ninja'
+                                  : pTier ? `→ Tukar Poslaju (${pTier})` : '→ Poslaju (jauh?)'}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              eff === 'poslaju' ? 'bg-red-100 text-red-700' : eff === 'lalamove' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              {eff === 'poslaju' ? 'Poslaju' : eff === 'lalamove' ? 'Lalamove' : 'Zone ?'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_BADGE[o.status] ?? 'bg-gray-100 text-gray-500'}`}>
