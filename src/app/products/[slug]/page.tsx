@@ -169,7 +169,7 @@ export async function generateMetadata({
 
   const title = product.name
   const description = product.description
-    ?? `Beli ${product.name} segar online — RM${Number(product.price).toFixed(2)}/${product.unit}. Penghantaran 2–4 jam Klang Valley.`
+    ?? `Beli ${product.name} segar online — RM${Number(product.price).toFixed(2)}/${product.unit}. Penghantaran dalam 24 jam Klang Valley.`
 
   return {
     title,
@@ -286,8 +286,8 @@ export default async function ProductDetailPage({
               <div className="flex items-center gap-2">
                 <span className="text-sm leading-none">📍</span>
                 <div>
-                  <p className="text-xs font-bold text-brand-fresh-700">Lembah Klang: 2–4 jam</p>
-                  <p className="text-[10px] text-gray-500 mt-0.5">Order sebelum 2 petang, sampai petang ini</p>
+                  <p className="text-xs font-bold text-brand-fresh-700">Lembah Klang: 24 jam</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Sampai dalam masa 24 jam selepas pesanan disahkan</p>
                 </div>
               </div>
               <div className="border-t border-brand-fresh-100" />
@@ -304,7 +304,7 @@ export default async function ProductDetailPage({
               <span className="text-base leading-none">📍</span>
               <div>
                 <p className="text-xs font-bold text-orange-700">Lembah Klang Sahaja</p>
-                <p className="text-[10px] text-orange-500 mt-0.5">Penghantaran 2–4 jam — order sebelum 2 petang</p>
+                <p className="text-[10px] text-orange-500 mt-0.5">Penghantaran dalam 24 jam</p>
               </div>
             </div>
           )}
@@ -330,7 +330,7 @@ export default async function ProductDetailPage({
                 </>
               ) : (
                 <>
-                  <span className="text-[10px] font-bold text-gray-700 leading-tight">2–4 Jam</span>
+                  <span className="text-[10px] font-bold text-gray-700 leading-tight">24 Jam</span>
                   <span className="text-[9px] text-gray-400 leading-tight">Lembah Klang</span>
                 </>
               )}

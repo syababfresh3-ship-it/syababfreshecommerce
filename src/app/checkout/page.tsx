@@ -728,7 +728,7 @@ export default function CheckoutPage() {
           <div className="px-4 pt-4 pb-3">
             <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-0.5">Masa Penghantaran</p>
             <p className="text-[11px] text-gray-400">
-              {isNationwide ? 'Dihantar dengan lori sejuk beku' : 'Anggaran 2–4 jam selepas pesanan disahkan'}
+              {isNationwide ? 'Dihantar dengan lori sejuk beku' : 'Anggaran 24 jam selepas pesanan disahkan'}
             </p>
           </div>
 

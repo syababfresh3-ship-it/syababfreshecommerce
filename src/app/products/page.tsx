@@ -17,7 +17,7 @@ const POPULAR_SEARCHES = ['Durian', 'Mangga', 'Strawberry', 'Anggur', 'Tembikai'
 
 export const metadata: Metadata = {
   title: 'Produk',
-  description: 'Beli buah segar online — durian, mangga, strawberry dan banyak lagi. Penghantaran 2–4 jam ke Klang Valley.',
+  description: 'Beli buah segar online — durian, mangga, strawberry dan banyak lagi. Penghantaran dalam 24 jam ke Klang Valley.',
 }
 
 const PAGE_SIZE = 12

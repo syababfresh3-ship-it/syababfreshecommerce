@@ -241,7 +241,7 @@ export async function sendPaymentConfirmedEmail(params: {
     </td></tr></table>` : ''}
 
     <p style="margin:24px 0 0;font-size:13px;color:#6b7280;line-height:1.6;">
-      🚚 Kami akan maklumkan anda bila pesanan dalam penghantaran. Anggaran masa tiba: <strong>2–4 jam</strong> selepas pengesahan.
+      🚚 Kami akan maklumkan anda bila pesanan dalam penghantaran. Anggaran masa tiba: <strong>24 jam</strong> selepas pengesahan.
     </p>
   `)
 

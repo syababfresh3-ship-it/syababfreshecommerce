@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s | SyababFresh",
   },
   description:
-    "Beli buah segar online dengan penghantaran cepat 2–4 jam. Durian, mangga, strawberry dan banyak lagi. Jaminan kesegaran 100%.",
+    "Beli buah segar online dengan penghantaran dalam 24 jam. Durian, mangga, strawberry dan banyak lagi. Jaminan kesegaran 100%.",
   keywords: ["buah segar", "delivery buah", "online buah", "klang valley", "syababfresh", "durian delivery"],
   authors: [{ name: "SyababFresh" }],
   manifest: "/manifest.json",
@@ -45,13 +45,13 @@ export const metadata: Metadata = {
     url: BASE_URL,
     siteName: "SyababFresh",
     title: "SyababFresh — Buah Segar Online",
-    description: "Beli buah segar online dengan penghantaran cepat 2–4 jam. Jaminan kesegaran 100%.",
+    description: "Beli buah segar online dengan penghantaran dalam 24 jam. Jaminan kesegaran 100%.",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SyababFresh" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SyababFresh — Buah Segar Online",
-    description: "Beli buah segar online dengan penghantaran cepat 2–4 jam.",
+    description: "Beli buah segar online dengan penghantaran dalam 24 jam.",
     images: ["/og-image.png"],
   },
   robots: {

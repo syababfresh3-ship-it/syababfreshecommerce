@@ -10,7 +10,7 @@ import { Truck, Clock, MapPin, Phone, RotateCcw, CreditCard, ChevronDown } from 
 const faqs = [
   {
     q: 'Berapa lama masa penghantaran?',
-    a: 'Kami menghantar dalam masa 2–4 jam untuk kawasan Klang Valley. Untuk kawasan lain, sila hubungi kami terlebih dahulu.',
+    a: 'Kami menghantar dalam masa 24 jam untuk kawasan Klang Valley. Untuk kawasan lain, sila hubungi kami terlebih dahulu.',
   },
   {
     q: 'Adakah penghantaran percuma?',
@@ -72,7 +72,7 @@ export default function InfoPage() {
               <Clock className="h-3.5 w-3.5 text-gray-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs font-medium text-gray-700">Masa Penghantaran</p>
-                <p className="text-xs text-gray-500">2–4 jam selepas pengesahan pesanan</p>
+                <p className="text-xs text-gray-500">24 jam selepas pengesahan pesanan</p>
               </div>
             </div>
             <div className="flex items-start gap-2.5">

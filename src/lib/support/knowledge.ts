@@ -11,7 +11,7 @@ export const SUPPORT_KNOWLEDGE = `# Maklumat SyababFresh (untuk jawab FAQ)
 SyababFresh menjual buah segar online dengan jaminan kesegaran. Penghantaran pantau ke Klang Valley & seluruh Malaysia.
 
 ## Penghantaran
-- **Klang Valley** (KL, Cheras/Ampang, PJ/Damansara, Subang/USJ/Sunway, Shah Alam, Klang/Setia Alam): penghantaran pantas, biasanya 2–4 jam pada hari penghantaran (Lalamove/runner).
+- **Klang Valley** (KL, Cheras/Ampang, PJ/Damansara, Subang/USJ/Sunway, Shah Alam, Klang/Setia Alam): penghantaran dalam masa 24 jam selepas pesanan disahkan (Lalamove/runner).
 - **Luar Klang Valley**: guna Ninja Van Cold (kurier sejuk) — 1–3 hari bekerja, kos ikut berat.
 - **Self-collect (pickup)**: ada untuk sesetengah masa — pelanggan ambil sendiri di kedai, tiada kos penghantaran.
 - Tracking: bila parcel dihantar, pelanggan dapat link tracking via email + WhatsApp.

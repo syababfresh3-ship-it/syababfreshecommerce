@@ -130,7 +130,7 @@ export default async function HomePage() {
           },
           {
             icon: Clock,
-            title: 'Hantar 2–4 Jam',
+            title: 'Hantar Dalam 24 Jam',
             sub: 'Kawasan Klang Valley',
             color: 'text-blue-600',
             bg: 'bg-blue-50',
@@ -191,7 +191,7 @@ export default async function HomePage() {
               Nak buah segar hari ini?
             </p>
             <p className="text-white/80 text-[12px] mt-0.5 font-medium">
-              Penghantaran 2–4 jam ke depan pintu
+              Penghantaran dalam 24 jam ke depan pintu
             </p>
           </div>
           <Link
