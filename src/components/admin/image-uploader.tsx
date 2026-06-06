@@ -9,6 +9,34 @@ import { Upload, X, ImageIcon, Loader2 } from 'lucide-react'
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
 
+const RESIZE_MAX_W = 1600  // lebar maksimum disimpan — cukup tajam, fail kecil
+const RESIZE_QUALITY = 0.8 // WebP quality
+
+// Resize + tukar ke WebP dalam browser (canvas) SEBELUM upload. Ini elak guna
+// Supabase image transformation (jimat kuota) — imej disimpan terus dah optimize.
+// SVG dilangkau (vektor). Pulang Blob WebP, atau null jika gagal → fallback ke asal.
+function resizeToWebp(file: File): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
+    const img = new window.Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, RESIZE_MAX_W / img.width)
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { resolve(null); return }
+      ctx.drawImage(img, 0, 0, w, h)
+      canvas.toBlob((blob) => resolve(blob), 'image/webp', RESIZE_QUALITY)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
+    img.src = url
+  })
+}
+
 interface ImageUploaderProps {
   currentUrl?: string | null
   onUpload: (url: string) => void
@@ -41,12 +69,20 @@ export function ImageUploader({ currentUrl, onUpload, onRemove, bucket = 'produc
     setUploading(true)
 
     const supabase = createClient()
-    const ext = file.name.split('.').pop()
+
+    // Optimize sebelum upload (kecuali SVG). Jika gagal, guna fail asal.
+    let body: Blob = file
+    let ext = file.name.split('.').pop() || 'jpg'
+    let contentType = file.type
+    if (file.type !== 'image/svg+xml') {
+      const webp = await resizeToWebp(file)
+      if (webp) { body = webp; ext = 'webp'; contentType = 'image/webp' }
+    }
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
     const { error } = await supabase.storage
       .from(bucket)
-      .upload(fileName, file, { upsert: false, contentType: file.type })
+      .upload(fileName, body, { upsert: false, contentType })
 
     if (error) {
       toast.error('Gagal upload gambar. Cuba lagi.')
