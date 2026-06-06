@@ -70,6 +70,7 @@ const TEMPLATES = [
 
 export default function WhatsAppTemplatesPage() {
   const [templates, setTemplates] = useState<Record<string, string>>({})
+  const [trackingMode, setTrackingMode] = useState<'murpati' | 'off'>('murpati')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
@@ -84,6 +85,7 @@ export default function WhatsAppTemplatesPage() {
           merged[t.key] = data[t.key] ?? DEFAULT_TEMPLATES[t.key] ?? ''
         }
         setTemplates(merged)
+        setTrackingMode(data.wa_customer_tracking === 'off' ? 'off' : 'murpati')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -94,7 +96,7 @@ export default function WhatsAppTemplatesPage() {
       const res = await fetch('/api/admin/settings/whatsapp', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templates),
+        body: JSON.stringify({ ...templates, wa_customer_tracking: trackingMode }),
       })
       if (!res.ok) { toast.error('Failed to save'); return }
       toast.success('WhatsApp templates saved!')
@@ -166,6 +168,34 @@ export default function WhatsAppTemplatesPage() {
         <p className="font-bold mb-1">Available variables:</p>
         <p className="text-xs font-mono">{'{name}'} — customer name &nbsp;·&nbsp; {'{order_number}'} — order no. &nbsp;·&nbsp; {'{total}'} — order total &nbsp;·&nbsp; {'{tracking_url}'} — tracking link &nbsp;·&nbsp; {'{items}'} — senarai item &nbsp;·&nbsp; {'{lp_title}'} — tajuk LP &nbsp;·&nbsp; {'{payment_method}'} — kaedah bayar &nbsp;·&nbsp; {'{app_url}'} — link app</p>
         <p className="text-xs mt-1 opacity-70">Use *text* for bold in WhatsApp</p>
+      </div>
+
+      {/* Saluran WA tracking ke pelanggan — Murpati vs OFF (guna ReplyLa) */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5">
+        <p className="text-sm font-bold text-gray-900">Saluran WhatsApp Tracking</p>
+        <p className="text-xs text-gray-400 mt-0.5 mb-3">
+          Kawal mesej tracking/penghantaran ke pelanggan. Tukar <span className="font-semibold">OFF</span> bila guna
+          blast ReplyLa — elak mesej berganda &amp; risiko ban Murpati. Email &amp; push tetap dihantar.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setTrackingMode('murpati')}
+            className={`text-left rounded-xl border px-4 py-3 transition-colors ${trackingMode === 'murpati' ? 'border-green-500 bg-green-50 ring-1 ring-green-400' : 'border-gray-200 hover:bg-gray-50'}`}
+          >
+            <p className="text-sm font-bold text-gray-900">Murpati (auto)</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hantar WA automatik via gateway (tingkah laku asal)</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTrackingMode('off')}
+            className={`text-left rounded-xl border px-4 py-3 transition-colors ${trackingMode === 'off' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400' : 'border-gray-200 hover:bg-gray-50'}`}
+          >
+            <p className="text-sm font-bold text-gray-900">OFF — guna ReplyLa</p>
+            <p className="text-xs text-gray-500 mt-0.5">Murpati tak hantar WA; blast tracking guna ReplyLa</p>
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">Tekan <span className="font-semibold">Save All</span> untuk simpan pilihan.</p>
       </div>
 
       <div className="space-y-4">

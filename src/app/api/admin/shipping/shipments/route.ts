@@ -4,6 +4,7 @@ import { handleOrderDelivered } from '@/lib/order-delivered'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendTrackingEmail } from '@/lib/zeptomail'
+import { getWaCustomerTracking } from '@/lib/app-settings'
 
 export async function GET(request: Request) {
   const userClient = await createClient()
@@ -146,8 +147,8 @@ export async function POST(request: Request) {
     const carrierName = carrier?.name ?? carrier_id
 
     if (order) {
-      // WhatsApp (jika ada phone)
-      if (phone) {
+      // WhatsApp (jika ada phone) — boleh dimatikan bila guna ReplyLa (setting 'off')
+      if (phone && (await getWaCustomerTracking()) !== 'off') {
         const trackingLine = tracking_url
           ? `🔗 *Link Penghantaran:*\n${tracking_url}`
           : `📦 *No. Tracking:* ${tracking_number}`

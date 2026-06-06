@@ -15,6 +15,10 @@ const TEMPLATE_KEYS = [
   'wa_tmpl_greeting',
 ]
 
+// Setting bukan-template (nilai terhad). 'wa_customer_tracking': 'murpati' | 'off'
+const TRACKING_KEY = 'wa_customer_tracking'
+const TRACKING_VALUES = ['murpati', 'off']
+
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
@@ -22,10 +26,12 @@ export async function GET() {
   const { data } = await supabase!
     .from('app_settings')
     .select('key, value')
-    .in('key', TEMPLATE_KEYS)
+    .in('key', [...TEMPLATE_KEYS, TRACKING_KEY])
 
   const map: Record<string, string> = {}
   for (const row of data ?? []) map[row.key] = row.value
+  // Default eksplisit supaya UI tahu nilai semasa walaupun belum pernah diset
+  if (!(TRACKING_KEY in map)) map[TRACKING_KEY] = 'murpati'
   return NextResponse.json(map)
 }
 
@@ -40,6 +46,11 @@ export async function PATCH(request: Request) {
     if (key in body && typeof body[key] === 'string') {
       updates.push({ key, value: body[key] })
     }
+  }
+
+  // Setting tracking — terima hanya nilai sah
+  if (TRACKING_KEY in body && TRACKING_VALUES.includes(body[TRACKING_KEY])) {
+    updates.push({ key: TRACKING_KEY, value: body[TRACKING_KEY] })
   }
 
   if (updates.length === 0) return NextResponse.json({ error: 'No valid keys' }, { status: 400 })

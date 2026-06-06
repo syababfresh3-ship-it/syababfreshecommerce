@@ -13,3 +13,13 @@ export const getAppSettings = unstable_cache(
   ['app-settings-all'],
   { revalidate: 300, tags: ['app-settings'] }
 )
+
+// Saluran WhatsApp untuk notifikasi tracking ke pelanggan.
+//  'murpati' (default) → auto-hantar via gateway Murpati (tingkah laku asal)
+//  'off'               → JANGAN hantar WA (email + push kekal); guna ReplyLa blast
+// Diset di /admin/settings/whatsapp. Berguna bila no Murpati kena ban → tukar 'off'.
+export type WaCustomerTracking = 'murpati' | 'off'
+export async function getWaCustomerTracking(): Promise<WaCustomerTracking> {
+  const s = await getAppSettings()
+  return s['wa_customer_tracking'] === 'off' ? 'off' : 'murpati'
+}

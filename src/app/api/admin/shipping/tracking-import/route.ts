@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { enqueueWhatsApp, type WaOutboxItem } from '@/lib/wa-outbox'
 import { sendTrackingEmail } from '@/lib/zeptomail'
 import { sendUserPush } from '@/lib/push'
+import { getWaCustomerTracking } from '@/lib/app-settings'
 
 interface TrackingRow {
   order_number: string
@@ -238,7 +239,8 @@ export async function POST(req: Request) {
   }
 
   await Promise.allSettled(notifs)
-  // Enqueue semua WA sekali gus dgn jadual berperingkat (dipacing oleh drainer)
-  const queued = await enqueueWhatsApp(waQueue)
+  // Enqueue semua WA sekali gus dgn jadual berperingkat (dipacing oleh drainer).
+  // Bila setting 'off' (guna ReplyLa) → langkau WA sepenuhnya; email + push kekal.
+  const queued = (await getWaCustomerTracking()) === 'off' ? 0 : await enqueueWhatsApp(waQueue)
   return NextResponse.json({ ok, fail: errors.length, errors, waQueued: queued })
 }
