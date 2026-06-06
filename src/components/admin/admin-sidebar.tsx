@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -23,6 +23,7 @@ const sections = [
       { href: '/admin/support',            label: 'Support AI',       icon: Headset },
       { href: '/admin/shipping',           label: 'Shipping',     icon: Truck },
       { href: '/admin/wa-outbox',          label: 'WA Outbox',        icon: Send },
+      { href: '/admin/wa-blast',           label: 'WA Blast (ReplyLa)', icon: Rocket },
       { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
       { href: '/admin/sop',                label: 'Panduan SOP',      icon: BookOpen },
     ],
