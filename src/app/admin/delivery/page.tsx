@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2, MapPin, Search, X, Upload, Eye, EyeOff, Loader2, Tag } from 'lucide-react'
+import { Plus, Trash2, MapPin, Search, X, Upload, Eye, EyeOff, Loader2, Tag, ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
 interface Zone {
@@ -20,6 +20,8 @@ const malaysiaStates = [
   'Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan',
   'Pahang', 'Perak', 'Perlis', 'Pulau Pinang', 'Sabah', 'Sarawak', 'Terengganu',
 ]
+
+const PAGE_SIZE = 50
 
 const FREQ_STYLES: Record<string, string> = {
   'Harian':            'bg-green-50 text-green-700 border-green-200',
@@ -41,6 +43,7 @@ export default function DeliveryZonesPage() {
   const [form, setForm] = useState({ postcode: '', area_name: '', city: '', state: 'Selangor', frequency: 'Harian' })
   const [bulkInput, setBulkInput] = useState('')
   const [showBulk, setShowBulk] = useState(false)
+  const [page, setPage] = useState(1)
 
   async function load() {
     const res = await fetch('/api/admin/delivery')
@@ -60,6 +63,12 @@ export default function DeliveryZonesPage() {
     const matchFreq = !filterFreq || z.frequency === filterFreq
     return matchSearch && matchState && matchFreq
   })
+
+  // Pagination — reset ke page 1 bila penapis berubah, clamp jika luar julat
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => { setPage(1) }, [search, filterState, filterFreq])
+  useEffect(() => { if (page > pageCount) setPage(pageCount) }, [page, pageCount])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -361,7 +370,7 @@ export default function DeliveryZonesPage() {
                 </td>
               </tr>
             ) : (
-              filtered.map(z => (
+              paged.map(z => (
                 <tr key={z.postcode} className={`hover:bg-gray-50/80 transition-colors ${!z.is_active ? 'opacity-50' : ''}`}>
                   <td className="px-5 py-3 font-mono font-bold text-gray-900 text-sm">{z.postcode}</td>
                   <td className="px-5 py-3 font-medium text-gray-800">{z.area_name}</td>
@@ -414,6 +423,26 @@ export default function DeliveryZonesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <p className="text-gray-500">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} drpd {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+              <ChevronLeft className="h-4 w-4" /> Sebelum
+            </button>
+            <span className="text-gray-500">Page {page}/{pageCount}</span>
+            <button onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={page >= pageCount}
+              className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+              Seterus <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
