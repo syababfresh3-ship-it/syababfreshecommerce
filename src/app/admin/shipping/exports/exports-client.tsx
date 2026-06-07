@@ -254,9 +254,23 @@ async function exportLalamove(orders: ExportOrder[]) {
 
 // ─── AWB Print ────────────────────────────────────────────────────────────────
 
-function printAwb(orders: ExportOrder[]) {
+async function printAwb(orders: ExportOrder[]) {
   const win = window.open('', '_blank')
   if (!win) return
+
+  // Barcode Code128 (encode order_number) untuk scan-out SOP dispatch. Lazy-load
+  // supaya tak bengkak bundle. Jika gagal load → fallback tiada barcode (AWB tetap cetak).
+  let barcodeUrl = (_text: string): string => ''
+  try {
+    const { default: JsBarcode } = await import('jsbarcode')
+    barcodeUrl = (text: string): string => {
+      try {
+        const c = document.createElement('canvas')
+        JsBarcode(c, text, { format: 'CODE128', displayValue: false, margin: 0, height: 50, width: 2 })
+        return c.toDataURL('image/png')
+      } catch { return '' }
+    }
+  } catch { /* tiada barcode — AWB cetak macam biasa */ }
 
   const slips = orders.map((o, idx) => {
     const name = getRecipientName(o)
@@ -272,6 +286,7 @@ function printAwb(orders: ExportOrder[]) {
       return `<li><span class="chk"></span>${qty}<span class="iname">${it.product_name}${it.variant_name ? ` (${it.variant_name})` : ''}</span></li>`
     }).join('')
     const isCod = o.payment_method === 'cod'
+    const bc = barcodeUrl(o.order_number)
 
     return `
       <div class="slip ${idx < orders.length - 1 ? 'page-break' : ''}">
@@ -282,6 +297,7 @@ function printAwb(orders: ExportOrder[]) {
             ${isCod ? '<div class="cod-badge">COD</div>' : ''}
           </div>
         </div>
+        ${bc ? `<img class="barcode" src="${bc}" alt="${o.order_number}" />` : ''}
         <div class="divider"></div>
         <div class="section">
           <div class="label">RECIPIENT</div>
@@ -332,6 +348,8 @@ function printAwb(orders: ExportOrder[]) {
     .order-num { font-size: 16px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; }
     .cod-badge { display: inline-block; background: #f97316; color: #fff; font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 5px; margin-top: 3px; }
     .divider { border-top: 1.5px dashed #bbb; margin: 2mm 0; }
+    /* Barcode Code128 (order_number) — scan-out SOP dispatch. Compact supaya kekal 1 page A6. */
+    .barcode { display: block; width: 100%; height: 9mm; object-fit: contain; margin: 1.5mm 0 0.5mm; }
     .section { margin-bottom: 1mm; }
     .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #777; margin-bottom: 1.5mm; }
     .name { font-size: 23px; font-weight: 800; color: #000; line-height: 1.1; }
