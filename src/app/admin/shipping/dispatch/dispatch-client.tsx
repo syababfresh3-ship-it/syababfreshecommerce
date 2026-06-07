@@ -104,8 +104,9 @@ export function DispatchClient() {
         scannerRef.current = inst as unknown as { stop: () => Promise<void>; clear: () => void }
         await inst.start(
           { facingMode: 'environment' },
-          // qrbox lebar & rendah — sesuai untuk barcode 1D mendatar (bukan kotak QR)
-          { fps: 10, qrbox: (vw: number, vh: number) => ({ width: Math.min(vw * 0.92, 340), height: Math.min(vh * 0.45, 170) }) },
+          // Tiada qrbox → scan SELURUH frame. Jauh lebih mudah detect barcode 1D
+          // (tak perlu jajar tepat dlm kotak). fps tinggi sikit untuk responsif.
+          { fps: 15 },
           (decoded: string) => {
             const now = Date.now()
             if (decoded === lastScanRef.current.code && now - lastScanRef.current.at < 2500) return
