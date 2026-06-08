@@ -189,18 +189,19 @@ function exportNinjaCold(orders: ExportOrder[]) {
 }
 
 async function exportPoslaju(orders: ExportOrder[]) {
+  // Header MESTI padan tepat dgn template Poslaju (ikut syababfresh-app) — kalau tak,
+  // upload bulk AWB di laman Poslaju ditolak.
   const header = [
-    'Sender Name', 'Sender Email', 'Sender Contact', 'Sender Address', 'Sender Postcode',
+    'Sender Name', 'Sender Email', 'Sender Contact No', 'Sender Address', 'Sender Postcode',
     'Receiver Name', 'Receiver Email', 'Receiver Contact No', 'Receiver Address', 'Receiver Postcode',
-    'Item Weight', 'Item Width', 'Item Length', 'Item Height',
-    'Category', 'Sender Ref No', 'Item Description', 'Parcel Notes',
-    'COD Amount', 'Insurance',
+    'Item Weight (kg)', 'Item Width (cm)', 'Item Length (cm)', 'Item Height (cm)',
+    'Category', 'Sender Ref No', 'Item Description', 'Parcel Notes', 'COD Amount', 'Insurance (MYR)',
   ]
 
   const rows: (string | number)[][] = orders.map((o) => [
-    SENDER.name,                // Sender Name
-    SENDER.email,               // Sender Email
-    SENDER.phone,               // Sender Contact (text — keeps shape)
+    'SYABABFRESH',              // Sender Name (ikut format syababfresh-app)
+    'syababtrading@gmail.com',  // Sender Email
+    SENDER.phone,               // Sender Contact No (text — keeps shape)
     SENDER.address,             // Sender Address
     SENDER.postcode,            // Sender Postcode
     getRecipientName(o),        // Receiver Name
@@ -208,10 +209,10 @@ async function exportPoslaju(orders: ExportOrder[]) {
     getRecipientPhone(o),       // Receiver Contact No (text — no scientific notation)
     o.full_address ?? '',       // Receiver Address
     o.postcode ?? '',           // Receiver Postcode (text)
-    1,                          // Item Weight
-    0,                          // Item Width
-    0,                          // Item Length
-    0,                          // Item Height
+    1,                          // Item Weight (kg)
+    1,                          // Item Width (cm)  — Poslaju tolak nilai 0
+    1,                          // Item Length (cm)
+    1,                          // Item Height (cm)
     'Parcel',                   // Category
     o.order_number,             // Sender Ref No
     getItemsSummary(o.items),   // Item Description
@@ -221,7 +222,7 @@ async function exportPoslaju(orders: ExportOrder[]) {
   ])
 
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
-  await downloadXlsx(`poslaju-${today}.xlsx`, 'Poslaju', [header, ...rows])
+  await downloadXlsx(`poslaju-${today}.xlsx`, 'COD Domestic', [header, ...rows])
 }
 
 // Lalamove (LK) — sheet rujukan untuk admin keyin manual ke app Lalamove. Kolum
@@ -272,6 +273,9 @@ async function printAwb(orders: ExportOrder[]) {
     }
   } catch { /* tiada barcode — AWB cetak macam biasa */ }
 
+  // No. fon sender format tempatan (601116614004 → 011-16614004) untuk baris "Dari:"
+  const senderPhone = ('0' + SENDER.phone.replace(/^60/, '')).replace(/^(\d{3})(\d+)$/, '$1-$2')
+
   const slips = orders.map((o, idx) => {
     const name = getRecipientName(o)
     const phone = o.recipient_phone ?? o.phone ?? '—'
@@ -306,17 +310,17 @@ async function printAwb(orders: ExportOrder[]) {
           <div class="address">${address}</div>
           <div class="postcode">${postcode} ${city}${state ? ', ' + state : ''}</div>
         </div>
+        ${o.notes ? `<div class="notes">📝 ${o.notes}</div>` : ''}
         <div class="divider"></div>
         <div class="section grow">
           <div class="label">ITEM (${o.items.length})</div>
           <ul class="items">${itemsList}</ul>
-          ${o.notes ? `<div class="notes">📝 ${o.notes}</div>` : ''}
         </div>
         <div class="amount ${isCod ? 'cod' : ''}">
           <span class="amount-label">${isCod ? 'COD — KUTIP' : 'Jumlah'}</span>
           <span class="amount-val">RM${Number(o.total).toFixed(2)}</span>
         </div>
-        <div class="sender">Dari: ${SENDER.name} · ${SENDER.city}, ${SENDER.state}</div>
+        <div class="sender">Dari: ${SENDER.name} · ${SENDER.city}, ${SENDER.state} · ${senderPhone}</div>
       </div>`
   }).join('')
 
@@ -340,7 +344,13 @@ async function printAwb(orders: ExportOrder[]) {
       border-radius: 6px;
       padding: 4mm 5mm;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
     }
+    /* Hanya senarai ITEM (.grow) yang mengecut/clip bila terlalu banyak. Semua yang
+       lain (note, jumlah, sender) kekal nampak — tak terclip lagi. */
+    .header, .barcode, .divider, .section, .notes, .amount, .sender { flex-shrink: 0; }
+    .grow { flex: 1 1 auto; min-height: 0; overflow: hidden; }
     .page-break { page-break-after: always; }
     .header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .logo { height: 11mm; object-fit: contain; }
