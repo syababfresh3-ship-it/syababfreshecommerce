@@ -15,6 +15,9 @@ const payOptions = [
   { value: 'ewallet', label: 'E-Wallet (already paid)' },
 ]
 
+// Nama staf untuk dropdown Quick Order. 'Lain-lain' → taip nama sendiri.
+const STAFF_NAMES = ['Mamat', 'Man', 'Pika', 'Far']
+
 export default function QuickOrderPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
@@ -24,6 +27,7 @@ export default function QuickOrderPage() {
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [staffOther, setStaffOther] = useState(false)
   const [success, setSuccess] = useState<{ order_number: string; total: number } | null>(null)
   // Mod reseller: pilih reseller → harga borong dipersetujui + autofill butiran
   const [resellers, setResellers] = useState<any[]>([])
@@ -183,8 +187,23 @@ export default function QuickOrderPage() {
             <p className="text-sm font-bold text-gray-700">Customer Details</p>
             <div className="flex items-center gap-2">
               <label className="text-xs font-semibold text-gray-400">Staff:</label>
-              <input value={form.staff_name} onChange={e => setForm(f => ({ ...f, staff_name: e.target.value }))}
-                placeholder="Your name" className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 w-28" />
+              <select
+                value={staffOther ? '__other__' : form.staff_name}
+                onChange={e => {
+                  if (e.target.value === '__other__') { setStaffOther(true); setForm(f => ({ ...f, staff_name: '' })) }
+                  else { setStaffOther(false); setForm(f => ({ ...f, staff_name: e.target.value })) }
+                }}
+                className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 w-28"
+              >
+                <option value="">— Pilih staf —</option>
+                {STAFF_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
+                <option value="__other__">Lain-lain…</option>
+              </select>
+              {staffOther && (
+                <input value={form.staff_name} onChange={e => setForm(f => ({ ...f, staff_name: e.target.value }))}
+                  placeholder="Nama staf" autoFocus
+                  className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 w-24" />
+              )}
             </div>
           </div>
 

@@ -175,9 +175,9 @@ async function getLandingPages() {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; date?: string; lp?: string; from?: string; to?: string; pay?: string }>
+  searchParams: Promise<{ status?: string; q?: string; date?: string; lp?: string; from?: string; to?: string; pay?: string; staff?: string }>
 }) {
-  const { status, q, date, lp, from, to, pay } = await searchParams
+  const { status, q, date, lp, from, to, pay, staff } = await searchParams
 
   // Tarikh: julat custom (from/to, MYT) mengatasi preset. 'to' inklusif (lte 23:59:59).
   const bounds: Bounds = (from || to)
@@ -188,8 +188,9 @@ export default async function AdminOrdersPage({
     : dateRange(date)
 
   // Sumber: 'storefront' = kedai sahaja; UUID = LP tertentu sahaja (kedai tiada attribution); else dua-dua.
+  const manualOnly = lp === 'manual'
   const storefrontOnly = lp === 'storefront'
-  const lpPageId = lp && lp !== 'storefront' ? lp : undefined
+  const lpPageId = lp && lp !== 'storefront' && lp !== 'manual' ? lp : undefined
   const lpSpecific = !!lpPageId
 
   const [orders, counts, lpRows, landingPages] = await Promise.all([
@@ -223,6 +224,9 @@ export default async function AdminOrdersPage({
     // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>' → guna startsWith
     const isReseller = lp.source === 'reseller'
     const isManual = !isReseller && typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
+    // Nama staf disimpan dalam source sbg 'whatsapp-<nama>' (Quick Order)
+    const staffName = isManual && typeof lp.source === 'string' && lp.source.startsWith('whatsapp-')
+      ? lp.source.slice('whatsapp-'.length) : null
     return ({
     id: lp.id,
     order_number: lp.order_number,
@@ -245,15 +249,29 @@ export default async function AdminOrdersPage({
     })),
     _isLp: true,
     _isManual: isManual,
+    _staff: staffName,
     _isReseller: isReseller,
     _lpTitle: (isManual || isReseller) ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
   })
   })
 
   // Merge and sort by created_at desc
-  const mergedOrders = [...visibleOrders, ...lpAsOrders].sort(
+  let mergedOrders = [...visibleOrders, ...lpAsOrders].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
+
+  // Senarai staf untuk dropdown filter (nama tetap + apa yg ada dalam data)
+  const staffList = [...new Set([
+    'Mamat', 'Man', 'Pika', 'Far',
+    ...allLpOrders
+      .filter((o: any) => typeof o.source === 'string' && o.source.startsWith('whatsapp-'))
+      .map((o: any) => o.source.slice('whatsapp-'.length))
+      .filter(Boolean),
+  ])].sort()
+
+  // Tapis "Keyin Manual" (lp=manual) & ikut staf
+  if (manualOnly) mergedOrders = mergedOrders.filter((o: any) => o._isManual)
+  if (staff) mergedOrders = mergedOrders.filter((o: any) => o._staff === staff)
 
   // Tapisan pembayaran (pay=unpaid|paid). Online belum-bayar dah disorok di atas,
   // jadi 'unpaid' di sini = COD/bank transfer yang belum dikutip.
@@ -339,7 +357,7 @@ export default async function AdminOrdersPage({
         </div>
       )}
 
-      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} activeLp={lp} activeFrom={from} activeTo={to} activePay={pay} landingPages={landingPages} /></Suspense>
+      <Suspense><OrderFilters activeStatus={status} activeSearch={q} activeDate={date} activeLp={lp} activeFrom={from} activeTo={to} activePay={pay} activeStaff={staff} landingPages={landingPages} staffList={staffList} /></Suspense>
 
       <OrdersTableClient orders={allOrders as any} searchQuery={q} />
 

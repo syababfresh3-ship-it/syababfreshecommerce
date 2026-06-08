@@ -207,7 +207,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                     {(order as any)._isReseller ? (
                       <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Reseller</span>
                     ) : (order as any)._isManual ? (
-                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual</span>
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual{(order as any)._staff ? ` · ${(order as any)._staff}` : ''}</span>
                     ) : (order as any)._isLp ? (
                       <span className="text-[9px] font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
                     ) : (
@@ -297,7 +297,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                       {(order as any)._isReseller ? (
                         <span className="text-xs font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Reseller</span>
                       ) : (order as any)._isManual ? (
-                        <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual</span>
+                        <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual{(order as any)._staff ? ` · ${(order as any)._staff}` : ''}</span>
                       ) : (order as any)._isLp ? (
                         <span className="text-xs font-bold bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full">LP</span>
                       ) : (

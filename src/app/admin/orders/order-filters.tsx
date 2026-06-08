@@ -28,7 +28,7 @@ const payTabs = [
   { value: 'paid',    label: '🟢 Sudah Bayar' },
 ]
 
-export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp, activeFrom, activeTo, activePay, landingPages = [] }: {
+export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp, activeFrom, activeTo, activePay, activeStaff, landingPages = [], staffList = [] }: {
   activeStatus?: string
   activeSearch?: string
   activeDate?: string
@@ -36,7 +36,9 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp,
   activeFrom?: string
   activeTo?: string
   activePay?: string
+  activeStaff?: string
   landingPages?: { id: string; title: string; slug: string }[]
+  staffList?: string[]
 }) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -86,7 +88,7 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp,
     pushParams((p) => { if (value) p.set('date', value); else p.delete('date'); p.delete('from'); p.delete('to') })
   }
 
-  const hasActiveFilters = !!(activeStatus || activeSearch || activeDate || activeLp || activeFrom || activeTo || activePay)
+  const hasActiveFilters = !!(activeStatus || activeSearch || activeDate || activeLp || activeFrom || activeTo || activePay || activeStaff)
   const hasCustomRange = !!(activeFrom || activeTo)
 
   return (
@@ -118,11 +120,28 @@ export function OrderFilters({ activeStatus, activeSearch, activeDate, activeLp,
           >
             <option value="">Semua LP</option>
             <option value="storefront">Storefront sahaja</option>
+            <option value="manual">✍️ Keyin Manual</option>
             {landingPages.map((p) => (
               <option key={p.id} value={p.id}>{p.title}</option>
             ))}
           </select>
         </div>
+
+        {/* Staff filter */}
+        {staffList.length > 0 && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <select
+              value={activeStaff ?? ''}
+              onChange={(e) => setParam('staff', e.target.value)}
+              className="py-2.5 px-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 max-w-[150px]"
+            >
+              <option value="">👤 Semua Staf</option>
+              {staffList.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Payment filter */}
         <div className="flex items-center gap-1.5 shrink-0">
