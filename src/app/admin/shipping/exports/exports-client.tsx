@@ -291,6 +291,8 @@ async function printAwb(orders: ExportOrder[]) {
     }).join('')
     const isCod = o.payment_method === 'cod'
     const bc = barcodeUrl(o.order_number)
+    // Mampatkan baris item bila banyak supaya SEMUA item muat satu page A6 (tak terclip).
+    const itemDensity = o.items.length > 9 ? 'xdense' : o.items.length > 5 ? 'dense' : ''
 
     return `
       <div class="slip ${idx < orders.length - 1 ? 'page-break' : ''}">
@@ -314,7 +316,7 @@ async function printAwb(orders: ExportOrder[]) {
         <div class="divider"></div>
         <div class="section grow">
           <div class="label">ITEM (${o.items.length})</div>
-          <ul class="items">${itemsList}</ul>
+          <ul class="items ${itemDensity}">${itemsList}</ul>
         </div>
         <div class="amount ${isCod ? 'cod' : ''}">
           <span class="amount-label">${isCod ? 'COD — KUTIP' : 'Jumlah'}</span>
@@ -370,6 +372,11 @@ async function printAwb(orders: ExportOrder[]) {
     .items li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; padding: 1.5mm 0; border-bottom: 1px dotted #ddd; }
     .items li:last-child { border-bottom: none; }
     .chk { width: 16px; height: 16px; border: 2px solid #333; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+    /* Mod padat — banyak item: kecilkan baris supaya semua muat 1 page A6 */
+    .items.dense li { font-size: 12px; padding: 0.7mm 0; gap: 6px; }
+    .items.dense .chk { width: 13px; height: 13px; }
+    .items.xdense li { font-size: 10px; padding: 0.4mm 0; gap: 5px; }
+    .items.xdense .chk { width: 11px; height: 11px; border-width: 1.5px; }
     .qty { font-weight: 800; color: #000; min-width: 30px; flex-shrink: 0; }
     .iname { color: #111; line-height: 1.25; }
     .notes { font-size: 12px; color: #b45309; background: #fff7ed; border-left: 4px solid #f97316; padding: 1.5mm 2.5mm; border-radius: 0 4px 4px 0; margin-top: 2mm; }
