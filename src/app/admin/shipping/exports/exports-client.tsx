@@ -217,7 +217,7 @@ async function exportPoslaju(orders: ExportOrder[]) {
     o.order_number,             // Sender Ref No
     getItemsSummary(o.items),   // Item Description
     o.notes ?? '',              // Parcel Notes
-    0,                          // COD Amount
+    o.payment_method === 'cod' ? Number(o.total) : 0,  // COD Amount — auto isi jumlah utk order COD (Poslaju kutip dari customer)
     0,                          // Insurance
   ])
 
