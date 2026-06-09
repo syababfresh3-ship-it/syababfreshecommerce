@@ -21,27 +21,43 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
     .single()
   if (!profile?.is_admin) redirect('/admin')
 
-  // Today range (MY time = UTC+8)
+  // Window backlog: 30 hari ke belakang. Order yang BELUM dispatch (tiada shipment)
+  // dalam tempoh ini kekal muncul — termasuk yang "tak sempat hantar" hari sebelum.
   const now = new Date()
   const todayStart = new Date(now)
   todayStart.setHours(0, 0, 0, 0)
-  // Fetch last 3 days to allow staff to catch up on backlog
   const rangeStart = new Date(todayStart)
-  rangeStart.setDate(rangeStart.getDate() - 2)
+  rangeStart.setDate(rangeStart.getDate() - 30)
 
-  // Fetch orders — READ ONLY
+  // Fetch orders — READ ONLY. Status confirmed/preparing sahaja (delivering = dah dispatch).
   const { data: orders } = await supabase
     .from('orders')
     .select('id, order_number, status, payment_status, total, delivery_address, delivery_slot, notes, created_at, user_id, address_id')
-    .in('status', ['confirmed', 'preparing', 'delivering'])
+    .in('status', ['confirmed', 'preparing'])
     .neq('delivery_method', 'pickup')   // order ambil sendiri tak masuk grouping
+    // "Settled" sahaja (sama logik isOrderSettled): online (fpx/ewallet) WAJIB paid;
+    // COD/bank_transfer bayar masa hantar. Buang draft online belum bayar (duplikat).
+    .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
     .gte('created_at', rangeStart.toISOString())
     .order('created_at', { ascending: true })
 
   if (!orders || orders.length === 0) return []
 
+  // Buang order yang DAH ada shipment (dah dibook/dispatch — ada AWB). order_shipments
+  // primary (refund_id null) = bukti dah dihantar → keluarkan dari grouping.
+  const adminCli = createAdminClient()
+  const { data: shipped } = await adminCli
+    .from('order_shipments')
+    .select('order_id')
+    .is('refund_id', null)
+    .in('order_id', orders.map((o) => o.id))
+  const shippedSet = new Set((shipped ?? []).map((s) => s.order_id))
+  const pendingOrders = orders.filter((o) => !shippedSet.has(o.id))
+
+  if (pendingOrders.length === 0) return []
+
   // Fetch profiles for names & phones
-  const userIds = [...new Set(orders.map((o) => o.user_id).filter(Boolean))]
+  const userIds = [...new Set(pendingOrders.map((o) => o.user_id).filter(Boolean))]
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, phone')
@@ -51,7 +67,7 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
   for (const p of profiles ?? []) profileMap.set(p.id, p)
 
   // Fetch addresses for postcodes
-  const addressIds = [...new Set(orders.map((o) => o.address_id).filter(Boolean))]
+  const addressIds = [...new Set(pendingOrders.map((o) => o.address_id).filter(Boolean))]
   let addressMap = new Map<string, { postcode: string | null; city: string | null; recipient_name: string | null; recipient_phone: string | null }>()
   if (addressIds.length > 0) {
     const { data: addresses } = await supabase
@@ -62,7 +78,7 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
   }
 
   // Fetch order items for summaries
-  const orderIds = orders.map((o) => o.id)
+  const orderIds = pendingOrders.map((o) => o.id)
   const { data: items } = await supabase
     .from('order_items')
     .select('order_id, product_name, quantity, variant_name')
@@ -75,7 +91,7 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
     itemsMap.set(item.order_id, existing)
   }
 
-  return orders.map((o) => {
+  return pendingOrders.map((o) => {
     const profile = profileMap.get(o.user_id)
     const address = o.address_id ? addressMap.get(o.address_id) : null
     return {
@@ -95,6 +111,7 @@ async function getTodayOrders(): Promise<LalamoveOrder[]> {
       recipient_name: address?.recipient_name ?? null,
       recipient_phone: address?.recipient_phone ?? null,
       items: itemsMap.get(o.id) ?? [],
+      source: 'order' as const,
     }
   })
 }
@@ -103,8 +120,11 @@ async function getLpOrders(rangeStart: Date): Promise<LalamoveOrder[]> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('lp_guest_orders')
-    .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, created_at, items, product_name, variant_name, quantity')
-    .in('status', ['confirmed', 'preparing', 'delivering'])
+    .select('id, order_number, name, phone, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity')
+    .in('status', ['confirmed', 'preparing'])
+    .is('tracking_number', null)        // belum ada tracking = belum dispatch
+    // Settled sahaja — buang order online (ewallet/fpx) yang belum bayar (draft/duplikat)
+    .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
     .gte('created_at', rangeStart.toISOString())
     .order('created_at', { ascending: true })
 
@@ -117,7 +137,7 @@ async function getLpOrders(rangeStart: Date): Promise<LalamoveOrder[]> {
       id: lp.id,
       order_number: lp.order_number,
       status: lp.status,
-      payment_status: ['fpx', 'ewallet'].includes(lp.payment_method) ? 'paid' : 'unpaid',
+      payment_status: lp.payment_status === 'paid' ? 'paid' : 'unpaid',  // status SEBENAR (badge Bayar/COD)
       total: lp.total,
       delivery_address: lp.address ?? null,
       delivery_slot: null,
@@ -130,6 +150,7 @@ async function getLpOrders(rangeStart: Date): Promise<LalamoveOrder[]> {
       recipient_name: lp.name,
       recipient_phone: lp.phone,
       items,
+      source: 'lp' as const,
     }
   })
 }
@@ -137,7 +158,7 @@ async function getLpOrders(rangeStart: Date): Promise<LalamoveOrder[]> {
 export default async function LalamoveGroupingPage() {
   const now = new Date()
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0)
-  const rangeStart = new Date(todayStart); rangeStart.setDate(rangeStart.getDate() - 2)
+  const rangeStart = new Date(todayStart); rangeStart.setDate(rangeStart.getDate() - 30)
   const [orders, lpOrders] = await Promise.all([getTodayOrders(), getLpOrders(rangeStart)])
 
   // Poskod yang ditanda 'Pos sahaja' (delivery_zones.courier_override) → Lalamove tak
@@ -159,11 +180,11 @@ export default async function LalamoveGroupingPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Lalamove Grouping</h1>
-          <p className="text-sm text-gray-400">Same-day delivery · Klang Valley sahaja</p>
+          <p className="text-sm text-gray-400">Belum dihantar · Klang Valley sahaja</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs bg-orange-100 text-orange-700 font-bold px-3 py-1.5 rounded-full">
-            {orders.length} order tersedia
+            {allOrders.length} belum dihantar
           </span>
         </div>
       </div>
