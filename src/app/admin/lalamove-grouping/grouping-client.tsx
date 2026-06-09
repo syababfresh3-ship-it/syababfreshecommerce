@@ -5,6 +5,7 @@ import {
   Truck, ChevronDown, ChevronRight, Copy, CheckCheck, RefreshCw,
   Phone, MapPin, Clock, Package, AlertCircle, User, StickyNote,
   Printer, Filter, Calendar, Save, CheckCircle2, Loader2, Trash2,
+  Send, ExternalLink, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { KV_ZONES, getZone, extractPostcode, ZONE_COLORS, type ZoneConfig } from './zone-config'
@@ -28,6 +29,7 @@ export interface LalamoveOrder {
   recipient_name: string | null
   recipient_phone: string | null
   items: { product_name: string; quantity: number; variant_name: string | null }[]
+  source: 'order' | 'lp'
 }
 
 export type BatchStatus = 'draft' | 'ready' | 'booked' | 'delivered'
@@ -83,19 +85,28 @@ function formatCopyList(orders: LalamoveOrder[]): string {
 // ─── OrderCard ────────────────────────────────────────────────────────────────
 
 function OrderCard({
-  order, zones, currentZoneId, onMove,
+  order, zones, currentZoneId, onMove, selected, onToggleSelect,
 }: {
   order: LalamoveOrder
   zones: ZoneGroup[]
   currentZoneId: string
   onMove: (orderId: string, fromZoneId: string, toZoneId: string) => void
+  selected: boolean
+  onToggleSelect: (orderId: string) => void
 }) {
   const postcode = getPostcode(order)
   const isPaid = order.payment_status === 'paid'
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-3.5 space-y-2.5 shadow-sm">
+    <div className={`bg-white rounded-xl border p-3.5 space-y-2.5 shadow-sm transition-colors ${selected ? 'border-orange-300 ring-1 ring-orange-200' : 'border-gray-100'}`}>
       <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggleSelect(order.id)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer"
+          />
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-mono font-bold text-gray-500">{order.order_number}</span>
@@ -112,6 +123,7 @@ function OrderCard({
               {order.full_name ?? order.recipient_name ?? '—'}
             </span>
           </div>
+        </div>
         </div>
         <select
           value={currentZoneId}
@@ -167,18 +179,185 @@ function OrderCard({
   )
 }
 
+// ─── LalamoveBookButton ───────────────────────────────────────────────────────
+// Auto-book: quote (papar harga + alamat bermasalah) → sahkan → place order.
+
+interface QuoteResp {
+  quotationId: string
+  senderStopId: string
+  total: string
+  currency: string
+  recipients: { stopId: string; orderId: string; name: string; phone: string; remarks: string; address: string }[]
+  flagged: { id: string; address: string; reason: string }[]
+}
+interface BookResp { orderId: string; shareLink: string; status: string; total: string; currency: string }
+
+// Tukar LalamoveOrder[] → payload API (id, uuid, source, nama, telefon, alamat, remarks)
+function ordersToPayload(orders: LalamoveOrder[]) {
+  return orders.map((o) => ({
+    id: o.order_number,
+    uuid: o.id,              // id sebenar — untuk rekod shipment di server
+    source: o.source,
+    name: o.full_name ?? o.recipient_name ?? '',
+    phone: o.phone ?? o.recipient_phone ?? '',
+    address: o.delivery_address ?? '',
+    remarks: [
+      o.notes,
+      o.payment_status !== 'paid' ? `COD: kutip RM${Number(o.total).toFixed(2)}` : null,
+    ].filter(Boolean).join(' · '),
+  }))
+}
+
+// Modal terkawal: auto-quote bila dibuka, papar harga + penerima, sahkan → book.
+// Terima senarai order arbitrari (satu zon, ATAU order terpilih merentas zon).
+function LalamoveBookModal({ orders, title, onClose, onBooked }: {
+  orders: LalamoveOrder[]
+  title: string
+  onClose: () => void
+  onBooked: (bookedOrderIds: string[]) => void
+}) {
+  const [state, setState] = useState<'quoting' | 'confirm' | 'booking' | 'done'>('quoting')
+  const [quote, setQuote] = useState<QuoteResp | null>(null)
+  const [result, setResult] = useState<BookResp | null>(null)
+
+  // Auto-quote sekali masa modal dibuka
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/lalamove/quote', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orders: ordersToPayload(orders) }),
+        })
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) { toast.error(data.error ?? 'Quote gagal'); onClose(); return }
+        setQuote(data); setState('confirm')
+      } catch { if (!cancelled) { toast.error('Ralat rangkaian'); onClose() } }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleBook() {
+    setState('booking')
+    try {
+      // Hantar semula orders — /book quote SEGAR + place serentak (elak schedule tamat tempoh)
+      const res = await fetch('/api/lalamove/book', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: ordersToPayload(orders) }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Book gagal'); setState('confirm'); return }
+      setResult(data); setState('done')
+      onBooked(orders.map((o) => o.id))
+      toast.success(`Order Lalamove dibuat! ${data.currency} ${data.total}`)
+    } catch { toast.error('Ralat rangkaian'); setState('confirm') }
+  }
+
+  return (
+    <>
+      {(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Truck className="h-4 w-4 text-orange-500" /> {title}
+              </h3>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {state === 'quoting' ? (
+                <div className="py-10 text-center text-gray-400">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" />
+                  <p className="text-sm">Mengira harga & semak alamat…</p>
+                </div>
+              ) : !quote ? null : state === 'done' && result ? (
+                <div className="space-y-3 text-center">
+                  <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+                  <p className="font-bold text-gray-900">Order Lalamove berjaya!</p>
+                  <p className="text-2xl font-extrabold text-gray-900">{result.currency} {result.total}</p>
+                  <p className="text-xs text-gray-400">Status: {result.status} · {quote.recipients.length} penghantaran</p>
+                  <a href={result.shareLink} target="_blank" rel="noreferrer"
+                     className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-700">
+                    <ExternalLink className="h-4 w-4" /> Buka tracking Lalamove
+                  </a>
+                  <button onClick={close} className="block w-full text-sm text-gray-500 py-2">Tutup</button>
+                </div>
+              ) : (
+                <>
+                  {/* Harga */}
+                  <div className="bg-orange-50 rounded-xl p-4 text-center">
+                    <p className="text-xs text-orange-600 font-semibold uppercase tracking-wide">Anggaran harga</p>
+                    <p className="text-3xl font-extrabold text-gray-900 mt-1">{quote.currency} {quote.total}</p>
+                    <p className="text-xs text-gray-400 mt-1">{quote.recipients.length} penghantaran · Motosikal</p>
+                  </div>
+
+                  {/* Senarai penerima */}
+                  <div className="space-y-2">
+                    {quote.recipients.map((r, i) => (
+                      <div key={r.stopId} className="flex items-start gap-2 text-xs">
+                        <span className="font-bold text-gray-400 shrink-0">{i + 1}.</span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-800">{r.name} · {r.phone}</p>
+                          <p className="text-gray-500 truncate">{r.address}</p>
+                          {r.remarks && <p className="text-orange-600">{r.remarks}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Alamat bermasalah */}
+                  {quote.flagged.length > 0 && (
+                    <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-1.5">
+                      <p className="text-xs font-bold text-red-600 flex items-center gap-1">
+                        <AlertCircle className="h-3.5 w-3.5" /> {quote.flagged.length} alamat DITINGGALKAN (tak boleh book)
+                      </p>
+                      {quote.flagged.map((f, i) => (
+                        <p key={i} className="text-[11px] text-red-500">⚠️ {f.id || f.address} — {f.reason}</p>
+                      ))}
+                      <p className="text-[10px] text-red-400">Hantar order ini secara manual / betulkan alamat dahulu.</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={close} className="flex-1 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50">
+                      Batal
+                    </button>
+                    <button onClick={handleBook} disabled={state === 'booking'}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600 disabled:opacity-50">
+                      {state === 'booking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {state === 'booking' ? 'Membook...' : 'Sahkan & Book'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ─── ZoneGroupCard ────────────────────────────────────────────────────────────
 
 function ZoneGroupCard({
-  group, zones, onMove, onStatusChange,
+  group, zones, onMove, onStatusChange, selectedIds, onToggleSelect, onToggleZone, onBook,
 }: {
   group: ZoneGroup
   zones: ZoneGroup[]
   onMove: (orderId: string, fromZoneId: string, toZoneId: string) => void
   onStatusChange: (zoneId: string, status: BatchStatus) => void
+  selectedIds: Set<string>
+  onToggleSelect: (orderId: string) => void
+  onToggleZone: (orderIds: string[], selectAll: boolean) => void
+  onBook: (orders: LalamoveOrder[], title: string, onDone: () => void) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const [copied, setCopied] = useState(false)
+  const allSelected = group.orders.length > 0 && group.orders.every((o) => selectedIds.has(o.id))
   const colorClass = ZONE_COLORS[group.zone.color] ?? ZONE_COLORS.gray
   const statusInfo = STATUS_LABELS[group.status]
 
@@ -222,6 +401,14 @@ function ZoneGroupCard({
       >
         <div className="flex items-center gap-3 min-w-0">
           {expanded ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />}
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onClick={(e) => e.stopPropagation()}
+            onChange={() => onToggleZone(group.orders.map((o) => o.id), !allSelected)}
+            title="Pilih semua dalam zon"
+            className="h-4 w-4 shrink-0 rounded border-gray-300 text-orange-500 focus:ring-orange-400 cursor-pointer"
+          />
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${colorClass}`}>
             {group.zone.emoji} {group.zone.name}
           </span>
@@ -250,6 +437,14 @@ function ZoneGroupCard({
             {copied ? <CheckCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? 'Disalin!' : 'Copy'}
           </button>
+          <button
+            onClick={() => onBook(group.orders, `${group.zone.emoji} ${group.zone.name}`, () => onStatusChange(group.zone.id, 'booked'))}
+            disabled={group.status === 'booked'}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-[11px] font-bold rounded-xl hover:bg-orange-600 disabled:opacity-50 transition-colors"
+            title="Quote & hantar zon ini ke Lalamove"
+          >
+            <Send className="h-3.5 w-3.5" /> Lalamove
+          </button>
           <button onClick={handlePrint} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors" title="Print">
             <Printer className="h-4 w-4" />
           </button>
@@ -259,7 +454,15 @@ function ZoneGroupCard({
       {expanded && (
         <div className="px-4 pb-4 space-y-2.5 border-t border-gray-100 pt-3">
           {group.orders.map((order) => (
-            <OrderCard key={order.id} order={order} zones={zones} currentZoneId={group.zone.id} onMove={onMove} />
+            <OrderCard
+              key={order.id}
+              order={order}
+              zones={zones}
+              currentZoneId={group.zone.id}
+              onMove={onMove}
+              selected={selectedIds.has(order.id)}
+              onToggleSelect={onToggleSelect}
+            />
           ))}
         </div>
       )}
@@ -279,6 +482,30 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loadingExisting, setLoadingExisting] = useState(false)
+
+  // ── Pilihan order (tick) untuk gabung jadi satu booking Lalamove ──────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [booking, setBooking] = useState<{ orders: LalamoveOrder[]; title: string; onDone: () => void } | null>(null)
+
+  const toggleSelect = useCallback((orderId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId)
+      return next
+    })
+  }, [])
+
+  const toggleZone = useCallback((orderIds: string[], selectAll: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of orderIds) { if (selectAll) next.add(id); else next.delete(id) }
+      return next
+    })
+  }, [])
+
+  const handleBook = useCallback((ordersToBook: LalamoveOrder[], title: string, onDone: () => void) => {
+    setBooking({ orders: ordersToBook, title, onDone })
+  }, [])
 
   // Load existing saved batches for selected date
   async function loadExistingBatches() {
@@ -505,7 +732,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
         <div className="flex items-center gap-4 pt-2 border-t border-gray-100 flex-wrap">
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Package className="h-4 w-4" />
-            <span><strong className="text-gray-900">{totalOrders}</strong> order dimuatkan</span>
+            <span><strong className="text-gray-900">{totalOrders}</strong> belum dihantar</span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-gray-500">
             <Clock className="h-4 w-4" />
@@ -591,6 +818,10 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
                 zones={groups}
                 onMove={handleMove}
                 onStatusChange={handleStatusChange}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                onToggleZone={toggleZone}
+                onBook={handleBook}
               />
             ))}
             {groups.every((g) => g.orders.length === 0) && (
@@ -601,6 +832,40 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Bar pilihan melekat (gabung order terpilih jadi satu booking) ── */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] px-4 py-3">
+          <div className="max-w-4xl mx-auto flex items-center gap-3">
+            <span className="text-sm font-bold text-gray-900">{selectedIds.size} order dipilih</span>
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 font-semibold">
+              Kosongkan
+            </button>
+            <button
+              onClick={() => {
+                const sel = (groups ?? []).flatMap((g) => g.orders).filter((o) => selectedIds.has(o.id))
+                handleBook(sel, `${selectedIds.size} order dipilih`, () => setSelectedIds(new Set()))
+              }}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600 shadow-sm"
+            >
+              <Send className="h-4 w-4" /> Hantar ke Lalamove
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal booking (per-zon ATAU pilihan) ── */}
+      {booking && (
+        <LalamoveBookModal
+          orders={booking.orders}
+          title={booking.title}
+          onClose={() => setBooking(null)}
+          onBooked={(ids) => {
+            booking.onDone()
+            setSelectedIds((prev) => { const next = new Set(prev); ids.forEach((i) => next.delete(i)); return next })
+          }}
+        />
       )}
     </div>
   )
