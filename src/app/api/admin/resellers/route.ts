@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { normalizePhone } from '@/lib/phone'
 import { NextResponse } from 'next/server'
 
 // Admin CRUD reseller. Reseller = customer master yang dipromosi (1-1).
@@ -27,8 +28,35 @@ export async function POST(request: Request) {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
 
-  const { customer_id } = await request.json().catch(() => ({}))
-  if (!customer_id) return NextResponse.json({ error: 'customer_id diperlukan' }, { status: 400 })
+  const body = await request.json().catch(() => ({}))
+  let customer_id: string | undefined = body.customer_id
+
+  // Reseller baru terus (tanpa customer sedia ada) → find-or-create customer ikut telefon (phone_norm = identiti)
+  if (!customer_id) {
+    const phone_norm = normalizePhone(body.phone)
+    const name = String(body.name ?? '').trim()
+    if (!name || !phone_norm) return NextResponse.json({ error: 'Nama & telefon diperlukan' }, { status: 400 })
+
+    const { data: existing } = await supabase!.from('customers').select('id').eq('phone_norm', phone_norm).maybeSingle()
+    if (existing) {
+      customer_id = existing.id
+    } else {
+      const { data: newCust, error: cErr } = await supabase!
+        .from('customers')
+        .insert({
+          phone_norm, name,
+          email: String(body.email ?? '').trim() || null,
+          address: String(body.address ?? '').trim() || null,
+          postcode: String(body.postcode ?? '').trim() || null,
+          sources: ['reseller'],
+          first_seen_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single()
+      if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 })
+      customer_id = newCust!.id
+    }
+  }
 
   const { data: cust } = await supabase!.from('customers').select('id, name, is_reseller').eq('id', customer_id).maybeSingle()
   if (!cust) return NextResponse.json({ error: 'Customer tidak dijumpai' }, { status: 404 })
