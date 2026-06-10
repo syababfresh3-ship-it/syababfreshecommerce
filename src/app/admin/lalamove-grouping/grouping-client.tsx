@@ -5,7 +5,7 @@ import {
   Truck, ChevronDown, ChevronRight, Copy, CheckCheck, RefreshCw,
   Phone, MapPin, Clock, Package, AlertCircle, User, StickyNote,
   Printer, Filter, Calendar, Save, CheckCircle2, Loader2, Trash2,
-  Send, ExternalLink, X,
+  Send, ExternalLink, X, Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { KV_ZONES, getZone, extractPostcode, ZONE_COLORS, type ZoneConfig } from './zone-config'
@@ -766,6 +766,17 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
             {loadingExisting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             Muatkan Tersave
           </button>
+
+          {/* Export Excel (format TikTok) untuk import ke syababfresh-app */}
+          <a
+            href="/api/admin/lalamove-export"
+            download
+            className="flex items-center gap-2 px-4 py-3 border-2 border-emerald-200 text-emerald-700 font-semibold rounded-2xl text-sm hover:border-emerald-300 hover:bg-emerald-50 transition-colors"
+            title="Export order Lalamove (KV, belum dihantar) ke Excel — untuk import ke syababfresh-app"
+          >
+            <Download className="h-4 w-4" />
+            Export Excel
+          </a>
         </div>
       </div>
 
