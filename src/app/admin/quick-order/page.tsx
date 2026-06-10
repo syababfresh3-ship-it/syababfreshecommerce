@@ -16,7 +16,7 @@ const payOptions = [
 ]
 
 // Nama staf untuk dropdown Quick Order. 'Lain-lain' → taip nama sendiri.
-const STAFF_NAMES = ['Mamat', 'Man', 'Pika', 'Far']
+const STAFF_NAMES = ['Muhd', 'Man', 'Pika', 'Far']
 
 export default function QuickOrderPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -61,8 +61,8 @@ export default function QuickOrderPage() {
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
   const FREE_MIN = 80
   const discountNum = Math.max(0, parseFloat(form.discount) || 0)
-  // Reseller (B2B): kos penghantaran dirunding → ambil dari input manual. Biasa: auto ikut poskod.
-  const deliveryNum = resellerId ? Math.max(0, parseFloat(deliveryOverride) || 0) : (deliveryFee ?? 0)
+  // Delivery: kalau admin edit (override) ATAU reseller → guna nilai manual. Else auto ikut poskod.
+  const deliveryNum = (deliveryTouched || resellerId) ? Math.max(0, parseFloat(deliveryOverride) || 0) : (deliveryFee ?? 0)
   const total = Math.max(0, subtotal + deliveryNum - discountNum)
 
   const fetchFee = useCallback(async (postcode: string) => {
@@ -78,10 +78,10 @@ export default function QuickOrderPage() {
 
   useEffect(() => { if (form.postcode) fetchFee(form.postcode) }, [form.postcode, fetchFee])
 
-  // Reseller: prefill kos auto (ikut poskod) sebagai titik mula — admin bebas ubah selepas itu
+  // Prefill kos auto (ikut poskod) sebagai titik mula — admin bebas ubah selepas itu (semua order)
   useEffect(() => {
-    if (resellerId && !deliveryTouched && deliveryFee !== null) setDeliveryOverride(String(deliveryFee))
-  }, [deliveryFee, resellerId, deliveryTouched])
+    if (!deliveryTouched && deliveryFee !== null) setDeliveryOverride(String(deliveryFee))
+  }, [deliveryFee, deliveryTouched])
 
   const filtered = search.trim()
     ? products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -128,7 +128,7 @@ export default function QuickOrderPage() {
           items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty })),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
           reseller_id: resellerId || undefined,
-          delivery_fee: resellerId ? deliveryNum : undefined,
+          delivery_fee: (deliveryTouched || resellerId) ? deliveryNum : undefined,
         }),
       })
       const data = await res.json()
@@ -307,18 +307,19 @@ export default function QuickOrderPage() {
                 <span>Subtotal</span><span>RM{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-gray-500">
-                <span>Delivery {resellerId && <span className="text-[11px] text-violet-600 font-semibold">(boleh ubah)</span>}</span>
-                {resellerId ? (
-                  <input
-                    type="number" min="0" step="0.01"
-                    value={deliveryOverride}
-                    onChange={e => { setDeliveryOverride(e.target.value); setDeliveryTouched(true) }}
-                    placeholder="0.00"
-                    className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  />
-                ) : (
-                  <span>{fetchingFee ? '...' : deliveryFee === null ? (subtotal >= FREE_MIN ? <span className="text-green-600 font-bold">FREE</span> : '—') : deliveryFee === 0 ? <span className="text-green-600 font-bold">FREE</span> : `RM${deliveryFee.toFixed(2)}`}</span>
-                )}
+                <span>
+                  Delivery <span className="text-[11px] text-violet-600 font-semibold">(boleh ubah)</span>
+                  {!deliveryTouched && deliveryFee !== null && (
+                    <span className="text-[10px] text-gray-400 ml-1">{deliveryFee === 0 ? 'auto: FREE' : `auto: RM${deliveryFee.toFixed(2)}`}</span>
+                  )}
+                </span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={deliveryOverride}
+                  onChange={e => { setDeliveryOverride(e.target.value); setDeliveryTouched(true) }}
+                  placeholder={fetchingFee ? '...' : '0.00'}
+                  className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
+                />
               </div>
               <div className="flex justify-between items-center text-gray-500">
                 <span>Diskaun (RM)</span>

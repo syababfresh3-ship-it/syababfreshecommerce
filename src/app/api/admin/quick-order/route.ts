@@ -66,14 +66,15 @@ export async function POST(request: Request) {
     }
   }
 
-  // Delivery fee. Reseller (B2B) = dirunding → terima override manual dari admin.
-  // Order biasa = auto ikut poskod / free-min (override diabaikan, elak manipulasi klien).
+  // Delivery fee. Custom delivery: admin boleh override (endpoint ini admin-only via
+  // requireAdmin, jadi selamat — bukan klien awam). Kalau tiada override → auto ikut
+  // poskod / free-min.
   const appSettings = await getAppSettings()
   const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
   let deliveryFee = Number(appSettings.default_delivery_fee ?? 15)
 
   const deliveryOverride = Number(delivery_fee)
-  if (isReseller && Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
+  if (Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
     deliveryFee = deliveryOverride
   } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
