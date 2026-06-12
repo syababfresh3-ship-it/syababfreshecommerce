@@ -89,17 +89,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Sekurang-kurangnya satu item refund diperlukan.' }, { status: 400 })
   }
 
-  // Sahkan order wujud + ambil maklumat untuk denormalize
+  // Sahkan order wujud + ambil maklumat untuk denormalize.
+  // Cuba storefront (orders) dahulu; jika tiada, cuba LP guest order (lp_guest_orders).
   const { data: order } = await supabase!
     .from('orders')
     .select('id, order_number, total, user_id, delivery_address')
     .eq('id', order_id)
     .single()
-  if (!order) return NextResponse.json({ error: 'Order tidak dijumpai.' }, { status: 404 })
 
-  const { data: profile } = order.user_id
-    ? await supabase!.from('profiles').select('full_name, phone').eq('id', order.user_id).single()
-    : { data: null }
+  let isLp = false
+  let orderNumber: string | null = null
+  let custName: string | null = null
+  let custPhone: string | null = null
+  let hargaTotal = 0
+  let deliveryAddress: string | null = null
+
+  if (order) {
+    const { data: profile } = order.user_id
+      ? await supabase!.from('profiles').select('full_name, phone').eq('id', order.user_id).single()
+      : { data: null }
+    orderNumber     = order.order_number
+    custName        = (profile as { full_name?: string } | null)?.full_name ?? null
+    custPhone       = (profile as { phone?: string } | null)?.phone ?? null
+    hargaTotal      = Number(order.total) || 0
+    deliveryAddress = order.delivery_address ?? null
+  } else {
+    const { data: lp } = await supabase!
+      .from('lp_guest_orders')
+      .select('id, order_number, total, name, phone, address')
+      .eq('id', order_id)
+      .single()
+    if (!lp) return NextResponse.json({ error: 'Order tidak dijumpai.' }, { status: 404 })
+    isLp            = true
+    orderNumber     = lp.order_number
+    custName        = lp.name ?? null
+    custPhone       = lp.phone ?? null
+    hargaTotal      = Number(lp.total) || 0
+    deliveryAddress = lp.address ?? null
+  }
 
   const jumlahRefund = calcRefundTotal(items)
   const dl = deadline ? new Date(deadline as string) : new Date(Date.now() + 3 * 86400000)
@@ -107,15 +134,16 @@ export async function POST(request: Request) {
   const { data: refund, error: insErr } = await supabase!
     .from('refunds')
     .insert({
-      order_id,
-      order_number:   order.order_number,
-      customer_name:  (profile as { full_name?: string } | null)?.full_name ?? null,
-      customer_phone: (profile as { phone?: string } | null)?.phone ?? null,
+      order_id:       isLp ? null : order_id,
+      lp_order_id:    isLp ? order_id : null,
+      order_number:   orderNumber,
+      customer_name:  custName,
+      customer_phone: custPhone,
       pic_name:       (pic_name as string) || null,
       supplier_code:  (supplier_code as string) || null,
       supplier_cost:  supplier_cost != null && supplier_cost !== '' ? Number(supplier_cost) : null,
       supplier_claim: supplier_claim != null && supplier_claim !== '' ? Number(supplier_claim) : null,
-      harga_total:    Number(order.total) || 0,
+      harga_total:    hargaTotal,
       jumlah_refund:  jumlahRefund,
       reason:         (reason as string) || null,
       payment_method,
@@ -125,7 +153,7 @@ export async function POST(request: Request) {
       bank_account_name:(bank_account_name as string) || null,
       ganti_qty:       ganti_qty != null && ganti_qty !== '' ? Math.floor(Number(ganti_qty)) : null,
       ganti_variation: (ganti_variation as string) || null,
-      ganti_alamat:    (ganti_alamat as string) || order.delivery_address || null,
+      ganti_alamat:    (ganti_alamat as string) || deliveryAddress || null,
       ganti_postcode:  (ganti_postcode as string) || null,
       ganti_courier:   (ganti_courier as string) || null,
       ganti_tracking_no:   (ganti_tracking_no as string) || null,
@@ -161,9 +189,9 @@ export async function POST(request: Request) {
   const acctPhone = settings.accountant_phone || process.env.ADMIN_WHATSAPP
   if (acctPhone) {
     const msg = [
-      `*Refund Baru* — ${order.order_number}`,
+      `*Refund Baru* — ${orderNumber}`,
       ``,
-      `Customer : ${(profile as { full_name?: string } | null)?.full_name ?? '-'}`,
+      `Customer : ${custName ?? '-'}`,
       `Cara bayar: ${PAYMENT_LABELS[payment_method]}`,
       `Jumlah   : RM${jumlahRefund.toFixed(2)}`,
       reason ? `Sebab    : ${reason}` : '',

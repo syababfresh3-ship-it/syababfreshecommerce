@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   let query = supabase!
     .from('refunds')
-    .select('jumlah_refund, status, payment_method, supplier_code, created_at, order_id, order_number')
+    .select('jumlah_refund, status, payment_method, supplier_code, created_at, order_id, lp_order_id, order_number')
     .order('created_at', { ascending: false })
     .limit(2000)
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
   // By item — refunds tak simpan produk, jadi kita ikut order yang dirujuk.
   // SYB- = storefront (order_items), LP- = landing page (lp_guest_orders.items).
   const sybIds = [...new Set(rows.filter(r => String(r.order_number || '').startsWith('SYB')).map(r => r.order_id).filter(Boolean))]
-  const lpIds  = [...new Set(rows.filter(r => String(r.order_number || '').startsWith('LP')).map(r => r.order_id).filter(Boolean))]
+  const lpIds  = [...new Set(rows.filter(r => String(r.order_number || '').startsWith('LP')).map(r => r.lp_order_id ?? r.order_id).filter(Boolean))]
   const productsByOrder: Record<string, string[]> = {}
 
   if (sybIds.length) {
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
   // (count per-refund; amount diletak penuh pada tiap produk order itu).
   const byItem: Record<string, { count: number; amount: number }> = {}
   for (const r of rows) {
-    const names = [...new Set((productsByOrder[r.order_id] ?? []).filter(Boolean))]
+    const names = [...new Set((productsByOrder[r.lp_order_id ?? r.order_id] ?? []).filter(Boolean))]
     const keys = names.length ? names : ['-']
     for (const k of keys) {
       if (!byItem[k]) byItem[k] = { count: 0, amount: 0 }

@@ -74,9 +74,15 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
             </p>
           </div>
         </div>
-        {(order.payment_status === 'paid' || (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')) && (
-          <ReceiptActions orderId={order.id} canSend={!!order.phone} />
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {(order.payment_status === 'paid' || (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')) && (
+            <ReceiptActions orderId={order.id} canSend={!!order.phone} />
+          )}
+          <Link href={`/admin/refunds/new?orderId=${order.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+            Refund Terperinci
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
