@@ -30,6 +30,11 @@ export async function POST(request: Request) {
   if (items.length > 50) return NextResponse.json({ error: 'Terlalu banyak item' }, { status: 400 })
   if (!delivery_address || typeof delivery_address !== 'string') return NextResponse.json({ error: 'Alamat diperlukan' }, { status: 400 })
   if (delivery_address.length > 500) return NextResponse.json({ error: 'Alamat terlalu panjang' }, { status: 400 })
+  // Poskod 5-digit WAJIB untuk delivery (bukan pickup) — tanpa poskod, courier tak boleh
+  // dipilih & order tak boleh dihantar. Guard server (elak bypass client).
+  if (!isPickup && (typeof postcode !== 'string' || !/^\d{5}$/.test(postcode))) {
+    return NextResponse.json({ error: 'Poskod 5 digit yang sah diperlukan' }, { status: 400 })
+  }
   if (notes && (typeof notes !== 'string' || notes.length > 500)) return NextResponse.json({ error: 'Nota terlalu panjang' }, { status: 400 })
   if (!payment_method || typeof payment_method !== 'string') return NextResponse.json({ error: 'Kaedah bayaran diperlukan' }, { status: 400 })
   const VALID_PAYMENT_METHODS = ['fpx', 'ewallet', 'cod', 'bank_transfer']
