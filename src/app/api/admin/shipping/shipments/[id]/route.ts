@@ -22,11 +22,29 @@ export async function PATCH(
   // Fetch existing shipment to get carrier template and order_id
   const { data: existing } = await supabase
     .from('order_shipments')
-    .select('order_id, carrier_id, tracking_number, refund_id, shipping_carriers(tracking_url_template)')
+    .select('order_id, carrier_id, tracking_number, tracking_url, status, refund_id, shipping_carriers(tracking_url_template)')
     .eq('id', id)
     .single()
 
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Guard (sama dgn POST): jangan biar EDIT tukar primary shipment jadi tanpa pengecam
+  // tracking + status belum aktif — itu akan SOROK order dari Grouping/Export secara
+  // senyap (cth admin kosongkan link Lalamove). Shipment ganti (refund-linked) dikecuali.
+  if (!existing.refund_id) {
+    const ACTIVE_SHIP = ['picked_up', 'in_transit', 'out_for_delivery', 'delivered']
+    const nextStatus = body.status ?? existing.status
+    const nextTracking = body.tracking_number !== undefined ? body.tracking_number : existing.tracking_number
+    const nextUrl = body.direct_url !== undefined ? body.direct_url : existing.tracking_url
+    const hasTrackingId = !!(String(nextTracking ?? '').trim() || String(nextUrl ?? '').trim())
+    if (!hasTrackingId && !ACTIVE_SHIP.includes(nextStatus)) {
+      return NextResponse.json({
+        error: existing.carrier_id === 'lalamove'
+          ? 'Sila kekalkan link Lalamove (share link). Tanpa link, order akan tersorok dari Lalamove Grouping & Export.'
+          : 'Sila kekalkan tracking number. Tanpa tracking, order akan tersorok dari senarai belum-hantar.',
+      }, { status: 400 })
+    }
+  }
 
   const update: Record<string, unknown> = { updated_at: now }
 

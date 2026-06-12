@@ -253,6 +253,44 @@ async function exportLalamove(orders: ExportOrder[]) {
   await downloadXlsx(`lalamove-${today}.xlsx`, 'Lalamove', [header, ...rows])
 }
 
+// Raw export (format TikTok, parser Fresh syababfresh-app) — SEMUA kawasan, satu baris
+// setiap item. syababfresh-app yang PILIH courier ikut poskod (storefront tak klasifikasi).
+// Versi pilihan (order yang ditick); padan format dgn endpoint /api/admin/orders-export.
+async function exportRawForApp(orders: ExportOrder[]) {
+  const header = [
+    'Order ID', 'Recipient', 'Phone #', 'Zipcode', 'Post Town', 'State',
+    'Detail Address', 'Additional address information', 'Product Category',
+    'Product Name', 'Variation', 'Quantity', 'Weight(kg)', 'Delivery Option',
+    'Order Amount', 'Buyer Message',
+  ]
+  const rows: (string | number)[][] = []
+  for (const o of orders) {
+    const its = o.items.length ? o.items : [{ product_name: '(item)', quantity: 1, variant_name: null, is_shippable: false }]
+    for (const it of its) {
+      rows.push([
+        o.order_number,
+        getRecipientName(o),
+        o.recipient_phone ?? o.phone ?? '',
+        o.postcode ?? '',
+        o.post_town || o.city || '',
+        o.state ?? '',
+        o.full_address ?? '',
+        '',
+        'Syabab Storefront',
+        it.product_name,
+        it.variant_name ?? '',
+        it.quantity,
+        1,
+        'Shipped by Seller',
+        Number(o.total) || 0,
+        o.notes ?? '',
+      ])
+    }
+  }
+  const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
+  await downloadXlsx(`orders-export-${today}.xlsx`, 'Orders', [header, ...rows])
+}
+
 // ─── AWB Print ────────────────────────────────────────────────────────────────
 
 async function printAwb(orders: ExportOrder[]) {
@@ -693,6 +731,16 @@ export function ExportsClient({
     await markExported(ids)
   }
 
+  // Raw export pilihan (ditick) → syababfresh-app pilih courier. SEMUA kawasan, tiada
+  // tapis Lalamove/Poslaju (sebab syababfresh-app yang klasifikasi).
+  async function handleExportApp() {
+    if (selectedOrders.length === 0) { toast.error('Tick order dahulu'); return }
+    const ids = selectedOrders.map((o) => o.id)
+    await exportRawForApp(selectedOrders)
+    toast.success(`${ids.length} order export → syababfresh-app`)
+    await markExported(ids)
+  }
+
   function handlePrintAwb() {
     if (selectedOrders.length === 0) { toast.error('Select orders dahulu'); return }
     printAwb(selectedOrders)
@@ -830,6 +878,16 @@ export function ExportsClient({
           <h1 className="text-xl font-bold text-gray-900">Export & Import Shipping</h1>
           <p className="text-sm text-gray-400">Ninja Cold CSV · Lalamove XLSX · Poslaju XLSX · AWB Slip</p>
         </div>
+        {/* Raw export SEMUA order (SYB + LP) → import ke syababfresh-app yang pilih courier */}
+        <a
+          href="/api/admin/orders-export"
+          download
+          className="ml-auto flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+          title="Export semua order belum-dispatch (LK + luar-LK, SYB + LP) ke Excel — syababfresh-app yang pilih Lalamove/Poslaju/Ninja"
+        >
+          <Download className="h-4 w-4" />
+          Export Semua → syababfresh-app
+        </a>
       </div>
 
       {/* Tabs */}
@@ -913,6 +971,12 @@ export function ExportsClient({
                 <span className="text-xs text-gray-400 px-1">{selected.size} diselect</span>
 
                 <div className="flex gap-2 ml-auto flex-wrap">
+                  <button onClick={handleExportApp}
+                    disabled={selected.size === 0}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 disabled:opacity-40 transition-colors"
+                    title="Export order yang ditick → import ke syababfresh-app (dia pilih courier)">
+                    <Download className="h-3.5 w-3.5" />→ syababfresh-app
+                  </button>
                   <button onClick={handleExportNinja}
                     disabled={selected.size === 0}
                     className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors">
