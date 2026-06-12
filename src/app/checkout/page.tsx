@@ -316,6 +316,11 @@ export default function CheckoutPage() {
       if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
     } else {
       if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
+      // Poskod 5-digit WAJIB — tanpa poskod, courier tak boleh dipilih & order tak boleh dihantar
+      const pc = selectedAddressId !== '__manual__'
+        ? (savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode)
+        : manualPostcode
+      if (!/^\d{5}$/.test((pc ?? '').trim())) { toast.error('Sila masukkan poskod 5 digit yang sah'); return }
       if (localOnlyItems.length > 0) {
         toast.error(`Item berikut hanya boleh dihantar dalam Klang Valley: ${localOnlyItems.join(', ')}`)
         return
@@ -647,6 +652,7 @@ export default function CheckoutPage() {
                     type="tel"
                     inputMode="numeric"
                     maxLength={5}
+                    required
                     value={manualPostcode}
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, '')
@@ -654,7 +660,7 @@ export default function CheckoutPage() {
                       setPostcodeValid(null)
                       if (v.length === 5) checkPostcode(v)
                     }}
-                    placeholder="Poskod (5 digit)"
+                    placeholder="Poskod (5 digit) — wajib"
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
                   />
                 </div>
