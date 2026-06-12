@@ -65,6 +65,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'order_id dan carrier_id diperlukan' }, { status: 400 })
   }
 
+  // Guard: primary shipment TANPA pengecam tracking (no. tracking / link) DAN status
+  // belum aktif = tiada bukti dispatch sebenar, TAPI kehadiran baris shipment akan
+  // SOROK order dari Lalamove Grouping & Export (dua-dua anggap "ada primary shipment =
+  // dah dihantar"). Tolak supaya order tak hilang senyap. Bagi Lalamove, pengecam =
+  // direct_url (share link). Bila link/tracking dah ada, simpan macam biasa.
+  const ACTIVE_SHIP = ['picked_up', 'in_transit', 'out_for_delivery', 'delivered']
+  const hasTrackingId = !!(String(tracking_number ?? '').trim() || String(direct_url ?? '').trim())
+  if (!hasTrackingId && !ACTIVE_SHIP.includes(status)) {
+    return NextResponse.json({
+      error: carrier_id === 'lalamove'
+        ? 'Sila tampal link Lalamove (share link) dahulu. Tanpa link, order akan tersorok dari Lalamove Grouping & Export.'
+        : 'Sila isi tracking number dahulu. Tanpa tracking, order akan tersorok dari senarai belum-hantar.',
+    }, { status: 400 })
+  }
+
   // Determine tracking URL: direct_url (Lalamove) takes priority, else auto-generate from template
   let tracking_url: string | null = direct_url ?? null
   if (!tracking_url && tracking_number) {

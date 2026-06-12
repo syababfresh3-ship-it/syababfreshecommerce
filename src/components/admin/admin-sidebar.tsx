@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Route, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket, ScanLine,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket, ScanLine,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -25,7 +25,10 @@ const sections = [
       { href: '/admin/shipping/dispatch',  label: 'Scan Keluar',      icon: ScanLine },
       { href: '/admin/wa-outbox',          label: 'WA Outbox',        icon: Send },
       { href: '/admin/wa-blast',           label: 'WA Blast (ReplyLa)', icon: Rocket },
-      { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
+      // Disorok 2026-06-12: semua dispatch (Lalamove/Poslaju/Ninja) kini diuruskan di
+      // syababfresh-app via raw export (/api/admin/orders-export). Page masih wujud —
+      // untuk pulihkan: nyahkomen baris bawah + tambah balik `Route` ke import lucide.
+      // { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
       { href: '/admin/sop',                label: 'Panduan SOP',      icon: BookOpen },
     ],
   },
