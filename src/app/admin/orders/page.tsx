@@ -211,9 +211,10 @@ export default async function AdminOrdersPage({
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
-  // Polisi sama untuk storefront & LP.
+  // 'refunded' = dah dibayar dahulu kemudian dipulangkan → kekal papar (admin rujuk
+  // balik). Polisi sama untuk storefront & LP.
   const isPaidOrOffline = (o: any) =>
-    ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
+    ['fpx', 'ewallet'].includes(o.payment_method) ? ['paid', 'refunded'].includes(o.payment_status) : true
   const visibleOrders = orders.filter(isPaidOrOffline)
   let allLpOrders = lpRows.filter(isPaidOrOffline)
   // Search filter — match order number, customer name, or phone
