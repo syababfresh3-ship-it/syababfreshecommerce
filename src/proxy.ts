@@ -42,8 +42,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // Protected routes — redirect to login if not authenticated
-  const protectedPaths = ['/checkout', '/orders', '/profile', '/loyalty', '/wishlist', '/notifications']
+  // Protected routes — redirect to login if not authenticated.
+  // NOTA: /checkout SENGAJA tidak dilindungi — guest checkout dibenarkan (page
+  // checkout sendiri bercabang guest vs member). /orders kekal dilindungi (sejarah
+  // order member); guest guna pautan resit /resit/[id].
+  const protectedPaths = ['/orders', '/profile', '/loyalty', '/wishlist', '/notifications']
   const isProtected = protectedPaths.some(path => pathname.startsWith(path))
 
   if (isProtected && !user) {

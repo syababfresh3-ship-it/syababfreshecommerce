@@ -88,6 +88,7 @@ export default function CheckoutPage() {
   const [manualPostcode, setManualPostcode] = useState('')
   const [localOnlyItems, setLocalOnlyItems] = useState<string[]>([])
   const [paymentOptions, setPaymentOptions] = useState<{ value: string; label: string; sublabel: string; icon: React.ElementType }[]>([])
+  const [loggedIn, setLoggedIn] = useState(false)
   const [form, setForm] = useState({
     full_address: '',
     delivery_slot: slots[0]?.value ?? '',
@@ -95,6 +96,7 @@ export default function CheckoutPage() {
     payment_method: '',
     recipient_name: '',
     phone: '',
+    email: '',
   })
 
   useEffect(() => {
@@ -140,6 +142,8 @@ export default function CheckoutPage() {
     ;(supabase.auth.getUser() as Promise<any>).then(({ data }) => {
       const user = data?.user
       if (!user) return
+      setLoggedIn(true)
+      if (user.email) setForm(prev => ({ ...prev, email: prev.email || user.email }))
       Promise.all([
         supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
         supabase.from('profiles').select('total_points, full_name, phone, loyalty_tiers(multiplier)').eq('id', user.id).single(),
@@ -331,12 +335,50 @@ export default function CheckoutPage() {
     const supabase = createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { toast.error('Sila log masuk dahulu'); router.push('/login?redirect=/checkout'); setLoading(false); return }
 
-    // Create order + items via server API — prices recalculated from DB, promo validated server-side
+    // Prices recalculated from DB, promo validated server-side
     const postcode = selectedAddressId !== '__manual__'
       ? savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode
       : manualPostcode
+
+    // ── GUEST CHECKOUT (tanpa login) → infra guest LP (lp_guest_orders) ──
+    if (!user) {
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
+        toast.error('Sila masukkan email yang sah'); setLoading(false); return
+      }
+      const guestRes = await fetch('/api/store/guest-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(({ product, variant, quantity }) => ({
+            product_id: product.id,
+            variant_id: variant?.id ?? null,
+            quantity,
+          })),
+          name: form.recipient_name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          address: isPickup ? null : form.full_address,
+          postcode: isPickup ? null : (postcode || null),
+          payment_method: form.payment_method,
+          delivery_method: deliveryMethod,
+          pickup_date: isPickup ? pickupDate : null,
+          notes: form.notes || null,
+          promo_code: appliedPromo?.code ?? null,
+        }),
+      })
+      if (!guestRes.ok) {
+        const err = await guestRes.json().catch(() => ({}))
+        toast.error(err.error ?? 'Gagal buat pesanan. Cuba lagi.')
+        setLoading(false)
+        return
+      }
+      const data = await guestRes.json()
+      clearCart()
+      if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
+      router.push(`/checkout/berjaya?pesanan=${data.order_number}`)
+      return
+    }
 
     const orderRes = await fetch('/api/orders', {
       method: 'POST',
@@ -468,6 +510,32 @@ export default function CheckoutPage() {
                 className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email {!loggedIn && <span className="text-red-400">*</span>}
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="email@contoh.com"
+                autoComplete="email"
+                inputMode="email"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">Resit & status pesanan dihantar ke email ini.</p>
+            </div>
+            {!loggedIn && (
+              <div className="bg-brand-fresh-50 border border-brand-fresh-100 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-brand-fresh-700 leading-snug">
+                  Checkout sebagai tetamu — atau log masuk untuk kumpul & guna <span className="font-semibold">points</span>.
+                </p>
+                <Link href="/login?redirect=/checkout" className="text-[11px] font-bold text-brand-fresh-700 underline shrink-0">
+                  Log masuk
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 

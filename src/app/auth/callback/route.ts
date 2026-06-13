@@ -50,9 +50,30 @@ export async function GET(request: NextRequest) {
     try {
       const adminDb = createAdminClient()
       const { data: prof } = await adminDb.from('profiles').select('phone').eq('id', data.user.id).single()
+      const seen = new Set<string>()
+      // Padan ikut telefon (normalize 9 digit, via RPC)
       if (prof?.phone) {
         const { data: lpOrders } = await adminDb.rpc('lp_orders_for_phone', { p_phone: prof.phone })
         for (const o of (lpOrders ?? [])) {
+          if (seen.has(o.id)) continue
+          seen.add(o.id)
+          await awardLpLoyalty(adminDb, o)
+        }
+      }
+      // Padan ikut email — perlu untuk login Google (tiada telefon). Order guest
+      // storefront yang sudah delivered & belum dikira points dituntut di sini.
+      const email = (data.user.email ?? '').trim().toLowerCase()
+      if (email) {
+        const { data: byEmail } = await adminDb
+          .from('lp_guest_orders')
+          .select('id, order_number, phone, total, payment_method, payment_status, user_id, source, email')
+          .ilike('email', email)
+          .eq('status', 'delivered')
+          .eq('loyalty_awarded', false)
+          .limit(50)
+        for (const o of (byEmail ?? [])) {
+          if (seen.has(o.id)) continue
+          seen.add(o.id)
           await awardLpLoyalty(adminDb, o)
         }
       }

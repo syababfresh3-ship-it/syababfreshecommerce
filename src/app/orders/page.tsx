@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { StoreLayout } from '@/components/layout/store-layout'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -41,26 +42,68 @@ const statusLabel: Record<string, string> = {
   refunded:   'Dibayar Balik',
 }
 
+type HistoryOrder = {
+  id: string; order_number: string; status: string; total: number; created_at: string
+  order_items: { product_name: string }[]; _guest?: boolean
+}
+
 async function getOrders(page: number, tab: TabKey) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const from = (page - 1) * PAGE_SIZE
-  const to = from + PAGE_SIZE - 1
-
-  let query = supabase
+  // 1) Order member (jadual `orders`)
+  const { data: memberRows } = await supabase
     .from('orders')
-    .select('id, order_number, status, total, created_at, order_items(product_name)', { count: 'exact' })
+    .select('id, order_number, status, total, created_at, order_items(product_name)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .range(from, to)
+    .limit(200)
 
-  if (tab === 'active') query = query.in('status', ACTIVE_STATUSES)
-  if (tab === 'done')   query = query.in('status', DONE_STATUSES)
+  const merged: HistoryOrder[] = (memberRows ?? []).map((o: any) => ({
+    id: o.id, order_number: o.order_number, status: o.status, total: Number(o.total),
+    created_at: o.created_at, order_items: o.order_items ?? [],
+  }))
 
-  const { data, count } = await query
-  return { orders: data ?? [], total: count ?? 0 }
+  // 2) Order guest (lp_guest_orders) yang dipadan ikut EMAIL atau TELEFON pengguna.
+  //    RLS lp_guest_orders = admin sahaja → guna admin client, tapi ditapis KETAT
+  //    ke email/telefon pengguna ini supaya tak bocor order orang lain.
+  const { data: prof } = await supabase.from('profiles').select('phone').eq('id', user.id).single()
+  const email = (user.email ?? '').trim().toLowerCase()
+  const phoneDigits = (prof?.phone ?? '').replace(/\D/g, '')
+  const last9 = phoneDigits.length >= 9 ? phoneDigits.slice(-9) : ''
+
+  if (email || last9) {
+    const admin = createAdminClient()
+    const sel = 'id, order_number, status, total, created_at, items, product_name, user_id'
+    const [byEmail, byPhone] = await Promise.all([
+      email ? admin.from('lp_guest_orders').select(sel).ilike('email', email).order('created_at', { ascending: false }).limit(200) : Promise.resolve({ data: [] }),
+      last9 ? admin.from('lp_guest_orders').select(sel).ilike('phone', `%${last9}%`).order('created_at', { ascending: false }).limit(200) : Promise.resolve({ data: [] }),
+    ])
+    const seen = new Set(merged.map(m => m.id))
+    for (const o of [...(byEmail.data ?? []), ...(byPhone.data ?? [])]) {
+      if (seen.has(o.id)) continue
+      // Order guest yang dah dilink ke akaun LAIN — langkau (jangan papar)
+      if ((o as any).user_id && (o as any).user_id !== user.id) continue
+      seen.add(o.id)
+      const items = Array.isArray((o as any).items) && (o as any).items.length > 0
+        ? (o as any).items.map((i: any) => ({ product_name: i.product_name }))
+        : [{ product_name: (o as any).product_name }]
+      merged.push({
+        id: o.id, order_number: o.order_number, status: o.status, total: Number(o.total),
+        created_at: o.created_at, order_items: items, _guest: true,
+      })
+    }
+  }
+
+  // Susun ikut tarikh, tapis ikut tab, paginate dalam-memori
+  merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+  const filtered = tab === 'active' ? merged.filter(o => ACTIVE_STATUSES.includes(o.status))
+    : tab === 'done' ? merged.filter(o => DONE_STATUSES.includes(o.status))
+    : merged
+
+  const from = (page - 1) * PAGE_SIZE
+  return { orders: filtered.slice(from, from + PAGE_SIZE), total: filtered.length }
 }
 
 export default async function OrdersPage({
@@ -127,7 +170,7 @@ export default async function OrdersPage({
               return (
                 <Link
                   key={order.id}
-                  href={`/orders/${order.id}`}
+                  href={order._guest ? `/resit/${order.id}` : `/orders/${order.id}`}
                   className="block bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.07)] border border-gray-100/80 px-4 py-4.5 active:scale-[0.98] active:shadow-[0_4px_16px_rgba(0,0,0,0.11)] hover:shadow-[0_4px_18px_rgba(0,0,0,0.10)] hover:border-gray-200 transition-all duration-150"
                 >
                   <div className="flex items-start justify-between gap-3">
