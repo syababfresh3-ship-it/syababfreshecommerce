@@ -12,7 +12,7 @@ export async function awardLpLoyalty(
   lp: {
     id: string; order_number: string; phone: string; total: number | string
     payment_method?: string | null; payment_status?: string | null; user_id?: string | null
-    source?: string | null
+    source?: string | null; email?: string | null
   }
 ): Promise<{ awarded: boolean; userId?: string; points?: number }> {
   // Order borong (reseller) = B2B, bukan retail → tiada mata loyalty.
@@ -31,8 +31,27 @@ export async function awardLpLoyalty(
     const { data } = await supabase.from('profiles').select('id, loyalty_tiers(multiplier)').eq('id', lp.user_id).single()
     if (data) profile = { id: data.id, multiplier: (data.loyalty_tiers as any)?.multiplier ?? 1 }
   } else {
+    // Padan ikut telefon (normalize 9 digit) dahulu.
     const { data: match } = await supabase.rpc('find_profile_by_phone', { p_phone: lp.phone })
     profile = Array.isArray(match) ? match[0] : match
+    // Fallback ikut email — perlu untuk login Google (tiada telefon). Order guest
+    // storefront simpan email; padan ke profil berdaftar yang emailnya sama.
+    if (!profile?.id) {
+      let mEmail = (lp.email ?? '').trim().toLowerCase()
+      if (!mEmail) {
+        const { data: row } = await supabase.from('lp_guest_orders').select('email').eq('id', lp.id).single()
+        mEmail = (row?.email ?? '').trim().toLowerCase()
+      }
+      if (mEmail) {
+        const { data: byEmail } = await supabase
+          .from('profiles')
+          .select('id, loyalty_tiers(multiplier)')
+          .ilike('email', mEmail)
+          .limit(1)
+          .maybeSingle()
+        if (byEmail) profile = { id: byEmail.id, multiplier: (byEmail.loyalty_tiers as any)?.multiplier ?? 1 }
+      }
+    }
   }
   if (!profile?.id) return { awarded: false }
 

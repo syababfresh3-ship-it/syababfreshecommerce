@@ -12,6 +12,7 @@ const statusTabs = [
   { value: 'delivering', label: 'Delivering',   dot: 'bg-orange-400' },
   { value: 'delivered',  label: 'Delivered',    dot: 'bg-green-400' },
   { value: 'cancelled',  label: 'Cancelled',    dot: 'bg-red-400' },
+  { value: 'refunded',   label: 'Refunded',     dot: 'bg-gray-400' },
 ]
 
 const dateTabs = [

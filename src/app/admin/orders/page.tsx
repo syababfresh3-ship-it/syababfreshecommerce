@@ -61,20 +61,29 @@ type Bounds = { gte?: string; lt?: string; lte?: string }
 
 async function getOrders(status: string | undefined, q: string | undefined, bounds: Bounds) {
   const supabase = createAdminClient()
-  let query = supabase
-    .from('orders')
-    .select('id, order_number, status, total, payment_status, payment_method, delivery_slot, delivery_method, created_at, user_id')
-    .order('created_at', { ascending: false })
-    .limit(500)
+  // Ambil SEMUA storefront order yang sepadan, paging melepasi cap 1000-baris PostgREST.
+  // (Dulu had tetap 500 menyorok order lama secara senyap.) Display paging dibuat
+  // client-side dalam OrdersTableClient.
+  const CHUNK = 1000
+  const orders: any[] = []
+  for (let from = 0; ; from += CHUNK) {
+    let query = supabase
+      .from('orders')
+      .select('id, order_number, status, total, payment_status, payment_method, delivery_slot, delivery_method, created_at, user_id')
+      .order('created_at', { ascending: false })
+      .range(from, from + CHUNK - 1)
 
-  if (status) query = query.eq('status', status)
+    if (status) query = query.eq('status', status)
+    if (bounds.gte) query = query.gte('created_at', bounds.gte)
+    if (bounds.lt)  query = query.lt('created_at', bounds.lt)
+    if (bounds.lte) query = query.lte('created_at', bounds.lte)
 
-  if (bounds.gte) query = query.gte('created_at', bounds.gte)
-  if (bounds.lt)  query = query.lt('created_at', bounds.lt)
-  if (bounds.lte) query = query.lte('created_at', bounds.lte)
-
-  const { data: orders, error } = await query
-  if (error || !orders || orders.length === 0) return []
+    const { data, error } = await query
+    if (error || !data || data.length === 0) break
+    orders.push(...data)
+    if (data.length < CHUNK) break
+  }
+  if (orders.length === 0) return []
 
   const userIds = [...new Set(orders.map((o: any) => o.user_id).filter(Boolean))]
   const { data: profiles } = await supabase
@@ -136,7 +145,8 @@ const LP_SELECT =
 // so we loop .range() until a short page signals the end. Display paging is done
 // client-side in OrdersTableClient.
 // pageId set = ditapis ke satu LP (mod attribution) → tunjuk SEMUA status (termasuk
-// delivered) supaya kiraan sales penuh. Tanpa pageId, sorok yang dah selesai.
+// delivered) supaya kiraan sales penuh. Tanpa pageId, delivered TETAP tunjuk (untuk
+// semakan semula + kira-kira team sales) — hanya cancelled/refunded disorok.
 async function getAllLpOrders(status: string | undefined, bounds: Bounds, pageId?: string) {
   const supabase = createAdminClient()
   const { gte, lt, lte } = bounds
@@ -149,7 +159,7 @@ async function getAllLpOrders(status: string | undefined, bounds: Bounds, pageId
       .order('created_at', { ascending: false })
       .range(from, from + CHUNK - 1)
     if (status) q = q.eq('status', status)
-    else if (!pageId) q = q.not('status', 'in', '(delivered,cancelled,refunded)')
+    else if (!pageId) q = q.not('status', 'in', '(cancelled,refunded)')
     if (pageId) q = q.eq('page_id', pageId)
     if (gte) q = q.gte('created_at', gte)
     if (lt) q = q.lt('created_at', lt)
@@ -201,9 +211,10 @@ export default async function AdminOrdersPage({
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
   // never paid. COD/bank orders always show (no online payment to wait for).
-  // Polisi sama untuk storefront & LP.
+  // 'refunded' = dah dibayar dahulu kemudian dipulangkan → kekal papar (admin rujuk
+  // balik). Polisi sama untuk storefront & LP.
   const isPaidOrOffline = (o: any) =>
-    ['fpx', 'ewallet'].includes(o.payment_method) ? o.payment_status === 'paid' : true
+    ['fpx', 'ewallet'].includes(o.payment_method) ? ['paid', 'refunded'].includes(o.payment_status) : true
   const visibleOrders = orders.filter(isPaidOrOffline)
   let allLpOrders = lpRows.filter(isPaidOrOffline)
   // Search filter — match order number, customer name, or phone
@@ -223,7 +234,8 @@ export default async function AdminOrdersPage({
   const lpAsOrders = allLpOrders.map((lp: any) => {
     // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>' → guna startsWith
     const isReseller = lp.source === 'reseller'
-    const isManual = !isReseller && typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
+    const isStoreGuest = lp.source === 'store-guest'
+    const isManual = !isReseller && !isStoreGuest && typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
     // Nama staf disimpan dalam source sbg 'whatsapp-<nama>' (Quick Order)
     const staffName = isManual && typeof lp.source === 'string' && lp.source.startsWith('whatsapp-')
       ? lp.source.slice('whatsapp-'.length) : null
@@ -251,7 +263,8 @@ export default async function AdminOrdersPage({
     _isManual: isManual,
     _staff: staffName,
     _isReseller: isReseller,
-    _lpTitle: (isManual || isReseller) ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
+    _isStoreGuest: isStoreGuest,
+    _lpTitle: (isManual || isReseller || isStoreGuest) ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
   })
   })
 
@@ -262,7 +275,7 @@ export default async function AdminOrdersPage({
 
   // Senarai staf untuk dropdown filter (nama tetap + apa yg ada dalam data)
   const staffList = [...new Set([
-    'Mamat', 'Man', 'Pika', 'Far',
+    'Muhd', 'Man', 'Pika', 'Far',
     ...allLpOrders
       .filter((o: any) => typeof o.source === 'string' && o.source.startsWith('whatsapp-'))
       .map((o: any) => o.source.slice('whatsapp-'.length))

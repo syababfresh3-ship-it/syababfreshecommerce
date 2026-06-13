@@ -34,15 +34,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     tracking_url = carrier.tracking_url_template.replace('{number}', String(tracking_number).trim())
   }
 
+  const trackingNo = tracking_number ? String(tracking_number).trim() : null
+
+  // LP order takde row dalam `orders` → tak boleh cipta order_shipments
+  // (order_id NOT NULL FK). Simpan tracking terus pada refund sahaja.
+  if (!refund.order_id) {
+    await supabase!.from('refunds').update({
+      ganti_courier: carrier?.name ?? carrier_id,
+      ganti_tracking_no: trackingNo,
+      ganti_tracking_link: tracking_url,
+    }).eq('id', refund.id)
+    return NextResponse.json({
+      refund_id: refund.id,
+      carrier_id,
+      tracking_number: trackingNo,
+      tracking_url,
+      status: trackingNo ? 'in_transit' : 'pending',
+      shipping_carriers: carrier ? { id: carrier_id, name: carrier.name } : null,
+    })
+  }
+
   const row = {
     order_id: refund.order_id,
     refund_id: refund.id,
     carrier_id,
-    tracking_number: tracking_number ? String(tracking_number).trim() : null,
+    tracking_number: trackingNo,
     tracking_url,
     estimated_delivery: estimated_delivery || null,
-    status: tracking_number ? 'in_transit' : 'pending',
-    shipped_at: tracking_number ? new Date().toISOString() : null,
+    status: trackingNo ? 'in_transit' : 'pending',
+    shipped_at: trackingNo ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   }
 
