@@ -50,17 +50,26 @@ export async function POST(request: Request) {
   let subtotal = 0
   const validatedItems: any[] = []
 
+  // Override harga unit (admin-only). Produk tetap disahkan terhadap katalog; cuma harga
+  // diganti bila admin hantar nilai. Selamat sebab endpoint requireAdmin — sama dgn
+  // diskaun/delivery override. Tiada override → harga katalog/reseller seperti biasa.
+  const priceOverride = (item: any): number | null => {
+    const v = Number(item.unit_price)
+    return Number.isFinite(v) && v >= 0 ? v : null
+  }
+
   for (const item of items) {
+    const override = priceOverride(item)
     if (item.variant_id) {
       const variant = variantMap.get(item.variant_id)
       if (!variant || !variant.is_active) return NextResponse.json({ error: `Variant not available` }, { status: 400 })
-      const unitPrice = agreedPrice(variant.product_id, variant.id, Number(variant.price))
+      const unitPrice = override ?? agreedPrice(variant.product_id, variant.id, Number(variant.price))
       subtotal += unitPrice * item.quantity
       validatedItems.push({ product_id: variant.product_id, variant_id: variant.id, product_name: (variant.products as any)?.name, variant_name: variant.name, quantity: item.quantity, unit_price: unitPrice })
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Product not available` }, { status: 400 })
-      const unitPrice = agreedPrice(product.id, null, Number(product.price))
+      const unitPrice = override ?? agreedPrice(product.id, null, Number(product.price))
       subtotal += unitPrice * item.quantity
       validatedItems.push({ product_id: product.id, variant_id: null, product_name: product.name, variant_name: null, quantity: item.quantity, unit_price: unitPrice })
     }

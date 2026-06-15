@@ -6,7 +6,7 @@ import { Plus, Trash2, Search, Check, MessageCircle, RefreshCw } from 'lucide-re
 
 interface Variant { id: string; name: string; price: number; is_active: boolean; sort_order: number }
 interface Product { id: string; name: string; slug: string; price: number; image_url: string | null; product_variants: Variant[] }
-interface OrderItem { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; qty: number; unit_price: number }
+interface OrderItem { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; qty: number; unit_price: number; price_edited?: boolean }
 
 const payOptions = [
   { value: 'bank_transfer', label: 'Bank Transfer' },
@@ -111,6 +111,17 @@ export default function QuickOrderPage() {
     if (qty < 1) { removeItem(idx); return }
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, qty } : item))
   }
+  // Override harga unit (admin-only). Tandakan price_edited supaya server guna harga ni,
+  // bukan harga katalog/reseller. Kosong → fallback semula ke harga katalog.
+  function setPrice(idx: number, raw: string) {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item
+      const v = parseFloat(raw)
+      return Number.isFinite(v) && v >= 0
+        ? { ...item, unit_price: v, price_edited: true }
+        : { ...item, unit_price: 0, price_edited: true }
+    }))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -125,7 +136,7 @@ export default function QuickOrderPage() {
         body: JSON.stringify({
           ...form,
           discount: discountNum,
-          items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty })),
+          items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty, ...(i.price_edited ? { unit_price: i.unit_price } : {}) })),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
           reseller_id: resellerId || undefined,
           delivery_fee: (deliveryTouched || resellerId) ? deliveryNum : undefined,
@@ -290,6 +301,16 @@ export default function QuickOrderPage() {
                     <button type="button" onClick={() => setQty(idx, item.qty - 1)} className="w-7 h-7 rounded-lg border border-gray-200 bg-white text-sm font-bold flex items-center justify-center hover:bg-gray-100">−</button>
                     <span className="w-8 text-center text-sm font-bold">{item.qty}</span>
                     <button type="button" onClick={() => setQty(idx, item.qty + 1)} className="w-7 h-7 rounded-lg border border-gray-200 bg-white text-sm font-bold flex items-center justify-center hover:bg-gray-100">+</button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-400">RM</span>
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={item.unit_price}
+                      onChange={e => setPrice(idx, e.target.value)}
+                      title="Harga unit — boleh ubah"
+                      className={`w-16 border rounded-lg px-1.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 ${item.price_edited ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white'}`}
+                    />
                   </div>
                   <span className="text-sm font-bold text-gray-900 w-20 text-right">RM{(item.unit_price * item.qty).toFixed(2)}</span>
                   <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 transition-colors">
