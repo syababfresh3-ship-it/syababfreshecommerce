@@ -261,11 +261,13 @@ async function exportRawForApp(orders: ExportOrder[]) {
     'Order ID', 'Recipient', 'Phone #', 'Zipcode', 'Post Town', 'State',
     'Detail Address', 'Additional address information', 'Product Category',
     'Product Name', 'Variation', 'Quantity', 'Weight(kg)', 'Delivery Option',
-    'Order Amount', 'Buyer Message',
+    'Order Amount', 'COD Amount', 'Buyer Message',
   ]
   const rows: (string | number)[][] = []
   for (const o of orders) {
     const its = o.items.length ? o.items : [{ product_name: '(item)', quantity: 1, variant_name: null, is_shippable: false }]
+    // COD = jumlah perlu kutip masa hantar; prepaid (fpx/ewallet/bank dah bayar) = 0
+    const codAmount = o.payment_method === 'cod' ? Number(o.total) || 0 : 0
     for (const it of its) {
       rows.push([
         o.order_number,
@@ -283,6 +285,7 @@ async function exportRawForApp(orders: ExportOrder[]) {
         1,
         'Shipped by Seller',
         Number(o.total) || 0,
+        codAmount,
         o.notes ?? '',
       ])
     }

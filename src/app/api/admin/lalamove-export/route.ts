@@ -31,6 +31,7 @@ interface Row {
   'Weight(kg)': number
   'Delivery Option': string
   'Order Amount': number
+  'COD Amount': number
   'Buyer Message': string
 }
 
@@ -50,7 +51,7 @@ export async function GET() {
   // ── Storefront orders ─────────────────────────────────────────────────────
   const { data: sf } = await admin
     .from('orders')
-    .select('id, order_number, total, delivery_address, notes, user_id, address_id')
+    .select('id, order_number, total, delivery_address, notes, user_id, address_id, payment_method')
     .in('status', ['confirmed', 'preparing'])
     .neq('delivery_method', 'pickup')
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
@@ -88,6 +89,7 @@ export async function GET() {
           zipcode: postcode, postTown: addr?.city ?? '', state: addr?.state ?? '',
           address: o.delivery_address ?? '', total: Number(o.total) || 0, notes: o.notes ?? '',
           product: it.product_name, variation: it.variant_name ?? '', qty: it.quantity,
+          codAmount: o.payment_method === 'cod' ? Number(o.total) || 0 : 0,
         }))
       }
     }
@@ -96,7 +98,7 @@ export async function GET() {
   // ── LP guest orders ───────────────────────────────────────────────────────
   const { data: lp } = await admin
     .from('lp_guest_orders')
-    .select('order_number, name, phone, address, postcode, notes, total, items, product_name, variant_name, quantity')
+    .select('order_number, name, phone, address, postcode, notes, total, items, product_name, variant_name, quantity, payment_method')
     .in('status', ['confirmed', 'preparing'])
     .is('tracking_number', null)
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
@@ -115,6 +117,7 @@ export async function GET() {
         zipcode: postcode, postTown: '', state: '', address: o.address ?? '',
         total: Number(o.total) || 0, notes: o.notes ?? '',
         product: it.product_name, variation: it.variant_name ?? '', qty: it.quantity ?? 1,
+        codAmount: o.payment_method === 'cod' ? Number(o.total) || 0 : 0,
       }))
     }
   }
@@ -137,6 +140,7 @@ export async function GET() {
 function mkRow(o: {
   orderId: string; recipient: string; phone: string; zipcode: string; postTown: string; state: string
   address: string; total: number; notes: string; product: string; variation: string; qty: number
+  codAmount: number
 }): Row {
   return {
     'Order ID': o.orderId,
@@ -154,6 +158,8 @@ function mkRow(o: {
     'Weight(kg)': 1,
     'Delivery Option': DELIVERY_OPTION,   // mesti ada "seller"
     'Order Amount': o.total,
+    // COD = jumlah perlu kutip masa hantar; prepaid (fpx/ewallet/bank dah bayar) = 0
+    'COD Amount': o.codAmount,
     'Buyer Message': o.notes,
   }
 }
