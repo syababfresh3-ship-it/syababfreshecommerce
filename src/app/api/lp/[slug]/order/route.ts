@@ -30,10 +30,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
   const body = await request.json().catch(() => ({}))
-  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email } = body
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email, delivery_slot } = body
 
   const isPickup = delivery_method === 'pickup'
   const PICKUP_ADDRESS = 'Ambil Sendiri — SyababFresh, Bangi'
+  // Slot masa penghantaran (label sahaja, paparan) — null untuk pickup. Dicapkan panjang.
+  const deliverySlot = (!isPickup && typeof delivery_slot === 'string' && delivery_slot.trim())
+    ? delivery_slot.trim().slice(0, 100) : null
   // Email pilihan — bila sah, hantar email selari WhatsApp
   const customerEmail = (typeof email === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()))
     ? email.trim().toLowerCase() : null
@@ -214,6 +217,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       notes: notes?.trim() || null,
       delivery_method: isPickup ? 'pickup' : 'delivery',
       pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
+      delivery_slot: deliverySlot,
       promo_code_id: promoCodeId,
       discount,
       user_id: userId,
@@ -321,7 +325,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       items: validatedItems.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
       total: Number(order.total),
       deliveryAddress: isPickup ? PICKUP_ADDRESS : address.trim(),
-      deliverySlot: null,
+      deliverySlot,
       paymentMethod: payment_method,
       notes: notes?.trim() || null,
     }).catch(() => {})

@@ -138,7 +138,7 @@ async function getStatusCounts() {
 }
 
 const LP_SELECT =
-  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, source, landing_pages(title, slug)'
+  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, delivery_slot, created_at, items, product_name, variant_name, quantity, unit_price, page_id, source, landing_pages(title, slug)'
 
 // Fetch ALL matching LP orders, paging past PostgREST's 1000-row-per-request cap.
 // At ~90 orders/day a fixed limit silently hides older paid orders within weeks,
@@ -247,7 +247,7 @@ export default async function AdminOrdersPage({
     payment_method: lp.payment_method,
     payment_status: lp.payment_status ?? 'unpaid',
     created_at: lp.created_at,
-    delivery_slot: null,
+    delivery_slot: lp.delivery_slot ?? null,
     delivery_method: lp.delivery_method,
     needs_approval: false,
     user_id: null,

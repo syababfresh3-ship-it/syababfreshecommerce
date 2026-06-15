@@ -7,6 +7,7 @@ import type { Product, ProductVariant } from '@/types'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
+import { type SlotConfig, buildDeliverySlots } from '@/lib/delivery-slots'
 
 interface ProductWithVariants extends Product {
   product_variants?: ProductVariant[]
@@ -18,6 +19,7 @@ interface Props {
   slug: string
   freeMin?: number
   pickupEnabled?: boolean
+  slotConfigs?: SlotConfig[]
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
@@ -28,7 +30,7 @@ interface ProductSelection {
   qty: number
 }
 
-export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEnabled = false }: Props) {
+export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEnabled = false, slotConfigs = [] }: Props) {
   // Init: only first product qty=1, rest qty=0
   const initSelections = (): ProductSelection[] =>
     products.map((p, i) => {
@@ -50,6 +52,14 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   const [pickupDate, setPickupDate] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
   const pickupMinDate = new Date().toISOString().split('T')[0]
+  // Slot masa penghantaran — dikira di klien (elak hydration mismatch sebab guna waktu semasa)
+  const [slots, setSlots] = useState<{ value: string; label: string }[]>([])
+  const [deliverySlot, setDeliverySlot] = useState('')
+  useEffect(() => {
+    const s = buildDeliverySlots(slotConfigs)
+    setSlots(s)
+    setDeliverySlot(prev => prev || (s[0]?.value ?? ''))
+  }, [slotConfigs])
   // Kod promosi
   const [promoInput, setPromoInput] = useState('')
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
@@ -137,6 +147,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
           address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
+          delivery_slot: isPickup ? null : (slots.find(s => s.value === deliverySlot)?.label ?? null),
           promo_code: appliedPromo?.code ?? null,
           use_points: loyalty.loggedIn && usePoints,
           items: activeSelections.map(s => ({
@@ -397,6 +408,25 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                     <input style={inputStyle} type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Arahan khas..." />
                   </div>
                 </div>
+                {slots.length > 0 && (
+                  <div>
+                    <label style={labelStyle}>MASA PENGHANTARAN</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {slots.map(s => {
+                        const active = deliverySlot === s.value
+                        return (
+                          <button key={s.value} type="button" onClick={() => setDeliverySlot(s.value)}
+                            style={{
+                              padding: '10px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left',
+                              border: active ? `2px solid ${cv('--cherry','#9C0F30')}` : '2px solid #e5e7eb',
+                              background: active ? cv('--cherry-light','#fef2f2') : '#fafafa',
+                              color: active ? cv('--cherry','#9C0F30') : '#6b7280',
+                            }}>{s.label}</button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

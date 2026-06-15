@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { unstable_cache } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
+import { type SlotConfig, DEFAULT_SLOTS } from '@/lib/delivery-slots'
 import Link from 'next/link'
 import { LpAddToCartBtn } from './lp-add-to-cart'
 import { LpInlineCheckout } from './lp-inline-checkout'
@@ -83,6 +84,14 @@ export default async function LandingPage({ params }: Props) {
   const freeMin = Number(appSettings.free_delivery_min ?? 80)
   const pickupEnabled = appSettings.pickup_enabled !== 'false'
 
+  // Slot masa penghantaran — sama sumber dengan storefront. Belum diset → guna default.
+  // Admin matikan semua slot → array kosong selepas penapisan di klien (tiada pemilih).
+  let slotConfigs: SlotConfig[] = DEFAULT_SLOTS
+  try {
+    const parsed = JSON.parse(appSettings.delivery_slots ?? '[]')
+    if (Array.isArray(parsed) && parsed.length > 0) slotConfigs = parsed
+  } catch {}
+
   if (!data) notFound()
   const { page, products, stock } = data
 
@@ -146,13 +155,13 @@ export default async function LandingPage({ params }: Props) {
             if (checkoutProducts.length > 1) {
               const stocks: Record<string, number | null> = {}
               checkoutProducts.forEach(p => { stocks[p!.id] = stockByProductId.get(p!.id) ?? null })
-              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} slotConfigs={slotConfigs} />
             }
 
             // Single product
             const checkoutProduct = checkoutProducts[0]!
             const checkoutStock = stockByProductId.get(checkoutProduct.id) ?? null
-            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
+            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} slotConfigs={slotConfigs} />
           }
 
           // {{product:slug}} — add-to-cart widget (cart bar flow)

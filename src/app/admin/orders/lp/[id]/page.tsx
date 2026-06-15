@@ -146,6 +146,12 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
           {order.source === 'reseller' && <ResellerInvoiceActions orderId={order.id} />}
 
           {/* Delivery slot / notes */}
+          {order.delivery_slot && (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
+              <p className="text-xs font-bold text-blue-600 mb-1">Masa Penghantaran</p>
+              <p className="text-sm text-blue-800">🕐 {order.delivery_slot}</p>
+            </div>
+          )}
           {order.notes && (
             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
               <p className="text-xs font-bold text-amber-600 mb-1">Customer Note</p>

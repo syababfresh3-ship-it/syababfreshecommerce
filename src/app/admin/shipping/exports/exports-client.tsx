@@ -39,6 +39,7 @@ export interface ExportOrder {
   source: 'order' | 'lp'
   user_id: string | null
   pickup_date: string | null
+  delivery_slot: string | null
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -268,6 +269,9 @@ async function exportRawForApp(orders: ExportOrder[]) {
     const its = o.items.length ? o.items : [{ product_name: '(item)', quantity: 1, variant_name: null, is_shippable: false }]
     // COD = jumlah perlu kutip masa hantar; prepaid (fpx/ewallet/bank dah bayar) = 0
     const codAmount = o.payment_method === 'cod' ? Number(o.total) || 0 : 0
+    // Slot masa diselit di depan Buyer Message → mengalir ke AWB app (papar nota).
+    const buyerMessage = [o.delivery_slot ? `🕐 ${o.delivery_slot}` : '', o.notes ?? '']
+      .filter(Boolean).join(' · ')
     for (const it of its) {
       rows.push([
         o.order_number,
@@ -286,7 +290,7 @@ async function exportRawForApp(orders: ExportOrder[]) {
         'Shipped by Seller',
         Number(o.total) || 0,
         codAmount,
-        o.notes ?? '',
+        buyerMessage,
       ])
     }
   }

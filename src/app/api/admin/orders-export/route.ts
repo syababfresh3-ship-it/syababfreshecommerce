@@ -49,7 +49,7 @@ export async function GET() {
   // ── Storefront orders (SYB) ─────────────────────────────────────────────────
   const { data: sf } = await admin
     .from('orders')
-    .select('id, order_number, total, delivery_address, notes, user_id, address_id, payment_method')
+    .select('id, order_number, total, delivery_address, notes, user_id, address_id, payment_method, delivery_slot')
     .in('status', ['confirmed', 'preparing'])
     .neq('delivery_method', 'pickup')
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
@@ -87,6 +87,7 @@ export async function GET() {
           phone: addr?.recipient_phone ?? prof?.phone ?? '',
           zipcode: postcode, postTown: addr?.city ?? '', state: addr?.state ?? '',
           address: o.delivery_address ?? '', total: Number(o.total) || 0, notes: o.notes ?? '',
+          slot: (o as any).delivery_slot ?? '',
           product: it.product_name, variation: it.variant_name ?? '', qty: it.quantity,
           codAmount: o.payment_method === 'cod' ? Number(o.total) || 0 : 0,
         }))
@@ -97,7 +98,7 @@ export async function GET() {
   // ── LP guest orders (LP) — kecuali reseller (B2B uruskan delivery sendiri) ────
   const { data: lp } = await admin
     .from('lp_guest_orders')
-    .select('order_number, name, phone, address, postcode, notes, total, items, product_name, variant_name, quantity, source, delivery_method, payment_method')
+    .select('order_number, name, phone, address, postcode, notes, total, items, product_name, variant_name, quantity, source, delivery_method, payment_method, delivery_slot')
     .in('status', ['confirmed', 'preparing'])
     .is('tracking_number', null)
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
@@ -116,6 +117,7 @@ export async function GET() {
         orderId: o.order_number, recipient: o.name ?? '', phone: o.phone ?? '',
         zipcode: postcode, postTown: '', state: '', address: o.address ?? '',
         total: Number(o.total) || 0, notes: o.notes ?? '',
+        slot: (o as any).delivery_slot ?? '',
         product: it.product_name, variation: it.variant_name ?? '', qty: it.quantity ?? 1,
         codAmount: o.payment_method === 'cod' ? Number(o.total) || 0 : 0,
       }))
@@ -140,8 +142,10 @@ export async function GET() {
 function mkRow(o: {
   orderId: string; recipient: string; phone: string; zipcode: string; postTown: string; state: string
   address: string; total: number; notes: string; product: string; variation: string; qty: number
-  codAmount: number
+  codAmount: number; slot?: string
 }): Row {
+  // Slot masa diselit di depan Buyer Message → mengalir ke AWB app (papar nota).
+  const buyerMessage = [o.slot ? `🕐 ${o.slot}` : '', o.notes ?? ''].filter(Boolean).join(' · ')
   return {
     'Order ID': o.orderId,
     'Recipient': o.recipient,
@@ -160,6 +164,6 @@ function mkRow(o: {
     'Order Amount': o.total,
     // COD = jumlah perlu kutip masa hantar; prepaid (fpx/ewallet/bank dah bayar) = 0
     'COD Amount': o.codAmount,
-    'Buyer Message': o.notes,
+    'Buyer Message': buyerMessage,
   }
 }

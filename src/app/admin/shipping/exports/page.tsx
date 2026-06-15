@@ -23,7 +23,7 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
 
   let q = supabase
     .from('orders')
-    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at, pickup_date')
+    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at, pickup_date, delivery_slot')
     // Export: confirmed/preparing sahaja (delivering = dah ada tracking → keluar).
     // Pickup: sertakan 'delivering' (= sedia diambil) supaya staf boleh tanda "Dah Diambil".
     .in('status', pickup ? ['confirmed', 'preparing', 'delivering'] : ['confirmed', 'preparing'])
@@ -125,6 +125,7 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
       source: 'order' as const,
       user_id: o.user_id ?? null,
       pickup_date: (o as any).pickup_date ?? null,
+      delivery_slot: (o as any).delivery_slot ?? null,
     }
   })
 }
@@ -172,6 +173,7 @@ function mapLpOrder(lp: any, overrides: Map<string, CourierOverride>, towns: Map
     exported_at: lp.exported_at ?? null,
     source: 'lp' as const,
     user_id: lp.user_id ?? null,
+    delivery_slot: lp.delivery_slot ?? null,
     pickup_date: lp.pickup_date ?? null,
   }
 }
@@ -217,7 +219,7 @@ export default async function ShippingExportsPage({
     getOrders(fromISO, toISO, false, overrides, towns),
     getOrders(fromISO, toISO, true, overrides, towns),
     supabaseAdmin.from('lp_guest_orders')
-      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id, source')
+      .select('id, order_number, name, phone, email, address, postcode, notes, status, total, payment_method, payment_status, created_at, items, product_name, variant_name, quantity, unit_price, exported_at, delivery_method, pickup_date, user_id, source, delivery_slot')
       .in('status', ['confirmed', 'preparing', 'delivering'])   // delivering disertakan utk pickup; dibuang dari tab export di bawah
       .gte('created_at', fromISO)
       .lte('created_at', toISO)
