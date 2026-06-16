@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     audience = {},
     test = false,
     testNumber,
+    headerImage,
   } = body as {
     name?: string;
     templateName?: string;
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
     audience?: { source?: string; tag?: string };
     test?: boolean;
     testNumber?: string;
+    headerImage?: string;
   };
 
   if (!templateName) return NextResponse.json({ error: "templateName diperlukan." }, { status: 400 });
@@ -108,14 +110,18 @@ export async function POST(req: NextRequest) {
   // --- Hantar (rate-limited) ---
   let sent = 0;
   let failed = 0;
+  let lastError: string | undefined;
   for (const r of recipients) {
     const p = { ...params };
     for (const key of ["nama", "name"]) {
       if (key in p && (!p[key] || !p[key].trim())) p[key] = r.name || "pelanggan";
     }
-    const res = await sendTemplate(r.wa_id, templateName, templateLang, p);
+    const res = await sendTemplate(r.wa_id, templateName, templateLang, p, headerImage);
     if (res.ok) sent++;
-    else failed++;
+    else {
+      failed++;
+      lastError = res.error;
+    }
     await sb.from("crm_blast_recipients").insert({
       blast_id: blastId,
       wa_id: r.wa_id,
@@ -129,5 +135,5 @@ export async function POST(req: NextRequest) {
   }
 
   await sb.from("crm_blasts").update({ status: "sent", sent, failed }).eq("id", blastId);
-  return NextResponse.json({ ok: true, blastId, total: recipients.length, sent, failed });
+  return NextResponse.json({ ok: true, blastId, total: recipients.length, sent, failed, error: lastError });
 }

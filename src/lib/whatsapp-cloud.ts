@@ -75,17 +75,21 @@ export async function sendTemplate(
   name: string,
   language: string,
   bodyParams?: Record<string, string>,
+  headerImageUrl?: string,
 ): Promise<SendResult> {
   const components: unknown[] = [];
+  // Header gambar (template promo yg ada IMAGE header)
+  if (headerImageUrl) {
+    components.push({ type: "header", parameters: [{ type: "image", image: { link: headerImageUrl } }] });
+  }
   if (bodyParams && Object.keys(bodyParams).length) {
-    components.push({
-      type: "body",
-      parameters: Object.entries(bodyParams).map(([parameter_name, text]) => ({
-        type: "text",
-        parameter_name,
-        text: text ?? "",
-      })),
-    });
+    const keys = Object.keys(bodyParams);
+    // Sokong dua format: POSITIONAL ({{1}}) vs NAMED ({{nama}})
+    const positional = keys.every((k) => /^\d+$/.test(k));
+    const parameters = positional
+      ? keys.sort((a, b) => Number(a) - Number(b)).map((k) => ({ type: "text", text: bodyParams[k] ?? "" }))
+      : keys.map((k) => ({ type: "text", parameter_name: k, text: bodyParams[k] ?? "" }));
+    components.push({ type: "body", parameters });
   }
   return postMessage({
     to: formatWaPhone(to),
