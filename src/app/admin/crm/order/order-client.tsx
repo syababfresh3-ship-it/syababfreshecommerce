@@ -28,6 +28,7 @@ export function OrderClient() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [extracting, setExtracting] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/landing-pages/products")
@@ -122,6 +123,29 @@ export function OrderClient() {
     }
   }
 
+  async function autoFill() {
+    if (!contactId) return;
+    setExtracting(true);
+    setMsg("");
+    const res = await fetch("/api/whatsapp/extract-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId, products }),
+    });
+    const j = await res.json();
+    setExtracting(false);
+    if (res.ok && j.ok) {
+      if (j.name) setName(j.name);
+      if (j.phone) setPhone(j.phone);
+      if (j.address) setAddress(j.address);
+      if (j.postcode) setPostcode(j.postcode);
+      if (Array.isArray(j.items) && j.items.length) setItems(j.items as Item[]);
+      setMsg(`✨ Auto-isi siap (${j.items?.length || 0} item) — sila semak & betulkan jika perlu.`);
+    } else {
+      setMsg("❌ " + (j.error || "Gagal auto-isi."));
+    }
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto flex flex-col lg:flex-row gap-4">
       <div className="flex-1 min-w-0 space-y-5">
@@ -130,6 +154,16 @@ export function OrderClient() {
         <a href="/admin/crm/inbox" className="text-sm text-blue-600 hover:underline">Inbox</a>
       </div>
       <h1 className="text-xl font-semibold text-gray-800">Buat Order + Hantar Pay Link</h1>
+
+      {contactId && (
+        <button
+          onClick={autoFill}
+          disabled={extracting}
+          className="w-full bg-violet-600 text-white rounded-lg py-2.5 text-sm font-medium disabled:opacity-50"
+        >
+          {extracting ? "🤖 AI tengah baca chat…" : "✨ Auto-isi dari chat (AI)"}
+        </button>
+      )}
 
       {/* Customer */}
       <div className="bg-white rounded-lg border p-4 space-y-2">
