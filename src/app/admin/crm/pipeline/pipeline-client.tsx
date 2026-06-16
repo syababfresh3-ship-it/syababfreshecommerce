@@ -38,6 +38,8 @@ export function PipelineClient() {
   const [edit, setEdit] = useState<Lead | null>(null);
   const [val, setVal] = useState("");
   const [followup, setFollowup] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMsg, setPayMsg] = useState("");
 
   const loadLeads = useCallback(async () => {
     const { data } = await supabase
@@ -66,6 +68,29 @@ export function PipelineClient() {
     setEdit(l);
     setVal(l.value != null ? String(l.value) : "");
     setFollowup(l.next_followup_at ? l.next_followup_at.slice(0, 10) : "");
+    setPayAmount("");
+    setPayMsg("");
+  }
+
+  async function sendPaymentLink() {
+    if (!edit || !payAmount || Number(payAmount) <= 0) {
+      setPayMsg("Masukkan jumlah (RM).");
+      return;
+    }
+    setPayMsg("Menghantar link…");
+    const res = await fetch("/api/whatsapp/payment-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId: edit.contact_id, amount: Number(payAmount), description: "Pembayaran SyababFresh" }),
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      setPayMsg("✅ Link bayar dihantar ke WhatsApp!");
+      setPayAmount("");
+      loadLeads();
+    } else {
+      setPayMsg("❌ " + (j.error || "Gagal hantar."));
+    }
   }
 
   async function saveEdit() {
@@ -173,6 +198,23 @@ export function PipelineClient() {
               <button onClick={() => { moveLead(edit.id, "lost"); setEdit(null); }} className="flex-1 bg-gray-200 text-gray-700 rounded-lg py-2 text-sm">
                 Lost
               </button>
+            </div>
+
+            <div className="border-t pt-3">
+              <label className="text-xs text-gray-500">💳 Hantar link bayar (CHIP) ke WhatsApp</label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="number"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="Jumlah RM"
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                />
+                <button onClick={sendPaymentLink} className="bg-blue-600 text-white rounded-lg px-4 text-sm font-medium">
+                  Hantar
+                </button>
+              </div>
+              {payMsg && <div className="text-xs mt-1.5 text-gray-600">{payMsg}</div>}
             </div>
 
             <a
