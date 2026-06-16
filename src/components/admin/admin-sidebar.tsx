@@ -16,7 +16,6 @@ const sections = [
     label: 'CRM',
     items: [
       { href: '/admin/crm/inbox',    label: 'Inbox WhatsApp', icon: Inbox },
-      { href: '/admin/crm/pipeline', label: 'Pipeline',       icon: BarChart2 },
       { href: '/admin/crm/contacts', label: 'Contacts',       icon: Users },
       { href: '/admin/crm/blast',    label: 'Blast (Rasmi)',  icon: Megaphone },
       { href: '/admin/crm/templates', label: 'Templates',     icon: MessageCircle },
