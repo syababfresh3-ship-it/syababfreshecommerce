@@ -87,6 +87,7 @@ export function InboxClient() {
   const [payMsg, setPayMsg] = useState("");
   const [snippets, setSnippets] = useState<{ id: string; label: string; body: string }[]>([]);
   const [showSnippets, setShowSnippets] = useState(false);
+  const [showPanel, setShowPanel] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -184,6 +185,7 @@ export function InboxClient() {
     setTpl(null);
     setPayAmount("");
     setPayMsg("");
+    setShowPanel(false);
     document.title = "Inbox WhatsApp";
     await loadMessages(c.id);
     if (c.unread_count > 0) {
@@ -331,7 +333,7 @@ export function InboxClient() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-gray-100">
       {/* Senarai perbualan */}
-      <aside className="w-80 shrink-0 border-r bg-white overflow-y-auto">
+      <aside className={`w-full lg:w-80 shrink-0 border-r bg-white overflow-y-auto ${selected ? "hidden lg:block" : "block"}`}>
         <div className="p-3 border-b font-semibold text-gray-800">Inbox WhatsApp</div>
         {/* Bar filter ikut tag */}
         {allTags.length > 0 && (
@@ -389,21 +391,27 @@ export function InboxClient() {
       </aside>
 
       {/* Thread */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className={`flex-1 flex-col min-w-0 ${selected ? "flex" : "hidden lg:flex"}`}>
         {!selected ? (
           <div className="flex-1 grid place-items-center text-gray-400 text-sm">Pilih satu perbualan.</div>
         ) : (
           <>
-            <div className="px-4 py-3 border-b bg-white flex justify-between items-center">
-              <div>
-                <div className="font-semibold text-gray-800">{displayName(selected)}</div>
-                <div className="text-xs text-gray-400">{contact?.wa_id}</div>
+            <div className="px-3 py-3 border-b bg-white flex items-center gap-2">
+              <button onClick={() => setSelected(null)} className="lg:hidden text-gray-500 text-xl shrink-0 px-1" aria-label="Kembali">
+                ←
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-gray-800 truncate">{displayName(selected)}</div>
+                <div className="text-xs text-gray-400 truncate">{contact?.wa_id}</div>
               </div>
               {selected.assigned_to && (
-                <span className="text-xs text-blue-600 bg-blue-50 rounded-full px-2 py-1">
+                <span className="text-xs text-blue-600 bg-blue-50 rounded-full px-2 py-1 hidden sm:inline">
                   👤 {admins[selected.assigned_to] || "Admin"}
                 </span>
               )}
+              <button onClick={() => setShowPanel(true)} className="lg:hidden text-lg shrink-0 px-1" aria-label="Maklumat customer">
+                ℹ️
+              </button>
             </div>
 
             <div ref={threadRef} className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -568,8 +576,15 @@ export function InboxClient() {
 
       {/* Panel Customer 360 */}
       {selected && (
-        <aside className="w-72 shrink-0 border-l bg-white p-4 hidden lg:block overflow-y-auto">
-          <div className="text-sm font-semibold text-gray-800 mb-3">Maklumat Customer</div>
+        <aside
+          className={`bg-white p-4 overflow-y-auto ${showPanel ? "fixed inset-0 z-50 w-full" : "hidden lg:block"} lg:static lg:w-72 lg:shrink-0 lg:border-l`}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <div className="text-sm font-semibold text-gray-800">Maklumat Customer</div>
+            <button onClick={() => setShowPanel(false)} className="lg:hidden text-gray-400 text-lg">
+              ✕
+            </button>
+          </div>
           <dl className="text-xs space-y-2 text-gray-600">
             <div>
               <dt className="text-gray-400">Nama</dt>
