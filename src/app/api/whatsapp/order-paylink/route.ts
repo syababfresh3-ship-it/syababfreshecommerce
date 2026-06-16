@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
     items?: Item[];
     paymentMethod?: "paylink" | "cod";
     deliveryMethod?: "delivery" | "pickup";
+    staff_name?: string;
   };
 
   const isCod = b.paymentMethod === "cod";
@@ -99,7 +100,7 @@ export async function POST(req: NextRequest) {
       discount,
       total,
       payment_method: isCod ? "cod" : "fpx",
-      source: "crm",
+      source: b.staff_name?.trim() ? `whatsapp-${b.staff_name.trim()}` : "crm",
       items,
       status: isCod ? "confirmed" : "pending",
     })
