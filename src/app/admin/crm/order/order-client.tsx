@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 interface Variant { id: string; name: string; price: number }
 interface Product { id: string; name: string; price: number; image_url: string | null; product_variants: Variant[] }
 interface Item { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; quantity: number; unit_price: number }
+interface Msg { id: string; direction: "in" | "out"; type: string; body: string | null; media_url: string | null; created_at: string }
 
 export function OrderClient() {
   const supabase = createClient();
+  const router = useRouter();
   const params = useSearchParams();
   const contactId = params.get("contact") || "";
 
@@ -25,6 +27,7 @@ export function OrderClient() {
   const [postcode, setPostcode] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [msgs, setMsgs] = useState<Msg[]>([]);
 
   useEffect(() => {
     fetch("/api/admin/landing-pages/products")
@@ -46,6 +49,27 @@ export function OrderClient() {
         setName(data.name || prof?.full_name || "");
         setPhone(data.phone || data.wa_id || "");
         if (prof?.email) setEmail(prof.email);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactId]);
+
+  // Muat chat customer (read-only) untuk rujukan
+  useEffect(() => {
+    if (!contactId) return;
+    supabase
+      .from("wa_conversations")
+      .select("id")
+      .eq("contact_id", contactId)
+      .maybeSingle()
+      .then(({ data: conv }: { data: { id: string } | null }) => {
+        if (!conv) return;
+        supabase
+          .from("wa_messages")
+          .select("id, direction, type, body, media_url, created_at")
+          .eq("conversation_id", conv.id)
+          .order("created_at", { ascending: true })
+          .limit(100)
+          .then(({ data }: { data: unknown[] | null }) => setMsgs((data as unknown as Msg[]) ?? []));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
@@ -99,7 +123,12 @@ export function OrderClient() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto flex flex-col lg:flex-row gap-4">
+      <div className="flex-1 min-w-0 space-y-5">
+      <div className="flex items-center gap-3">
+        <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800">← Kembali</button>
+        <a href="/admin/crm/inbox" className="text-sm text-blue-600 hover:underline">Inbox</a>
+      </div>
       <h1 className="text-xl font-semibold text-gray-800">Buat Order + Hantar Pay Link</h1>
 
       {/* Customer */}
@@ -173,6 +202,30 @@ export function OrderClient() {
         {busy ? "Memproses…" : "🛒 Cipta Order + Hantar Pay Link"}
       </button>
       {msg && <div className="text-sm text-gray-700">{msg}</div>}
+      </div>
+
+      {/* Chat customer (read-only) — rujukan masa buat order */}
+      <aside className="lg:w-80 shrink-0 bg-white border rounded-lg flex flex-col lg:sticky lg:top-4 max-h-[75vh]">
+        <div className="px-3 py-2 border-b text-sm font-semibold text-gray-700">💬 Chat customer</div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+          {msgs.length === 0 && <div className="text-xs text-gray-400">Tiada chat untuk customer ni.</div>}
+          {msgs.map((m) => (
+            <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[85%] rounded-lg px-2.5 py-1.5 text-xs whitespace-pre-wrap ${
+                  m.direction === "out" ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {m.media_url && m.type === "image" && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.media_url} alt="" className="rounded mb-1 max-w-full" />
+                )}
+                {m.body || (m.type !== "text" ? `[${m.type}]` : "")}
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }
