@@ -134,6 +134,14 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
       : ((m[type] as { caption?: string } | undefined)?.caption ?? null);
   const preview = bodyText ?? `[${type}]`;
 
+  // Opt-out: customer balas STOP/BERHENTI → tak terima blast lagi
+  if (type === "text" && bodyText) {
+    const t = bodyText.trim().toLowerCase();
+    if (["stop", "unsubscribe", "unsub", "berhenti", "stop promosi"].includes(t)) {
+      await sb.from("wa_contacts").update({ opt_out: true }).eq("id", contactId);
+    }
+  }
+
   // 3. Conversation (cipta/kemas) — reset window 24j, +unread
   const { data: conv } = await sb
     .from("wa_conversations")
