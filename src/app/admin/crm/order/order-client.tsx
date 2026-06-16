@@ -9,6 +9,8 @@ interface Product { id: string; name: string; price: number; image_url: string |
 interface Item { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; quantity: number; unit_price: number }
 interface Msg { id: string; direction: "in" | "out"; type: string; body: string | null; media_url: string | null; created_at: string }
 
+const STAFF_NAMES = ["Muhd", "Man", "Pika", "Far"];
+
 export function OrderClient() {
   const supabase = createClient();
   const router = useRouter();
@@ -22,6 +24,8 @@ export function OrderClient() {
   const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"paylink" | "cod">("paylink");
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
+  const [staffName, setStaffName] = useState("");
+  const [staffOther, setStaffOther] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -115,7 +119,7 @@ export function OrderClient() {
     const res = await fetch("/api/whatsapp/order-paylink", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contactId, name, phone, email, address, postcode, delivery_fee: Number(deliveryFee) || 0, discount: Number(discount) || 0, items, paymentMethod, deliveryMethod }),
+      body: JSON.stringify({ contactId, name, phone, email, address, postcode, delivery_fee: Number(deliveryFee) || 0, discount: Number(discount) || 0, items, paymentMethod, deliveryMethod, staff_name: staffName }),
     });
     const j = await res.json();
     setBusy(false);
@@ -176,7 +180,41 @@ export function OrderClient() {
 
       {/* Customer */}
       <div className="bg-white rounded-lg border p-4 space-y-2">
-        <div className="text-sm font-semibold text-gray-700">Maklumat customer</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-gray-700">Maklumat customer</div>
+          <div className="flex items-center gap-1">
+            <label className="text-xs text-gray-400">Team sale:</label>
+            <select
+              value={staffOther ? "__other__" : staffName}
+              onChange={(e) => {
+                if (e.target.value === "__other__") {
+                  setStaffOther(true);
+                  setStaffName("");
+                } else {
+                  setStaffOther(false);
+                  setStaffName(e.target.value);
+                }
+              }}
+              className="border rounded-lg px-2 py-1 text-xs"
+            >
+              <option value="">— pilih —</option>
+              {STAFF_NAMES.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value="__other__">Lain-lain…</option>
+            </select>
+            {staffOther && (
+              <input
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                placeholder="Nama"
+                className="border rounded-lg px-2 py-1 text-xs w-20"
+              />
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama" className="border rounded-lg px-3 py-2 text-sm" />
           <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Telefon" className="border rounded-lg px-3 py-2 text-sm" />
