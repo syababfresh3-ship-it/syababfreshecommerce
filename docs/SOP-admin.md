@@ -1,9 +1,10 @@
 # SOP Admin — SyababFresh
 
-Rujukan operasi harian untuk admin/staf. Tiga bahagian:
+Rujukan operasi harian untuk admin/staf. Empat bahagian:
 1. [Keluarkan Order](#1-keluarkan-order) — pack & hantar
 2. [Settelkan Order](#2-settelkan-order) — import tracking & tutup order
 3. [Refund](#3-refund)
+4. [Quick Order — Team Sales](#4-quick-order--team-sales) — buat order, tengok order & jualan anda
 
 > **Status order** (ikut sistem):
 > `pending` → `confirmed` → `preparing` → `delivering` (customer nampak **"Dihantar"**, detail **"Dalam Penghantaran"**) → `delivered`.
@@ -191,6 +192,45 @@ Status refund: **`Pending` → `Dalam Proses` → `Selesai`**
 - **WA customer** / **WA tracking** — butang di halaman detail untuk hubungi customer terus.
 - **Analytics** — ringkasan refund.
 - **Export** — muat turun rekod refund (CSV).
+
+---
+
+## 4. Quick Order — Team Sales
+
+Untuk team sales yang ambil order customer melalui **WhatsApp / telefon**. Setiap order ditag pada nama anda supaya boleh dijejak siapa buat & berapa jualan.
+
+### 4.1 Buat order untuk customer
+
+**Admin → Quick Order** (`/admin/quick-order`)
+
+1. **PILIH NAMA ANDA DULU** — dropdown **"Staff:"** (atas kanan kad Customer Details): **Muhd / Man / Pika / Far**, atau **"Lain-lain…"** untuk taip nama sendiri.
+   > ⚠️ Wajib pilih nama — kalau tak, order tak tertag pada sesiapa dan anda tak dapat kredit jualan.
+2. Isi **butiran customer**: Nama, Telefon, Email, Alamat penuh, Poskod.
+3. (Pilihan) **Order untuk reseller** — pilih reseller kalau harga borong; atau biar "Bukan reseller".
+4. Pilih **kaedah bayar**: Bank Transfer · Cash On Delivery (COD) · FPX (dah bayar) · E-Wallet (dah bayar).
+5. **Tambah produk** — klik **Add Product**, cari & pilih produk + variasi + kuantiti.
+6. (Pilihan) Isi **Notes** (arahan khas) & diskaun.
+7. Klik **Create Order + Send WA** — order dicipta & mesej WhatsApp (pengesahan + bayaran) dihantar ke customer.
+
+> Nama staf **kekal** untuk order seterusnya dalam sesi yang sama — tak perlu pilih balik setiap kali.
+
+### 4.2 Tengok order anda
+
+**Admin → Orders** (`/admin/orders`)
+
+1. Pada bar penapis, guna dropdown **👤 Semua Staf** → pilih **nama anda** → senarai tunjuk **order anda sahaja**.
+2. Setiap order anda ada badge kuning **"Manual · [nama]"** sebelah no. order.
+3. Untuk tengok **semua order keyin manual** (semua staf), guna dropdown LP → **✍️ Keyin Manual**.
+4. Boleh gabung dengan penapis **status** (Pending/Confirmed/dll), **tarikh**, dan **carian** nama/telefon.
+
+### 4.3 Tengok jualan anda
+
+1. Di **Orders**, pilih **nama anda** di dropdown 👤 Staf.
+2. Pilih **tempoh** — dropdown tarikh (**Today / Yesterday / 7 Days / This Month**) atau julat **Dari–Hingga** + **Tapis Tarikh**.
+3. **Bahagian atas senarai** papar ringkasan: **bilangan order** + **jumlah RM** — itulah **jualan anda** untuk penapis semasa.
+4. (Pilihan) Tambah penapis bayaran **🟢 Sudah Bayar** untuk lihat jualan yang **dah dikutip** sahaja.
+
+> **Contoh:** Pilih `Muhd` + `This Month` + `🟢 Sudah Bayar` → jumlah RM di atas = jualan Muhd yang dah dibayar bulan ini.
 
 ---
 
