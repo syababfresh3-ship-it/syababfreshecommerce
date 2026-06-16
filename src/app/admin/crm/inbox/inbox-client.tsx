@@ -81,6 +81,8 @@ export function InboxClient() {
   const [tplParams, setTplParams] = useState<Record<string, string>>({});
   const [admins, setAdmins] = useState<Record<string, string>>({});
   const [tagInput, setTagInput] = useState("");
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [filterTag, setFilterTag] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +123,15 @@ export function InboxClient() {
         (data ?? []).forEach((p) => (m[p.id] = p.full_name || "Admin"));
         setAdmins(m);
       });
+  }, [supabase]);
+
+  // Senarai tag terurus (crm_tags)
+  useEffect(() => {
+    supabase
+      .from("crm_tags")
+      .select("name")
+      .order("name")
+      .then(({ data }: { data: { name: string }[] | null }) => setAllTags((data ?? []).map((t) => t.name)));
   }, [supabase]);
 
   // Muat awal + realtime (bunyi bila mesej masuk)
@@ -248,13 +259,17 @@ export function InboxClient() {
     setSelected((s) => (s && s.wa_contacts ? { ...s, wa_contacts: { ...s.wa_contacts, tags: newTags } } : s));
     loadConvos();
   }
-  function addTag() {
-    const t = tagInput.trim();
+  async function addTag(fromChip?: string) {
+    const t = (fromChip ?? tagInput).trim();
     if (!t || !selected?.wa_contacts) return;
     const cur = selected.wa_contacts.tags ?? [];
-    if (cur.includes(t)) return;
-    updateTags([...cur, t]);
+    if (!cur.includes(t)) updateTags([...cur, t]);
     setTagInput("");
+    // Simpan ke senarai tetap (boleh guna semula) kalau baru
+    if (!allTags.includes(t)) {
+      await supabase.from("crm_tags").upsert({ name: t }, { onConflict: "name" });
+      setAllTags((a) => [...a, t]);
+    }
   }
   function removeTag(t: string) {
     const cur = selected?.wa_contacts?.tags ?? [];
@@ -265,13 +280,37 @@ export function InboxClient() {
   const displayName = (c: Conversation | null) =>
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
 
+  const shownConvos = filterTag ? convos.filter((c) => c.wa_contacts?.tags?.includes(filterTag)) : convos;
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-gray-100">
       {/* Senarai perbualan */}
       <aside className="w-80 shrink-0 border-r bg-white overflow-y-auto">
         <div className="p-3 border-b font-semibold text-gray-800">Inbox WhatsApp</div>
-        {convos.length === 0 && <div className="p-4 text-sm text-gray-400">Tiada perbualan lagi.</div>}
-        {convos.map((c) => (
+        {/* Bar filter ikut tag */}
+        {allTags.length > 0 && (
+          <div className="flex gap-1 flex-wrap px-2 py-2 border-b bg-gray-50">
+            <button
+              onClick={() => setFilterTag("")}
+              className={`text-[10px] rounded-full px-2 py-0.5 ${!filterTag ? "bg-emerald-500 text-white" : "bg-white border text-gray-600"}`}
+            >
+              Semua
+            </button>
+            {allTags.map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilterTag(filterTag === t ? "" : t)}
+                className={`text-[10px] rounded-full px-2 py-0.5 ${filterTag === t ? "bg-emerald-500 text-white" : "bg-white border text-gray-600"}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
+        {shownConvos.length === 0 && (
+          <div className="p-4 text-sm text-gray-400">Tiada perbualan{filterTag ? ` bertag "${filterTag}"` : " lagi"}.</div>
+        )}
+        {shownConvos.map((c) => (
           <button
             key={c.id}
             onClick={() => openConvo(c)}
@@ -289,6 +328,15 @@ export function InboxClient() {
             </div>
             {c.assigned_to && (
               <div className="text-[10px] text-blue-500 mt-0.5">👤 {admins[c.assigned_to] || "Admin"}</div>
+            )}
+            {c.wa_contacts?.tags && c.wa_contacts.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {c.wa_contacts.tags.map((t) => (
+                  <span key={t} className="text-[9px] bg-emerald-50 text-emerald-600 rounded px-1">
+                    {t}
+                  </span>
+                ))}
+              </div>
             )}
           </button>
         ))}
@@ -477,15 +525,30 @@ export function InboxClient() {
               ))}
               {(contact?.tags ?? []).length === 0 && <span className="text-xs text-gray-300">Tiada tag</span>}
             </div>
+            {allTags.filter((t) => !(contact?.tags ?? []).includes(t)).length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {allTags
+                  .filter((t) => !(contact?.tags ?? []).includes(t))
+                  .map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => addTag(t)}
+                      className="text-xs bg-gray-100 hover:bg-emerald-100 text-gray-500 rounded px-1.5 py-0.5"
+                    >
+                      + {t}
+                    </button>
+                  ))}
+              </div>
+            )}
             <div className="flex gap-1">
               <input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addTag()}
-                placeholder="tambah tag…"
+                placeholder="tambah tag baru…"
                 className="flex-1 border rounded px-2 py-1 text-xs"
               />
-              <button onClick={addTag} className="bg-gray-100 hover:bg-gray-200 rounded px-2 text-xs">
+              <button onClick={() => addTag()} className="bg-gray-100 hover:bg-gray-200 rounded px-2 text-xs">
                 +
               </button>
             </div>
