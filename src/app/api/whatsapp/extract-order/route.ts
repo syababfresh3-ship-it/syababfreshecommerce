@@ -72,7 +72,7 @@ PERBUALAN:
 ${chat}
 
 Pulangkan JSON dgn struktur ini:
-{"name":"","phone":"","address":"","postcode":"","items":[{"product_id":"","variant_id":null,"quantity":1}]}
+{"name":"","phone":"","email":"","address":"","postcode":"","items":[{"product_id":"","variant_id":null,"quantity":1}]}
 - product_id & variant_id mesti dari katalog (variant_id null jika produk tiada variant).
 - quantity = nombor.
 - address = alamat penuh kalau ada; postcode = 5 digit kalau ada.`;
@@ -89,6 +89,7 @@ Pulangkan JSON dgn struktur ini:
     const parsed = JSON.parse(jsonStr) as {
       name?: string;
       phone?: string;
+      email?: string;
       address?: string;
       postcode?: string;
       items?: { product_id?: string; variant_id?: string | null; quantity?: number }[];
@@ -115,6 +116,7 @@ Pulangkan JSON dgn struktur ini:
       ok: true,
       name: parsed.name || contact?.name || "",
       phone: parsed.phone || contact?.phone || contact?.wa_id || "",
+      email: parsed.email || "",
       address: parsed.address || "",
       postcode: parsed.postcode || "",
       items,
