@@ -106,19 +106,22 @@ export interface WaTemplate {
   components: unknown[];
 }
 
-// Senarai template diluluskan (untuk UI pilih bila balas luar window / blast).
-export async function listTemplates(): Promise<{ ok: boolean; templates: WaTemplate[]; error?: string }> {
+// Senarai template. approvedOnly=true (default) → untuk pilih masa blast/reply.
+// approvedOnly=false → semua status (untuk page pengurusan Templates).
+export async function listTemplates(
+  approvedOnly = true,
+): Promise<{ ok: boolean; templates: WaTemplate[]; error?: string }> {
   const { token, wabaId } = cfg();
   if (!wabaId) return { ok: false, templates: [], error: "WHATSAPP_WABA_ID tidak ditetapkan." };
   try {
     const res = await fetch(
-      `${GRAPH}/${wabaId}/message_templates?fields=name,language,category,status,components&limit=100`,
+      `${GRAPH}/${wabaId}/message_templates?fields=name,language,category,status,components&limit=200`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     const j = await res.json().catch(() => ({}));
     if (!res.ok || j.error) return { ok: false, templates: [], error: j?.error?.message || `HTTP ${res.status}` };
-    const templates = (j.data ?? []).filter((t: WaTemplate) => t.status === "APPROVED");
-    return { ok: true, templates };
+    const all = (j.data ?? []) as WaTemplate[];
+    return { ok: true, templates: approvedOnly ? all.filter((t) => t.status === "APPROVED") : all };
   } catch (e) {
     return { ok: false, templates: [], error: String(e) };
   }
