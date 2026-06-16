@@ -7,7 +7,7 @@ interface Template {
   name: string;
   language: string;
   category: string;
-  components: Array<{ type: string; text?: string }>;
+  components: Array<{ type: string; text?: string; format?: string }>;
 }
 interface Blast {
   id: string;
@@ -25,6 +25,7 @@ export function BlastClient() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tpl, setTpl] = useState<Template | null>(null);
   const [params, setParams] = useState<Record<string, string>>({});
+  const [headerImage, setHeaderImage] = useState("");
   const [name, setName] = useState("");
   const [source, setSource] = useState<"contacts" | "customers">("contacts");
   const [tag, setTag] = useState("");
@@ -77,7 +78,10 @@ export function BlastClient() {
     const obj: Record<string, string> = {};
     names.forEach((n) => (obj[n] = ""));
     setParams(obj);
+    setHeaderImage("");
   }
+
+  const needsHeaderImage = tpl?.components.some((c) => c.type === "HEADER" && c.format === "IMAGE") ?? false;
 
   async function send(test: boolean) {
     if (!tpl) {
@@ -86,6 +90,10 @@ export function BlastClient() {
     }
     if (test && !testNumber.trim()) {
       setMsg("Masukkan nombor test.");
+      return;
+    }
+    if (needsHeaderImage && !headerImage.trim()) {
+      setMsg("Template ini ada gambar header — masukkan URL gambar dulu.");
       return;
     }
     if (!test) {
@@ -107,6 +115,7 @@ export function BlastClient() {
         audience: { source, tag: tag.trim() || undefined },
         test,
         testNumber: test ? testNumber.trim() : undefined,
+        headerImage: needsHeaderImage ? headerImage.trim() : undefined,
       }),
     });
     const j = await res.json();
@@ -115,8 +124,12 @@ export function BlastClient() {
       setMsg("❌ " + (j.error || "Gagal."));
       return;
     }
-    setMsg(test ? `✅ Test dihantar.` : `✅ Blast siap — ${j.sent} berjaya, ${j.failed} gagal (dari ${j.total}).`);
-    if (!test) loadBlasts();
+    if (test) {
+      setMsg(j.failed ? `❌ Test gagal: ${j.error || "tidak diketahui"}` : "✅ Test berjaya — sampai ke telefon!");
+    } else {
+      setMsg(`✅ Blast siap — ${j.sent} berjaya, ${j.failed} gagal (dari ${j.total}).`);
+      loadBlasts();
+    }
   }
 
   return (
@@ -172,6 +185,19 @@ export function BlastClient() {
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Gambar header (template promo dgn IMAGE header) */}
+        {tpl && needsHeaderImage && (
+          <div>
+            <label className="text-sm text-gray-600">🖼️ Gambar header (URL) — template ini perlukan gambar</label>
+            <input
+              value={headerImage}
+              onChange={(e) => setHeaderImage(e.target.value)}
+              placeholder="https://… (URL gambar public, cth Cloudinary)"
+              className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
+            />
           </div>
         )}
 
