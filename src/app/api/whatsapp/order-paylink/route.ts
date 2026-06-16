@@ -52,13 +52,20 @@ export async function POST(req: NextRequest) {
     delivery_fee?: number;
     discount?: number;
     items?: Item[];
+    paymentMethod?: "paylink" | "cod";
+    deliveryMethod?: "delivery" | "pickup";
   };
+
+  const isCod = b.paymentMethod === "cod";
+  const isPickup = b.deliveryMethod === "pickup";
 
   if (!b.contactId) return NextResponse.json({ error: "contactId diperlukan." }, { status: 400 });
   if (!b.name?.trim()) return NextResponse.json({ error: "Nama diperlukan." }, { status: 400 });
   if (!b.phone?.trim()) return NextResponse.json({ error: "Telefon diperlukan." }, { status: 400 });
-  if (!b.address?.trim()) return NextResponse.json({ error: "Alamat diperlukan." }, { status: 400 });
-  if (!/^\d{5}$/.test(String(b.postcode ?? "").trim())) return NextResponse.json({ error: "Poskod 5 digit diperlukan." }, { status: 400 });
+  if (!isPickup) {
+    if (!b.address?.trim()) return NextResponse.json({ error: "Alamat diperlukan (untuk delivery)." }, { status: 400 });
+    if (!/^\d{5}$/.test(String(b.postcode ?? "").trim())) return NextResponse.json({ error: "Poskod 5 digit diperlukan." }, { status: 400 });
+  }
   if (!Array.isArray(b.items) || b.items.length === 0) return NextResponse.json({ error: "Sekurang-kurangnya 1 item." }, { status: 400 });
 
   const items = b.items;
@@ -78,8 +85,9 @@ export async function POST(req: NextRequest) {
       name: b.name.trim(),
       phone: b.phone.trim(),
       email: b.email?.trim() || null,
-      address: b.address.trim(),
-      postcode: b.postcode?.trim() || null,
+      address: isPickup ? (b.address?.trim() || "Pickup (ambil sendiri)") : b.address!.trim(),
+      postcode: isPickup ? null : (b.postcode?.trim() || null),
+      delivery_method: isPickup ? "pickup" : "delivery",
       notes: b.notes?.trim() || null,
       product_id: first.product_id,
       variant_id: first.variant_id,
@@ -90,53 +98,64 @@ export async function POST(req: NextRequest) {
       delivery_fee: deliveryFee,
       discount,
       total,
-      payment_method: "fpx",
+      payment_method: isCod ? "cod" : "fpx",
       source: "crm",
       items,
-      status: "pending",
+      status: isCod ? "confirmed" : "pending",
     })
     .select("id, order_number, total")
     .single();
   if (error || !order) return NextResponse.json({ error: error?.message || "Gagal cipta order." }, { status: 500 });
 
-  // CHIP purchase → checkout_url (success_callback = webhook order sedia ada)
-  // Ada diskaun → satu baris = total (elak baris negatif). Tiada → itemize.
-  const products = discount > 0
-    ? [{ name: `Pesanan ${order.order_number}`, price: Math.round(total * 100), quantity: 1 }]
-    : items.map((i) => ({
-        name: `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ""}`,
-        price: Math.round(Number(i.unit_price) * 100),
-        quantity: i.quantity,
-      }));
-  if (discount === 0 && deliveryFee > 0) products.push({ name: "Kos Penghantaran", price: Math.round(deliveryFee * 100), quantity: 1 });
-
-  const chipRes = await fetch(`${CHIP_API_URL}/purchases/`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.CHIP_SECRET_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client: { email: b.email?.trim() || `crm+${order.order_number}@syababfresh.my`, full_name: b.name.trim(), phone: b.phone.trim() },
-      purchase: { currency: "MYR", products, notes: order.order_number },
-      brand_id: process.env.CHIP_BRAND_ID,
-      reference: order.id,
-      success_callback: `${appUrl()}/api/webhook/chip`,
-      send_receipt: false,
-    }),
-  });
-  if (!chipRes.ok) return NextResponse.json({ error: "CHIP gateway error", detail: chipRes.status }, { status: 502 });
-  const chip = await chipRes.json();
-  if (!chip.checkout_url) return NextResponse.json({ error: "Tiada checkout_url." }, { status: 502 });
-  if (chip.id) await sb.from("lp_guest_orders").update({ payment_ref: chip.id }).eq("id", order.id);
-
-  // Kemas crm_lead — nilai deal + jadi "hangat" (order dibina, tunggu bayar)
+  // Kemas crm_lead — nilai deal + jadi "hangat"
   const { data: lead } = await sb.from("crm_leads").select("id").eq("contact_id", b.contactId).maybeSingle();
   if (lead?.id) await sb.from("crm_leads").update({ value: total, stage: "hangat" }).eq("id", lead.id);
 
-  // Hantar pay link via WhatsApp
+  const lines = items.map((i) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ""} x${i.quantity}`).join("\n");
+  const totalsBlock = `${deliveryFee > 0 ? `Penghantaran: RM${deliveryFee.toFixed(2)}\n` : ""}${discount > 0 ? `Diskaun: -RM${discount.toFixed(2)}\n` : ""}*Jumlah: RM${total.toFixed(2)}*`;
+
+  let checkoutUrl: string | null = null;
+  let msg: string;
+
+  if (isCod) {
+    // COD / pickup — tiada pay link, hantar pengesahan
+    const method = isPickup ? "🏪 Pickup (ambil sendiri)" : "🚚 COD (bayar masa terima)";
+    msg = `Hai ${b.name.trim()}! 🥭\n\nPesanan anda *${order.order_number}* telah direkod:\n${lines}\n${totalsBlock}\n\n${method}\n\nTerima kasih! Kami akan ${isPickup ? "maklumkan bila sedia untuk diambil" : "hubungi untuk penghantaran"}. 🙏`;
+  } else {
+    // Pay link — CHIP purchase (success_callback = webhook order sedia ada)
+    const products = discount > 0
+      ? [{ name: `Pesanan ${order.order_number}`, price: Math.round(total * 100), quantity: 1 }]
+      : items.map((i) => ({
+          name: `${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ""}`,
+          price: Math.round(Number(i.unit_price) * 100),
+          quantity: i.quantity,
+        }));
+    if (discount === 0 && deliveryFee > 0) products.push({ name: "Kos Penghantaran", price: Math.round(deliveryFee * 100), quantity: 1 });
+
+    const chipRes = await fetch(`${CHIP_API_URL}/purchases/`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.CHIP_SECRET_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client: { email: b.email?.trim() || `crm+${order.order_number}@syababfresh.my`, full_name: b.name.trim(), phone: b.phone.trim() },
+        purchase: { currency: "MYR", products, notes: order.order_number },
+        brand_id: process.env.CHIP_BRAND_ID,
+        reference: order.id,
+        success_callback: `${appUrl()}/api/webhook/chip`,
+        send_receipt: false,
+      }),
+    });
+    if (!chipRes.ok) return NextResponse.json({ error: "CHIP gateway error", detail: chipRes.status }, { status: 502 });
+    const chip = await chipRes.json();
+    if (!chip.checkout_url) return NextResponse.json({ error: "Tiada checkout_url." }, { status: 502 });
+    checkoutUrl = chip.checkout_url;
+    if (chip.id) await sb.from("lp_guest_orders").update({ payment_ref: chip.id }).eq("id", order.id);
+    msg = `Hai ${b.name.trim()}! 🥭\n\nPesanan anda *${order.order_number}*:\n${lines}\n${totalsBlock}\n\nKlik untuk bayar selamat:\n${checkoutUrl}\n\nTerima kasih! 🙏`;
+  }
+
+  // Hantar WhatsApp + log
   const { data: contact } = await sb.from("wa_contacts").select("wa_id").eq("id", b.contactId).single();
   let sendOk = false;
   if (contact) {
-    const lines = items.map((i) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ""} x${i.quantity}`).join("\n");
-    const msg = `Hai ${b.name.trim()}! 🥭\n\nPesanan anda *${order.order_number}*:\n${lines}\n${deliveryFee > 0 ? `Penghantaran: RM${deliveryFee.toFixed(2)}\n` : ""}${discount > 0 ? `Diskaun: -RM${discount.toFixed(2)}\n` : ""}*Jumlah: RM${total.toFixed(2)}*\n\nKlik untuk bayar selamat:\n${chip.checkout_url}\n\nTerima kasih! 🙏`;
     const send = await sendText(contact.wa_id, msg);
     sendOk = send.ok;
     const { data: conv } = await sb.from("wa_conversations").select("id").eq("contact_id", b.contactId).maybeSingle();
@@ -149,5 +168,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, order_number: order.order_number, total, checkoutUrl: chip.checkout_url, sentWhatsApp: sendOk });
+  return NextResponse.json({ ok: true, order_number: order.order_number, total, checkoutUrl, cod: isCod, sentWhatsApp: sendOk });
 }

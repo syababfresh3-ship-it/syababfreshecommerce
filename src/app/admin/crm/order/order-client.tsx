@@ -20,6 +20,8 @@ export function OrderClient() {
   const [items, setItems] = useState<Item[]>([]);
   const [deliveryFee, setDeliveryFee] = useState("");
   const [discount, setDiscount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"paylink" | "cod">("paylink");
+  const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -106,17 +108,23 @@ export function OrderClient() {
   async function submit() {
     setMsg("");
     if (items.length === 0) return setMsg("Tambah sekurang-kurangnya 1 produk.");
-    if (!name || !phone || !address || !/^\d{5}$/.test(postcode)) return setMsg("Isi nama, telefon, alamat & poskod (5 digit).");
+    if (!name || !phone) return setMsg("Isi nama & telefon.");
+    if (deliveryMethod === "delivery" && (!address || !/^\d{5}$/.test(postcode)))
+      return setMsg("Isi alamat & poskod (5 digit) untuk delivery.");
     setBusy(true);
     const res = await fetch("/api/whatsapp/order-paylink", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contactId, name, phone, email, address, postcode, delivery_fee: Number(deliveryFee) || 0, discount: Number(discount) || 0, items }),
+      body: JSON.stringify({ contactId, name, phone, email, address, postcode, delivery_fee: Number(deliveryFee) || 0, discount: Number(discount) || 0, items, paymentMethod, deliveryMethod }),
     });
     const j = await res.json();
     setBusy(false);
     if (res.ok && j.ok) {
-      setMsg(`✅ Order ${j.order_number} dicipta (RM${Number(j.total).toFixed(2)})${j.sentWhatsApp ? " — pay link dihantar ke WhatsApp!" : " — tapi WA gagal hantar"}`);
+      setMsg(
+        `✅ Order ${j.order_number} dicipta (RM${Number(j.total).toFixed(2)})${
+          j.sentWhatsApp ? (j.cod ? " — pengesahan dihantar ke WhatsApp" : " — pay link dihantar ke WhatsApp!") : " — tapi WA gagal hantar"
+        }`,
+      );
       setItems([]);
     } else {
       setMsg("❌ " + (j.error || "Gagal."));
@@ -233,8 +241,31 @@ export function OrderClient() {
         </div>
       </div>
 
+      {/* Kaedah bayaran & penghantaran */}
+      <div className="bg-white rounded-lg border p-4 space-y-2">
+        <div className="text-sm font-semibold text-gray-700">Kaedah</div>
+        <div className="flex flex-wrap gap-3 text-sm items-center">
+          <span className="text-gray-500 w-24">Bayaran:</span>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={paymentMethod === "paylink"} onChange={() => setPaymentMethod("paylink")} /> Pay link (online)
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} /> COD (bayar masa terima)
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm items-center">
+          <span className="text-gray-500 w-24">Penghantaran:</span>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={deliveryMethod === "delivery"} onChange={() => setDeliveryMethod("delivery")} /> Hantar
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={deliveryMethod === "pickup"} onChange={() => setDeliveryMethod("pickup")} /> Pickup (ambil sendiri)
+          </label>
+        </div>
+      </div>
+
       <button onClick={submit} disabled={busy} className="w-full bg-emerald-500 text-white rounded-lg py-3 font-medium disabled:opacity-50">
-        {busy ? "Memproses…" : "🛒 Cipta Order + Hantar Pay Link"}
+        {busy ? "Memproses…" : paymentMethod === "cod" ? "🛒 Cipta Order (COD)" : "🛒 Cipta Order + Hantar Pay Link"}
       </button>
       {msg && <div className="text-sm text-gray-700">{msg}</div>}
       </div>
