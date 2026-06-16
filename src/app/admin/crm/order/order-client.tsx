@@ -137,6 +137,7 @@ export function OrderClient() {
     if (res.ok && j.ok) {
       if (j.name) setName(j.name);
       if (j.phone) setPhone(j.phone);
+      if (j.email) setEmail(j.email);
       if (j.address) setAddress(j.address);
       if (j.postcode) setPostcode(j.postcode);
       if (Array.isArray(j.items) && j.items.length) setItems(j.items as Item[]);

@@ -85,6 +85,8 @@ export function InboxClient() {
   const [filterTag, setFilterTag] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payMsg, setPayMsg] = useState("");
+  const [snippets, setSnippets] = useState<{ id: string; label: string; body: string }[]>([]);
+  const [showSnippets, setShowSnippets] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +136,15 @@ export function InboxClient() {
       .select("name")
       .order("name")
       .then(({ data }: { data: { name: string }[] | null }) => setAllTags((data ?? []).map((t) => t.name)));
+  }, [supabase]);
+
+  // Snippet (canned message)
+  useEffect(() => {
+    supabase
+      .from("crm_snippets")
+      .select("id, label, body")
+      .order("sort")
+      .then(({ data }: { data: { id: string; label: string; body: string }[] | null }) => setSnippets(data ?? []));
   }, [supabase]);
 
   // Muat awal + realtime (bunyi bila mesej masuk)
@@ -301,6 +312,16 @@ export function InboxClient() {
     }
   }
 
+  async function saveSnippet() {
+    const body = reply.trim();
+    setShowSnippets(false);
+    if (!body) return;
+    const label = window.prompt("Nama snippet:");
+    if (!label?.trim()) return;
+    const { data } = await supabase.from("crm_snippets").insert({ label: label.trim(), body }).select("id, label, body").single();
+    if (data) setSnippets((s) => [...s, data as { id: string; label: string; body: string }]);
+  }
+
   const contact = selected?.wa_contacts;
   const displayName = (c: Conversation | null) =>
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
@@ -412,7 +433,40 @@ export function InboxClient() {
             <div className="border-t bg-white p-3">
               {err && <div className="text-xs text-red-500 mb-2">{err}</div>}
               {inWindow ? (
-                <div className="flex gap-2 items-end">
+                <div className="space-y-2">
+                  {/* Snippet (canned message) */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSnippets((s) => !s)}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
+                    >
+                      📋 Snippet
+                    </button>
+                    {showSnippets && (
+                      <div className="absolute bottom-full mb-1 left-0 bg-white border rounded-lg shadow-lg w-64 z-20 max-h-60 overflow-y-auto">
+                        {snippets.map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              setReply(s.body);
+                              setShowSnippets(false);
+                            }}
+                            className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b"
+                          >
+                            <div className="font-medium text-gray-700">{s.label}</div>
+                            <div className="text-gray-400 truncate">{s.body}</div>
+                          </button>
+                        ))}
+                        <button
+                          onClick={saveSnippet}
+                          className="block w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                        >
+                          + Simpan balasan ini jadi snippet
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-end">
                   <input
                     ref={fileRef}
                     type="file"
@@ -452,6 +506,7 @@ export function InboxClient() {
                   >
                     {sending ? "…" : "Hantar"}
                   </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
