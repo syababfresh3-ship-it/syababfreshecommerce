@@ -21,6 +21,7 @@ interface Conversation {
   unread_count: number;
   window_expires_at: string | null;
   status: string;
+  assigned_to: string | null;
   wa_contacts: Contact | null;
 }
 interface Message {
@@ -29,6 +30,7 @@ interface Message {
   direction: "in" | "out";
   type: string;
   body: string | null;
+  media_url: string | null;
   template_name: string | null;
   status: string;
   created_at: string;
@@ -43,6 +45,27 @@ interface Template {
 const fmtTime = (s: string | null) =>
   s ? new Date(s).toLocaleString("ms-MY", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
+// Beep notifikasi (Web Audio — tiada fail perlu)
+function playNotif() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = "sine";
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+    o.start();
+    o.stop(ctx.currentTime + 0.36);
+  } catch {
+    /* abaikan */
+  }
+}
+
 export function InboxClient() {
   const supabase = createClient();
   const [convos, setConvos] = useState<Conversation[]>([]);
@@ -50,12 +73,16 @@ export function InboxClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [showTpl, setShowTpl] = useState(false);
   const [tpl, setTpl] = useState<Template | null>(null);
   const [tplParams, setTplParams] = useState<Record<string, string>>({});
+  const [admins, setAdmins] = useState<Record<string, string>>({});
+  const [tagInput, setTagInput] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const inWindow = selected?.window_expires_at ? new Date(selected.window_expires_at) > new Date() : false;
 
@@ -63,7 +90,7 @@ export function InboxClient() {
     const { data } = await supabase
       .from("wa_conversations")
       .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, wa_contacts(id, wa_id, phone, name, tags, profile_id, profiles(full_name, total_spend))",
+        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, wa_contacts(id, wa_id, phone, name, tags, profile_id, profiles(full_name, total_spend))",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
@@ -74,7 +101,7 @@ export function InboxClient() {
     async (convId: string) => {
       const { data } = await supabase
         .from("wa_messages")
-        .select("id, conversation_id, direction, type, body, template_name, status, created_at")
+        .select("id, conversation_id, direction, type, body, media_url, template_name, status, created_at")
         .eq("conversation_id", convId)
         .order("created_at", { ascending: true })
         .limit(500);
@@ -83,14 +110,35 @@ export function InboxClient() {
     [supabase],
   );
 
-  // Muat awal + realtime
+  // Senarai admin (untuk papar nama assignee)
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("is_admin", true)
+      .then(({ data }: { data: { id: string; full_name: string | null }[] | null }) => {
+        const m: Record<string, string> = {};
+        (data ?? []).forEach((p) => (m[p.id] = p.full_name || "Admin"));
+        setAdmins(m);
+      });
+  }, [supabase]);
+
+  // Muat awal + realtime (bunyi bila mesej masuk)
   useEffect(() => {
     loadConvos();
     const ch = supabase
       .channel("wa-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
         const row = p.new as Message;
+        if (row?.direction === "in") {
+          playNotif();
+          document.title = "🔔 Mesej baru — Inbox";
+        }
         loadConvos();
+        if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
+        const row = p.new as Message;
         if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversations" }, () => loadConvos())
@@ -110,6 +158,7 @@ export function InboxClient() {
     setErr("");
     setShowTpl(false);
     setTpl(null);
+    document.title = "Inbox WhatsApp";
     await loadMessages(c.id);
     if (c.unread_count > 0) {
       await supabase.from("wa_conversations").update({ unread_count: 0 }).eq("id", c.id);
@@ -132,6 +181,24 @@ export function InboxClient() {
     setTplParams(obj);
   }
 
+  async function postSend(payload: Record<string, unknown>) {
+    const res = await fetch("/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const j = await res.json();
+    if (!res.ok) {
+      setErr(j.error || "Hantar gagal.");
+      return false;
+    }
+    if (selected) {
+      loadMessages(selected.id);
+      loadConvos();
+    }
+    return true;
+  }
+
   async function send() {
     if (!selected) return;
     setSending(true);
@@ -148,22 +215,50 @@ export function InboxClient() {
       }
       payload.text = reply.trim();
     }
-    const res = await fetch("/api/whatsapp/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const j = await res.json();
+    const ok = await postSend(payload);
     setSending(false);
-    if (!res.ok) {
-      setErr(j.error || "Hantar gagal.");
+    if (ok) {
+      setReply("");
+      setTpl(null);
+      setShowTpl(false);
+    }
+  }
+
+  async function sendImage(file: File) {
+    if (!selected) return;
+    setUploading(true);
+    setErr("");
+    const fd = new FormData();
+    fd.append("file", file);
+    const up = await fetch("/api/whatsapp/upload", { method: "POST", body: fd });
+    const uj = await up.json();
+    if (!up.ok || !uj.url) {
+      setUploading(false);
+      setErr(uj.error || "Upload gagal.");
       return;
     }
+    await postSend({ conversationId: selected.id, imageUrl: uj.url, caption: reply.trim() || undefined });
+    setUploading(false);
     setReply("");
-    setTpl(null);
-    setShowTpl(false);
-    loadMessages(selected.id);
+  }
+
+  async function updateTags(newTags: string[]) {
+    if (!selected?.wa_contacts) return;
+    await supabase.from("wa_contacts").update({ tags: newTags }).eq("id", selected.wa_contacts.id);
+    setSelected((s) => (s && s.wa_contacts ? { ...s, wa_contacts: { ...s.wa_contacts, tags: newTags } } : s));
     loadConvos();
+  }
+  function addTag() {
+    const t = tagInput.trim();
+    if (!t || !selected?.wa_contacts) return;
+    const cur = selected.wa_contacts.tags ?? [];
+    if (cur.includes(t)) return;
+    updateTags([...cur, t]);
+    setTagInput("");
+  }
+  function removeTag(t: string) {
+    const cur = selected?.wa_contacts?.tags ?? [];
+    updateTags(cur.filter((x) => x !== t));
   }
 
   const contact = selected?.wa_contacts;
@@ -192,6 +287,9 @@ export function InboxClient() {
                 <span className="shrink-0 bg-emerald-500 text-white text-[10px] rounded-full px-1.5">{c.unread_count}</span>
               )}
             </div>
+            {c.assigned_to && (
+              <div className="text-[10px] text-blue-500 mt-0.5">👤 {admins[c.assigned_to] || "Admin"}</div>
+            )}
           </button>
         ))}
       </aside>
@@ -202,9 +300,16 @@ export function InboxClient() {
           <div className="flex-1 grid place-items-center text-gray-400 text-sm">Pilih satu perbualan.</div>
         ) : (
           <>
-            <div className="px-4 py-3 border-b bg-white">
-              <div className="font-semibold text-gray-800">{displayName(selected)}</div>
-              <div className="text-xs text-gray-400">{contact?.wa_id}</div>
+            <div className="px-4 py-3 border-b bg-white flex justify-between items-center">
+              <div>
+                <div className="font-semibold text-gray-800">{displayName(selected)}</div>
+                <div className="text-xs text-gray-400">{contact?.wa_id}</div>
+              </div>
+              {selected.assigned_to && (
+                <span className="text-xs text-blue-600 bg-blue-50 rounded-full px-2 py-1">
+                  👤 {admins[selected.assigned_to] || "Admin"}
+                </span>
+              )}
             </div>
 
             <div ref={threadRef} className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -215,7 +320,11 @@ export function InboxClient() {
                       m.direction === "out" ? "bg-emerald-500 text-white" : "bg-white border text-gray-800"
                     }`}
                   >
-                    {m.type !== "text" && !m.body && <span className="italic opacity-70">[{m.type}]</span>}
+                    {m.media_url && m.type === "image" && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.media_url} alt="gambar" className="rounded-md max-w-full mb-1" />
+                    )}
+                    {m.type !== "text" && m.type !== "image" && !m.body && <span className="italic opacity-70">[{m.type}]</span>}
                     {m.template_name && <span className="italic opacity-70">[template: {m.template_name}]</span>}
                     {m.body}
                     <div className={`text-[10px] mt-1 ${m.direction === "out" ? "text-emerald-100" : "text-gray-400"}`}>
@@ -230,7 +339,26 @@ export function InboxClient() {
             <div className="border-t bg-white p-3">
               {err && <div className="text-xs text-red-500 mb-2">{err}</div>}
               {inWindow ? (
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-end">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) sendImage(f);
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    title="Hantar gambar"
+                    className="shrink-0 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 text-lg disabled:opacity-50"
+                  >
+                    {uploading ? "⏳" : "🖼️"}
+                  </button>
                   <textarea
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
@@ -241,22 +369,20 @@ export function InboxClient() {
                       }
                     }}
                     rows={1}
-                    placeholder="Taip balasan…"
+                    placeholder="Taip balasan… (atau caption gambar)"
                     className="flex-1 resize-none border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
                   />
                   <button
                     onClick={send}
                     disabled={sending || !reply.trim()}
-                    className="bg-emerald-500 text-white rounded-lg px-4 text-sm font-medium disabled:opacity-50"
+                    className="shrink-0 bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
                   >
                     {sending ? "…" : "Hantar"}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-xs text-amber-600">
-                    ⏳ Luar tetingkap 24 jam — wajib guna template diluluskan.
-                  </div>
+                  <div className="text-xs text-amber-600">⏳ Luar tetingkap 24 jam — wajib guna template diluluskan.</div>
                   {!showTpl ? (
                     <button
                       onClick={() => {
@@ -335,19 +461,35 @@ export function InboxClient() {
                 <dd>RM {Number(contact.profiles.total_spend).toFixed(2)}</dd>
               </div>
             )}
-            {contact?.tags && contact.tags.length > 0 && (
-              <div>
-                <dt className="text-gray-400">Tag</dt>
-                <dd className="flex flex-wrap gap-1 mt-1">
-                  {contact.tags.map((t) => (
-                    <span key={t} className="bg-gray-100 rounded px-1.5 py-0.5">
-                      {t}
-                    </span>
-                  ))}
-                </dd>
-              </div>
-            )}
           </dl>
+
+          {/* Tags */}
+          <div className="mt-4">
+            <div className="text-xs text-gray-400 mb-1">Tag</div>
+            <div className="flex flex-wrap gap-1 mb-2">
+              {(contact?.tags ?? []).map((t) => (
+                <span key={t} className="bg-emerald-50 text-emerald-700 rounded px-1.5 py-0.5 text-xs flex items-center gap-1">
+                  {t}
+                  <button onClick={() => removeTag(t)} className="text-emerald-400 hover:text-red-500">
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {(contact?.tags ?? []).length === 0 && <span className="text-xs text-gray-300">Tiada tag</span>}
+            </div>
+            <div className="flex gap-1">
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addTag()}
+                placeholder="tambah tag…"
+                className="flex-1 border rounded px-2 py-1 text-xs"
+              />
+              <button onClick={addTag} className="bg-gray-100 hover:bg-gray-200 rounded px-2 text-xs">
+                +
+              </button>
+            </div>
+          </div>
         </aside>
       )}
     </div>
