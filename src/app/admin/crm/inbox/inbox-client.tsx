@@ -83,6 +83,8 @@ export function InboxClient() {
   const [tagInput, setTagInput] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payMsg, setPayMsg] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +171,8 @@ export function InboxClient() {
     setErr("");
     setShowTpl(false);
     setTpl(null);
+    setPayAmount("");
+    setPayMsg("");
     document.title = "Inbox WhatsApp";
     await loadMessages(c.id);
     if (c.unread_count > 0) {
@@ -274,6 +278,27 @@ export function InboxClient() {
   function removeTag(t: string) {
     const cur = selected?.wa_contacts?.tags ?? [];
     updateTags(cur.filter((x) => x !== t));
+  }
+
+  async function sendPaymentLink() {
+    if (!selected?.wa_contacts || !payAmount || Number(payAmount) <= 0) {
+      setPayMsg("Masukkan jumlah (RM).");
+      return;
+    }
+    setPayMsg("Menghantar link…");
+    const res = await fetch("/api/whatsapp/payment-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId: selected.wa_contacts.id, amount: Number(payAmount), description: "Pembayaran SyababFresh" }),
+    });
+    const j = await res.json();
+    if (res.ok && j.ok) {
+      setPayMsg("✅ Link bayar dihantar ke WhatsApp!");
+      setPayAmount("");
+      loadMessages(selected.id);
+    } else {
+      setPayMsg("❌ " + (j.error || "Gagal hantar."));
+    }
   }
 
   const contact = selected?.wa_contacts;
@@ -510,6 +535,32 @@ export function InboxClient() {
               </div>
             )}
           </dl>
+
+          {/* Tindakan: buat order + pay link (macam pipeline) */}
+          <div className="mt-4 space-y-2 border-t pt-3">
+            <a
+              href={`/admin/crm/order?contact=${contact?.id}`}
+              className="block text-center text-sm bg-emerald-500 text-white rounded-lg py-2 font-medium"
+            >
+              🛒 Buat Order + Pay Link
+            </a>
+            <div>
+              <label className="text-[11px] text-gray-400">Atau hantar link bayar je (RM)</label>
+              <div className="flex gap-1 mt-1">
+                <input
+                  type="number"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="Jumlah"
+                  className="flex-1 border rounded px-2 py-1.5 text-sm"
+                />
+                <button onClick={sendPaymentLink} className="bg-blue-600 text-white rounded px-3 text-sm">
+                  Hantar
+                </button>
+              </div>
+              {payMsg && <div className="text-[11px] mt-1 text-gray-600">{payMsg}</div>}
+            </div>
+          </div>
 
           {/* Tags */}
           <div className="mt-4">
