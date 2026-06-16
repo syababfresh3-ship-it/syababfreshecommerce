@@ -218,6 +218,13 @@ export function PipelineClient() {
             </div>
 
             <a
+              href={`/admin/crm/order?contact=${edit.contact_id}`}
+              className="block text-center text-sm text-emerald-600 hover:underline font-medium"
+            >
+              🛒 Buat order + pay link
+            </a>
+
+            <a
               href={`/admin/crm/inbox`}
               className="block text-center text-sm text-blue-600 hover:underline"
             >
