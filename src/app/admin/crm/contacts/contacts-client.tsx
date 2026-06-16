@@ -32,6 +32,8 @@ export function ContactsClient() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [filterTag, setFilterTag] = useState("");
+  const [page, setPage] = useState(0);
+  const PER_PAGE = 50;
 
   useEffect(() => {
     supabase
@@ -64,6 +66,9 @@ export function ContactsClient() {
     [contacts, filterTag, search],
   );
 
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -75,12 +80,18 @@ export function ContactsClient() {
       <div className="flex flex-wrap gap-2 items-center">
         <input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
           placeholder="Cari nama / nombor…"
           className="border rounded-lg px-3 py-2 text-sm w-64"
         />
         <button
-          onClick={() => setFilterTag("")}
+          onClick={() => {
+            setFilterTag("");
+            setPage(0);
+          }}
           className={`text-xs rounded-full px-2.5 py-1 ${!filterTag ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
         >
           Semua
@@ -88,7 +99,10 @@ export function ContactsClient() {
         {allTags.map((t) => (
           <button
             key={t}
-            onClick={() => setFilterTag(filterTag === t ? "" : t)}
+            onClick={() => {
+              setFilterTag(filterTag === t ? "" : t);
+              setPage(0);
+            }}
             className={`text-xs rounded-full px-2.5 py-1 ${filterTag === t ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
           >
             {t}
@@ -111,7 +125,7 @@ export function ContactsClient() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {paged.map((c) => (
               <tr key={c.id} className="border-t hover:bg-gray-50">
                 <td className="px-3 py-2 font-medium text-gray-800">{nameOf(c)}</td>
                 <td className="px-3 py-2 text-gray-500">{c.phone || c.wa_id}</td>
@@ -149,6 +163,28 @@ export function ContactsClient() {
           </tbody>
         </table>
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="px-3 py-1 border rounded disabled:opacity-40"
+          >
+            ‹ Prev
+          </button>
+          <span className="text-gray-500">
+            Page {page + 1} / {pageCount}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={page >= pageCount - 1}
+            className="px-3 py-1 border rounded disabled:opacity-40"
+          >
+            Next ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
