@@ -67,6 +67,18 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [
+      // AI support pelanggan kini di syababfresh-app (data pos/tracking ada di sana).
+      // Alih sebarang lawatan ke /bantuan storefront → app. 307 (sementara) supaya
+      // mudah dipulihkan kalau perlu balik ke page tempatan.
+      {
+        source: '/bantuan',
+        destination: 'https://manage.syababfresh.my/bantuan',
+        permanent: false,
+      },
+    ]
+  },
 };
 
 export default nextConfig;
