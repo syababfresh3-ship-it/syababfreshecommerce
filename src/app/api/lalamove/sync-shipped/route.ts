@@ -39,9 +39,14 @@ export async function POST(req: Request) {
     // Simpan tracking (primary shipment) supaya order page papar jejak
     if (trackingNumber && carrierId) {
       const { data: existing } = await admin.from('order_shipments').select('id').eq('order_id', sf.id).is('refund_id', null).maybeSingle()
-      const row = { order_id: sf.id, carrier_id: carrierId, tracking_number: trackingNumber, tracking_url: trackingUrl, status: 'in_transit', shipped_at: now, updated_at: now }
-      if (existing) await admin.from('order_shipments').update(row).eq('id', existing.id)
-      else await admin.from('order_shipments').insert(row)
+      if (existing) {
+        // Re-sync (mis. admin re-import tracking) → kemaskini tracking SAHAJA. Jangan
+        // tetapkan semula status/shipped_at supaya order yang dah maju (delivered) tak
+        // diregres balik ke in_transit.
+        await admin.from('order_shipments').update({ carrier_id: carrierId, tracking_number: trackingNumber, tracking_url: trackingUrl, updated_at: now }).eq('id', existing.id)
+      } else {
+        await admin.from('order_shipments').insert({ order_id: sf.id, carrier_id: carrierId, tracking_number: trackingNumber, tracking_url: trackingUrl, status: 'in_transit', shipped_at: now, updated_at: now })
+      }
     }
     const { data: synced } = await admin
       .from('orders')
