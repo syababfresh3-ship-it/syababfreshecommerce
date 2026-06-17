@@ -24,7 +24,9 @@ const sections = [
   {
     label: 'OPERATIONS',
     items: [
-      { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
+      // Disorok 2026-06-17: team tak guna Fulfillment (urus order di Orders / syababfresh-app).
+      // Page masih wujud — untuk pulihkan: nyahkomen baris bawah.
+      // { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
       { href: '/admin/quick-order',          label: 'Quick Order',     icon: MessageSquare },
       { href: '/admin/orders',             label: 'Orders',          icon: ShoppingBag },
       { href: '/admin/inventory',          label: 'Inventory',        icon: Boxes },
