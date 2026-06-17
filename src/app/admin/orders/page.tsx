@@ -215,8 +215,12 @@ export default async function AdminOrdersPage({
   // balik). Polisi sama untuk storefront & LP.
   const isPaidOrOffline = (o: any) =>
     ['fpx', 'ewallet'].includes(o.payment_method) ? ['paid', 'refunded'].includes(o.payment_status) : true
-  const visibleOrders = orders.filter(isPaidOrOffline)
-  let allLpOrders = lpRows.filter(isPaidOrOffline)
+  // Tab "Pending" ditekan secara eksplisit → tunjuk SEMUA pending (termasuk online
+  // belum-bayar yang biasanya disorok dari senarai utama). Tab lain / All kekal sorok.
+  const showAllPending = status === 'pending'
+  const isVisible = (o: any) => showAllPending || isPaidOrOffline(o)
+  const visibleOrders = orders.filter(isVisible)
+  let allLpOrders = lpRows.filter(isVisible)
   // Search filter — match order number, customer name, or phone
   if (q) {
     const lower = q.toLowerCase()
@@ -226,7 +230,13 @@ export default async function AdminOrdersPage({
       o.phone?.includes(q)
     )
   }
-  const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending')
+  // "Awaiting Confirmation" hanya untuk order LP organik (customer order sendiri dari
+  // LP / iklan). Order dari Quick Order (source 'whatsapp'*) atau Inbox WA / CRM
+  // (source 'crm'/'manual') diuruskan team sale sendiri — COD sudah disahkan dengan
+  // customer — jadi JANGAN muncul di sini (kekal boleh dilihat via tab Pending).
+  const isTeamManagedSrc = (s: any) =>
+    typeof s === 'string' && (s.startsWith('whatsapp') || s === 'crm' || s === 'manual')
+  const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending' && !isTeamManagedSrc(o.source))
 
   // Transform LP orders to match Order shape for the table.
   // Order Quick Order (source='whatsapp'/'manual') = order MANUAL, bukan LP sebenar →
