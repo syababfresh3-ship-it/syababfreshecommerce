@@ -92,6 +92,8 @@ async function handle(body: WaWebhookBody) {
       }
       for (const s of v.statuses ?? []) {
         await sb.from("wa_messages").update({ status: s.status }).eq("wa_message_id", s.id);
+        // Jejak progress blast: advance status penerima (rank-guarded, additive).
+        await sb.rpc("crm_blast_mark_status", { p_msg: s.id, p_status: s.status }).then(() => {}, () => {});
       }
     }
   }
@@ -139,6 +141,8 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
     const t = bodyText.trim().toLowerCase();
     if (["stop", "unsubscribe", "unsub", "berhenti", "stop promosi"].includes(t)) {
       await sb.from("wa_contacts").update({ opt_out: true }).eq("id", contactId);
+      // Suppression list (sumber: balas STOP) — additive.
+      await sb.from("crm_suppressions").upsert({ wa_id: m.from, source: "replied_stop" }, { onConflict: "wa_id" }).then(() => {}, () => {});
     }
   }
 

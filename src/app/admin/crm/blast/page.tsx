@@ -1,8 +1,8 @@
-// Blast CRM WhatsApp — dilindungi middleware /admin.
+// Blaster CRM WhatsApp — dashboard + senarai campaign. Dilindungi middleware /admin.
 export const dynamic = "force-dynamic";
 
-import { BlastClient } from "./blast-client";
+import { BlasterDashboard } from "./blaster-dashboard";
 
 export default function CrmBlastPage() {
-  return <BlastClient />;
+  return <BlasterDashboard />;
 }
