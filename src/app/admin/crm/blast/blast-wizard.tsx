@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -48,13 +48,19 @@ export function BlastWizard() {
 
   // Audience
   const [audType, setAudType] = useState<AudType>("contacts");
-  const [tag, setTag] = useState("");
+  const [tagList, setTagList] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [recentDays, setRecentDays] = useState("");
+  const [previewContacts, setPreviewContacts] = useState<{ wa_id: string; name: string | null; tags: string[] }[]>([]);
+  const [previewCount, setPreviewCount] = useState(0);
+  const [previewCapped, setPreviewCapped] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [pasteText, setPasteText] = useState("");
   const [csv, setCsv] = useState<{ cols: string[]; rows: CsvRow[]; fileName: string } | null>(null);
   const [pastList, setPastList] = useState<PastBlast[]>([]);
   const [pastId, setPastId] = useState("");
-  const [contactCount, setContactCount] = useState<number | null>(null);
 
   // Template
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -75,33 +81,51 @@ export function BlastWizard() {
     fetch("/api/whatsapp/blast").then((r) => r.json()).then((j) =>
       setPastList((j.blasts ?? []).map((b: { id: string; name: string; total: number }) => ({ id: b.id, name: b.name, total: b.total }))),
     );
+    supabase.from("crm_tags").select("name").order("name").then(({ data }: { data: { name: string }[] | null }) => setTagList((data ?? []).map((t) => t.name)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const toggleTag = (t: string) => setSelectedTags((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
+  const toggleExclude = (wa: string) => setExcluded((p) => { const n = new Set(p); if (n.has(wa)) n.delete(wa); else n.add(wa); return n; });
 
   const pasteNumbers = useMemo(
     () => pasteText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean),
     [pasteText],
   );
 
-  // Kira penerima 'contacts' dari DB
-  const computeContacts = useCallback(async () => {
-    let q = supabase.from("wa_contacts").select("*", { count: "exact", head: true }).eq("opt_out", false);
-    if (tag.trim()) q = q.contains("tags", [tag.trim()]);
-    const days = parseInt(recentDays, 10);
-    if (days > 0) q = q.gte("last_inbound_at", new Date(Date.now() - days * 86_400_000).toISOString());
-    const { count } = await q;
-    setContactCount(count ?? 0);
-  }, [supabase, tag, recentDays]);
+  // Preview 'contacts' — guna endpoint preview (resolver SAMA dgn hantar sebenar).
+  useEffect(() => {
+    if (audType !== "contacts") return;
+    let cancelled = false;
+    setPreviewLoading(true);
+    fetch("/api/whatsapp/blast/preview", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled) return;
+        setPreviewContacts(j.contacts ?? []);
+        setPreviewCount(j.count ?? 0);
+        setPreviewCapped(!!j.capped);
+        setExcluded(new Set()); // reset bila spec berubah
+      })
+      .finally(() => { if (!cancelled) setPreviewLoading(false); });
+    return () => { cancelled = true; };
+  }, [audType, selectedTags, recentDays]);
 
-  useEffect(() => { if (audType === "contacts") computeContacts(); }, [audType, computeContacts]);
+  const shownPreview = contactSearch.trim()
+    ? previewContacts.filter((c) => (c.name ?? "").toLowerCase().includes(contactSearch.toLowerCase()) || c.wa_id.includes(contactSearch.replace(/\D/g, "")))
+    : previewContacts.slice(0, 200);
 
   const count =
-    audType === "contacts" ? contactCount ?? 0
+    audType === "contacts" ? Math.max(0, previewCount - excluded.size)
     : audType === "csv" ? csv?.rows.length ?? 0
     : audType === "paste" ? pasteNumbers.length
     : pastList.find((p) => p.id === pastId)?.total ?? 0;
 
   function buildAudience() {
-    if (audType === "contacts") return { source: "contacts", tag: tag.trim() || undefined, recentDays: parseInt(recentDays, 10) || undefined };
+    if (audType === "contacts") return { source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeWaIds: [...excluded] };
     if (audType === "csv") return { source: "csv", rows: csv?.rows ?? [] };
     if (audType === "paste") return { source: "paste", numbers: pasteNumbers };
     return { source: "past", pastBlastId: pastId };
@@ -210,9 +234,42 @@ export function BlastWizard() {
 
           {/* Input ikut jenis audiens */}
           {audType === "contacts" && (
-            <div className="grid grid-cols-2 gap-2">
-              <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="tag (kosong = semua)" className={inputCls} />
+            <div className="space-y-3">
+              {/* Chips tag (multi-select / union) */}
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setSelectedTags([])}
+                  className={`text-xs font-semibold rounded-full px-3 py-1 ${selectedTags.length === 0 ? "bg-emerald-500 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>Semua</button>
+                {tagList.map((t) => (
+                  <button key={t} type="button" onClick={() => toggleTag(t)}
+                    className={`text-xs font-semibold rounded-full px-3 py-1 ${selectedTags.includes(t) ? "bg-emerald-500 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>{t}</button>
+                ))}
+              </div>
               <input value={recentDays} onChange={(e) => setRecentDays(e.target.value.replace(/\D/g, ""))} placeholder="aktif dalam X hari (kosong = semua)" className={inputCls} />
+
+              {/* Preview + search + untick individu */}
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-2.5 py-2 border-b border-gray-100 flex items-center gap-2">
+                  <input value={contactSearch} onChange={(e) => setContactSearch(e.target.value)} placeholder="🔍 cari nama / no. untuk buang…" className="flex-1 text-sm focus:outline-none" />
+                  <span className="text-[11px] text-gray-400">{previewLoading ? "…" : `${count}/${previewCount}`}</span>
+                </div>
+                <div className="max-h-52 overflow-y-auto divide-y divide-gray-50">
+                  {previewLoading ? (
+                    <div className="p-4 text-center text-xs text-gray-400">Memuatkan…</div>
+                  ) : shownPreview.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-gray-400">{previewCount === 0 ? "Tiada kontak sepadan." : "Tiada padanan carian."}</div>
+                  ) : shownPreview.map((c) => {
+                    const inc = !excluded.has(c.wa_id);
+                    return (
+                      <label key={c.wa_id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-50">
+                        <input type="checkbox" checked={inc} onChange={() => toggleExclude(c.wa_id)} />
+                        <span className={`flex-1 truncate ${inc ? "text-gray-800" : "text-gray-300 line-through"}`}>{c.name || c.wa_id}</span>
+                        {c.tags.length > 0 && <span className="text-[10px] text-violet-400 shrink-0">{c.tags.join(", ")}</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                {previewCapped && <div className="px-3 py-1.5 text-[10px] text-amber-500 text-center border-t border-gray-100">Papar 2000 pertama — guna search untuk cari nombor lain.</div>}
+              </div>
             </div>
           )}
           {audType === "paste" && (
