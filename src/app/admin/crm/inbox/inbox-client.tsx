@@ -83,6 +83,8 @@ export function InboxClient() {
   const [tagInput, setTagInput] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState("");
+  const [search, setSearch] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payMsg, setPayMsg] = useState("");
   const [snippets, setSnippets] = useState<{ id: string; label: string; body: string }[]>([]);
@@ -328,35 +330,58 @@ export function InboxClient() {
   const displayName = (c: Conversation | null) =>
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
 
-  const shownConvos = filterTag ? convos.filter((c) => c.wa_contacts?.tags?.includes(filterTag)) : convos;
+  const unreadTotal = convos.filter((c) => c.unread_count > 0).length;
+  const q = search.trim().toLowerCase();
+  const qDigits = q.replace(/\D/g, "");
+  const shownConvos = convos.filter((c) => {
+    if (filterTag && !c.wa_contacts?.tags?.includes(filterTag)) return false;
+    if (unreadOnly && !(c.unread_count > 0)) return false;
+    if (q) {
+      const name = displayName(c).toLowerCase();
+      const phone = (c.wa_contacts?.phone || c.wa_contacts?.wa_id || "");
+      const matchName = name.includes(q);
+      const matchPhone = qDigits.length >= 3 && phone.includes(qDigits);
+      if (!matchName && !matchPhone) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-gray-100">
       {/* Senarai perbualan */}
       <aside className={`w-full lg:w-80 shrink-0 border-r bg-white overflow-y-auto ${selected ? "hidden lg:block" : "block"}`}>
         <div className="p-3 border-b font-semibold text-gray-800">Inbox WhatsApp</div>
-        {/* Bar filter ikut tag */}
-        {allTags.length > 0 && (
-          <div className="flex gap-1 flex-wrap px-2 py-2 border-b bg-gray-50">
-            <button
-              onClick={() => setFilterTag("")}
-              className={`text-[10px] rounded-full px-2 py-0.5 ${!filterTag ? "bg-emerald-500 text-white" : "bg-white border text-gray-600"}`}
-            >
-              Semua
-            </button>
-            {allTags.map((t) => (
-              <button
-                key={t}
-                onClick={() => setFilterTag(filterTag === t ? "" : t)}
-                className={`text-[10px] rounded-full px-2 py-0.5 ${filterTag === t ? "bg-emerald-500 text-white" : "bg-white border text-gray-600"}`}
+        {/* Bar filter — search + label dropdown + unread */}
+        <div className="px-2 py-2 border-b bg-gray-50 space-y-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama atau no. telefon"
+            className="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+          <div className="flex gap-1.5">
+            {allTags.length > 0 && (
+              <select
+                value={filterTag}
+                onChange={(e) => setFilterTag(e.target.value)}
+                className="flex-1 text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-gray-200 bg-white text-gray-700"
               >
-                {t}
-              </button>
-            ))}
+                <option value="">Semua label</option>
+                {allTags.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={() => setUnreadOnly((v) => !v)}
+              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
+            >
+              Belum baca{unreadTotal > 0 ? ` (${unreadTotal})` : ""}
+            </button>
           </div>
-        )}
+        </div>
         {shownConvos.length === 0 && (
-          <div className="p-4 text-sm text-gray-400">Tiada perbualan{filterTag ? ` bertag "${filterTag}"` : " lagi"}.</div>
+          <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
         )}
         {shownConvos.map((c) => (
           <button
