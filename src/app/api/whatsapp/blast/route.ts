@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTemplate, formatWaPhone } from "@/lib/whatsapp-cloud";
 import { drainBlasts } from "@/lib/blast-drain";
+import { resolveAudience, type AudienceSpec } from "@/lib/blast-audience";
 
 async function auth() {
   const userClient = await createClient();
@@ -51,8 +52,6 @@ export async function GET() {
   return NextResponse.json({ blasts: withProgress, stats: stats ?? null });
 }
 
-interface Recipient { wa_id: string; name: string | null; vars?: Record<string, string> }
-
 export async function POST(req: NextRequest) {
   const { user, sb } = await auth();
   if (!user || !sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -73,14 +72,7 @@ export async function POST(req: NextRequest) {
     templateName?: string;
     templateLang?: string;
     params?: Record<string, string>;
-    audience?: {
-      source?: string;
-      tag?: string;
-      recentDays?: number;
-      numbers?: string[];
-      rows?: { phone: string; name?: string; vars?: Record<string, string> }[];
-      pastBlastId?: string;
-    };
+    audience?: AudienceSpec;
     test?: boolean;
     testNumber?: string;
     headerImage?: string;
@@ -98,48 +90,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: res.ok, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: res.error });
   }
 
-  // --- Resolusi penerima ---
-  let recipients: Recipient[] = [];
-  if (audience.source === "contacts") {
-    let q = sb.from("wa_contacts").select("wa_id, name, tags, last_inbound_at").eq("opt_out", false);
-    if (audience.tag) q = q.contains("tags", [audience.tag]);
-    if (audience.recentDays && audience.recentDays > 0) {
-      const since = new Date(Date.now() - audience.recentDays * 86_400_000).toISOString();
-      q = q.gte("last_inbound_at", since);
-    }
-    const { data } = await q;
-    recipients = (data ?? []).map((c) => ({ wa_id: c.wa_id, name: c.name }));
-  } else if (audience.source === "customers") {
-    const { data: profs } = await sb.from("profiles").select("full_name, phone").not("phone", "is", null).eq("is_admin", false);
-    recipients = (profs ?? []).map((p) => ({ wa_id: formatWaPhone(p.phone as string), name: p.full_name as string | null }));
-  } else if (audience.source === "paste") {
-    recipients = (audience.numbers ?? []).map((n) => ({ wa_id: formatWaPhone(n), name: null }));
-  } else if (audience.source === "csv") {
-    recipients = (audience.rows ?? []).map((r) => ({ wa_id: formatWaPhone(r.phone), name: r.name ?? null, vars: r.vars }));
-  } else if (audience.source === "past") {
-    if (!audience.pastBlastId) return NextResponse.json({ error: "pastBlastId diperlukan." }, { status: 400 });
-    const { data } = await sb.from("crm_blast_recipients").select("wa_id, name").eq("blast_id", audience.pastBlastId);
-    recipients = (data ?? []).map((c) => ({ wa_id: c.wa_id, name: c.name }));
-  } else {
-    return NextResponse.json({ error: "audience.source tidak sah." }, { status: 400 });
-  }
-
-  // Buang nombor tak sah (min 8 digit) + dedupe
-  const seen = new Set<string>();
-  recipients = recipients.filter((r) => r.wa_id && r.wa_id.replace(/\D/g, "").length >= 8 && !seen.has(r.wa_id) && seen.add(r.wa_id));
-
-  // Hormati suppression untuk SEMUA sumber non-test — opt_out kontak + senarai suppression.
-  if (!test && recipients.length) {
-    const [{ data: opted }, { data: supp }] = await Promise.all([
-      sb.from("wa_contacts").select("wa_id").eq("opt_out", true),
-      sb.from("crm_suppressions").select("wa_id"),
-    ]);
-    const blocked = new Set([...(opted ?? []), ...(supp ?? [])].map((o: { wa_id: string }) => o.wa_id));
-    recipients = recipients.filter((r) => !blocked.has(r.wa_id));
-  }
-
+  // --- Resolusi penerima (resolver tunggal — preview guna fungsi yang SAMA) ---
+  const recipients = await resolveAudience(sb, audience);
   if (recipients.length === 0) return NextResponse.json({ error: "Tiada penerima." }, { status: 400 });
-  if (!test && recipients.length > 5000) return NextResponse.json({ error: "Terlalu ramai penerima (max 5000)." }, { status: 400 });
+  if (recipients.length > 5000) return NextResponse.json({ error: "Terlalu ramai penerima (max 5000)." }, { status: 400 });
 
   // --- Jadual: send-now vs scheduled (>30s ke depan = dijadualkan) ---
   const schedMs = scheduledAt ? new Date(scheduledAt).getTime() : 0;
