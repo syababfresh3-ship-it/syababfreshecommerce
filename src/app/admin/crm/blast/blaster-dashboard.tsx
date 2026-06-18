@@ -1,0 +1,153 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+interface Progress {
+  total: number; pending: number; sent: number; delivered: number; read: number; failed: number;
+}
+interface Blast {
+  id: string;
+  name: string;
+  template_name: string;
+  status: string;
+  total: number;
+  scheduled_at: string | null;
+  created_at: string;
+  progress: Progress;
+}
+interface Stats {
+  campaigns_sent: number;
+  messages_sent: number;
+  messages_delivered: number;
+  messages_read: number;
+  total_recipients: number;
+}
+
+const statusBadge: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-600",
+  scheduled: "bg-blue-50 text-blue-600",
+  sending: "bg-amber-50 text-amber-600",
+  sent: "bg-emerald-50 text-emerald-600",
+  failed: "bg-red-50 text-red-600",
+};
+
+function pct(n: number, d: number) {
+  if (!d) return "0%";
+  return ((n / d) * 100).toFixed(1) + "%";
+}
+function fmtDate(s: string | null) {
+  if (!s) return "—";
+  return new Date(s).toLocaleString("ms-MY", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+export function BlasterDashboard() {
+  const router = useRouter();
+  const [blasts, setBlasts] = useState<Blast[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/whatsapp/blast");
+    const j = await res.json();
+    setBlasts(j.blasts ?? []);
+    setStats(j.stats ?? null);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function remove(id: string, name: string) {
+    if (!window.confirm(`Padam campaign "${name}"? Rekod penerima juga dibuang.`)) return;
+    const res = await fetch(`/api/whatsapp/blast/${id}`, { method: "DELETE" });
+    if (res.ok) setBlasts((b) => b.filter((x) => x.id !== id));
+    else window.alert("Gagal padam.");
+  }
+
+  const cards = [
+    { label: "Campaigns sent", value: stats ? String(stats.campaigns_sent) : "—" },
+    { label: "Messages delivered", value: stats ? stats.messages_delivered.toLocaleString() : "—" },
+    { label: "Delivery rate", value: stats ? pct(stats.messages_delivered, stats.messages_sent) : "—" },
+    { label: "Read rate", value: stats ? pct(stats.messages_read, stats.messages_delivered) : "—" },
+  ];
+
+  return (
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Blaster</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Hantar mesej template WhatsApp ke kontak anda</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/crm/blast/suppression"
+            className="text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50"
+          >
+            🚫 Unsubscribe
+          </Link>
+          <Link
+            href="/admin/crm/blast/new"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm"
+          >
+            + New Campaign
+          </Link>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+            <p className="text-xs font-semibold text-gray-400">{c.label}</p>
+            <p className="text-2xl font-black text-gray-900 mt-1">{c.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Campaign list */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 text-sm font-bold text-gray-700">
+          {blasts.length} campaign
+        </div>
+        {loading ? (
+          <div className="p-8 text-center text-sm text-gray-400">Memuatkan…</div>
+        ) : blasts.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-400">Belum ada campaign. Klik “+ New Campaign”.</div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {blasts.map((b) => {
+              const p = b.progress;
+              return (
+                <div key={b.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-gray-50/60">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{b.name}</p>
+                    <p className="text-[11px] text-gray-400">{b.template_name}</p>
+                  </div>
+                  <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${statusBadge[b.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {b.status}
+                  </span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] shrink-0 sm:w-72">
+                    <span className="text-gray-400">Pending <b className="text-gray-600">{p.pending}</b></span>
+                    <span className="text-red-400">Unreached <b className="text-red-500">{p.failed}</b></span>
+                    <span className="text-sky-400">Sent <b className="text-sky-500">{p.sent}</b></span>
+                    <span className="text-violet-400">Read <b className="text-violet-500">{p.read}</b></span>
+                    <span className="text-emerald-400">Delivered <b className="text-emerald-600">{p.delivered}</b></span>
+                  </div>
+                  <div className="text-[11px] text-gray-400 shrink-0 sm:w-28">
+                    {b.scheduled_at ? `⏰ ${fmtDate(b.scheduled_at)}` : fmtDate(b.created_at)}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => router.push(`/admin/crm/blast/${b.id}`)} className="text-xs text-gray-500 hover:text-gray-900" title="Lihat">👁️</button>
+                    <button onClick={() => remove(b.id, b.name)} className="text-xs text-gray-300 hover:text-red-500" title="Padam">🗑️</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
