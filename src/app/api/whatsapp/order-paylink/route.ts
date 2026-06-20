@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText } from "@/lib/whatsapp-cloud";
+import { sendCapiPurchaseWhatsApp } from "@/lib/meta-capi";
 
 const CHIP_API_URL = "https://gate.chip-in.asia/api/v1";
 
@@ -76,6 +77,11 @@ export async function POST(req: NextRequest) {
   const total = Math.max(0, subtotal + deliveryFee - discount);
   const first = items[0];
 
+  // Snapshot CTWA click id contact (kalau ada) untuk attribution conversion Meta.
+  const { data: ctwaContact } = await sb
+    .from("wa_contacts").select("ctwa_clid").eq("id", b.contactId).maybeSingle();
+  const ctwaClid = (ctwaContact as { ctwa_clid?: string | null } | null)?.ctwa_clid ?? null;
+
   // Cipta order (lp_guest_orders) — status pending sehingga dibayar
   const { data: orderNumber } = await sb.rpc("generate_lp_order_number");
   const { data: order, error } = await sb
@@ -103,8 +109,9 @@ export async function POST(req: NextRequest) {
       source: b.staff_name?.trim() ? `whatsapp-${b.staff_name.trim()}` : "crm",
       items,
       status: isCod ? "confirmed" : "pending",
+      ctwa_clid: ctwaClid,
     })
-    .select("id, order_number, total")
+    .select("id, order_number, total, ctwa_clid, phone")
     .single();
   if (error || !order) return NextResponse.json({ error: error?.message || "Gagal cipta order." }, { status: 500 });
 
@@ -122,6 +129,16 @@ export async function POST(req: NextRequest) {
     // COD / pickup — tiada pay link, hantar pengesahan
     const method = isPickup ? "🏪 Pickup (ambil sendiri)" : "🚚 COD (bayar masa terima)";
     msg = `Hai ${b.name.trim()}! 🥭\n\nPesanan anda *${order.order_number}* telah direkod:\n${lines}\n${totalsBlock}\n\n${method}\n\nTerima kasih! Kami akan ${isPickup ? "maklumkan bila sedia untuk diambil" : "hubungi untuk penghantaran"}. 🙏`;
+    // COD disahkan serta-merta — kalau dari iklan CTWA, hantar Purchase ke Meta.
+    if (order.ctwa_clid) {
+      void sendCapiPurchaseWhatsApp({
+        orderId: order.id,
+        orderNumber: order.order_number,
+        total,
+        phone: order.phone ?? b.phone!.trim(),
+        ctwa_clid: order.ctwa_clid,
+      }).catch(() => {});
+    }
   } else {
     // Pay link — CHIP purchase (success_callback = webhook order sedia ada)
     const products = discount > 0
