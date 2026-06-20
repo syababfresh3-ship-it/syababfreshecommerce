@@ -171,7 +171,9 @@ export async function sendCapiPurchaseWhatsApp({
   ctwa_clid: string
 }) {
   if (!process.env.META_CAPI_ACCESS_TOKEN || !ctwa_clid) return
-  const pixelId = await getPixelId()
+  // CTWA mesti pergi ke dataset yang disambung ke WhatsApp (boleh beza dari pixel
+  // website). Guna META_CTWA_DATASET_ID kalau diset; jika tidak, fallback ke pixel.
+  const pixelId = process.env.META_CTWA_DATASET_ID || (await getPixelId())
   if (!pixelId) return
 
   const userData: Record<string, string> = { ctwa_clid }
