@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 interface Progress {
   total: number; pending: number; sent: number; delivered: number; read: number; failed: number;
 }
+interface Roas {
+  sent: number; orders_attributed: number; revenue: number; cost: number; roas: number | null; conversion_rate: number;
+}
 interface Blast {
   id: string;
   name: string;
@@ -16,6 +19,7 @@ interface Blast {
   scheduled_at: string | null;
   created_at: string;
   progress: Progress;
+  roas?: Roas | null;
 }
 interface Stats {
   campaigns_sent: number;
@@ -66,11 +70,14 @@ export function BlasterDashboard() {
     else window.alert("Gagal padam.");
   }
 
+  const totalRevenue = blasts.reduce((s, b) => s + Number(b.roas?.revenue ?? 0), 0);
+  const totalOrders = blasts.reduce((s, b) => s + Number(b.roas?.orders_attributed ?? 0), 0);
+
   const cards = [
     { label: "Campaigns sent", value: stats ? String(stats.campaigns_sent) : "—" },
     { label: "Messages delivered", value: stats ? stats.messages_delivered.toLocaleString() : "—" },
-    { label: "Delivery rate", value: stats ? pct(stats.messages_delivered, stats.messages_sent) : "—" },
     { label: "Read rate", value: stats ? pct(stats.messages_read, stats.messages_delivered) : "—" },
+    { label: "Revenue dari blast", value: totalRevenue > 0 ? `RM${totalRevenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
   ];
 
   return (
@@ -102,6 +109,7 @@ export function BlasterDashboard() {
           <div key={c.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs font-semibold text-gray-400">{c.label}</p>
             <p className="text-2xl font-black text-gray-900 mt-1">{c.value}</p>
+            {"hint" in c && c.hint ? <p className="text-[11px] text-gray-400 mt-0.5">{c.hint}</p> : null}
           </div>
         ))}
       </div>
@@ -134,6 +142,17 @@ export function BlasterDashboard() {
                     <span className="text-sky-400">Sent <b className="text-sky-500">{p.sent}</b></span>
                     <span className="text-violet-400">Read <b className="text-violet-500">{p.read}</b></span>
                     <span className="text-emerald-400">Delivered <b className="text-emerald-600">{p.delivered}</b></span>
+                  </div>
+                  <div className="text-[11px] shrink-0 sm:w-28">
+                    {b.roas && Number(b.roas.revenue) > 0 ? (
+                      <>
+                        <span className="text-emerald-600 font-bold">RM{Number(b.roas.revenue).toLocaleString("ms-MY", { maximumFractionDigits: 0 })}</span>
+                        <span className="text-gray-400"> · {b.roas.orders_attributed} order</span>
+                        {b.roas.roas != null && <div className="text-gray-400">ROAS <b className="text-gray-600">{b.roas.roas}×</b></div>}
+                      </>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </div>
                   <div className="text-[11px] text-gray-400 shrink-0 sm:w-28">
                     {b.scheduled_at ? `⏰ ${fmtDate(b.scheduled_at)}` : fmtDate(b.created_at)}

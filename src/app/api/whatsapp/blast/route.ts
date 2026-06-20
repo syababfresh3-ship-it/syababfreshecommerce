@@ -40,9 +40,16 @@ export async function GET() {
     : { data: [] as { blast_id: string }[] };
   const pMap = new Map((progress ?? []).map((p: { blast_id: string }) => [p.blast_id, p]));
 
+  // ROAS attribution per kempen (additive — view crm_blast_roas).
+  const { data: roasRows } = ids.length
+    ? await sb.from("crm_blast_roas").select("blast_id, sent, orders_attributed, revenue, cost, roas, conversion_rate").in("blast_id", ids)
+    : { data: [] as { blast_id: string }[] };
+  const rMap = new Map((roasRows ?? []).map((r: { blast_id: string }) => [r.blast_id, r]));
+
   const withProgress = (blasts ?? []).map((b) => ({
     ...b,
     progress: pMap.get(b.id) ?? { total: b.total ?? 0, pending: 0, sent: b.sent ?? 0, delivered: 0, read: 0, failed: b.failed ?? 0 },
+    roas: rMap.get(b.id) ?? null,
   }));
 
   // Stats dashboard (semua campaign).
