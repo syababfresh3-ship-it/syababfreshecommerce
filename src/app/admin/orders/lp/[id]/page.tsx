@@ -142,8 +142,8 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
 
-          {/* Invois reseller (download + email) */}
-          {order.source === 'reseller' && <ResellerInvoiceActions orderId={order.id} />}
+          {/* Invois (download + email) — semua LP order */}
+          <ResellerInvoiceActions orderId={order.id} />
 
           {/* Delivery slot / notes */}
           {order.notes && (
