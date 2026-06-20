@@ -196,3 +196,33 @@ export async function sendCapiPurchaseWhatsApp({
     }],
   })
 }
+
+// Lead untuk CTWA — dipicu bila customer MULA chat dari iklan Click-to-WhatsApp
+// (kita tangkap ctwa_clid di webhook). Bagi Meta signal top-of-funnel untuk
+// optimize campaign objektif Leads. event_id dedup per click.
+export async function sendCapiLeadWhatsApp({
+  ctwa_clid,
+  phone,
+}: {
+  ctwa_clid: string
+  phone?: string | null
+}) {
+  if (!process.env.META_CAPI_ACCESS_TOKEN || !ctwa_clid) return
+  const pixelId = process.env.META_CTWA_DATASET_ID || (await getPixelId())
+  if (!pixelId) return
+
+  const userData: Record<string, string> = { ctwa_clid }
+  if (process.env.WHATSAPP_WABA_ID) userData.whatsapp_business_account_id = process.env.WHATSAPP_WABA_ID
+  if (phone) userData.ph = hashPhone(phone)
+
+  await sendCapiEvent(pixelId, {
+    data: [{
+      event_name: 'Lead',
+      event_time: Math.floor(Date.now() / 1000),
+      event_id: `lead_ctwa_${ctwa_clid}`,
+      action_source: 'business_messaging',
+      messaging_channel: 'whatsapp',
+      user_data: userData,
+    }],
+  })
+}

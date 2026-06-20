@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendCapiLeadWhatsApp } from "@/lib/meta-capi";
 
 // ---- GET: pengesahan webhook Meta ----
 export async function GET(req: NextRequest) {
@@ -146,6 +147,8 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
       .from("wa_contacts")
       .update({ ctwa_clid: ctwaClid, ctwa_source_id: m.referral?.source_id ?? null, ctwa_at: ts })
       .eq("id", contactId);
+    // Lead top-of-funnel ke Meta (dedup per click via event_id).
+    void sendCapiLeadWhatsApp({ ctwa_clid: ctwaClid, phone: waId }).catch(() => {});
   }
 
   // 2. Body / preview
