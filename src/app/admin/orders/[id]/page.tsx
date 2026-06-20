@@ -7,6 +7,7 @@ import { PaymentToggle } from './payment-toggle'
 import { RefundButton } from './refund-button'
 import { ShipmentPanel } from './shipment-panel'
 import { ReceiptActions } from '../receipt-actions'
+import { InvoiceActions } from './invoice-actions'
 
 async function getOrder(id: string) {
   const supabase = createClient()
@@ -62,6 +63,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {(order.payment_status === 'paid' || (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')) && (
             <ReceiptActions orderId={order.id} canSend={!!order.profiles?.phone} />
           )}
+          <InvoiceActions orderId={order.id} canEmail={!!order.profiles?.email} />
           {order.payment_status === 'paid' && order.status !== 'refunded' && (
             <RefundButton orderId={order.id} amount={order.total} />
           )}

@@ -18,14 +18,14 @@ async function loadInvoice(
     .eq('id', orderId)
     .single()
   if (!o) return { error: 'Order tidak dijumpai', status: 404 as const }
-  if (!o.reseller_id) return { error: 'Bukan order reseller', status: 400 as const }
 
-  // Jamin satu invois per order (jana no. invois jika belum)
+  // Jamin satu invois per order (jana no. invois jika belum).
+  // reseller_id boleh null untuk LP order biasa (bukan reseller).
   let { data: inv } = await supabase.from('reseller_invoices').select('*').eq('order_id', orderId).maybeSingle()
   if (!inv) {
     const { data: num } = await supabase.rpc('generate_invoice_number')
     const { data: created, error } = await supabase.from('reseller_invoices')
-      .insert({ order_id: orderId, reseller_id: o.reseller_id, invoice_number: num, total: o.total, status: o.payment_status === 'paid' ? 'paid' : 'issued' })
+      .insert({ order_id: orderId, reseller_id: o.reseller_id ?? null, invoice_number: num, total: o.total, status: o.payment_status === 'paid' ? 'paid' : 'issued' })
       .select('*').single()
     if (error || !created) return { error: error?.message ?? 'Gagal cipta invois', status: 500 as const }
     inv = created
