@@ -6,6 +6,7 @@
 // Dipanggil oleh: /api/cron/blast-drain (cron) & POST blast (send-now kick).
 // ============================================================
 import { sendTemplate } from "@/lib/whatsapp-cloud";
+import { getSender } from "@/lib/wa-numbers";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,7 +37,7 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
 
   let q = sb
     .from("crm_blasts")
-    .select("id, template_name, template_lang, params, header_image, status, scheduled_at")
+    .select("id, template_name, template_lang, params, header_image, status, scheduled_at, phone_number_id")
     .in("status", ["scheduled", "sending"])
     .order("scheduled_at", { ascending: true, nullsFirst: true });
   if (opts.blastId) q = q.eq("id", opts.blastId);
@@ -51,6 +52,9 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
   for (const b of due) {
     if (Date.now() > deadline) break;
     if (b.status === "scheduled") await sb.from("crm_blasts").update({ status: "sending" }).eq("id", b.id);
+
+    // Multi-number: hantar dari nombor kempen (lalai = env default).
+    const sender = await getSender(sb, b.phone_number_id);
 
     while (Date.now() <= deadline) {
       const { data: batch } = await sb.rpc("crm_blast_claim", { p_blast_id: b.id, p_limit: 40 });
@@ -67,7 +71,7 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
         for (const k of ["nama", "name"]) {
           if (k in p && (!p[k] || !String(p[k]).trim())) p[k] = r.name || "pelanggan";
         }
-        const res = await sendTemplate(r.wa_id, b.template_name, b.template_lang || "ms", p, b.header_image || undefined);
+        const res = await sendTemplate(r.wa_id, b.template_name, b.template_lang || "ms", p, b.header_image || undefined, sender);
         await sb.from("crm_blast_recipients").update({
           status: res.ok ? "sent" : "failed",
           error: res.ok ? null : res.error,

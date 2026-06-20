@@ -12,6 +12,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTemplate, formatWaPhone } from "@/lib/whatsapp-cloud";
 import { drainBlasts } from "@/lib/blast-drain";
 import { resolveAudience, type AudienceSpec } from "@/lib/blast-audience";
+import { getSender } from "@/lib/wa-numbers";
 
 async function auth() {
   const userClient = await createClient();
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     testNumber,
     headerImage,
     scheduledAt,
+    phoneNumberId,
   } = body as {
     name?: string;
     templateName?: string;
@@ -84,16 +86,20 @@ export async function POST(req: NextRequest) {
     testNumber?: string;
     headerImage?: string;
     scheduledAt?: string;
+    phoneNumberId?: string;
   };
 
   if (!templateName) return NextResponse.json({ error: "templateName diperlukan." }, { status: 400 });
+
+  // Multi-number: hantar dari nombor dipilih (lalai = env default).
+  const sender = await getSender(sb, phoneNumberId);
 
   // --- Test: hantar segerak ke 1 nombor, TANPA cipta campaign ---
   if (test) {
     if (!testNumber) return NextResponse.json({ error: "Masukkan nombor test." }, { status: 400 });
     const p = { ...params };
     for (const key of ["nama", "name"]) if (key in p && (!p[key] || !p[key].trim())) p[key] = "pelanggan";
-    const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerImage);
+    const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerImage, sender);
     return NextResponse.json({ ok: res.ok, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: res.error });
   }
 
@@ -116,6 +122,7 @@ export async function POST(req: NextRequest) {
       template_lang: templateLang,
       params,
       header_image: headerImage || null,
+      phone_number_id: phoneNumberId || null,
       audience,
       status: isScheduled ? "scheduled" : "sending",
       scheduled_at: startAt,

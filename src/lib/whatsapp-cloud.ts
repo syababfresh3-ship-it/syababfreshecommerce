@@ -26,8 +26,14 @@ export function formatWaPhone(phone: string): string {
 
 type SendResult = { ok: boolean; id?: string; error?: string };
 
-async function postMessage(payload: Record<string, unknown>): Promise<SendResult> {
-  const { token, phoneId } = cfg();
+// Multi-number: hantar dari phoneId/token tertentu (lalai = env). Caller resolve
+// dari wa_numbers ikut conversation.phone_number_id (lihat src/lib/wa-numbers.ts).
+export type SendOpts = { phoneId?: string; token?: string };
+
+async function postMessage(payload: Record<string, unknown>, opts?: SendOpts): Promise<SendResult> {
+  const token = opts?.token || process.env.WHATSAPP_TOKEN;
+  const phoneId = opts?.phoneId || process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneId) return { ok: false, error: "WHATSAPP_TOKEN / phoneId tidak ditetapkan." };
   try {
     const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
       method: "POST",
@@ -46,12 +52,12 @@ async function postMessage(payload: Record<string, unknown>): Promise<SendResult
 
 // Teks bebas — HANYA sah dalam tetingkap 24 jam (selepas customer mesej).
 // Luar window, Meta tolak (gunakan sendTemplate).
-export async function sendText(to: string, body: string): Promise<SendResult> {
+export async function sendText(to: string, body: string, opts?: SendOpts): Promise<SendResult> {
   return postMessage({
     to: formatWaPhone(to),
     type: "text",
     text: { preview_url: true, body },
-  });
+  }, opts);
 }
 
 // Hantar gambar/video via URL public (cth Cloudinary) — dalam window 24j.
@@ -60,12 +66,13 @@ export async function sendMedia(
   link: string,
   caption?: string,
   kind: "image" | "video" | "document" = "image",
+  opts?: SendOpts,
 ): Promise<SendResult> {
   return postMessage({
     to: formatWaPhone(to),
     type: kind,
     [kind]: { link, ...(caption ? { caption } : {}) },
-  });
+  }, opts);
 }
 
 // Hantar TEMPLATE diluluskan. `bodyParams` = named params, cth { nama: "Ali", item: "Harumanis" }.
@@ -76,6 +83,7 @@ export async function sendTemplate(
   language: string,
   bodyParams?: Record<string, string>,
   headerImageUrl?: string,
+  opts?: SendOpts,
 ): Promise<SendResult> {
   const components: unknown[] = [];
   // Header gambar (template promo yg ada IMAGE header)
@@ -95,7 +103,7 @@ export async function sendTemplate(
     to: formatWaPhone(to),
     type: "template",
     template: { name, language: { code: language }, ...(components.length ? { components } : {}) },
-  });
+  }, opts);
 }
 
 export interface WaTemplate {
@@ -128,6 +136,6 @@ export async function listTemplates(
 }
 
 // Tanda mesej masuk sebagai 'read' (tick biru) — kemas inbox.
-export async function markRead(messageId: string): Promise<SendResult> {
-  return postMessage({ status: "read", message_id: messageId });
+export async function markRead(messageId: string, opts?: SendOpts): Promise<SendResult> {
+  return postMessage({ status: "read", message_id: messageId }, opts);
 }

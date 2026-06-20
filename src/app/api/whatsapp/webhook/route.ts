@@ -79,6 +79,7 @@ interface WaWebhookBody {
   entry?: Array<{
     changes?: Array<{
       value?: {
+        metadata?: { phone_number_id?: string; display_phone_number?: string };
         contacts?: Array<{ wa_id: string; profile?: { name?: string } }>;
         messages?: WaMessage[];
         statuses?: WaStatus[];
@@ -94,11 +95,12 @@ async function handle(body: WaWebhookBody) {
   for (const entry of body.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const v = change.value ?? {};
+      const phoneNumberId = v.metadata?.phone_number_id; // nombor mana customer hubungi
       const names: Record<string, string | undefined> = {};
       for (const c of v.contacts ?? []) names[c.wa_id] = c.profile?.name;
 
       for (const m of v.messages ?? []) {
-        await handleInbound(sb, m, names[m.from]);
+        await handleInbound(sb, m, names[m.from], phoneNumberId);
       }
       for (const s of v.statuses ?? []) {
         await sb.from("wa_messages").update({ status: s.status }).eq("wa_message_id", s.id);
@@ -109,10 +111,17 @@ async function handle(body: WaWebhookBody) {
   }
 }
 
-async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
+async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumberId?: string) {
   const waId = m.from;
   const ts = new Date(Number(m.timestamp) * 1000).toISOString();
   const windowExp = new Date(Number(m.timestamp) * 1000 + 24 * 3600 * 1000).toISOString();
+
+  // Multi-number: pemilik (salesperson) nombor yang customer hubungi → auto-assign.
+  let ownerId: string | null = null;
+  if (phoneNumberId) {
+    const { data: num } = await sb.from("wa_numbers").select("owner").eq("phone_number_id", phoneNumberId).maybeSingle();
+    ownerId = (num?.owner as string | null) ?? null;
+  }
 
   // 1. Contact (upsert by wa_id)
   const { data: contact } = await sb
@@ -169,10 +178,12 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
     }
   }
 
-  // 3. Conversation (cipta/kemas) — reset window 24j, +unread
+  // 3. Conversation (cipta/kemas) — reset window 24j, +unread.
+  //    Multi-number: simpan phone_number_id (nombor mana customer hubungi) +
+  //    auto-assign ke pemilik nombor kalau belum ada owner.
   const { data: conv } = await sb
     .from("wa_conversations")
-    .select("id, unread_count")
+    .select("id, unread_count, assigned_to")
     .eq("contact_id", contactId)
     .maybeSingle();
   let convId: string;
@@ -186,6 +197,8 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
         window_expires_at: windowExp,
         unread_count: (conv.unread_count ?? 0) + 1,
         status: "open",
+        ...(phoneNumberId ? { phone_number_id: phoneNumberId } : {}),
+        ...(!conv.assigned_to && ownerId ? { assigned_to: ownerId } : {}),
       })
       .eq("id", convId);
   } else {
@@ -197,6 +210,8 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
         last_message_preview: preview,
         window_expires_at: windowExp,
         unread_count: 1,
+        phone_number_id: phoneNumberId ?? null,
+        assigned_to: ownerId,
       })
       .select("id")
       .single();
