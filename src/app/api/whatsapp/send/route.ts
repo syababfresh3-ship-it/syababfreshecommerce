@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate, sendMedia } from "@/lib/whatsapp-cloud";
+import { getSender } from "@/lib/wa-numbers";
 
 export async function POST(req: NextRequest) {
   // Auth admin
@@ -35,27 +36,30 @@ export async function POST(req: NextRequest) {
   // Dapatkan contact (wa_id)
   const { data: conv } = await sb
     .from("wa_conversations")
-    .select("id, contact_id, assigned_to, wa_contacts(wa_id)")
+    .select("id, contact_id, assigned_to, phone_number_id, wa_contacts(wa_id)")
     .eq("id", conversationId)
     .single();
   if (!conv) return NextResponse.json({ error: "Conversation tidak dijumpai." }, { status: 404 });
   const waId = (conv.wa_contacts as unknown as { wa_id: string })?.wa_id;
   if (!waId) return NextResponse.json({ error: "Contact tiada wa_id." }, { status: 400 });
 
+  // Multi-number: hantar dari nombor yang customer hubungi (lalai = env).
+  const sender = await getSender(sb, (conv as { phone_number_id?: string | null }).phone_number_id);
+
   // Hantar
   let result;
   let type: string;
   let preview: string;
   if (templateName) {
-    result = await sendTemplate(waId, templateName, templateLang || "ms", templateParams);
+    result = await sendTemplate(waId, templateName, templateLang || "ms", templateParams, undefined, sender);
     type = "template";
     preview = `[template] ${templateName}`;
   } else if (imageUrl) {
-    result = await sendMedia(waId, imageUrl, caption?.trim() || undefined, "image");
+    result = await sendMedia(waId, imageUrl, caption?.trim() || undefined, "image", sender);
     type = "image";
     preview = caption?.trim() || "📷 Gambar";
   } else if (text && text.trim()) {
-    result = await sendText(waId, text.trim());
+    result = await sendText(waId, text.trim(), sender);
     type = "text";
     preview = text.trim();
   } else {

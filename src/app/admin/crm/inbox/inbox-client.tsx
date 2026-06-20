@@ -22,6 +22,7 @@ interface Conversation {
   window_expires_at: string | null;
   status: string;
   assigned_to: string | null;
+  phone_number_id: string | null;
   wa_contacts: Contact | null;
 }
 interface Message {
@@ -85,6 +86,10 @@ export function InboxClient() {
   const [filterTag, setFilterTag] = useState("");
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [numberFilter, setNumberFilter] = useState("");
+  const [myOnly, setMyOnly] = useState(false);
+  const [waNumbers, setWaNumbers] = useState<{ phone_number_id: string; display_name: string }[]>([]);
+  const [myId, setMyId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState("");
   const [payMsg, setPayMsg] = useState("");
   const [snippets, setSnippets] = useState<{ id: string; label: string; body: string }[]>([]);
@@ -99,7 +104,7 @@ export function InboxClient() {
     const { data } = await supabase
       .from("wa_conversations")
       .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, wa_contacts(id, wa_id, phone, name, tags, profile_id, profiles(full_name, total_spend))",
+        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, wa_contacts(id, wa_id, phone, name, tags, profile_id, profiles(full_name, total_spend))",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
@@ -119,7 +124,7 @@ export function InboxClient() {
     [supabase],
   );
 
-  // Senarai admin (untuk papar nama assignee)
+  // Senarai admin (untuk papar nama assignee) + nombor WA + user semasa (filter)
   useEffect(() => {
     supabase
       .from("profiles")
@@ -130,6 +135,13 @@ export function InboxClient() {
         (data ?? []).forEach((p) => (m[p.id] = p.full_name || "Admin"));
         setAdmins(m);
       });
+    supabase
+      .from("wa_numbers")
+      .select("phone_number_id, display_name")
+      .eq("is_active", true)
+      .order("created_at")
+      .then(({ data }: { data: { phone_number_id: string; display_name: string }[] | null }) => setWaNumbers(data ?? []));
+    (supabase.auth.getUser() as Promise<{ data: { user: { id: string } | null } }>).then(({ data }) => setMyId(data.user?.id ?? null));
   }, [supabase]);
 
   // Senarai tag terurus (crm_tags)
@@ -336,6 +348,8 @@ export function InboxClient() {
   const shownConvos = convos.filter((c) => {
     if (filterTag && !c.wa_contacts?.tags?.includes(filterTag)) return false;
     if (unreadOnly && !(c.unread_count > 0)) return false;
+    if (numberFilter && c.phone_number_id !== numberFilter) return false;
+    if (myOnly && c.assigned_to !== myId) return false;
     if (q) {
       const name = displayName(c).toLowerCase();
       const phone = (c.wa_contacts?.phone || c.wa_contacts?.wa_id || "");
@@ -350,7 +364,10 @@ export function InboxClient() {
     <div className="flex h-[calc(100vh-3.5rem)] bg-gray-100">
       {/* Senarai perbualan */}
       <aside className={`w-full lg:w-80 shrink-0 border-r bg-white overflow-y-auto ${selected ? "hidden lg:block" : "block"}`}>
-        <div className="p-3 border-b font-semibold text-gray-800">Inbox WhatsApp</div>
+        <div className="p-3 border-b font-semibold text-gray-800 flex items-center justify-between">
+          <span>Inbox WhatsApp</span>
+          <a href="/admin/crm/numbers" className="text-xs font-normal text-gray-400 hover:text-gray-700" title="Urus nombor WhatsApp">⚙️ Nombor</a>
+        </div>
         {/* Bar filter — search + label dropdown + unread */}
         <div className="px-2 py-2 border-b bg-gray-50 space-y-2">
           <input
@@ -379,6 +396,28 @@ export function InboxClient() {
               Belum baca{unreadTotal > 0 ? ` (${unreadTotal})` : ""}
             </button>
           </div>
+          {(waNumbers.length > 1 || myId) && (
+            <div className="flex gap-1.5">
+              {waNumbers.length > 1 && (
+                <select
+                  value={numberFilter}
+                  onChange={(e) => setNumberFilter(e.target.value)}
+                  className="flex-1 text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-gray-200 bg-white text-gray-700"
+                >
+                  <option value="">Semua nombor</option>
+                  {waNumbers.map((n) => (
+                    <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={() => setMyOnly((v) => !v)}
+                className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${myOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
+              >
+                Sembang Saya
+              </button>
+            </div>
+          )}
         </div>
         {shownConvos.length === 0 && (
           <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>

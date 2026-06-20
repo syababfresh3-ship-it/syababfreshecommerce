@@ -70,6 +70,8 @@ export function BlastWizard() {
 
   // Send
   const [testNumber, setTestNumber] = useState("");
+  const [waNumbers, setWaNumbers] = useState<{ phone_number_id: string; display_name: string; is_default: boolean }[]>([]);
+  const [fromNumber, setFromNumber] = useState("");
   const [scheduleMode, setScheduleMode] = useState<"now" | "later">("now");
   const [scheduledAt, setScheduledAt] = useState("");
   const [busy, setBusy] = useState(false);
@@ -82,6 +84,12 @@ export function BlastWizard() {
       setPastList((j.blasts ?? []).map((b: { id: string; name: string; total: number }) => ({ id: b.id, name: b.name, total: b.total }))),
     );
     supabase.from("crm_tags").select("name").order("name").then(({ data }: { data: { name: string }[] | null }) => setTagList((data ?? []).map((t) => t.name)));
+    supabase.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).order("created_at")
+      .then(({ data }: { data: { phone_number_id: string; display_name: string; is_default: boolean }[] | null }) => {
+        setWaNumbers(data ?? []);
+        const def = (data ?? []).find((n) => n.is_default) ?? (data ?? [])[0];
+        if (def) setFromNumber(def.phone_number_id);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -169,6 +177,7 @@ export function BlastWizard() {
         test,
         testNumber: test ? testNumber.trim() : undefined,
         headerImage: needsHeaderImage ? headerImage.trim() : undefined,
+        phoneNumberId: fromNumber || undefined,
         scheduledAt: !test && scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       }),
     });
@@ -313,6 +322,14 @@ export function BlastWizard() {
               {templates.map((t) => <option key={t.name} value={t.name}>{t.name} ({t.category})</option>)}
             </select>
           </div>
+          {waNumbers.length > 1 && (
+            <div>
+              <label className="text-sm font-semibold text-gray-600">Hantar dari nombor</label>
+              <select className={`${inputCls} mt-1`} value={fromNumber} onChange={(e) => setFromNumber(e.target.value)}>
+                {waNumbers.map((n) => <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>)}
+              </select>
+            </div>
+          )}
           {tpl && Object.keys(params).length > 0 && (
             <div className="space-y-2">
               <div className="text-xs text-gray-500"><b>nama</b> boleh kosong (auto nama penerima). {audType === "csv" && "Param yang sepadan nama lajur CSV akan diisi per-penerima."}</div>
