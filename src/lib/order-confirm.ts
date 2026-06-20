@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
+import { sendCapiPurchaseWhatsApp } from '@/lib/meta-capi'
 
 // CHIP's RSA public key may be stored as a single line (no newlines) in the
 // environment — Node's crypto.verify needs a properly wrapped PEM. Rebuild it.
@@ -32,7 +33,7 @@ export async function confirmLpGuestOrder(
     .update({ status: 'confirmed', payment_status: 'paid' })
     .eq('id', orderId)
     .eq('status', 'pending')
-    .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, landing_pages(title)')
+    .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, ctwa_clid, landing_pages(title)')
     .maybeSingle()
 
   if (!lp) return 'already' // already processed, or id not an LP order
@@ -97,6 +98,18 @@ export async function confirmLpGuestOrder(
       body: `${order.name} · RM${Number(order.total).toFixed(2)}`,
       url: '/admin/fulfillment',
       tag: 'payment-confirmed',
+    }).catch(() => {})
+  }
+
+  // CTWA conversion — order FPX dari iklan Click-to-WhatsApp baru sahaja dibayar.
+  // Hantar Purchase ke Meta. Race-safe (flip guard) + dedup event_id. Fire-and-forget.
+  if (order.ctwa_clid) {
+    void sendCapiPurchaseWhatsApp({
+      orderId: order.id,
+      orderNumber: order.order_number,
+      total: Number(order.total),
+      phone: order.phone,
+      ctwa_clid: order.ctwa_clid,
     }).catch(() => {})
   }
 

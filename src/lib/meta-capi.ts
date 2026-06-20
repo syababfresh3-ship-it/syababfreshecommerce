@@ -152,3 +152,45 @@ export async function sendCapiLead({
     }],
   })
 }
+
+// Purchase conversion untuk order yang berasal dari iklan Click-to-WhatsApp (CTWA).
+// Berbeza dari sendCapiPurchase (website): action_source = 'business_messaging' +
+// messaging_channel = 'whatsapp', dan padanan guna `ctwa_clid` (click id dari webhook)
+// bukan fbc/fbp. Hantar ke pixel/dataset yang SAMA supaya dedup event_id berfungsi.
+export async function sendCapiPurchaseWhatsApp({
+  orderId,
+  orderNumber,
+  total,
+  phone,
+  ctwa_clid,
+}: {
+  orderId: string
+  orderNumber: string
+  total: number
+  phone?: string | null
+  ctwa_clid: string
+}) {
+  if (!process.env.META_CAPI_ACCESS_TOKEN || !ctwa_clid) return
+  const pixelId = await getPixelId()
+  if (!pixelId) return
+
+  const userData: Record<string, string> = { ctwa_clid }
+  if (process.env.WHATSAPP_WABA_ID) userData.whatsapp_business_account_id = process.env.WHATSAPP_WABA_ID
+  if (phone) userData.ph = hashPhone(phone)
+
+  await sendCapiEvent(pixelId, {
+    data: [{
+      event_name: 'Purchase',
+      event_time: Math.floor(Date.now() / 1000),
+      event_id: `purchase_${orderNumber}`,
+      action_source: 'business_messaging',
+      messaging_channel: 'whatsapp',
+      user_data: userData,
+      custom_data: {
+        currency: 'MYR',
+        value: total,
+        order_id: orderId,
+      },
+    }],
+  })
+}

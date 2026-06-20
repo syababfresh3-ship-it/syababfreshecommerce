@@ -59,6 +59,15 @@ interface WaMessage {
   timestamp: string;
   type: string;
   text?: { body: string };
+  // Hadir HANYA bila mesej berasal dari iklan Click-to-WhatsApp (CTWA).
+  referral?: {
+    source_id?: string;
+    source_type?: string;
+    source_url?: string;
+    headline?: string;
+    body?: string;
+    ctwa_clid?: string;
+  };
   [k: string]: unknown;
 }
 interface WaStatus {
@@ -126,6 +135,17 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string) {
       .limit(1)
       .maybeSingle();
     if (prof) await sb.from("wa_contacts").update({ profile_id: prof.id }).eq("id", contactId);
+  }
+
+  // 1b. CTWA — kalau mesej ini dari iklan Click-to-WhatsApp, simpan click id.
+  //     Hanya bila ada referral; ambil yang TERBARU (customer klik iklan baru
+  //     = attribute ke campaign baru).
+  const ctwaClid = m.referral?.ctwa_clid;
+  if (ctwaClid) {
+    await sb
+      .from("wa_contacts")
+      .update({ ctwa_clid: ctwaClid, ctwa_source_id: m.referral?.source_id ?? null, ctwa_at: ts })
+      .eq("id", contactId);
   }
 
   // 2. Body / preview
