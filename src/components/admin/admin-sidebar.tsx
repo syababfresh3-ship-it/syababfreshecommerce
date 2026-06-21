@@ -96,6 +96,9 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     const supabase = createClient()
 
     async function fetchCounts() {
+      // Jangan poll bila tab tak aktif (admin selalu biar tab terbuka di latar) —
+      // jimat beban DB (query count ni dulu 52% masa DB sebab poll terlalu kerap).
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
       const [ful, ref] = await Promise.all([
         supabase
           .from('orders')
@@ -110,8 +113,10 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     }
 
     fetchCounts()
-    const iv = setInterval(fetchCounts, 30_000)
-    return () => clearInterval(iv)
+    const iv = setInterval(fetchCounts, 120_000) // 2 min (dulu 30s)
+    const onVis = () => { if (document.visibilityState === 'visible') fetchCounts() } // segar semula bila balik ke tab
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVis) }
   }, [])
 
   async function handleLogout() {
