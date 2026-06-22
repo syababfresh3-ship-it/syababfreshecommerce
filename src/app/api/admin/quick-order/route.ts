@@ -10,14 +10,15 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient()
   const body = await request.json()
-  const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount, reseller_id, delivery_fee } = body
+  const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount, reseller_id, delivery_fee, delivery_method, pickup_date } = body
   const discountNum = Math.max(0, Number(discount) || 0)
   const isReseller = typeof reseller_id === 'string' && reseller_id.length > 0
+  const isPickup = delivery_method === 'pickup' // additive: pickup → alamat/poskod optional, fee 0
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
   if (!phone?.trim()) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
-  if (!address?.trim()) return NextResponse.json({ error: 'Address required' }, { status: 400 })
-  if (!/^\d{5}$/.test(String(postcode ?? '').trim())) return NextResponse.json({ error: 'Poskod diperlukan (5 digit)' }, { status: 400 })
+  if (!isPickup && !address?.trim()) return NextResponse.json({ error: 'Address required' }, { status: 400 })
+  if (!isPickup && !/^\d{5}$/.test(String(postcode ?? '').trim())) return NextResponse.json({ error: 'Poskod diperlukan (5 digit)' }, { status: 400 })
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email ?? '').trim())) return NextResponse.json({ error: 'Email yang sah diperlukan' }, { status: 400 })
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ error: 'At least 1 item required' }, { status: 400 })
 
@@ -83,7 +84,9 @@ export async function POST(request: Request) {
   let deliveryFee = Number(appSettings.default_delivery_fee ?? 15)
 
   const deliveryOverride = Number(delivery_fee)
-  if (Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
+  if (isPickup) {
+    deliveryFee = 0 // ambil sendiri — tiada caj penghantaran
+  } else if (Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
     deliveryFee = deliveryOverride
   } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
@@ -106,8 +109,10 @@ export async function POST(request: Request) {
     name: name.trim(),
     phone: phone.trim(),
     email: email?.trim() || null,
-    address: address.trim(),
-    postcode: postcode?.trim() || null,
+    address: isPickup ? (address?.trim() || null) : address.trim(),
+    postcode: isPickup ? null : (postcode?.trim() || null),
+    delivery_method: isPickup ? 'pickup' : 'delivery',
+    pickup_date: isPickup ? (pickup_date || null) : null,
     notes: notes?.trim() || null,
     product_id: first.product_id,
     variant_id: first.variant_id,
@@ -138,7 +143,7 @@ export async function POST(request: Request) {
       orderNumber: order.order_number,
       items: validatedItems.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
       total: Number(order.total),
-      deliveryAddress: address.trim(),
+      deliveryAddress: isPickup ? 'Ambil sendiri di kedai (Pickup)' : address.trim(),
       deliverySlot: null,
       paymentMethod: payment_method ?? 'bank_transfer',
       notes: notes?.trim() || null,

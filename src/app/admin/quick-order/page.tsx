@@ -36,6 +36,10 @@ export default function QuickOrderPage() {
   // Mod reseller: kos penghantaran dirunding → boleh diubah manual
   const [deliveryOverride, setDeliveryOverride] = useState('')
   const [deliveryTouched, setDeliveryTouched] = useState(false)
+  // Pickup (ambil sendiri) — additive; flow delivery kekal default
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
+  const [pickupDate, setPickupDate] = useState('')
+  const isPickup = deliveryMethod === 'pickup'
 
   useEffect(() => {
     fetch('/api/admin/landing-pages/products').then(r => r.json()).then(setProducts).catch(() => {})
@@ -62,7 +66,7 @@ export default function QuickOrderPage() {
   const FREE_MIN = 80
   const discountNum = Math.max(0, parseFloat(form.discount) || 0)
   // Delivery: kalau admin edit (override) ATAU reseller → guna nilai manual. Else auto ikut poskod.
-  const deliveryNum = (deliveryTouched || resellerId) ? Math.max(0, parseFloat(deliveryOverride) || 0) : (deliveryFee ?? 0)
+  const deliveryNum = isPickup ? 0 : ((deliveryTouched || resellerId) ? Math.max(0, parseFloat(deliveryOverride) || 0) : (deliveryFee ?? 0))
   const total = Math.max(0, subtotal + deliveryNum - discountNum)
 
   const fetchFee = useCallback(async (postcode: string) => {
@@ -126,7 +130,7 @@ export default function QuickOrderPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (items.length === 0) { toast.error('Add at least 1 product'); return }
-    if (!/^\d{5}$/.test(form.postcode.trim())) { toast.error('Poskod diperlukan (5 digit)'); return }
+    if (!isPickup && !/^\d{5}$/.test(form.postcode.trim())) { toast.error('Poskod diperlukan (5 digit)'); return }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Email yang sah diperlukan'); return }
     setSubmitting(true)
     try {
@@ -136,6 +140,8 @@ export default function QuickOrderPage() {
         body: JSON.stringify({
           ...form,
           discount: discountNum,
+          delivery_method: deliveryMethod,
+          pickup_date: isPickup ? (pickupDate || null) : null,
           items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty, ...(i.price_edited ? { unit_price: i.unit_price } : {}) })),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
           reseller_id: resellerId || undefined,
@@ -152,6 +158,7 @@ export default function QuickOrderPage() {
   function reset() {
     setItems([]); setForm(f => ({ name: '', phone: '', email: '', address: '', postcode: '', notes: '', payment_method: 'bank_transfer', staff_name: f.staff_name, discount: '' }))
     setSuccess(null); setDeliveryFee(null); setResellerId(''); setResellerPrices(new Map()); setDeliveryOverride(''); setDeliveryTouched(false)
+    setDeliveryMethod('delivery'); setPickupDate('')
   }
 
   if (success) return (
@@ -218,6 +225,21 @@ export default function QuickOrderPage() {
             </div>
           </div>
 
+          {/* Kaedah: Hantar / Pickup (additive) */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">KAEDAH</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setDeliveryMethod('delivery')}
+                className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all ${!isPickup ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                🚚 Hantar
+              </button>
+              <button type="button" onClick={() => setDeliveryMethod('pickup')}
+                className={`p-2.5 rounded-xl border-2 text-xs font-bold transition-all ${isPickup ? 'border-green-600 bg-green-50 text-green-700' : 'border-gray-200 hover:border-gray-300'}`}>
+                🏪 Pickup (ambil sendiri)
+              </button>
+            </div>
+          </div>
+
           {/* Mod reseller — harga borong dipersetujui */}
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">ORDER UNTUK RESELLER (pilihan)</label>
@@ -246,14 +268,14 @@ export default function QuickOrderPage() {
               placeholder="email@contoh.com" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">ADDRESS *</label>
-            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required rows={2}
-              placeholder="Full delivery address" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none" />
+            <label className="text-xs font-semibold text-gray-500 block mb-1">ADDRESS {isPickup ? <span className="text-gray-300 font-normal">(optional)</span> : '*'}</label>
+            <textarea value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required={!isPickup} rows={2}
+              placeholder={isPickup ? 'Alamat (optional untuk pickup)' : 'Full delivery address'} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 block mb-1">POSTCODE</label>
-              <input value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} maxLength={5} required
+              <label className="text-xs font-semibold text-gray-500 block mb-1">POSTCODE {isPickup && <span className="text-gray-300 font-normal">(optional)</span>}</label>
+              <input value={form.postcode} onChange={e => setForm(f => ({ ...f, postcode: e.target.value.replace(/\D/g, '') }))} maxLength={5} required={!isPickup}
                 placeholder="47810" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
             </div>
             <div>
@@ -262,6 +284,15 @@ export default function QuickOrderPage() {
                 placeholder="Special instructions" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300" />
             </div>
           </div>
+          {isPickup && (
+            <div>
+              <label className="text-xs font-semibold text-gray-500 block mb-1">TARIKH AMBIL <span className="text-gray-300 font-normal">(optional)</span></label>
+              <input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} min={new Date().toISOString().split('T')[0]}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-300" />
+              <p className="text-[11px] text-green-600 mt-1">🏪 Ambil sendiri di kedai — tiada caj penghantaran.</p>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">PAYMENT METHOD</label>
             <div className="grid grid-cols-2 gap-2">
@@ -327,21 +358,28 @@ export default function QuickOrderPage() {
               <div className="flex justify-between text-gray-500">
                 <span>Subtotal</span><span>RM{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center text-gray-500">
-                <span>
-                  Delivery <span className="text-[11px] text-violet-600 font-semibold">(boleh ubah)</span>
-                  {!deliveryTouched && deliveryFee !== null && (
-                    <span className="text-[10px] text-gray-400 ml-1">{deliveryFee === 0 ? 'auto: FREE' : `auto: RM${deliveryFee.toFixed(2)}`}</span>
-                  )}
-                </span>
-                <input
-                  type="number" min="0" step="0.01"
-                  value={deliveryOverride}
-                  onChange={e => { setDeliveryOverride(e.target.value); setDeliveryTouched(true) }}
-                  placeholder={fetchingFee ? '...' : '0.00'}
-                  className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
-                />
-              </div>
+              {isPickup ? (
+                <div className="flex justify-between items-center text-gray-500">
+                  <span>Pickup (ambil sendiri)</span>
+                  <span className="font-semibold text-green-600">Percuma</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-gray-500">
+                  <span>
+                    Delivery <span className="text-[11px] text-violet-600 font-semibold">(boleh ubah)</span>
+                    {!deliveryTouched && deliveryFee !== null && (
+                      <span className="text-[10px] text-gray-400 ml-1">{deliveryFee === 0 ? 'auto: FREE' : `auto: RM${deliveryFee.toFixed(2)}`}</span>
+                    )}
+                  </span>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={deliveryOverride}
+                    onChange={e => { setDeliveryOverride(e.target.value); setDeliveryTouched(true) }}
+                    placeholder={fetchingFee ? '...' : '0.00'}
+                    className="w-24 border border-gray-200 rounded-lg px-2.5 py-1 text-sm text-right font-mono focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  />
+                </div>
+              )}
               <div className="flex justify-between items-center text-gray-500">
                 <span>Diskaun (RM)</span>
                 <input
@@ -353,13 +391,13 @@ export default function QuickOrderPage() {
                 />
               </div>
               <div className="flex justify-between font-black text-base border-t border-gray-100 pt-1.5">
-                <span>TOTAL</span><span>RM{total.toFixed(2)}{!resellerId && deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}</span>
+                <span>TOTAL</span><span>RM{total.toFixed(2)}{!isPickup && !resellerId && deliveryFee === null && subtotal < FREE_MIN ? '+' : ''}</span>
               </div>
             </div>
           )}
         </div>
 
-        <button type="submit" disabled={submitting || items.length === 0 || !/^\d{5}$/.test(form.postcode.trim()) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())}
+        <button type="submit" disabled={submitting || items.length === 0 || (!isPickup && !/^\d{5}$/.test(form.postcode.trim())) || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())}
           className="w-full py-4 bg-green-600 text-white rounded-2xl font-black text-base hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-lg">
           {submitting ? <><RefreshCw className="h-5 w-5 animate-spin" /> Creating...</> : <><MessageCircle className="h-5 w-5" /> Create Order + Send WA</>}
         </button>
