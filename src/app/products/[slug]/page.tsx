@@ -215,7 +215,7 @@ export default async function ProductDetailPage({
   const hasVariants = variants.length > 0
   const delivery = getDeliveryInfo(product.is_shippable)
 
-  const discount = product.compare_price
+  const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
     : null
 
