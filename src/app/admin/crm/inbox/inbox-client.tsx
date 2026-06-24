@@ -11,6 +11,7 @@ interface Contact {
   name: string | null;
   tags: string[] | null;
   profile_id: string | null;
+  notes: string | null;
   profiles?: { full_name: string | null; total_spend: number | null } | null;
 }
 interface Conversation {
@@ -23,6 +24,7 @@ interface Conversation {
   status: string;
   assigned_to: string | null;
   phone_number_id: string | null;
+  needs_reply: boolean;
   wa_contacts: Contact | null;
 }
 interface Message {
@@ -86,6 +88,9 @@ export function InboxClient() {
   const [filterTag, setFilterTag] = useState("");
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [needReplyOnly, setNeedReplyOnly] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [numberFilter, setNumberFilter] = useState("");
   const [myOnly, setMyOnly] = useState(false);
   const [waNumbers, setWaNumbers] = useState<{ phone_number_id: string; display_name: string }[]>([]);
@@ -111,7 +116,7 @@ export function InboxClient() {
     const { data } = await supabase
       .from("wa_conversations")
       .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, wa_contacts(id, wa_id, phone, name, tags, profile_id, profiles(full_name, total_spend))",
+        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, wa_contacts(id, wa_id, phone, name, tags, notes, profile_id, profiles(full_name, total_spend))",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
@@ -151,6 +156,19 @@ export function InboxClient() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [selWaId]);
+
+  // Internal notes — muat draf bila tukar conversation
+  useEffect(() => { setNoteDraft(selected?.wa_contacts?.notes ?? ""); }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function saveNote() {
+    if (!selected?.wa_contacts) return;
+    setNoteSaving(true);
+    const v = noteDraft.trim() || null;
+    const cid = selected.wa_contacts.id;
+    await supabase.from("wa_contacts").update({ notes: v }).eq("id", cid);
+    setSelected((s) => (s && s.wa_contacts ? { ...s, wa_contacts: { ...s.wa_contacts, notes: v } } : s));
+    setConvos((cs) => cs.map((c) => (c.wa_contacts?.id === cid ? { ...c, wa_contacts: { ...c.wa_contacts!, notes: v } } : c)));
+    setNoteSaving(false);
+  }
 
   async function setFollowup(remindAt: string) {
     if (!selected?.wa_contacts) return;
@@ -392,11 +410,13 @@ export function InboxClient() {
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
 
   const unreadTotal = convos.filter((c) => c.unread_count > 0).length;
+  const needReplyTotal = convos.filter((c) => c.needs_reply).length;
   const q = search.trim().toLowerCase();
   const qDigits = q.replace(/\D/g, "");
   const shownConvos = convos.filter((c) => {
     if (filterTag && !c.wa_contacts?.tags?.includes(filterTag)) return false;
     if (unreadOnly && !(c.unread_count > 0)) return false;
+    if (needReplyOnly && !c.needs_reply) return false;
     if (numberFilter && c.phone_number_id !== numberFilter) return false;
     if (myOnly && c.assigned_to !== myId) return false;
     if (fuOnly && !followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id)) return false;
@@ -439,6 +459,12 @@ export function InboxClient() {
                 ))}
               </select>
             )}
+            <button
+              onClick={() => setNeedReplyOnly((v) => !v)}
+              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-white text-red-600 border-red-200"}`}
+            >
+              Perlu balas{needReplyTotal > 0 ? ` (${needReplyTotal})` : ""}
+            </button>
             <button
               onClick={() => setUnreadOnly((v) => !v)}
               className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
@@ -807,6 +833,17 @@ export function InboxClient() {
                 +
               </button>
             </div>
+          </div>
+
+          {/* Internal notes (team-only) */}
+          <div className="mt-4 border-t pt-3">
+            <div className="text-xs text-gray-400 mb-1">📝 Nota dalaman <span className="text-[10px] text-gray-300">(team sahaja)</span></div>
+            <textarea value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} rows={3}
+              placeholder="Nota tentang customer ni…" className="w-full border rounded-lg px-2.5 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-amber-300" />
+            <button onClick={saveNote} disabled={noteSaving || noteDraft.trim() === (contact?.notes ?? "")}
+              className="mt-1 w-full bg-gray-800 text-white rounded-lg py-1.5 text-xs font-semibold hover:bg-gray-900 disabled:opacity-40">
+              {noteSaving ? "Menyimpan…" : "Simpan nota"}
+            </button>
           </div>
 
           {/* Follow-up reminder (nudge dalaman — tiada mesej auto ke customer) */}
