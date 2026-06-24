@@ -31,7 +31,8 @@ export function ProductCard({ product, stock, hasVariants, priority = false }: P
     toast.success(`${product.name} ditambah ke troli`)
   }
 
-  const discount = product.compare_price
+  // Hanya diskaun sah: compare_price mesti LEBIH TINGGI dari price (elak % negatif pelik).
+  const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
     : null
 

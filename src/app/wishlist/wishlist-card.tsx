@@ -19,7 +19,7 @@ export function WishlistCard({ product }: { product: Product }) {
     toast.success(`${product.name} ditambah ke troli`)
   }
 
-  const discount = product.compare_price
+  const discount = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
     : null
 
