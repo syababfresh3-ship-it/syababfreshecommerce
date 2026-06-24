@@ -16,6 +16,8 @@ export interface AudienceSpec {
   rows?: { phone: string; name?: string; vars?: Record<string, string> }[];
   pastBlastId?: string;
   excludeWaIds?: string[];
+  excludeBlasted?: boolean; // buang sesiapa yang pernah di-blast (mana-mana kempen)
+  excludeBlastedDays?: number; // had: hanya yang di-blast dalam N hari (kosong = semua sejarah)
 }
 
 export interface Recipient {
@@ -75,6 +77,25 @@ export async function resolveAudience(sb: SB, spec: AudienceSpec): Promise<Recip
     ]);
     const blocked = new Set([...(opted ?? []), ...(supp ?? [])].map((o: { wa_id: string }) => o.wa_id));
     recipients = recipients.filter((r) => !blocked.has(r.wa_id));
+  }
+
+  // Exclude yang dah pernah di-blast (elak hantar sama berulang). Paginate crm_blast_recipients
+  // ke Set, order by id (stabil). excludeBlastedDays → had ke N hari terakhir sahaja.
+  if (spec.excludeBlasted && recipients.length) {
+    const blasted = new Set<string>();
+    const CHUNK = 1000;
+    const since = spec.excludeBlastedDays && spec.excludeBlastedDays > 0
+      ? new Date(Date.now() - spec.excludeBlastedDays * 86_400_000).toISOString()
+      : null;
+    for (let from = 0; ; from += CHUNK) {
+      let q = sb.from("crm_blast_recipients").select("wa_id").order("id", { ascending: true }).range(from, from + CHUNK - 1);
+      if (since) q = q.gte("created_at", since);
+      const { data, error } = await q;
+      if (error || !data || data.length === 0) break;
+      for (const r of data as { wa_id: string }[]) blasted.add(r.wa_id);
+      if (data.length < CHUNK) break;
+    }
+    recipients = recipients.filter((r) => !blasted.has(r.wa_id));
   }
 
   return recipients;

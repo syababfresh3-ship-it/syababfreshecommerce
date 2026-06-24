@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ImportContacts } from "./import-contacts";
 
 interface Contact {
   id: string;
@@ -73,7 +74,10 @@ export function ContactsClient() {
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-semibold text-gray-800">Contacts</h1>
-        <span className="text-sm text-gray-400">{filtered.length} kontak</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-400">{filtered.length} kontak</span>
+          <ImportContacts />
+        </div>
       </div>
 
       {/* Cari + tapis tag */}
