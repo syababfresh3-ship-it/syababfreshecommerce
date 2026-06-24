@@ -405,28 +405,33 @@ export function InboxClient() {
 
   const contact = selected?.wa_contacts;
   const fuForContact = (cid?: string | null) => (cid ? followups.find((f) => f.contact_id === cid && f.status === "pending") : undefined);
-  const dueCount = followups.filter((f) => f.status === "pending" && new Date(f.remind_at) <= new Date()).length;
   const displayName = (c: Conversation | null) =>
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
 
-  const unreadTotal = convos.filter((c) => c.unread_count > 0).length;
-  const needReplyTotal = convos.filter((c) => c.needs_reply).length;
   const q = search.trim().toLowerCase();
   const qDigits = q.replace(/\D/g, "");
-  const shownConvos = convos.filter((c) => {
+
+  // Konteks = filter SKOP (label, nombor, Saya, search). Badge count + senarai ikut konteks ni
+  // → tukar ke nombor #2, count "Perlu balas" jadi 0 (chat #2), bukan kekal global #1.
+  const inContext = (c: Conversation) => {
     if (filterTag && !c.wa_contacts?.tags?.includes(filterTag)) return false;
-    if (unreadOnly && !(c.unread_count > 0)) return false;
-    if (needReplyOnly && !c.needs_reply) return false;
     if (numberFilter && c.phone_number_id !== numberFilter) return false;
     if (myOnly && c.assigned_to !== myId) return false;
-    if (fuOnly && !followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id)) return false;
     if (q) {
       const name = displayName(c).toLowerCase();
-      const phone = (c.wa_contacts?.phone || c.wa_contacts?.wa_id || "");
-      const matchName = name.includes(q);
-      const matchPhone = qDigits.length >= 3 && phone.includes(qDigits);
-      if (!matchName && !matchPhone) return false;
+      const phone = c.wa_contacts?.phone || c.wa_contacts?.wa_id || "";
+      if (!name.includes(q) && !(qDigits.length >= 3 && phone.includes(qDigits))) return false;
     }
+    return true;
+  };
+  const contextConvos = convos.filter(inContext);
+  const unreadTotal = contextConvos.filter((c) => c.unread_count > 0).length;
+  const needReplyTotal = contextConvos.filter((c) => c.needs_reply).length;
+  const dueCount = contextConvos.filter((c) => followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id && new Date(f.remind_at) <= new Date())).length;
+  const shownConvos = contextConvos.filter((c) => {
+    if (unreadOnly && !(c.unread_count > 0)) return false;
+    if (needReplyOnly && !c.needs_reply) return false;
+    if (fuOnly && !followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id)) return false;
     return true;
   });
 
@@ -509,36 +514,43 @@ export function InboxClient() {
         {shownConvos.length === 0 && (
           <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly || needReplyOnly || fuOnly || myOnly || numberFilter ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
         )}
-        {shownConvos.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => openConvo(c)}
-            className={`w-full text-left px-3 py-2.5 border-b hover:bg-gray-50 ${selected?.id === c.id ? "bg-emerald-50" : ""}`}
-          >
-            <div className="flex justify-between items-center">
-              <span className="font-medium text-sm text-gray-800 truncate">{displayName(c)}</span>
-              <span className="text-[10px] text-gray-400">{fmtTime(c.last_message_at)}</span>
-            </div>
-            <div className="flex justify-between items-center gap-2">
-              <span className="text-xs text-gray-500 truncate">{c.last_message_preview}</span>
-              {c.unread_count > 0 && (
-                <span className="shrink-0 bg-emerald-500 text-white text-[10px] rounded-full px-1.5">{c.unread_count}</span>
-              )}
-            </div>
-            {c.assigned_to && (
-              <div className="text-[10px] text-blue-500 mt-0.5">👤 {admins[c.assigned_to] || "Admin"}</div>
-            )}
-            {c.wa_contacts?.tags && c.wa_contacts.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {c.wa_contacts.tags.map((t) => (
-                  <span key={t} className="text-[9px] bg-emerald-50 text-emerald-600 rounded px-1">
-                    {t}
-                  </span>
-                ))}
+        {shownConvos.map((c) => {
+          const nm = displayName(c);
+          const initial = (nm.trim()[0] || "?").toUpperCase();
+          const numName = c.phone_number_id ? waNumbers.find((n) => n.phone_number_id === c.phone_number_id)?.display_name : null;
+          return (
+            <button
+              key={c.id}
+              onClick={() => openConvo(c)}
+              className={`w-full text-left px-3 py-2.5 border-b hover:bg-gray-50 flex gap-2.5 ${selected?.id === c.id ? "bg-emerald-50" : ""}`}
+            >
+              {/* Avatar — merah kalau perlu balas */}
+              <div className={`shrink-0 w-9 h-9 rounded-full grid place-items-center text-sm font-bold text-white ${c.needs_reply ? "bg-red-400" : "bg-emerald-400"}`}>
+                {initial}
               </div>
-            )}
-          </button>
-        ))}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center gap-2">
+                  <span className="font-semibold text-sm text-gray-800 truncate">{nm}</span>
+                  <span className="text-[10px] text-gray-400 shrink-0">{fmtTime(c.last_message_at)}</span>
+                </div>
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-xs text-gray-500 truncate">{c.last_message_preview}</span>
+                  {c.unread_count > 0 && (
+                    <span className="shrink-0 bg-emerald-500 text-white text-[10px] rounded-full px-1.5">{c.unread_count}</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-1 mt-1">
+                  {c.needs_reply && <span className="text-[9px] font-bold bg-red-50 text-red-600 rounded-full px-1.5 py-0.5">🔴 Perlu balas</span>}
+                  {numName && <span className="text-[9px] text-gray-400 bg-gray-50 rounded px-1 py-0.5">📱 {numName}</span>}
+                  {c.assigned_to && <span className="text-[9px] text-blue-500">👤 {admins[c.assigned_to] || "Admin"}</span>}
+                  {(c.wa_contacts?.tags ?? []).map((t) => (
+                    <span key={t} className="text-[9px] bg-emerald-50 text-emerald-600 rounded px-1">{t}</span>
+                  ))}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </aside>
 
       {/* Thread */}
