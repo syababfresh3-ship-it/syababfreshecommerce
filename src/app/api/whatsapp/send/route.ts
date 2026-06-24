@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       last_message_at: now,
       last_message_preview: preview,
       unread_count: 0,
+      needs_reply: false, // admin dah balas
       ...(conv.assigned_to ? {} : { assigned_to: user.id }),
     })
     .eq("id", conversationId);
