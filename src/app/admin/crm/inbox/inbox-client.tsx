@@ -446,64 +446,68 @@ export function InboxClient() {
             placeholder="Cari nama atau no. telefon"
             className="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-300"
           />
-          <div className="flex gap-1.5">
-            {allTags.length > 0 && (
-              <select
-                value={filterTag}
-                onChange={(e) => setFilterTag(e.target.value)}
-                className="flex-1 text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-gray-200 bg-white text-gray-700"
-              >
-                <option value="">Semua label</option>
-                {allTags.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            )}
-            <button
-              onClick={() => setNeedReplyOnly((v) => !v)}
-              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-white text-red-600 border-red-200"}`}
-            >
-              Perlu balas{needReplyTotal > 0 ? ` (${needReplyTotal})` : ""}
-            </button>
-            <button
-              onClick={() => setUnreadOnly((v) => !v)}
-              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
-            >
-              Belum baca{unreadTotal > 0 ? ` (${unreadTotal})` : ""}
-            </button>
-            <button
-              onClick={() => setFuOnly((v) => !v)}
-              title="Follow-up due"
-              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200"}`}
-            >
-              ⏰{dueCount > 0 ? ` ${dueCount}` : ""}
-            </button>
-          </div>
-          {(waNumbers.length > 1 || myId) && (
+          {/* Dropdown: label + nombor */}
+          {(allTags.length > 0 || waNumbers.length > 1) && (
             <div className="flex gap-1.5">
+              {allTags.length > 0 && (
+                <select
+                  value={filterTag}
+                  onChange={(e) => setFilterTag(e.target.value)}
+                  className="flex-1 min-w-0 text-xs font-semibold rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700"
+                >
+                  <option value="">🏷️ Semua label</option>
+                  {allTags.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              )}
               {waNumbers.length > 1 && (
                 <select
                   value={numberFilter}
                   onChange={(e) => setNumberFilter(e.target.value)}
-                  className="flex-1 text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-gray-200 bg-white text-gray-700"
+                  className="flex-1 min-w-0 text-xs font-semibold rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700"
                 >
-                  <option value="">Semua nombor</option>
+                  <option value="">📱 Semua nombor</option>
                   {waNumbers.map((n) => (
                     <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
                   ))}
                 </select>
               )}
-              <button
-                onClick={() => setMyOnly((v) => !v)}
-                className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${myOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
-              >
-                Sembang Saya
-              </button>
             </div>
           )}
+          {/* Toggle pills — wrap kemas, warna-kod */}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setNeedReplyOnly((v) => !v)}
+              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-white text-red-600 border-red-200 hover:bg-red-50"}`}
+            >
+              🔴 Perlu balas{needReplyTotal > 0 ? ` ${needReplyTotal}` : ""}
+            </button>
+            <button
+              onClick={() => setUnreadOnly((v) => !v)}
+              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+            >
+              Belum baca{unreadTotal > 0 ? ` ${unreadTotal}` : ""}
+            </button>
+            <button
+              onClick={() => setFuOnly((v) => !v)}
+              title="Follow-up due"
+              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+            >
+              ⏰ Follow-up{dueCount > 0 ? ` ${dueCount}` : ""}
+            </button>
+            {myId && (
+              <button
+                onClick={() => setMyOnly((v) => !v)}
+                className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+              >
+                👤 Saya
+              </button>
+            )}
+          </div>
         </div>
         {shownConvos.length === 0 && (
-          <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
+          <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly || needReplyOnly || fuOnly || myOnly || numberFilter ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
         )}
         {shownConvos.map((c) => (
           <button
