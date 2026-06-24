@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Reply, Tag, Smartphone, Clock, User, Search } from "lucide-react";
+import { Reply, Tag, Smartphone, Clock, User, Search, FileText, Paperclip, Send, Loader2, X } from "lucide-react";
 
 // ---------- Jenis ----------
 interface Contact {
@@ -43,6 +43,7 @@ interface Template {
   name: string;
   language: string;
   category: string;
+  status?: string;
   components: Array<{ type: string; text?: string }>;
 }
 
@@ -611,15 +612,68 @@ export function InboxClient() {
             {/* Kotak balas */}
             <div className="border-t bg-white p-3">
               {err && <div className="text-xs text-red-500 mb-2">{err}</div>}
-              {inWindow ? (
+              {showTpl ? (
+                /* Picker template approved — boleh dalam ATAU luar tetingkap 24j */
                 <div className="space-y-2">
-                  {/* Snippet (canned message) */}
-                  <div className="relative">
+                  {!inWindow && (
+                    <div className="text-xs text-amber-600 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" /> Luar tetingkap 24 jam — wajib template diluluskan.
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-600">Template approved</span>
+                    <button onClick={() => { setShowTpl(false); setTpl(null); }} className="text-gray-400 hover:text-gray-700" title="Tutup">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                    value={tpl?.name ?? ""}
+                    onChange={(e) => {
+                      const t = templates.find((x) => x.name === e.target.value);
+                      if (t) pickTemplate(t);
+                    }}
+                  >
+                    <option value="">— pilih template —</option>
+                    {templates.filter((t) => !t.status || t.status === "APPROVED").map((t) => (
+                      <option key={t.name} value={t.name}>{t.name} ({t.category})</option>
+                    ))}
+                  </select>
+                  {tpl &&
+                    Object.keys(tplParams).map((k) => (
+                      <input
+                        key={k}
+                        placeholder={k}
+                        value={tplParams[k]}
+                        onChange={(e) => setTplParams((p) => ({ ...p, [k]: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                      />
+                    ))}
+                  {tpl && (
+                    <button
+                      onClick={send}
+                      disabled={sending}
+                      className="flex items-center gap-1.5 bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                    >
+                      <Send className="h-3.5 w-3.5" /> {sending ? "Menghantar…" : "Hantar template"}
+                    </button>
+                  )}
+                </div>
+              ) : inWindow ? (
+                <div className="space-y-2">
+                  {/* Toolbar: Snippet + Template */}
+                  <div className="relative flex gap-1.5">
                     <button
                       onClick={() => setShowSnippets((s) => !s)}
-                      className="text-xs bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
+                      className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
                     >
-                      📋 Snippet
+                      <FileText className="h-3.5 w-3.5" /> Snippet
+                    </button>
+                    <button
+                      onClick={() => { setShowTpl(true); loadTemplates(); }}
+                      className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Template
                     </button>
                     {showSnippets && (
                       <div className="absolute bottom-full mb-1 left-0 bg-white border rounded-lg shadow-lg w-64 z-20 max-h-60 overflow-y-auto">
@@ -646,98 +700,58 @@ export function InboxClient() {
                     )}
                   </div>
                   <div className="flex gap-2 items-end">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) sendImage(f);
-                      e.target.value = "";
-                    }}
-                  />
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                    title="Hantar gambar"
-                    className="shrink-0 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2 text-lg disabled:opacity-50"
-                  >
-                    {uploading ? "⏳" : "🖼️"}
-                  </button>
-                  <textarea
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        send();
-                      }
-                    }}
-                    rows={1}
-                    placeholder="Taip balasan… (atau caption gambar)"
-                    className="flex-1 resize-none border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                  />
-                  <button
-                    onClick={send}
-                    disabled={sending || !reply.trim()}
-                    className="shrink-0 bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-                  >
-                    {sending ? "…" : "Hantar"}
-                  </button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) sendImage(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    <button
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                      title="Hantar gambar"
+                      className="shrink-0 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg p-2 disabled:opacity-50"
+                    >
+                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+                    </button>
+                    <textarea
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          send();
+                        }
+                      }}
+                      rows={1}
+                      placeholder="Taip balasan… (atau caption gambar)"
+                      className="flex-1 resize-none border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                    />
+                    <button
+                      onClick={send}
+                      disabled={sending || !reply.trim()}
+                      className="shrink-0 flex items-center gap-1.5 bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+                    >
+                      {sending ? "…" : <><Send className="h-3.5 w-3.5" /> Hantar</>}
+                    </button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-xs text-amber-600">⏳ Luar tetingkap 24 jam — wajib guna template diluluskan.</div>
-                  {!showTpl ? (
-                    <button
-                      onClick={() => {
-                        setShowTpl(true);
-                        loadTemplates();
-                      }}
-                      className="text-sm bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2"
-                    >
-                      Pilih template
-                    </button>
-                  ) : (
-                    <div className="space-y-2">
-                      <select
-                        className="w-full border rounded-lg px-2 py-1.5 text-sm"
-                        value={tpl?.name ?? ""}
-                        onChange={(e) => {
-                          const t = templates.find((x) => x.name === e.target.value);
-                          if (t) pickTemplate(t);
-                        }}
-                      >
-                        <option value="">— pilih template —</option>
-                        {templates.map((t) => (
-                          <option key={t.name} value={t.name}>
-                            {t.name} ({t.category})
-                          </option>
-                        ))}
-                      </select>
-                      {tpl &&
-                        Object.keys(tplParams).map((k) => (
-                          <input
-                            key={k}
-                            placeholder={k}
-                            value={tplParams[k]}
-                            onChange={(e) => setTplParams((p) => ({ ...p, [k]: e.target.value }))}
-                            className="w-full border rounded-lg px-2 py-1.5 text-sm"
-                          />
-                        ))}
-                      {tpl && (
-                        <button
-                          onClick={send}
-                          disabled={sending}
-                          className="bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-                        >
-                          {sending ? "Menghantar…" : "Hantar template"}
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <div className="text-xs text-amber-600 flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" /> Luar tetingkap 24 jam — wajib guna template diluluskan.
+                  </div>
+                  <button
+                    onClick={() => { setShowTpl(true); loadTemplates(); }}
+                    className="flex items-center gap-1.5 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-3 py-2"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Pilih template
+                  </button>
                 </div>
               )}
             </div>
