@@ -87,7 +87,6 @@ export function InboxClient() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState("");
   const [search, setSearch] = useState("");
-  const [unreadOnly, setUnreadOnly] = useState(false);
   const [needReplyOnly, setNeedReplyOnly] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
@@ -425,11 +424,9 @@ export function InboxClient() {
     return true;
   };
   const contextConvos = convos.filter(inContext);
-  const unreadTotal = contextConvos.filter((c) => c.unread_count > 0).length;
   const needReplyTotal = contextConvos.filter((c) => c.needs_reply).length;
   const dueCount = contextConvos.filter((c) => followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id && new Date(f.remind_at) <= new Date())).length;
   const shownConvos = contextConvos.filter((c) => {
-    if (unreadOnly && !(c.unread_count > 0)) return false;
     if (needReplyOnly && !c.needs_reply) return false;
     if (fuOnly && !followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id)) return false;
     return true;
@@ -443,68 +440,69 @@ export function InboxClient() {
           <span>Inbox WhatsApp</span>
           <a href="/admin/crm/numbers" className="text-xs font-normal text-gray-400 hover:text-gray-700" title="Urus nombor WhatsApp">⚙️ Nombor</a>
         </div>
-        {/* Bar filter — search + label dropdown + unread */}
-        <div className="px-2 py-2 border-b bg-gray-50 space-y-2">
+        {/* Bar filter — Perlu balas (utama) + dropdown sebaris + search */}
+        <div className="px-2.5 py-2 border-b bg-gray-50 space-y-2">
+          {/* Perlu balas — pill utama (gaya Murpati) */}
+          <button
+            onClick={() => setNeedReplyOnly((v) => !v)}
+            className={`w-full flex items-center justify-center gap-2 text-sm font-bold rounded-full px-3 py-2 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"}`}
+          >
+            🔴 Perlu balas
+            {needReplyTotal > 0 && (
+              <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 ${needReplyOnly ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>{needReplyTotal}</span>
+            )}
+          </button>
+
+          {/* Dropdown label — baris sendiri */}
+          {allTags.length > 0 && (
+            <select
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              className="w-full text-xs font-semibold rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+            >
+              <option value="">🏷️ Semua label</option>
+              {allTags.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Dropdown nombor — baris sendiri */}
+          {waNumbers.length > 1 && (
+            <select
+              value={numberFilter}
+              onChange={(e) => setNumberFilter(e.target.value)}
+              className="w-full text-xs font-semibold rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+            >
+              <option value="">📱 Semua nombor</option>
+              {waNumbers.map((n) => (
+                <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Search */}
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau no. telefon"
-            className="w-full text-xs border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            placeholder="🔍 Cari nama atau no. telefon"
+            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300"
           />
-          {/* Dropdown: label + nombor */}
-          {(allTags.length > 0 || waNumbers.length > 1) && (
-            <div className="flex gap-1.5">
-              {allTags.length > 0 && (
-                <select
-                  value={filterTag}
-                  onChange={(e) => setFilterTag(e.target.value)}
-                  className="flex-1 min-w-0 text-xs font-semibold rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700"
-                >
-                  <option value="">🏷️ Semua label</option>
-                  {allTags.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              )}
-              {waNumbers.length > 1 && (
-                <select
-                  value={numberFilter}
-                  onChange={(e) => setNumberFilter(e.target.value)}
-                  className="flex-1 min-w-0 text-xs font-semibold rounded-lg px-2 py-1.5 border border-gray-200 bg-white text-gray-700"
-                >
-                  <option value="">📱 Semua nombor</option>
-                  {waNumbers.map((n) => (
-                    <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-          {/* Toggle pills — wrap kemas, warna-kod */}
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setNeedReplyOnly((v) => !v)}
-              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-white text-red-600 border-red-200 hover:bg-red-50"}`}
-            >
-              🔴 Perlu balas{needReplyTotal > 0 ? ` ${needReplyTotal}` : ""}
-            </button>
-            <button
-              onClick={() => setUnreadOnly((v) => !v)}
-              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
-            >
-              Belum baca{unreadTotal > 0 ? ` ${unreadTotal}` : ""}
-            </button>
+
+          {/* Toggle sekunder: Follow-up + Saya */}
+          <div className="flex gap-1.5">
             <button
               onClick={() => setFuOnly((v) => !v)}
               title="Follow-up due"
-              className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+              className={`flex-1 text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
             >
               ⏰ Follow-up{dueCount > 0 ? ` ${dueCount}` : ""}
             </button>
             {myId && (
               <button
                 onClick={() => setMyOnly((v) => !v)}
-                className={`text-xs font-semibold rounded-full px-2.5 py-1 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+                title="Chat assigned ke saya"
+                className={`flex-1 text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
               >
                 👤 Saya
               </button>
@@ -512,7 +510,7 @@ export function InboxClient() {
           </div>
         </div>
         {shownConvos.length === 0 && (
-          <div className="p-4 text-sm text-gray-400">{filterTag || search || unreadOnly || needReplyOnly || fuOnly || myOnly || numberFilter ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
+          <div className="p-4 text-sm text-gray-400">{filterTag || search || needReplyOnly || fuOnly || myOnly || numberFilter ? "Tiada perbualan sepadan." : "Tiada perbualan lagi."}</div>
         )}
         {shownConvos.map((c) => {
           const nm = displayName(c);
