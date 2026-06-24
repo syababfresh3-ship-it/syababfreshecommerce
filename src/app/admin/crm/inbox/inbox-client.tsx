@@ -660,65 +660,20 @@ export function InboxClient() {
                   )}
                 </div>
               ) : inWindow ? (
-                <div className="space-y-2">
-                  {/* Toolbar: Snippet + Template */}
-                  <div className="relative flex gap-1.5">
-                    <button
-                      onClick={() => setShowSnippets((s) => !s)}
-                      className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
-                    >
-                      <FileText className="h-3.5 w-3.5" /> Snippet
-                    </button>
-                    <button
-                      onClick={() => { setShowTpl(true); loadTemplates(); }}
-                      className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg px-2 py-1"
-                    >
-                      <FileText className="h-3.5 w-3.5" /> Template
-                    </button>
-                    {showSnippets && (
-                      <div className="absolute bottom-full mb-1 left-0 bg-white border rounded-lg shadow-lg w-64 z-20 max-h-60 overflow-y-auto">
-                        {snippets.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              setReply(s.body);
-                              setShowSnippets(false);
-                            }}
-                            className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b"
-                          >
-                            <div className="font-medium text-gray-700">{s.label}</div>
-                            <div className="text-gray-400 truncate">{s.body}</div>
-                          </button>
-                        ))}
-                        <button
-                          onClick={saveSnippet}
-                          className="block w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
-                        >
-                          + Simpan balasan ini jadi snippet
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex gap-2 items-end">
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) sendImage(f);
-                        e.target.value = "";
-                      }}
-                    />
-                    <button
-                      onClick={() => fileRef.current?.click()}
-                      disabled={uploading}
-                      title="Hantar gambar"
-                      className="shrink-0 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg p-2 disabled:opacity-50"
-                    >
-                      {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-                    </button>
+                <div>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) sendImage(f);
+                      e.target.value = "";
+                    }}
+                  />
+                  {/* Kotak mesej tinggi + toolbar bawah (gaya Murpati) */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden focus-within:ring-1 focus-within:ring-emerald-400">
                     <textarea
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
@@ -728,17 +683,64 @@ export function InboxClient() {
                           send();
                         }
                       }}
-                      rows={1}
-                      placeholder="Taip balasan… (atau caption gambar)"
-                      className="flex-1 resize-none border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                      rows={3}
+                      placeholder="Taip balasan…  (⌘/Ctrl + Enter hantar)"
+                      className="w-full resize-none px-3 py-2.5 text-sm focus:outline-none"
                     />
-                    <button
-                      onClick={send}
-                      disabled={sending || !reply.trim()}
-                      className="shrink-0 flex items-center gap-1.5 bg-emerald-500 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-                    >
-                      {sending ? "…" : <><Send className="h-3.5 w-3.5" /> Hantar</>}
-                    </button>
+                    <div className="flex items-center justify-between px-2 py-1.5 border-t border-gray-100 bg-gray-50">
+                      <div className="relative flex items-center gap-0.5">
+                        <button
+                          onClick={() => fileRef.current?.click()}
+                          disabled={uploading}
+                          title="Hantar gambar"
+                          className="flex items-center gap-1 text-xs text-gray-600 hover:bg-gray-200 rounded-lg px-2 py-1 disabled:opacity-50"
+                        >
+                          {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />} Attach
+                        </button>
+                        <button
+                          onClick={() => { setShowTpl(true); loadTemplates(); }}
+                          className="flex items-center gap-1 text-xs text-gray-600 hover:bg-gray-200 rounded-lg px-2 py-1"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Template
+                        </button>
+                        <button
+                          onClick={() => setShowSnippets((s) => !s)}
+                          className="flex items-center gap-1 text-xs text-gray-600 hover:bg-gray-200 rounded-lg px-2 py-1"
+                        >
+                          <FileText className="h-3.5 w-3.5" /> Snippet
+                        </button>
+                        {showSnippets && (
+                          <div className="absolute bottom-full mb-1 left-0 bg-white border rounded-lg shadow-lg w-64 z-20 max-h-60 overflow-y-auto">
+                            {snippets.map((s) => (
+                              <button
+                                key={s.id}
+                                onClick={() => {
+                                  setReply(s.body);
+                                  setShowSnippets(false);
+                                }}
+                                className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b"
+                              >
+                                <div className="font-medium text-gray-700">{s.label}</div>
+                                <div className="text-gray-400 truncate">{s.body}</div>
+                              </button>
+                            ))}
+                            <button
+                              onClick={saveSnippet}
+                              className="block w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                            >
+                              + Simpan balasan ini jadi snippet
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={send}
+                        disabled={sending || !reply.trim()}
+                        className="flex items-center gap-1.5 bg-emerald-500 text-white rounded-lg px-4 py-1.5 text-sm font-medium disabled:opacity-50"
+                      >
+                        {sending ? "…" : <><Send className="h-3.5 w-3.5" /> Hantar</>}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
