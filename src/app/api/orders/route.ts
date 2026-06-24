@@ -252,6 +252,7 @@ export async function POST(request: Request) {
       payment_method,
       payment_status: 'unpaid',
       delivery_address,
+      postcode: (typeof postcode === 'string' && postcode.trim()) ? postcode.trim() : null,
       promo_code_id: appliedPromo?.id ?? null,
       delivery_slot: delivery_slot ?? null,
       delivery_method: isPickup ? 'pickup' : 'delivery',

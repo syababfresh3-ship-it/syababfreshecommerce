@@ -142,6 +142,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           {order.delivery_address && (
             <p className="text-sm text-gray-700 whitespace-pre-line">{order.delivery_address}</p>
           )}
+          {order.postcode && (
+            <p className="text-sm text-gray-500 mt-1">Poskod: <span className="font-semibold text-gray-800">{order.postcode}</span></p>
+          )}
         </div>
       )}
 
