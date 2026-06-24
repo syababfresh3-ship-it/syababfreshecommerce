@@ -660,7 +660,7 @@ export function InboxClient() {
                   )}
                 </div>
               ) : inWindow ? (
-                <div>
+                <div className="relative">
                   <input
                     ref={fileRef}
                     type="file"
@@ -688,7 +688,7 @@ export function InboxClient() {
                       className="w-full resize-none px-3 py-2.5 text-sm focus:outline-none"
                     />
                     <div className="flex items-center justify-between px-2 py-1.5 border-t border-gray-100 bg-gray-50">
-                      <div className="relative flex items-center gap-0.5">
+                      <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => fileRef.current?.click()}
                           disabled={uploading}
@@ -709,29 +709,6 @@ export function InboxClient() {
                         >
                           <FileText className="h-3.5 w-3.5" /> Snippet
                         </button>
-                        {showSnippets && (
-                          <div className="absolute bottom-full mb-1 left-0 bg-white border rounded-lg shadow-lg w-64 z-20 max-h-60 overflow-y-auto">
-                            {snippets.map((s) => (
-                              <button
-                                key={s.id}
-                                onClick={() => {
-                                  setReply(s.body);
-                                  setShowSnippets(false);
-                                }}
-                                className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b"
-                              >
-                                <div className="font-medium text-gray-700">{s.label}</div>
-                                <div className="text-gray-400 truncate">{s.body}</div>
-                              </button>
-                            ))}
-                            <button
-                              onClick={saveSnippet}
-                              className="block w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
-                            >
-                              + Simpan balasan ini jadi snippet
-                            </button>
-                          </div>
-                        )}
                       </div>
                       <button
                         onClick={send}
@@ -742,6 +719,30 @@ export function InboxClient() {
                       </button>
                     </div>
                   </div>
+                  {/* Snippet dropdown — di LUAR kotak overflow-hidden (elak terpotong atas) */}
+                  {showSnippets && (
+                    <div className="absolute left-2 bottom-12 bg-white border rounded-lg shadow-lg w-64 z-30 max-h-56 overflow-y-auto">
+                      {snippets.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => {
+                            setReply(s.body);
+                            setShowSnippets(false);
+                          }}
+                          className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-50 border-b"
+                        >
+                          <div className="font-medium text-gray-700">{s.label}</div>
+                          <div className="text-gray-400 truncate">{s.body}</div>
+                        </button>
+                      ))}
+                      <button
+                        onClick={saveSnippet}
+                        className="block w-full text-left px-3 py-2 text-xs text-emerald-600 hover:bg-emerald-50"
+                      >
+                        + Simpan balasan ini jadi snippet
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
