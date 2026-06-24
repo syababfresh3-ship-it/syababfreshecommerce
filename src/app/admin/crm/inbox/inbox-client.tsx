@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Reply, Tag, Smartphone, Clock, User, Search } from "lucide-react";
 
 // ---------- Jenis ----------
 interface Contact {
@@ -442,69 +443,78 @@ export function InboxClient() {
         </div>
         {/* Bar filter — Perlu balas (utama) + dropdown sebaris + search */}
         <div className="px-2.5 py-2 border-b bg-gray-50 space-y-2">
-          {/* Perlu balas — pill utama (gaya Murpati) */}
+          {/* Perlu balas — pill utama (ikon plain) */}
           <button
             onClick={() => setNeedReplyOnly((v) => !v)}
-            className={`w-full flex items-center justify-center gap-2 text-xs font-medium rounded-full px-3 py-1.5 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"}`}
+            className={`w-full flex items-center justify-center gap-1.5 text-xs rounded-lg px-3 py-2 border transition-colors ${needReplyOnly ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-700 border-gray-200 hover:bg-gray-100"}`}
           >
-            🔴 Perlu balas
+            <Reply className="h-3.5 w-3.5" /> Perlu balas
             {needReplyTotal > 0 && (
               <span className={`text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${needReplyOnly ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>{needReplyTotal}</span>
             )}
           </button>
 
-          {/* Dropdown label — baris sendiri */}
+          {/* Dropdown label */}
           {allTags.length > 0 && (
-            <select
-              value={filterTag}
-              onChange={(e) => setFilterTag(e.target.value)}
-              className="w-full text-xs font-normal rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
-            >
-              <option value="">🏷️ Semua label</option>
-              {allTags.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <Tag className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+              <select
+                value={filterTag}
+                onChange={(e) => setFilterTag(e.target.value)}
+                className="w-full text-xs rounded-lg pl-8 pr-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+              >
+                <option value="">Semua label</option>
+                {allTags.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
           )}
 
-          {/* Dropdown nombor — baris sendiri */}
+          {/* Dropdown nombor */}
           {waNumbers.length > 1 && (
-            <select
-              value={numberFilter}
-              onChange={(e) => setNumberFilter(e.target.value)}
-              className="w-full text-xs font-normal rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
-            >
-              <option value="">📱 Semua nombor</option>
-              {waNumbers.map((n) => (
-                <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <Smartphone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+              <select
+                value={numberFilter}
+                onChange={(e) => setNumberFilter(e.target.value)}
+                className="w-full text-xs rounded-lg pl-8 pr-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+              >
+                <option value="">Semua nombor</option>
+                {waNumbers.map((n) => (
+                  <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>
+                ))}
+              </select>
+            </div>
           )}
 
           {/* Search */}
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 Cari nama atau no. telefon"
-            className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-300"
-          />
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama atau no. telefon"
+              className="w-full text-xs rounded-lg pl-8 pr-2.5 py-2 border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            />
+          </div>
 
           {/* Toggle sekunder: Follow-up + Saya */}
           <div className="flex gap-1.5">
             <button
               onClick={() => setFuOnly((v) => !v)}
               title="Follow-up due"
-              className={`flex-1 text-xs font-normal rounded-lg px-2 py-1.5 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+              className={`flex-1 flex items-center justify-center gap-1.5 text-xs rounded-lg px-2 py-1.5 border transition-colors ${fuOnly ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
             >
-              ⏰ Follow-up{dueCount > 0 ? ` ${dueCount}` : ""}
+              <Clock className="h-3.5 w-3.5" /> Follow-up{dueCount > 0 ? ` ${dueCount}` : ""}
             </button>
             {myId && (
               <button
                 onClick={() => setMyOnly((v) => !v)}
                 title="Chat assigned ke saya"
-                className={`flex-1 text-xs font-normal rounded-lg px-2 py-1.5 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-xs rounded-lg px-2 py-1.5 border transition-colors ${myOnly ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
               >
-                👤 Saya
+                <User className="h-3.5 w-3.5" /> Saya
               </button>
             )}
           </div>
@@ -522,8 +532,8 @@ export function InboxClient() {
               onClick={() => openConvo(c)}
               className={`w-full text-left px-3 py-2.5 border-b hover:bg-gray-50 flex gap-2.5 ${selected?.id === c.id ? "bg-emerald-50" : ""}`}
             >
-              {/* Avatar — merah kalau perlu balas */}
-              <div className={`shrink-0 w-9 h-9 rounded-full grid place-items-center text-sm font-bold text-white ${c.needs_reply ? "bg-red-400" : "bg-emerald-400"}`}>
+              {/* Avatar */}
+              <div className="shrink-0 w-9 h-9 rounded-full grid place-items-center text-sm font-semibold bg-emerald-100 text-emerald-600">
                 {initial}
               </div>
               <div className="flex-1 min-w-0">
@@ -538,9 +548,9 @@ export function InboxClient() {
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-1 mt-1">
-                  {c.needs_reply && <span className="text-[9px] font-bold bg-red-50 text-red-600 rounded-full px-1.5 py-0.5">🔴 Perlu balas</span>}
-                  {numName && <span className="text-[9px] text-gray-400 bg-gray-50 rounded px-1 py-0.5">📱 {numName}</span>}
-                  {c.assigned_to && <span className="text-[9px] text-blue-500">👤 {admins[c.assigned_to] || "Admin"}</span>}
+                  {c.needs_reply && <span className="inline-flex items-center gap-0.5 text-[9px] font-medium bg-red-50 text-red-600 rounded-full px-1.5 py-0.5"><Reply className="h-2.5 w-2.5" /> Perlu balas</span>}
+                  {numName && <span className="inline-flex items-center gap-0.5 text-[9px] text-gray-400 bg-gray-50 rounded px-1 py-0.5"><Smartphone className="h-2.5 w-2.5" /> {numName}</span>}
+                  {c.assigned_to && <span className="inline-flex items-center gap-0.5 text-[9px] text-gray-400"><User className="h-2.5 w-2.5" /> {admins[c.assigned_to] || "Admin"}</span>}
                   {(c.wa_contacts?.tags ?? []).map((t) => (
                     <span key={t} className="text-[9px] bg-emerald-50 text-emerald-600 rounded px-1">{t}</span>
                   ))}
