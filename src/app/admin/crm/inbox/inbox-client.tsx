@@ -95,6 +95,13 @@ export function InboxClient() {
   const [snippets, setSnippets] = useState<{ id: string; label: string; body: string }[]>([]);
   const [showSnippets, setShowSnippets] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
+  // Follow-up reminder (nudge dalaman)
+  const [followups, setFollowups] = useState<{ id: string; contact_id: string; remind_at: string; note: string | null; status: string }[]>([]);
+  const [fuOnly, setFuOnly] = useState(false);
+  const [fuNote, setFuNote] = useState("");
+  const [fuWhen, setFuWhen] = useState("");
+  // Sejarah pembelian (match ikut nombor)
+  const [purchase, setPurchase] = useState<{ count: number; total: number; lastAt: string | null } | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -123,6 +130,46 @@ export function InboxClient() {
     },
     [supabase],
   );
+
+  // Follow-up reminders (nudge dalaman) — muat + set + selesai
+  const loadFollowups = useCallback(async () => {
+    const res = await fetch("/api/whatsapp/followups");
+    const j = await res.json().catch(() => ({}));
+    setFollowups(j.followups ?? []);
+  }, []);
+  useEffect(() => { loadFollowups(); }, [loadFollowups]);
+
+  // Semak sejarah beli bila buka chat (match ikut nombor).
+  const selWaId = selected?.wa_contacts?.wa_id ?? null;
+  useEffect(() => {
+    if (!selWaId) { setPurchase(null); return; }
+    let cancelled = false;
+    setPurchase(null);
+    fetch(`/api/whatsapp/contacts/purchases?waId=${encodeURIComponent(selWaId)}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) setPurchase(j); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [selWaId]);
+
+  async function setFollowup(remindAt: string) {
+    if (!selected?.wa_contacts) return;
+    const res = await fetch("/api/whatsapp/followups", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId: selected.wa_contacts.id, conversationId: selected.id, remindAt, note: fuNote.trim() || null }),
+    });
+    if (res.ok) { setFuNote(""); setFuWhen(""); loadFollowups(); }
+  }
+  async function doneFollowup(id: string) {
+    await fetch("/api/whatsapp/followups", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "done" }) });
+    loadFollowups();
+  }
+  function quickWhen(kind: "tomorrow" | "3days" | "week"): string {
+    const d = new Date();
+    d.setDate(d.getDate() + (kind === "tomorrow" ? 1 : kind === "3days" ? 3 : 7));
+    d.setHours(9, 0, 0, 0);
+    return d.toISOString();
+  }
 
   // Senarai admin (untuk papar nama assignee) + nombor WA + user semasa (filter)
   useEffect(() => {
@@ -339,6 +386,8 @@ export function InboxClient() {
   }
 
   const contact = selected?.wa_contacts;
+  const fuForContact = (cid?: string | null) => (cid ? followups.find((f) => f.contact_id === cid && f.status === "pending") : undefined);
+  const dueCount = followups.filter((f) => f.status === "pending" && new Date(f.remind_at) <= new Date()).length;
   const displayName = (c: Conversation | null) =>
     c?.wa_contacts?.name || c?.wa_contacts?.profiles?.full_name || c?.wa_contacts?.phone || c?.wa_contacts?.wa_id || "?";
 
@@ -350,6 +399,7 @@ export function InboxClient() {
     if (unreadOnly && !(c.unread_count > 0)) return false;
     if (numberFilter && c.phone_number_id !== numberFilter) return false;
     if (myOnly && c.assigned_to !== myId) return false;
+    if (fuOnly && !followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id)) return false;
     if (q) {
       const name = displayName(c).toLowerCase();
       const phone = (c.wa_contacts?.phone || c.wa_contacts?.wa_id || "");
@@ -394,6 +444,13 @@ export function InboxClient() {
               className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${unreadOnly ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-gray-600 border-gray-200"}`}
             >
               Belum baca{unreadTotal > 0 ? ` (${unreadTotal})` : ""}
+            </button>
+            <button
+              onClick={() => setFuOnly((v) => !v)}
+              title="Follow-up due"
+              className={`text-xs font-semibold rounded-lg px-3 py-1.5 border whitespace-nowrap ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200"}`}
+            >
+              ⏰{dueCount > 0 ? ` ${dueCount}` : ""}
             </button>
           </div>
           {(waNumbers.length > 1 || myId) && (
@@ -662,13 +719,26 @@ export function InboxClient() {
               <dt className="text-gray-400">Customer berdaftar</dt>
               <dd>{contact?.profile_id ? "Ya" : "Tidak"}</dd>
             </div>
-            {contact?.profiles?.total_spend != null && (
-              <div>
-                <dt className="text-gray-400">Jumlah belanja</dt>
-                <dd>RM {Number(contact.profiles.total_spend).toFixed(2)}</dd>
-              </div>
-            )}
           </dl>
+
+          {/* Sejarah pembelian — match ikut nombor (LP + storefront) */}
+          <div className="mt-3">
+            {purchase === null ? (
+              <div className="text-[11px] text-gray-300">Menyemak pembelian…</div>
+            ) : purchase.count > 0 ? (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs">
+                <div className="font-semibold text-emerald-700">🛍️ Pernah beli dengan kita ✓</div>
+                <div className="text-emerald-600 mt-0.5">{purchase.count} order · RM{purchase.total.toFixed(2)}</div>
+                {purchase.lastAt && (
+                  <div className="text-emerald-500 text-[11px] mt-0.5">
+                    Terakhir: {new Date(purchase.lastAt).toLocaleDateString("ms-MY", { day: "2-digit", month: "short", year: "2-digit" })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-2 text-xs text-gray-400">Belum pernah beli</div>
+            )}
+          </div>
 
           {/* Tindakan: buat order + pay link (macam pipeline) */}
           <div className="mt-4 space-y-2 border-t pt-3">
@@ -737,6 +807,43 @@ export function InboxClient() {
                 +
               </button>
             </div>
+          </div>
+
+          {/* Follow-up reminder (nudge dalaman — tiada mesej auto ke customer) */}
+          <div className="mt-4 border-t pt-3">
+            <div className="text-xs text-gray-400 mb-1">⏰ Follow-up</div>
+            {(() => {
+              const fu = fuForContact(contact?.id);
+              if (fu) {
+                const due = new Date(fu.remind_at) <= new Date();
+                return (
+                  <div className={`rounded-lg p-2 text-xs ${due ? "bg-red-50 border border-red-200" : "bg-amber-50 border border-amber-100"}`}>
+                    <div className={due ? "text-red-700 font-semibold" : "text-amber-700"}>{due ? "🔔 Due — follow up sekarang" : `Diingatkan: ${fmtTime(fu.remind_at)}`}</div>
+                    {fu.note && <div className="text-gray-600 mt-0.5">{fu.note}</div>}
+                    <button onClick={() => doneFollowup(fu.id)} className="mt-1.5 text-emerald-600 hover:underline">✓ Selesai</button>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  <input value={fuNote} onChange={(e) => setFuNote(e.target.value)} placeholder="Nota (cth: tanya restock)" className="w-full border rounded-lg px-2.5 py-1.5 text-xs" />
+                  <div>
+                    <div className="text-[11px] text-gray-400 mb-1">Ingatkan bila:</div>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button onClick={() => setFollowup(quickWhen("tomorrow"))} className="text-[11px] bg-gray-100 hover:bg-amber-100 rounded-lg px-1 py-1.5 font-medium">Esok 9am</button>
+                      <button onClick={() => setFollowup(quickWhen("3days"))} className="text-[11px] bg-gray-100 hover:bg-amber-100 rounded-lg px-1 py-1.5 font-medium">3 hari</button>
+                      <button onClick={() => setFollowup(quickWhen("week"))} className="text-[11px] bg-gray-100 hover:bg-amber-100 rounded-lg px-1 py-1.5 font-medium">Minggu</button>
+                    </div>
+                  </div>
+                  <input type="datetime-local" value={fuWhen} onChange={(e) => setFuWhen(e.target.value)} className="w-full border rounded-lg px-2.5 py-1.5 text-xs text-gray-600" />
+                  {fuWhen && (
+                    <button onClick={() => setFollowup(new Date(fuWhen).toISOString())} className="w-full bg-amber-500 text-white rounded-lg py-1.5 text-xs font-semibold hover:bg-amber-600">
+                      Set reminder tarikh ini
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </aside>
       )}
