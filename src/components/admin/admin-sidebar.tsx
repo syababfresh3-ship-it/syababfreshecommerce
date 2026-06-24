@@ -54,6 +54,7 @@ const sections = [
     label: 'MARKETING',
     items: [
       { href: '/admin/promos',         label: 'Promotions',    icon: Tag },
+      { href: '/admin/promos/usage',   label: 'Kupon & Points', icon: BarChart2 },
       { href: '/admin/banners',        label: 'Banner',     icon: Image },
       { href: '/admin/notifications',  label: 'Notifications', icon: Bell },
       { href: '/admin/referrals',      label: 'Referrals',    icon: Gift },
