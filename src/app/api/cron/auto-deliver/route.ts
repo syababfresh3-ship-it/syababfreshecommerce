@@ -18,11 +18,11 @@ import { awardLpLoyalty } from '@/lib/lp-loyalty'
 // cron-job.org harian. Cap per-run supaya siap bawah timeout 30s; backlog awal
 // dihabiskan beberapa hari. Dilindungi CRON_SECRET (Bearer).
 //
-// Ambang hari boleh laras dari URL: ?days=N (1–60). Default 11 (musim preorder,
-// banyak order lambat sampai). Tukar ke ?days=7 bila dah normal — edit URL di
-// cron-job.org, tak perlu deploy.
+// Ambang hari boleh laras dari URL: ?days=N (1–60). Default 7 (webhook delivered
+// Ninja/Poslaju/Lalamove kini auto-sync majoriti; ambang ini cuma jaring keselamatan
+// untuk yang terlepas). NOTA: jika URL cron-job.org ada ?days=N, ia OVERRIDE default ni.
 
-const DEFAULT_DAYS = 11
+const DEFAULT_DAYS = 7
 const LIMIT = 40 // per jadual setiap run — kekal bawah timeout
 
 export async function GET(req: Request) {
