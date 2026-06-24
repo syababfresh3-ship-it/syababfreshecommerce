@@ -445,11 +445,11 @@ export function InboxClient() {
           {/* Perlu balas — pill utama (gaya Murpati) */}
           <button
             onClick={() => setNeedReplyOnly((v) => !v)}
-            className={`w-full flex items-center justify-center gap-2 text-sm font-bold rounded-full px-3 py-2 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"}`}
+            className={`w-full flex items-center justify-center gap-2 text-xs font-medium rounded-full px-3 py-1.5 border transition-colors ${needReplyOnly ? "bg-red-500 text-white border-red-500" : "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"}`}
           >
             🔴 Perlu balas
             {needReplyTotal > 0 && (
-              <span className={`text-xs font-bold rounded-full px-1.5 py-0.5 ${needReplyOnly ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>{needReplyTotal}</span>
+              <span className={`text-[10px] font-semibold rounded-full px-1.5 py-0.5 ${needReplyOnly ? "bg-white/25 text-white" : "bg-red-500 text-white"}`}>{needReplyTotal}</span>
             )}
           </button>
 
@@ -458,7 +458,7 @@ export function InboxClient() {
             <select
               value={filterTag}
               onChange={(e) => setFilterTag(e.target.value)}
-              className="w-full text-xs font-semibold rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+              className="w-full text-xs font-normal rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
             >
               <option value="">🏷️ Semua label</option>
               {allTags.map((t) => (
@@ -472,7 +472,7 @@ export function InboxClient() {
             <select
               value={numberFilter}
               onChange={(e) => setNumberFilter(e.target.value)}
-              className="w-full text-xs font-semibold rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
+              className="w-full text-xs font-normal rounded-lg px-2.5 py-2 border border-gray-200 bg-white text-gray-700"
             >
               <option value="">📱 Semua nombor</option>
               {waNumbers.map((n) => (
@@ -494,7 +494,7 @@ export function InboxClient() {
             <button
               onClick={() => setFuOnly((v) => !v)}
               title="Follow-up due"
-              className={`flex-1 text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+              className={`flex-1 text-xs font-normal rounded-lg px-2 py-1.5 border transition-colors ${fuOnly ? "bg-amber-500 text-white border-amber-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
             >
               ⏰ Follow-up{dueCount > 0 ? ` ${dueCount}` : ""}
             </button>
@@ -502,7 +502,7 @@ export function InboxClient() {
               <button
                 onClick={() => setMyOnly((v) => !v)}
                 title="Chat assigned ke saya"
-                className={`flex-1 text-xs font-semibold rounded-lg px-2 py-1.5 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
+                className={`flex-1 text-xs font-normal rounded-lg px-2 py-1.5 border transition-colors ${myOnly ? "bg-violet-500 text-white border-violet-500" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-100"}`}
               >
                 👤 Saya
               </button>
