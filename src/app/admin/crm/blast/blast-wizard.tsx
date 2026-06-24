@@ -59,6 +59,8 @@ export function BlastWizard() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [pasteText, setPasteText] = useState("");
   const [csv, setCsv] = useState<{ cols: string[]; rows: CsvRow[]; fileName: string } | null>(null);
+  const [excludeBlasted, setExcludeBlasted] = useState(false); // jangan hantar pada yang dah pernah di-blast
+  const [excludeBlastedDays, setExcludeBlastedDays] = useState(""); // cooldown: kosong = selamanya, N = N hari terakhir sahaja
   const [pastList, setPastList] = useState<PastBlast[]>([]);
   const [pastId, setPastId] = useState("");
 
@@ -108,7 +110,7 @@ export function BlastWizard() {
     setPreviewLoading(true);
     fetch("/api/whatsapp/blast/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined }),
+      body: JSON.stringify({ source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined }),
     })
       .then((r) => r.json())
       .then((j) => {
@@ -120,7 +122,7 @@ export function BlastWizard() {
       })
       .finally(() => { if (!cancelled) setPreviewLoading(false); });
     return () => { cancelled = true; };
-  }, [audType, selectedTags, recentDays]);
+  }, [audType, selectedTags, recentDays, excludeBlasted, excludeBlastedDays]);
 
   const shownPreview = contactSearch.trim()
     ? previewContacts.filter((c) => (c.name ?? "").toLowerCase().includes(contactSearch.toLowerCase()) || c.wa_id.includes(contactSearch.replace(/\D/g, "")))
@@ -133,7 +135,7 @@ export function BlastWizard() {
     : pastList.find((p) => p.id === pastId)?.total ?? 0;
 
   function buildAudience() {
-    if (audType === "contacts") return { source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeWaIds: [...excluded] };
+    if (audType === "contacts") return { source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeWaIds: [...excluded], excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined };
     if (audType === "csv") return { source: "csv", rows: csv?.rows ?? [] };
     if (audType === "paste") return { source: "paste", numbers: pasteNumbers };
     return { source: "past", pastBlastId: pastId };
@@ -254,6 +256,23 @@ export function BlastWizard() {
                 ))}
               </div>
               <input value={recentDays} onChange={(e) => setRecentDays(e.target.value.replace(/\D/g, ""))} placeholder="aktif dalam X hari (kosong = semua)" className={inputCls} />
+
+              {/* Exclude yang dah pernah di-blast — elak hantar sama berulang (jimat kos) */}
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input type="checkbox" checked={excludeBlasted} onChange={(e) => setExcludeBlasted(e.target.checked)} />
+                  <span>Buang yang <b>dah pernah di-blast</b> <span className="text-[11px] text-gray-400">(hantar pada yang baru sahaja)</span></span>
+                </label>
+                {excludeBlasted && (
+                  <div className="flex items-center gap-2 pl-6">
+                    <input value={excludeBlastedDays} onChange={(e) => setExcludeBlastedDays(e.target.value.replace(/\D/g, ""))}
+                      placeholder="∞" className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm text-center" />
+                    <span className="text-[11px] text-gray-500">
+                      kosong = <b>selamanya</b> · isi <b>X hari</b> = cooldown (lepas X hari, boleh blast balik)
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Preview + search + untick individu */}
               <div className="border border-gray-200 rounded-xl overflow-hidden">
