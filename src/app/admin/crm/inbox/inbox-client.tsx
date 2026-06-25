@@ -245,25 +245,37 @@ export function InboxClient() {
   // Muat awal + realtime (bunyi bila mesej masuk)
   useEffect(() => {
     loadConvos();
-    const ch = supabase
-      .channel("wa-inbox")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
-        const row = p.new as Message;
-        if (row?.direction === "in") {
-          playNotif();
-          document.title = "🔔 Mesej baru — Inbox";
-        }
-        loadConvos();
-        if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
-        const row = p.new as Message;
-        if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversations" }, () => loadConvos())
-      .subscribe();
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    (async () => {
+      // Realtime postgres_changes hormati RLS — socket WAJIB bawa JWT admin
+      // (bukan anon), jika tidak policy is_admin() block semua event → mesej
+      // baru tak muncul tanpa refresh. Set token sesi pada socket dulu.
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) supabase.realtime.setAuth(token);
+      if (cancelled) return;
+      ch = supabase
+        .channel("wa-inbox")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
+          const row = p.new as Message;
+          if (row?.direction === "in") {
+            playNotif();
+            document.title = "🔔 Mesej baru — Inbox";
+          }
+          loadConvos();
+          if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "wa_messages" }, (p: { new: Message }) => {
+          const row = p.new as Message;
+          if (selected && row?.conversation_id === selected.id) loadMessages(selected.id);
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversations" }, () => loadConvos())
+        .subscribe();
+    })();
     return () => {
-      supabase.removeChannel(ch);
+      cancelled = true;
+      if (ch) supabase.removeChannel(ch);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
