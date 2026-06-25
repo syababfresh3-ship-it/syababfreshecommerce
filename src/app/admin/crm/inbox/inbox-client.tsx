@@ -289,7 +289,7 @@ export function InboxClient() {
       loadConvos();
       if (selected) loadMessages(selected.id);
     };
-    const iv = setInterval(tick, 15000);
+    const iv = setInterval(tick, 8000);
     document.addEventListener("visibilitychange", tick);
     return () => {
       clearInterval(iv);
