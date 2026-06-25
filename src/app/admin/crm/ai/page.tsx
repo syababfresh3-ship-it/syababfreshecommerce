@@ -9,7 +9,7 @@ export default async function CrmAiPage() {
   const { data } = await sb
     .from("app_settings")
     .select("key, value")
-    .in("key", ["ai_chatbot_enabled", "ai_chatbot_mode", "ai_chatbot_model", "ai_chatbot_knowledge"]);
+    .in("key", ["ai_chatbot_enabled", "ai_chatbot_mode", "ai_chatbot_model", "ai_chatbot_knowledge", "ai_chatbot_persona"]);
   const s: Record<string, string> = {};
   for (const r of data ?? []) s[r.key] = r.value;
 
@@ -20,6 +20,7 @@ export default async function CrmAiPage() {
         mode: s.ai_chatbot_mode || "auto",
         model: s.ai_chatbot_model || "gpt-4o-mini",
         knowledge: s.ai_chatbot_knowledge || "",
+        persona: s.ai_chatbot_persona || "",
       }}
     />
   );

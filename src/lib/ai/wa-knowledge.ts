@@ -8,11 +8,22 @@ import { HUMAN_WA } from "@/lib/support/constants";
 // Halaman bantuan rasmi — untuk masalah tracking/penghantaran/aduan.
 export const HELP_URL = process.env.NEXT_PUBLIC_HELP_URL ?? "https://manage.syababfresh.my/bantuan";
 
-// Bina system prompt WA. extraKnowledge = nota tambahan boleh-edit admin (F3).
+// Bina system prompt WA.
+//  persona   = identiti/gaya AI (boleh-edit admin di /admin/crm/ai). Kosong = lalai.
+//  knowledge = nota/fakta tambahan (promosi, polisi) — boleh-edit admin.
+// Logik closing + peraturan keselamatan kekal dalam kod (tak boleh customer/admin pecahkan).
 // Statik (tiada timestamp) supaya cache prompt berkesan.
-export function buildWaSystemPrompt(extraKnowledge = ""): string {
-  const extra = extraKnowledge.trim() ? `\n\n## Nota tambahan (admin)\n${extraKnowledge.trim()}` : "";
-  return `Anda "Pembantu SyababFresh" — jurujual WhatsApp rasmi untuk SyababFresh (kedai buah segar online di Malaysia). Anda berbual terus dengan customer dalam WhatsApp dan matlamat utama anda adalah BANTU MEREKA BELI (closing) terus di sini, bukan hantar mereka ke website.
+export function buildWaSystemPrompt(opts: { persona?: string; knowledge?: string } = {}): string {
+  const persona = (opts.persona ?? "").trim();
+  const knowledge = (opts.knowledge ?? "").trim();
+  const extra = knowledge ? `\n\n## Nota & fakta tambahan (admin)\n${knowledge}` : "";
+  const identity = persona
+    ? `Anda chatbot WhatsApp rasmi SyababFresh (kedai buah segar online di Malaysia), berbual terus dengan customer. Matlamat utama anda BANTU MEREKA BELI (closing) terus di WhatsApp, bukan hantar ke website.
+
+IDENTITI & PERSONA ANDA (ikut ini):
+${persona}`
+    : `Anda "Pembantu SyababFresh" — jurujual WhatsApp rasmi untuk SyababFresh (kedai buah segar online di Malaysia). Anda berbual terus dengan customer dalam WhatsApp dan matlamat utama anda adalah BANTU MEREKA BELI (closing) terus di sini, bukan hantar mereka ke website.`;
+  return `${identity}
 
 PERANAN:
 - Jawab soalan produk, harga, penghantaran, cara order, dan status order — mesra & yakinkan.

@@ -10,6 +10,7 @@ interface Initial {
   mode: string;
   model: string;
   knowledge: string;
+  persona: string;
 }
 
 const MODES: { key: string; label: string; desc: string }[] = [
@@ -34,6 +35,9 @@ export function AiClient({ initial }: { initial: Initial }) {
   const [knowledge, setKnowledge] = useState(initial.knowledge);
   const [savingK, setSavingK] = useState(false);
   const [savedK, setSavedK] = useState(false);
+  const [persona, setPersona] = useState(initial.persona);
+  const [savingP, setSavingP] = useState(false);
+  const [savedP, setSavedP] = useState(false);
   const [busy, setBusy] = useState("");
 
   async function toggleMaster() {
@@ -64,6 +68,16 @@ export function AiClient({ initial }: { initial: Initial }) {
     if (ok) {
       setSavedK(true);
       setTimeout(() => setSavedK(false), 2000);
+    }
+  }
+  async function savePersona() {
+    setSavingP(true);
+    setSavedP(false);
+    const ok = await saveSetting("ai_chatbot_persona", persona);
+    setSavingP(false);
+    if (ok) {
+      setSavedP(true);
+      setTimeout(() => setSavedP(false), 2000);
     }
   }
 
@@ -152,6 +166,36 @@ export function AiClient({ initial }: { initial: Initial }) {
               </span>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Persona / Identiti AI */}
+      <div className="bg-white rounded-xl border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Bot className="h-4 w-4 text-gray-500" />
+          <div className="font-medium text-gray-800">Persona &amp; identiti AI</div>
+        </div>
+        <p className="text-xs text-gray-500">
+          Watak, nama &amp; gaya AI (cth &quot;Kak Syabab — jurujual peribadi premium, mesra, kenal pelanggan&quot;).
+          Logik closing, format WhatsApp &amp; peraturan keselamatan kekal automatik — ini cuma untuk watak/nada.
+        </p>
+        <textarea
+          value={persona}
+          onChange={(e) => setPersona(e.target.value)}
+          rows={8}
+          placeholder={"Cth:\nNama: Kak Syabab\nGaya: Professional, warm, personal — macam personal shopper yang kenal pelanggan betul-betul.\nPangkat: Jurujual peribadi, bukan sekadar chatbot.\n\nSiapa pelanggan: golongan berduit, umur 29–60, hargakan masa lebih dari harga, ramai repeat customer."}
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={savePersona}
+            disabled={savingP}
+            className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {savingP ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            Simpan
+          </button>
+          {savedP && <span className="text-xs text-emerald-600 flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Disimpan</span>}
         </div>
       </div>
 

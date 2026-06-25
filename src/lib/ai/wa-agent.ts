@@ -17,13 +17,14 @@ interface AiSettings {
   mode: string; // auto | draft | faq
   model: string; // gpt-4o-mini | claude-haiku
   knowledge: string;
+  persona: string;
 }
 
 async function readAiSettings(sb: SB): Promise<AiSettings> {
   const { data } = await sb
     .from("app_settings")
     .select("key, value")
-    .in("key", ["ai_chatbot_enabled", "ai_chatbot_mode", "ai_chatbot_model", "ai_chatbot_knowledge"]);
+    .in("key", ["ai_chatbot_enabled", "ai_chatbot_mode", "ai_chatbot_model", "ai_chatbot_knowledge", "ai_chatbot_persona"]);
   const m: Record<string, string> = {};
   for (const r of data ?? []) m[r.key] = r.value;
   return {
@@ -31,6 +32,7 @@ async function readAiSettings(sb: SB): Promise<AiSettings> {
     mode: m.ai_chatbot_mode || "auto",
     model: m.ai_chatbot_model || "gpt-4o-mini",
     knowledge: m.ai_chatbot_knowledge || "",
+    persona: m.ai_chatbot_persona || "",
   };
 }
 
@@ -173,7 +175,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
   try {
     result = await runAiChat({
       modelKey: s.model,
-      system: buildWaSystemPrompt(s.knowledge),
+      system: buildWaSystemPrompt({ persona: s.persona, knowledge: s.knowledge }),
       history,
       userMessage: text,
       tools: WA_TOOLS,
