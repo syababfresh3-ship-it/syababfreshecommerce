@@ -47,6 +47,15 @@ function wantsHuman(t: string): boolean {
   return HUMAN_PATTERNS.some((re) => re.test(t));
 }
 
+// Fakta ai_memory (objek) → teks "kunci: nilai" untuk prompt.
+function formatMemory(mem: Record<string, string> | null | undefined): string {
+  if (!mem || typeof mem !== "object") return "";
+  return Object.entries(mem)
+    .filter(([k, v]) => k && v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join("\n");
+}
+
 interface LogRow {
   conversationId: string;
   contactId: string;
@@ -117,7 +126,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
   const { data: conv } = await sb
     .from("wa_conversations")
     .select(
-      "id, ai_enabled, window_expires_at, phone_number_id, wa_contacts(wa_id, phone, name, opt_out, profile_id)",
+      "id, ai_enabled, window_expires_at, phone_number_id, wa_contacts(wa_id, phone, name, opt_out, profile_id, ai_memory)",
     )
     .eq("id", args.conversationId)
     .maybeSingle();
@@ -128,8 +137,12 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     name: string | null;
     opt_out: boolean | null;
     profile_id: string | null;
+    ai_memory: Record<string, string> | null;
   } | null;
   if (!contact?.wa_id || contact.opt_out) return; // tiada wa_id / opt-out
+
+  // Memori per-customer (fakta yang AI dah ingat) → suntik ke prompt.
+  const memText = formatMemory(contact.ai_memory);
 
   // GUARD 3 — dalam tetingkap 24j (luar window: tak boleh hantar teks bebas)
   if (!conv.window_expires_at || new Date(conv.window_expires_at).getTime() <= Date.now()) return;
@@ -175,7 +188,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
   try {
     result = await runAiChat({
       modelKey: s.model,
-      system: buildWaSystemPrompt({ persona: s.persona, knowledge: s.knowledge }),
+      system: buildWaSystemPrompt({ persona: s.persona, knowledge: s.knowledge, memory: memText }),
       history,
       userMessage: text,
       tools: WA_TOOLS,

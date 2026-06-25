@@ -13,6 +13,7 @@ interface Contact {
   tags: string[] | null;
   profile_id: string | null;
   notes: string | null;
+  ai_memory: Record<string, string> | null;
   profiles?: { full_name: string | null; total_spend: number | null } | null;
 }
 interface Conversation {
@@ -119,7 +120,7 @@ export function InboxClient() {
     const { data } = await supabase
       .from("wa_conversations")
       .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, ai_enabled, wa_contacts(id, wa_id, phone, name, tags, notes, profile_id, profiles(full_name, total_spend))",
+        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, ai_enabled, wa_contacts(id, wa_id, phone, name, tags, notes, ai_memory, profile_id, profiles(full_name, total_spend))",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
@@ -183,6 +184,16 @@ export function InboxClient() {
     if (error) return;
     setSelected((s) => (s ? { ...s, ai_enabled: next } : s));
     setConvos((cs) => cs.map((c) => (c.id === selected.id ? { ...c, ai_enabled: next } : c)));
+  }
+
+  // Padam memori AI untuk customer ini.
+  async function clearAiMemory() {
+    if (!selected?.wa_contacts) return;
+    if (!window.confirm("Padam semua yang AI ingat tentang customer ni?")) return;
+    const cid = selected.wa_contacts.id;
+    await supabase.from("wa_contacts").update({ ai_memory: {} }).eq("id", cid);
+    setSelected((s) => (s && s.wa_contacts ? { ...s, wa_contacts: { ...s.wa_contacts, ai_memory: {} } } : s));
+    setConvos((cs) => cs.map((c) => (c.wa_contacts?.id === cid ? { ...c, wa_contacts: { ...c.wa_contacts!, ai_memory: {} } } : c)));
   }
 
   async function setFollowup(remindAt: string) {
@@ -943,6 +954,29 @@ export function InboxClient() {
               {noteSaving ? "Menyimpan…" : "Simpan nota"}
             </button>
           </div>
+
+          {/* AI ingat — fakta yang AI simpan tentang customer */}
+          {(() => {
+            const mem = contact?.ai_memory;
+            const entries = mem && typeof mem === "object" ? Object.entries(mem) : [];
+            if (!entries.length) return null;
+            return (
+              <div className="mt-4 border-t pt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs text-gray-400 flex items-center gap-1"><Bot className="h-3.5 w-3.5" /> AI ingat</div>
+                  <button onClick={clearAiMemory} className="text-[10px] text-gray-400 hover:text-red-500">Padam</button>
+                </div>
+                <dl className="space-y-1">
+                  {entries.map(([k, v]) => (
+                    <div key={k} className="text-xs flex gap-1.5">
+                      <dt className="text-gray-400 shrink-0">{k}:</dt>
+                      <dd className="text-gray-700">{String(v)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            );
+          })()}
 
           {/* Follow-up reminder (nudge dalaman — tiada mesej auto ke customer) */}
           <div className="mt-4 border-t pt-3">

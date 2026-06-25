@@ -29,6 +29,23 @@ export const WA_TOOLS: AiToolDef[] = [
     parameters: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "remember_about_customer",
+    description:
+      "Simpan fakta PENTING & kekal tentang customer ini supaya anda ingat masa depan (nama panggilan, budget, kesukaan buah, pantang/alahan, alamat tetap, dll). Guna bila customer kongsi maklumat berguna. JANGAN simpan benda remeh atau sementara.",
+    parameters: {
+      type: "object",
+      properties: {
+        facts: {
+          type: "object",
+          description:
+            'Pasangan kunci-nilai, cth {"nama_panggilan":"Kak Mah","budget":"sekitar RM100","suka":"durian musang king, cherry","alahan":"tiada"}. Hantar hanya fakta baru/dikemas.',
+          additionalProperties: { type: "string" },
+        },
+      },
+      required: ["facts"],
+    },
+  },
+  {
     name: "flag_ready_order",
     description:
       "Rekod order yang customer DAH SAHKAN supaya team boleh hantar pautan bayar / sahkan COD. Panggil HANYA selepas customer sahkan order lengkap (produk+kuantiti, nama, alamat+poskod atau pickup, kaedah bayar). Selepas panggil, beritahu customer team akan hantar pautan bayar sekejap lagi.",
@@ -60,9 +77,33 @@ export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
   return async (name, input) => {
     if (name === "search_products") return searchProducts(sb, String(input.query ?? ""));
     if (name === "get_order_by_phone") return getOrderByPhone(sb, ctx);
+    if (name === "remember_about_customer") return rememberAboutCustomer(sb, ctx, input.facts);
     if (name === "flag_ready_order") return flagReadyOrder(sb, ctx, String(input.summary ?? ""));
     return `Tool tidak dikenali: ${name}`;
   };
+}
+
+// Simpan fakta kekal tentang customer (merge ke wa_contacts.ai_memory).
+async function rememberAboutCustomer(sb: SB, ctx: WaToolCtx, facts: unknown): Promise<string> {
+  if (!facts || typeof facts !== "object" || Array.isArray(facts)) return "GAGAL: facts mesti objek kunci-nilai.";
+  const incoming: Record<string, string> = {};
+  for (const [k, v] of Object.entries(facts as Record<string, unknown>)) {
+    const key = String(k).trim().slice(0, 60);
+    const val = String(v ?? "").trim().slice(0, 300);
+    if (key && val) incoming[key] = val;
+  }
+  if (Object.keys(incoming).length === 0) return "GAGAL: tiada fakta sah untuk disimpan.";
+  if (ctx.dryRun) return `BERJAYA (mod ujian): diingat — ${JSON.stringify(incoming)}`;
+  if (!ctx.contactId) return "GAGAL: tiada konteks contact.";
+
+  const { data: c } = await sb.from("wa_contacts").select("ai_memory").eq("id", ctx.contactId).maybeSingle();
+  const current = (c?.ai_memory && typeof c.ai_memory === "object" ? c.ai_memory : {}) as Record<string, string>;
+  const merged = { ...current, ...incoming };
+  // Had ~30 fakta supaya tak membengkak.
+  const keys = Object.keys(merged);
+  const trimmed = keys.length > 30 ? Object.fromEntries(Object.entries(merged).slice(-30)) : merged;
+  await sb.from("wa_contacts").update({ ai_memory: trimmed }).eq("id", ctx.contactId);
+  return `BERJAYA: diingat untuk masa depan — ${JSON.stringify(incoming)}`;
 }
 
 // Order dah disahkan customer → rekod ke notes contact + tag team + push.
