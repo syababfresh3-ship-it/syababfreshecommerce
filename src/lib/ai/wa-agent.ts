@@ -165,6 +165,9 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     profileId: contact.profile_id,
     phone: contact.phone,
     waId: contact.wa_id,
+    contactId: args.contactId,
+    conversationId: conv.id,
+    name: contact.name,
   });
   let result;
   try {

@@ -4,6 +4,7 @@
 // Read-only; tool TIDAK terima order_id dari model (guna konteks contact sahaja).
 // ============================================================
 import type { AiToolDef, RunTool } from "./tools";
+import { sendAdminPush } from "@/lib/push";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
@@ -27,20 +28,65 @@ export const WA_TOOLS: AiToolDef[] = [
       "Semak order & tracking terkini customer ini (terikat pada nombor WhatsApp mereka). Tiada parameter — sentiasa rujuk customer semasa.",
     parameters: { type: "object", properties: {}, required: [] },
   },
+  {
+    name: "flag_ready_order",
+    description:
+      "Rekod order yang customer DAH SAHKAN supaya team boleh hantar pautan bayar / sahkan COD. Panggil HANYA selepas customer sahkan order lengkap (produk+kuantiti, nama, alamat+poskod atau pickup, kaedah bayar). Selepas panggil, beritahu customer team akan hantar pautan bayar sekejap lagi.",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description:
+            "Ringkasan order penuh: produk + kuantiti + harga, nama penuh, alamat + poskod (atau 'pickup'), kaedah bayar (pautan bayar/COD), dan anggaran jumlah RM.",
+        },
+      },
+      required: ["summary"],
+    },
+  },
 ];
 
 export interface WaToolCtx {
   profileId?: string | null;
   phone?: string | null;
   waId: string;
+  contactId?: string | null;
+  conversationId?: string | null;
+  name?: string | null;
 }
 
 export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
   return async (name, input) => {
     if (name === "search_products") return searchProducts(sb, String(input.query ?? ""));
     if (name === "get_order_by_phone") return getOrderByPhone(sb, ctx);
+    if (name === "flag_ready_order") return flagReadyOrder(sb, ctx, String(input.summary ?? ""));
     return `Tool tidak dikenali: ${name}`;
   };
+}
+
+// Order dah disahkan customer → rekod ke notes contact + tag team + push.
+// Team finalize guna butang "Buat Order + Pay Link" (atau extract-order).
+async function flagReadyOrder(sb: SB, ctx: WaToolCtx, summary: string): Promise<string> {
+  if (!summary.trim()) return "GAGAL: ringkasan order kosong. Kumpul & sahkan butiran order dahulu.";
+  if (!ctx.contactId) return "GAGAL: tiada konteks contact.";
+
+  const stamp = `[Order via AI — perlu hantar pautan bayar]\n${summary.trim()}`;
+  const { data: c } = await sb.from("wa_contacts").select("notes").eq("id", ctx.contactId).maybeSingle();
+  const newNotes = c?.notes ? `${c.notes}\n\n${stamp}` : stamp;
+  await sb.from("wa_contacts").update({ notes: newNotes }).eq("id", ctx.contactId);
+
+  if (ctx.conversationId) {
+    await sb.from("wa_conversations").update({ needs_reply: true }).eq("id", ctx.conversationId);
+  }
+
+  await sendAdminPush({
+    title: `Order sedia — ${ctx.name || "Customer"}`,
+    body: summary.trim().slice(0, 120),
+    url: "/admin/crm/inbox",
+    tag: "crm-order-lead",
+  }).catch(() => {});
+
+  return "BERJAYA: order direkod & dihantar ke team untuk hantar pautan bayar. Beritahu customer: terima kasih, CS akan sahkan & hantar pautan bayar sekejap lagi.";
 }
 
 async function searchProducts(sb: SB, query: string): Promise<string> {
