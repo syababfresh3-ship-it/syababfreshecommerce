@@ -13,7 +13,7 @@ export const WA_TOOLS: AiToolDef[] = [
   {
     name: "search_products",
     description:
-      "Cari produk SyababFresh yang aktif untuk jawab soalan harga/produk atau cadang produk. Pulang nama, harga, unit, info ringkas. Kosongkan query untuk produk popular.",
+      "Cari produk SyababFresh yang aktif untuk jawab soalan harga/produk atau cadang produk. Pulang nama, harga, unit, info, dan PILIHAN SAIZ (variant) + harga jika ada — gunakan harga variant yang betul ikut saiz customer pilih. Kosongkan query untuk produk popular.",
     parameters: {
       type: "object",
       properties: {
@@ -25,8 +25,18 @@ export const WA_TOOLS: AiToolDef[] = [
   {
     name: "get_order_by_phone",
     description:
-      "Semak order & tracking terkini customer ini (terikat pada nombor WhatsApp mereka). Tiada parameter — sentiasa rujuk customer semasa.",
+      "Semak order, status, tracking & ITEM yang customer ini pernah beli (terikat pada nombor WhatsApp mereka). Tiada parameter. Berguna untuk tawarkan order semula (reorder) barang yang sama kepada pelanggan tetap.",
     parameters: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "check_delivery",
+    description:
+      "Semak liputan & KOS PENGHANTARAN ikut poskod customer (sama macam harga website). WAJIB guna sebelum bagi jumlah keseluruhan order yang melibatkan penghantaran — jangan reka kos penghantaran. Pulang sama ada Klang Valley (kos tetap) atau luar KV (ikut berat, team sahkan).",
+    parameters: {
+      type: "object",
+      properties: { postcode: { type: "string", description: "Poskod 5 digit customer." } },
+      required: ["postcode"],
+    },
   },
   {
     name: "remember_about_customer",
@@ -77,10 +87,46 @@ export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
   return async (name, input) => {
     if (name === "search_products") return searchProducts(sb, String(input.query ?? ""));
     if (name === "get_order_by_phone") return getOrderByPhone(sb, ctx);
+    if (name === "check_delivery") return checkDelivery(sb, String(input.postcode ?? ""));
     if (name === "remember_about_customer") return rememberAboutCustomer(sb, ctx, input.facts);
     if (name === "flag_ready_order") return flagReadyOrder(sb, ctx, String(input.summary ?? ""));
     return `Tool tidak dikenali: ${name}`;
   };
+}
+
+// Kos penghantaran ikut poskod — padan logik website (/api/delivery/check).
+async function checkDelivery(sb: SB, postcode: string): Promise<string> {
+  const pc = String(postcode).replace(/\D/g, "").trim();
+  if (!/^\d{5}$/.test(pc)) return "Poskod tidak sah. Minta customer bagi poskod 5 digit.";
+
+  const { data: zone } = await sb
+    .from("delivery_zones")
+    .select("area_name, city, state, frequency, delivery_fee")
+    .eq("postcode", pc)
+    .eq("is_active", true)
+    .maybeSingle();
+  const { data: setRow } = await sb.from("app_settings").select("value").eq("key", "default_delivery_fee").maybeSingle();
+  const defaultFee = Number(setRow?.value ?? 15);
+
+  const KV = ["Selangor", "W.P. Kuala Lumpur", "W.P. Putrajaya"];
+  const isLocal = !!zone && KV.includes(zone.state ?? "");
+
+  if (isLocal) {
+    return JSON.stringify({
+      poskod: pc,
+      kawasan: [zone.area_name, zone.city, zone.state].filter(Boolean).join(", "),
+      jenis: "Klang Valley (penghantaran hari sama / 24 jam)",
+      kos_penghantaran: `RM${Number(zone.delivery_fee ?? defaultFee).toFixed(2)}`,
+      nota: "Masukkan kos penghantaran ini dalam jumlah keseluruhan.",
+    });
+  }
+  return JSON.stringify({
+    poskod: pc,
+    kawasan: zone ? [zone.area_name, zone.city, zone.state].filter(Boolean).join(", ") : "Luar Klang Valley",
+    jenis: "Luar Klang Valley (Ninja Van Cold, 1–3 hari bekerja)",
+    kos_penghantaran: "ikut berat — team operasi akan sahkan",
+    nota: "JANGAN reka kos tetap; beritahu customer kos penghantaran luar KV ikut berat dan team akan sahkan.",
+  });
 }
 
 // Simpan fakta kekal tentang customer (merge ke wa_contacts.ai_memory).
@@ -135,23 +181,49 @@ async function flagReadyOrder(sb: SB, ctx: WaToolCtx, summary: string): Promise<
 }
 
 async function searchProducts(sb: SB, query: string): Promise<string> {
-  let q = sb.from("products").select("name, price, unit, description").eq("is_active", true).limit(8);
+  let q = sb
+    .from("products")
+    .select("name, price, unit, description, product_variants(name, price, is_active, sort_order)")
+    .eq("is_active", true)
+    .limit(8);
   if (query.trim()) q = q.ilike("name", `%${query.trim()}%`);
   else q = q.eq("is_featured", true);
   const { data, error } = await q;
   if (error) return `Ralat cari produk: ${error.message}`;
   if (!data?.length) return "Tiada produk dijumpai untuk carian itu.";
   return JSON.stringify(
-    data.map((p: { name: string; price: number; unit: string; description: string | null }) => ({
-      nama: p.name,
-      harga: `RM${Number(p.price).toFixed(2)}/${p.unit}`,
-      info: (p.description ?? "").slice(0, 160),
-    })),
+    data.map(
+      (p: {
+        name: string;
+        price: number;
+        unit: string;
+        description: string | null;
+        product_variants?: { name: string; price: number; is_active: boolean | null; sort_order: number | null }[];
+      }) => {
+        const variants = (p.product_variants ?? [])
+          .filter((v) => v.is_active !== false)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          .map((v) => ({ saiz: v.name, harga: `RM${Number(v.price).toFixed(2)}` }));
+        const out: Record<string, unknown> = {
+          nama: p.name,
+          harga: `RM${Number(p.price).toFixed(2)}/${p.unit}`,
+          info: (p.description ?? "").slice(0, 140),
+        };
+        if (variants.length) out.pilihan_saiz = variants;
+        return out;
+      },
+    ),
   );
 }
 
 async function getOrderByPhone(sb: SB, ctx: WaToolCtx): Promise<string> {
-  const out: Array<{ order: string; status: string; tracking_no: string | null; tracking_url: string | null }> = [];
+  const out: Array<{
+    order: string;
+    status: string;
+    tracking_no: string | null;
+    tracking_url: string | null;
+    item: string[];
+  }> = [];
 
   // Order storefront — ikut profile (wa_contacts.profile_id = orders.user_id).
   if (ctx.profileId) {
@@ -168,11 +240,19 @@ async function getOrderByPhone(sb: SB, ctx: WaToolCtx): Promise<string> {
         .eq("order_id", o.id)
         .is("refund_id", null)
         .maybeSingle();
+      const { data: items } = await sb
+        .from("order_items")
+        .select("product_name, quantity")
+        .eq("order_id", o.id)
+        .limit(15);
       out.push({
         order: o.order_number,
         status: o.status,
         tracking_no: ship?.tracking_number ?? null,
         tracking_url: ship?.tracking_url ?? null,
+        item: (items ?? []).map(
+          (it: { product_name: string; quantity: number }) => `${it.product_name} x${it.quantity}`,
+        ),
       });
     }
   }
@@ -182,16 +262,18 @@ async function getOrderByPhone(sb: SB, ctx: WaToolCtx): Promise<string> {
   if (local.length >= 7) {
     const { data: lps } = await sb
       .from("lp_guest_orders")
-      .select("order_number, status, tracking_number, tracking_url, created_at")
+      .select("order_number, status, tracking_number, tracking_url, product_name, variant_name, quantity, created_at")
       .ilike("phone", `%${local}%`)
       .order("created_at", { ascending: false })
       .limit(3);
     for (const l of lps ?? []) {
+      const itemName = [l.product_name, l.variant_name].filter(Boolean).join(" ");
       out.push({
         order: l.order_number,
         status: l.status,
         tracking_no: l.tracking_number ?? null,
         tracking_url: l.tracking_url ?? null,
+        item: itemName ? [`${itemName} x${l.quantity ?? 1}`] : [],
       });
     }
   }
