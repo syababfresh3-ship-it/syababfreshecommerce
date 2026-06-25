@@ -280,6 +280,24 @@ export function InboxClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
+  // Poll fallback — realtime postgres_changes dgn RLS is_admin() tak reliable
+  // (authorizer realtime kadang drop event). Poll ringan HANYA bila tab inbox
+  // sedang dilihat (jaga IO budget). Refresh segera bila tab jadi aktif balik.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      loadConvos();
+      if (selected) loadMessages(selected.id);
+    };
+    const iv = setInterval(tick, 15000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", tick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   useEffect(() => {
     threadRef.current?.scrollTo(0, threadRef.current.scrollHeight);
   }, [messages]);
