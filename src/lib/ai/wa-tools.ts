@@ -53,6 +53,7 @@ export interface WaToolCtx {
   contactId?: string | null;
   conversationId?: string | null;
   name?: string | null;
+  dryRun?: boolean; // mod playground — jangan tulis/hantar apa-apa
 }
 
 export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
@@ -68,6 +69,9 @@ export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
 // Team finalize guna butang "Buat Order + Pay Link" (atau extract-order).
 async function flagReadyOrder(sb: SB, ctx: WaToolCtx, summary: string): Promise<string> {
   if (!summary.trim()) return "GAGAL: ringkasan order kosong. Kumpul & sahkan butiran order dahulu.";
+  if (ctx.dryRun) {
+    return "BERJAYA (mod ujian): order direkod & dihantar ke team. Beritahu customer CS akan sahkan & hantar pautan bayar sekejap lagi.";
+  }
   if (!ctx.contactId) return "GAGAL: tiada konteks contact.";
 
   const stamp = `[Order via AI — perlu hantar pautan bayar]\n${summary.trim()}`;
