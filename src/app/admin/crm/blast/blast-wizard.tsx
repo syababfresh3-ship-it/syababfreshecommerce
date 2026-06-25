@@ -81,7 +81,6 @@ export function BlastWizard() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    fetch("/api/whatsapp/templates").then((r) => r.json()).then((j) => j.templates && setTemplates(j.templates));
     fetch("/api/whatsapp/blast").then((r) => r.json()).then((j) =>
       setPastList((j.blasts ?? []).map((b: { id: string; name: string; total: number }) => ({ id: b.id, name: b.name, total: b.total }))),
     );
@@ -94,6 +93,16 @@ export function BlastWizard() {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Template per-WABA: muat semula senarai template ikut nombor 'hantar dari'.
+  // Nombor #2 (Syabab Fresh ll) ada set template tersendiri di WABA-nya.
+  useEffect(() => {
+    const url = fromNumber
+      ? `/api/whatsapp/templates?phoneId=${encodeURIComponent(fromNumber)}`
+      : "/api/whatsapp/templates";
+    fetch(url).then((r) => r.json()).then((j) => setTemplates(j.templates ?? []));
+    setTpl(null); // reset pilihan — template beza antara WABA
+  }, [fromNumber]);
 
   const toggleTag = (t: string) => setSelectedTags((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
   const toggleExclude = (wa: string) => setExcluded((p) => { const n = new Set(p); if (n.has(wa)) n.delete(wa); else n.add(wa); return n; });
@@ -334,13 +343,6 @@ export function BlastWizard() {
       {/* STEP 2 — Template */}
       {step === 2 && (
         <div className={`${card} space-y-4`}>
-          <div>
-            <label className="text-sm font-semibold text-gray-600">Template diluluskan</label>
-            <select className={`${inputCls} mt-1`} value={tpl?.name ?? ""} onChange={(e) => { const t = templates.find((x) => x.name === e.target.value); if (t) pickTemplate(t); }}>
-              <option value="">— pilih template —</option>
-              {templates.map((t) => <option key={t.name} value={t.name}>{t.name} ({t.category})</option>)}
-            </select>
-          </div>
           {waNumbers.length > 1 && (
             <div>
               <label className="text-sm font-semibold text-gray-600">Hantar dari nombor</label>
@@ -349,6 +351,18 @@ export function BlastWizard() {
               </select>
             </div>
           )}
+          <div>
+            <label className="text-sm font-semibold text-gray-600">Template diluluskan</label>
+            <select className={`${inputCls} mt-1`} value={tpl?.name ?? ""} onChange={(e) => { const t = templates.find((x) => x.name === e.target.value); if (t) pickTemplate(t); }}>
+              <option value="">— pilih template —</option>
+              {templates.map((t) => <option key={t.name} value={t.name}>{t.name} ({t.category})</option>)}
+            </select>
+            {templates.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                Tiada template diluluskan untuk nombor ini. Cipta &amp; luluskan template di WhatsApp Manager untuk WABA nombor ini dulu.
+              </p>
+            )}
+          </div>
           {tpl && Object.keys(params).length > 0 && (
             <div className="space-y-2">
               <div className="text-xs text-gray-500"><b>nama</b> boleh kosong (auto nama penerima). {audType === "csv" && "Param yang sepadan nama lajur CSV akan diisi per-penerima."}</div>

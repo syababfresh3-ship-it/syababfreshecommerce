@@ -7,6 +7,7 @@
 export const runtime = "nodejs";
 
 import { requireAdmin } from "@/lib/supabase/require-admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -36,10 +37,20 @@ export async function POST(request: Request) {
   if (forbidden) return forbidden;
 
   const token = process.env.WHATSAPP_TOKEN;
-  const waba = process.env.WHATSAPP_WABA_ID;
-  if (!token || !waba) return NextResponse.json({ error: "WhatsApp belum dikonfigurasi." }, { status: 503 });
+  let waba = process.env.WHATSAPP_WABA_ID;
 
   const fd = await request.formData();
+
+  // Per-WABA: kalau phoneId diberi, cipta template di WABA nombor itu
+  // (cth nombor #2 Syabab Fresh ll), bukan WABA utama.
+  const phoneId = String(fd.get("phoneId") || "").trim();
+  if (phoneId) {
+    const sb = createAdminClient();
+    const { data: num } = await sb.from("wa_numbers").select("waba_id").eq("phone_number_id", phoneId).maybeSingle();
+    if (num?.waba_id) waba = num.waba_id as string;
+  }
+
+  if (!token || !waba) return NextResponse.json({ error: "WhatsApp belum dikonfigurasi." }, { status: 503 });
   const rawName = String(fd.get("name") || "").trim();
   const name = rawName.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
   const category = String(fd.get("category") || "MARKETING");

@@ -14,7 +14,7 @@ export function NumbersClient() {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ phone_number_id: "", display_name: "", owner: "" });
+  const [form, setForm] = useState({ phone_number_id: "", display_name: "", owner: "", waba_id: "" });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -36,7 +36,7 @@ export function NumbersClient() {
       body: JSON.stringify({ ...form, owner: form.owner || null }),
     });
     setBusy(false);
-    if (res.ok) { setForm({ phone_number_id: "", display_name: "", owner: "" }); setAdding(false); load(); }
+    if (res.ok) { setForm({ phone_number_id: "", display_name: "", owner: "", waba_id: "" }); setAdding(false); load(); }
     else window.alert("Gagal tambah: " + ((await res.json()).error ?? ""));
   }
 
@@ -79,6 +79,11 @@ export function NumbersClient() {
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">NAMA PAPARAN</label>
             <input value={form.display_name} onChange={(e) => setForm((f) => ({ ...f, display_name: e.target.value }))} placeholder="cth Sales Pika" className={inputCls} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 block mb-1">WABA ID (dari Meta)</label>
+            <input value={form.waba_id} onChange={(e) => setForm((f) => ({ ...f, waba_id: e.target.value.replace(/\D/g, "") }))} placeholder="cth 1505402361259813" className={`${inputCls} font-mono`} />
+            <p className="text-[11px] text-gray-400 mt-1">WhatsApp Business Account ID. Untuk senarai template nombor ni (template per-WABA). Kosong = guna WABA utama.</p>
           </div>
           <div>
             <label className="text-xs font-semibold text-gray-500 block mb-1">PEMILIK (SALESPERSON)</label>

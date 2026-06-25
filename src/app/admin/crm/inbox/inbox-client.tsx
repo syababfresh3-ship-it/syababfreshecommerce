@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Reply, Tag, Smartphone, Clock, User, Search, FileText, Paperclip, Send, Loader2, X } from "lucide-react";
+import { Reply, Tag, Smartphone, Clock, User, Search, FileText, Paperclip, Send, Loader2, X, Bot } from "lucide-react";
 
 // ---------- Jenis ----------
 interface Contact {
@@ -26,6 +26,7 @@ interface Conversation {
   assigned_to: string | null;
   phone_number_id: string | null;
   needs_reply: boolean;
+  ai_enabled: boolean;
   wa_contacts: Contact | null;
 }
 interface Message {
@@ -75,6 +76,7 @@ export function InboxClient() {
   const supabase = createClient();
   const [convos, setConvos] = useState<Conversation[]>([]);
   const [selected, setSelected] = useState<Conversation | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
@@ -117,7 +119,7 @@ export function InboxClient() {
     const { data } = await supabase
       .from("wa_conversations")
       .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, wa_contacts(id, wa_id, phone, name, tags, notes, profile_id, profiles(full_name, total_spend))",
+        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, ai_enabled, wa_contacts(id, wa_id, phone, name, tags, notes, profile_id, profiles(full_name, total_spend))",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(200);
@@ -169,6 +171,18 @@ export function InboxClient() {
     setSelected((s) => (s && s.wa_contacts ? { ...s, wa_contacts: { ...s.wa_contacts, notes: v } } : s));
     setConvos((cs) => cs.map((c) => (c.wa_contacts?.id === cid ? { ...c, wa_contacts: { ...c.wa_contacts!, notes: v } } : c)));
     setNoteSaving(false);
+  }
+
+  // AI auto-reply toggle per-customer (perlu suis induk ON juga untuk benar-benar balas).
+  async function toggleAi() {
+    if (!selected) return;
+    const next = !selected.ai_enabled;
+    setAiBusy(true);
+    const { error } = await supabase.from("wa_conversations").update({ ai_enabled: next }).eq("id", selected.id);
+    setAiBusy(false);
+    if (error) return;
+    setSelected((s) => (s ? { ...s, ai_enabled: next } : s));
+    setConvos((cs) => cs.map((c) => (c.id === selected.id ? { ...c, ai_enabled: next } : c)));
   }
 
   async function setFollowup(remindAt: string) {
@@ -275,9 +289,13 @@ export function InboxClient() {
   }
 
   async function loadTemplates() {
-    const res = await fetch("/api/whatsapp/templates");
+    // Template per-WABA: senarai template WABA nombor yang customer hubungi
+    // (hantar balas guna nombor sama, jadi template mesti dari WABA itu).
+    const pid = selected?.phone_number_id;
+    const url = pid ? `/api/whatsapp/templates?phoneId=${encodeURIComponent(pid)}` : "/api/whatsapp/templates";
+    const res = await fetch(url);
     const j = await res.json();
-    if (j.templates) setTemplates(j.templates);
+    setTemplates(j.templates ?? []);
   }
 
   function pickTemplate(t: Template) {
@@ -576,6 +594,15 @@ export function InboxClient() {
                 <div className="font-semibold text-gray-800 truncate">{displayName(selected)}</div>
                 <div className="text-xs text-gray-400 truncate">{contact?.wa_id}</div>
               </div>
+              <button
+                onClick={toggleAi}
+                disabled={aiBusy}
+                title="AI auto-reply untuk customer ini (perlu suis induk AI Chatbot ON)"
+                className={`flex items-center gap-1 text-xs rounded-full px-2.5 py-1 border shrink-0 disabled:opacity-50 ${selected.ai_enabled ? "bg-gray-800 text-white border-gray-800" : "bg-white text-gray-500 border-gray-300"}`}
+              >
+                {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">{selected.ai_enabled ? "AI on" : "AI off"}</span>
+              </button>
               {selected.assigned_to && (
                 <span className="text-xs text-blue-600 bg-blue-50 rounded-full px-2 py-1 hidden sm:inline">
                   👤 {admins[selected.assigned_to] || "Admin"}

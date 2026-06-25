@@ -107,6 +107,7 @@ export async function sendTemplate(
 }
 
 export interface WaTemplate {
+  id?: string;
   name: string;
   language: string;
   category: string;
@@ -118,12 +119,15 @@ export interface WaTemplate {
 // approvedOnly=false → semua status (untuk page pengurusan Templates).
 export async function listTemplates(
   approvedOnly = true,
+  wabaOverride?: string,
 ): Promise<{ ok: boolean; templates: WaTemplate[]; error?: string }> {
   const { token, wabaId } = cfg();
-  if (!wabaId) return { ok: false, templates: [], error: "WHATSAPP_WABA_ID tidak ditetapkan." };
+  // Template adalah per-WABA: guna WABA nombor tertentu kalau diberi, jika tidak WABA utama (env).
+  const waba = wabaOverride || wabaId;
+  if (!waba) return { ok: false, templates: [], error: "WHATSAPP_WABA_ID tidak ditetapkan." };
   try {
     const res = await fetch(
-      `${GRAPH}/${wabaId}/message_templates?fields=name,language,category,status,components&limit=200`,
+      `${GRAPH}/${waba}/message_templates?fields=id,name,language,category,status,components&limit=200`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     const j = await res.json().catch(() => ({}));

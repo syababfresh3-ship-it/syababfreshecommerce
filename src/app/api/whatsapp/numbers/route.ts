@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     phone_number_id, display_name,
     owner: b.owner || null,
     token: b.token?.trim() || null,
+    waba_id: b.waba_id?.trim() || null,
     is_active: b.is_active !== false,
     is_default: !!b.is_default,
   });
@@ -60,6 +61,7 @@ export async function PATCH(req: NextRequest) {
   if ("display_name" in b) patch.display_name = String(b.display_name).trim();
   if ("owner" in b) patch.owner = b.owner || null;
   if ("token" in b) patch.token = b.token?.trim() || null;
+  if ("waba_id" in b) patch.waba_id = b.waba_id?.trim() || null;
   if ("is_active" in b) patch.is_active = !!b.is_active;
   if ("is_default" in b && b.is_default) {
     await sb.from("wa_numbers").update({ is_default: false }).neq("phone_number_id", id);

@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCapiLeadWhatsApp } from "@/lib/meta-capi";
+import { maybeAiReply } from "@/lib/ai/wa-agent";
 
 // ---- GET: pengesahan webhook Meta ----
 export async function GET(req: NextRequest) {
@@ -243,5 +244,20 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
     .maybeSingle();
   if (!lead) {
     await sb.from("crm_leads").insert({ contact_id: contactId, stage: "baru", source: "inbound" });
+  }
+
+  // 6. AI chatbot (F2) — best-effort, di-await supaya selesai sebelum 200 (serverless).
+  //    OFF secara lalai: maybeAiReply keluar awal kalau master switch / toggle convo OFF.
+  //    Gagal senyap — tak pecahkan penyimpanan mesej di atas.
+  try {
+    await maybeAiReply(sb, {
+      conversationId: convId,
+      contactId,
+      inboundText: bodyText,
+      messageType: type,
+      phoneNumberId,
+    });
+  } catch (e) {
+    console.error("[wa ai] maybeAiReply gagal:", e);
   }
 }

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
   BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket, ScanLine, Inbox,
+  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket, ScanLine, Inbox, Bot,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -19,6 +19,7 @@ const sections = [
       { href: '/admin/crm/contacts', label: 'Contacts',       icon: Users },
       { href: '/admin/crm/blast',    label: 'Blast (Rasmi)',  icon: Megaphone },
       { href: '/admin/crm/templates', label: 'Templates',     icon: MessageCircle },
+      { href: '/admin/crm/ai',       label: 'AI Chatbot',     icon: Bot },
     ],
   },
   {

@@ -17,8 +17,23 @@ export async function GET(req: Request) {
   const { data: profile } = await sb.from("profiles").select("is_admin").eq("id", user.id).single();
   if (!profile?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const all = new URL(req.url).searchParams.get("all") === "1";
-  const res = await listTemplates(!all);
+  const params = new URL(req.url).searchParams;
+  const all = params.get("all") === "1";
+
+  // Template per-WABA: kalau phoneId diberi, senarai template WABA nombor itu
+  // (bukan WABA utama). Untuk blast/balas guna nombor #2 (Syabab Fresh ll).
+  const phoneId = params.get("phoneId");
+  let waba: string | undefined;
+  if (phoneId) {
+    const { data: num } = await sb
+      .from("wa_numbers")
+      .select("waba_id")
+      .eq("phone_number_id", phoneId)
+      .maybeSingle();
+    waba = (num?.waba_id as string | null) || undefined;
+  }
+
+  const res = await listTemplates(!all, waba);
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: 502 });
   return NextResponse.json({ templates: res.templates });
 }
