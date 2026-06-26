@@ -22,7 +22,7 @@ export function OrderClient() {
   const [items, setItems] = useState<Item[]>([]);
   const [deliveryFee, setDeliveryFee] = useState("");
   const [discount, setDiscount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"paylink" | "cod">("paylink");
+  const [paymentMethod, setPaymentMethod] = useState<"paylink" | "cod" | "bank">("paylink");
   const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
   const [staffName, setStaffName] = useState("");
   const [staffOther, setStaffOther] = useState(false);
@@ -126,7 +126,7 @@ export function OrderClient() {
     if (res.ok && j.ok) {
       setMsg(
         `✅ Order ${j.order_number} dicipta (RM${Number(j.total).toFixed(2)})${
-          j.sentWhatsApp ? (j.cod ? " — pengesahan dihantar ke WhatsApp" : " — pay link dihantar ke WhatsApp!") : " — tapi WA gagal hantar"
+          j.sentWhatsApp ? (j.cod || j.bank ? " — pengesahan dihantar ke WhatsApp" : " — pay link dihantar ke WhatsApp!") : " — tapi WA gagal hantar"
         }`,
       );
       setItems([]);
@@ -290,6 +290,9 @@ export function OrderClient() {
           <label className="flex items-center gap-1">
             <input type="radio" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} /> COD (bayar masa terima)
           </label>
+          <label className="flex items-center gap-1">
+            <input type="radio" checked={paymentMethod === "bank"} onChange={() => setPaymentMethod("bank")} /> Bank transfer (order sahaja)
+          </label>
         </div>
         <div className="flex flex-wrap gap-3 text-sm items-center">
           <span className="text-gray-500 w-24">Penghantaran:</span>
@@ -303,7 +306,13 @@ export function OrderClient() {
       </div>
 
       <button onClick={submit} disabled={busy} className="w-full bg-emerald-500 text-white rounded-lg py-3 font-medium disabled:opacity-50">
-        {busy ? "Memproses…" : paymentMethod === "cod" ? "🛒 Cipta Order (COD)" : "🛒 Cipta Order + Hantar Pay Link"}
+        {busy
+          ? "Memproses…"
+          : paymentMethod === "cod"
+            ? "🛒 Cipta Order (COD)"
+            : paymentMethod === "bank"
+              ? "🛒 Cipta Order (Bank Transfer)"
+              : "🛒 Cipta Order + Hantar Pay Link"}
       </button>
       {msg && <div className="text-sm text-gray-700">{msg}</div>}
       </div>

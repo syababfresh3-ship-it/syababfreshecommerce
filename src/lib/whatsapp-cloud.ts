@@ -24,6 +24,26 @@ export function formatWaPhone(phone: string): string {
   return p;
 }
 
+// Download media masuk (gambar/video/audio/dokumen) dari Meta. WhatsApp hantar
+// media ID sahaja; perlu 2 langkah: dapat URL → muat turun dengan token.
+export async function downloadWaMedia(
+  mediaId: string,
+  opts?: { token?: string },
+): Promise<{ data: ArrayBuffer; mimeType: string } | null> {
+  const token = opts?.token || process.env.WHATSAPP_TOKEN;
+  if (!token) return null;
+  try {
+    const r1 = await fetch(`${GRAPH}/${mediaId}`, { headers: { Authorization: `Bearer ${token}` } });
+    const j1 = await r1.json().catch(() => ({}));
+    if (!r1.ok || !j1.url) return null;
+    const r2 = await fetch(j1.url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r2.ok) return null;
+    return { data: await r2.arrayBuffer(), mimeType: (j1.mime_type as string) || "application/octet-stream" };
+  } catch {
+    return null;
+  }
+}
+
 type SendResult = { ok: boolean; id?: string; error?: string };
 
 // Multi-number: hantar dari phoneId/token tertentu (lalai = env). Caller resolve

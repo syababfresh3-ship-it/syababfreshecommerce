@@ -662,11 +662,24 @@ export function InboxClient() {
                       m.direction === "out" ? "bg-emerald-500 text-white" : "bg-white border text-gray-800"
                     }`}
                   >
-                    {m.media_url && m.type === "image" && (
+                    {m.media_url && (m.type === "image" || m.type === "sticker") && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={m.media_url} alt="gambar" className="rounded-md max-w-full mb-1" />
                     )}
-                    {m.type !== "text" && m.type !== "image" && !m.body && <span className="italic opacity-70">[{m.type}]</span>}
+                    {m.media_url && m.type === "video" && (
+                      <video src={m.media_url} controls className="rounded-md max-w-full mb-1" />
+                    )}
+                    {m.media_url && (m.type === "audio" || m.type === "voice") && (
+                      <audio src={m.media_url} controls className="mb-1 max-w-full" />
+                    )}
+                    {m.media_url && m.type === "document" && (
+                      <a href={m.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 underline mb-1">
+                        <FileText className="h-3.5 w-3.5" /> Buka dokumen
+                      </a>
+                    )}
+                    {m.type !== "text" && m.type !== "template" && !m.media_url && !m.body && (
+                      <span className="italic opacity-70">[{m.type}]</span>
+                    )}
                     {m.template_name && <span className="italic opacity-70">[template: {m.template_name}]</span>}
                     {m.body}
                     <div className={`text-[10px] mt-1 ${m.direction === "out" ? "text-emerald-100" : "text-gray-400"}`}>

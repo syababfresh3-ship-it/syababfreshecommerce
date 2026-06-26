@@ -32,9 +32,6 @@ interface Item {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) {
-    return NextResponse.json({ error: "CHIP belum dikonfigurasi." }, { status: 503 });
-  }
   // Admin auth
   const userClient = await createClient();
   const { data: { user } } = await userClient.auth.getUser();
@@ -54,12 +51,13 @@ export async function POST(req: NextRequest) {
     delivery_fee?: number;
     discount?: number;
     items?: Item[];
-    paymentMethod?: "paylink" | "cod";
+    paymentMethod?: "paylink" | "cod" | "bank";
     deliveryMethod?: "delivery" | "pickup";
     staff_name?: string;
   };
 
   const isCod = b.paymentMethod === "cod";
+  const isBank = b.paymentMethod === "bank";
   const isPickup = b.deliveryMethod === "pickup";
 
   if (!b.contactId) return NextResponse.json({ error: "contactId diperlukan." }, { status: 400 });
@@ -106,7 +104,7 @@ export async function POST(req: NextRequest) {
       delivery_fee: deliveryFee,
       discount,
       total,
-      payment_method: isCod ? "cod" : "fpx",
+      payment_method: isCod ? "cod" : isBank ? "bank_transfer" : "fpx",
       source: b.staff_name?.trim() ? `whatsapp-${b.staff_name.trim()}` : "crm",
       items,
       status: isCod ? "confirmed" : "pending",
@@ -140,8 +138,14 @@ export async function POST(req: NextRequest) {
         ctwa_clid: order.ctwa_clid,
       }).catch(() => {});
     }
+  } else if (isBank) {
+    // Bank transfer — order direkod, tiada pay link. Hantar butiran akaun.
+    msg = `Hai ${b.name.trim()}! 🥭\n\nPesanan anda *${order.order_number}* telah direkod:\n${lines}\n${totalsBlock}\n\n💳 Sila buat pindahan ke *Maybank 562263630996* (Syabab Trading Sdn Bhd) dan hantar resit bayaran ke WhatsApp ni untuk kami sahkan.\n\nTerima kasih! 🙏`;
   } else {
     // Pay link — CHIP purchase (success_callback = webhook order sedia ada)
+    if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) {
+      return NextResponse.json({ error: "CHIP belum dikonfigurasi." }, { status: 503 });
+    }
     const products = discount > 0
       ? [{ name: `Pesanan ${order.order_number}`, price: Math.round(total * 100), quantity: 1 }]
       : items.map((i) => ({
@@ -194,5 +198,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, order_number: order.order_number, total, checkoutUrl, cod: isCod, sentWhatsApp: sendOk });
+  return NextResponse.json({ ok: true, order_number: order.order_number, total, checkoutUrl, cod: isCod, bank: isBank, sentWhatsApp: sendOk });
 }

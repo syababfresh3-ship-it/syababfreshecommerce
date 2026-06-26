@@ -11,6 +11,7 @@ import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCapiLeadWhatsApp } from "@/lib/meta-capi";
 import { maybeAiReply } from "@/lib/ai/wa-agent";
+import { downloadWaMedia } from "@/lib/whatsapp-cloud";
 
 // ---- GET: pengesahan webhook Meta ----
 export async function GET(req: NextRequest) {
@@ -90,6 +91,31 @@ interface WaWebhookBody {
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
+
+// Download media masuk dari Meta + simpan ke storage public → pulang URL.
+// Best-effort: null kalau gagal (inbox papar [type]).
+const MEDIA_EXT: Record<string, string> = {
+  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif",
+  "video/mp4": "mp4", "video/3gpp": "3gp",
+  "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/amr": "amr",
+  "application/pdf": "pdf",
+};
+async function storeWaMedia(sb: Admin, mediaId: string, msgId: string): Promise<string | null> {
+  try {
+    const media = await downloadWaMedia(mediaId);
+    if (!media) return null;
+    const mime = media.mimeType.split(";")[0].trim();
+    const ext = MEDIA_EXT[mime] || mime.split("/")[1] || "bin";
+    const path = `wa-media/${msgId.replace(/[^a-zA-Z0-9_-]/g, "")}.${ext}`;
+    const { error } = await sb.storage
+      .from("brand-assets")
+      .upload(path, Buffer.from(media.data), { contentType: mime, upsert: true });
+    if (error) return null;
+    return sb.storage.from("brand-assets").getPublicUrl(path).data.publicUrl;
+  } catch {
+    return null;
+  }
+}
 
 async function handle(body: WaWebhookBody) {
   const sb = createAdminClient();
@@ -179,6 +205,14 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
   }
   const preview = bodyText ?? `[${type}]`;
 
+  // Media masuk (gambar/video/audio/dokumen) — download dari Meta + simpan ke
+  // storage supaya boleh dipapar dalam inbox (WhatsApp hantar media ID sahaja).
+  let mediaUrl: string | null = null;
+  if (["image", "video", "audio", "voice", "document", "sticker"].includes(type)) {
+    const mediaId = (m[type] as { id?: string } | undefined)?.id;
+    if (mediaId) mediaUrl = await storeWaMedia(sb, mediaId, m.id);
+  }
+
   // Opt-out: customer balas STOP/BERHENTI → tak terima blast lagi
   if (type === "text" && bodyText) {
     const t = bodyText.trim().toLowerCase();
@@ -240,6 +274,7 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
       direction: "in",
       type,
       body: bodyText,
+      media_url: mediaUrl,
       status: "received",
       created_at: ts,
     },
