@@ -47,6 +47,17 @@ function wantsHuman(t: string): boolean {
   return HUMAN_PATTERNS.some((re) => re.test(t));
 }
 
+// Bersihkan teks balasan untuk WhatsApp: **bold** → *bold*, buang heading/markdown.
+function cleanWaText(t: string): string {
+  return (t || "")
+    .replace(/\*\*\*(.+?)\*\*\*/g, "*$1*") // ***x*** → *x*
+    .replace(/\*\*(.+?)\*\*/g, "*$1*") // **x** → *x* (WhatsApp bold = satu bintang)
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "") // buang heading markdown
+    .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1 $2") // [teks](url) → teks url
+    .replace(/\n{3,}/g, "\n\n") // mampatkan baris kosong berlebihan
+    .trim();
+}
+
 // Fakta ai_memory (objek) → teks "kunci: nilai" untuk prompt.
 function formatMemory(mem: Record<string, string> | null | undefined): string {
   if (!mem || typeof mem !== "object") return "";
@@ -116,7 +127,8 @@ export interface MaybeAiReplyArgs {
 // Titik masuk dari webhook. Best-effort: pemanggil bungkus dengan try/catch.
 export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void> {
   const text = (args.inboundText ?? "").trim();
-  if (!text || args.messageType !== "text") return; // hanya mesej teks
+  // Teks, klik butang quick-reply (cth "Saya Nak"), atau pilihan interaktif.
+  if (!text || !["text", "button", "interactive"].includes(args.messageType)) return;
 
   // GUARD 1 — master switch
   const s = await readAiSettings(sb);
@@ -208,7 +220,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     return;
   }
 
-  const reply = (result.text || "").trim();
+  const reply = cleanWaText(result.text || "");
   if (!reply) {
     // AI tak dapat jawab → serah ke manusia (soalan tak terjawab)
     await handoff(sb, conv.id, args.contactId, "unanswered", text, result);

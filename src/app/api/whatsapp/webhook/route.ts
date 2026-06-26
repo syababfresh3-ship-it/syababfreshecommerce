@@ -163,10 +163,20 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
 
   // 2. Body / preview
   const type = m.type;
-  const bodyText =
-    type === "text"
-      ? m.text?.body ?? null
-      : ((m[type] as { caption?: string } | undefined)?.caption ?? null);
+  let bodyText: string | null;
+  if (type === "text") {
+    bodyText = m.text?.body ?? null;
+  } else if (type === "button") {
+    // Quick-reply butang template (cth "Saya Nak") — ambil teks butang.
+    const b = m.button as { text?: string; payload?: string } | undefined;
+    bodyText = b?.text ?? b?.payload ?? null;
+  } else if (type === "interactive") {
+    // Butang/senarai interaktif — ambil tajuk pilihan.
+    const it = m.interactive as { button_reply?: { title?: string }; list_reply?: { title?: string } } | undefined;
+    bodyText = it?.button_reply?.title ?? it?.list_reply?.title ?? null;
+  } else {
+    bodyText = (m[type] as { caption?: string } | undefined)?.caption ?? null;
+  }
   const preview = bodyText ?? `[${type}]`;
 
   // Opt-out: customer balas STOP/BERHENTI → tak terima blast lagi

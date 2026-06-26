@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText } from "@/lib/whatsapp-cloud";
+import { getSender } from "@/lib/wa-numbers";
 
 const CHIP_API_URL = "https://gate.chip-in.asia/api/v1";
 
@@ -85,12 +86,18 @@ export async function POST(req: NextRequest) {
     await sb.from("crm_leads").update({ value: amount }).eq("id", lead.id);
   }
 
-  // Hantar link via WhatsApp (dalam window 24j)
+  // Hantar link via WhatsApp (dalam window 24j) — dari nombor yang customer
+  // hubungi (window ada pada nombor itu, bukan env default).
   const msg = `Hai ${fullName}! 👋\n\nUntuk *${desc}* — jumlah *RM${amount.toFixed(2)}*.\n\nKlik untuk bayar selamat:\n${chip.checkout_url}\n\nTerima kasih! 🥭`;
-  const send = await sendText(contact.wa_id, msg);
+  const { data: conv } = await sb
+    .from("wa_conversations")
+    .select("id, phone_number_id")
+    .eq("contact_id", contactId)
+    .maybeSingle();
+  const sender = await getSender(sb, (conv as { phone_number_id?: string | null } | null)?.phone_number_id);
+  const send = await sendText(contact.wa_id, msg, sender);
 
   // Log mesej keluar
-  const { data: conv } = await sb.from("wa_conversations").select("id").eq("contact_id", contactId).maybeSingle();
   if (conv) {
     await sb.from("wa_messages").insert({
       conversation_id: conv.id,

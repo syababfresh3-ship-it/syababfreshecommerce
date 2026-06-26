@@ -32,14 +32,17 @@ export function ContactsClient() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Contact[]>([]);
+  const [searching, setSearching] = useState(false);
   const [filterTag, setFilterTag] = useState("");
   const [page, setPage] = useState(0);
   const PER_PAGE = 50;
+  const SELECT = "id, wa_id, name, phone, tags, profile_id, last_inbound_at, profiles(full_name, total_spend), crm_leads(stage)";
 
   useEffect(() => {
     supabase
       .from("wa_contacts")
-      .select("id, wa_id, name, phone, tags, profile_id, last_inbound_at, profiles(full_name, total_spend), crm_leads(stage)")
+      .select(SELECT)
       .order("last_inbound_at", { ascending: false, nullsFirst: false })
       .limit(1000)
       .then(({ data }: { data: unknown[] | null }) => setContacts((data as unknown as Contact[]) ?? []));
@@ -50,22 +53,55 @@ export function ContactsClient() {
       .then(({ data }: { data: { name: string }[] | null }) => setAllTags((data ?? []).map((t) => t.name)));
   }, [supabase]);
 
+  // Carian / tapis-tag hits DB — cari antara SEMUA contacts (bukan cuma 1000 dimuat).
+  // Penting sebab contacts upload (tak pernah mesej) tersusun bawah, di luar 1000.
+  const dbSearch = search.trim().length >= 2;
+  const dbMode = dbSearch || !!filterTag;
+  useEffect(() => {
+    if (!dbSearch && !filterTag) {
+      setSearchResults([]);
+      return;
+    }
+    let cancel = false;
+    setSearching(true);
+    const t = setTimeout(() => {
+      let qb = supabase.from("wa_contacts").select(SELECT);
+      if (filterTag) qb = qb.contains("tags", [filterTag]);
+      if (dbSearch) {
+        const safe = search.trim().replace(/[,()*%]/g, " ").trim();
+        qb = qb.or(`name.ilike.*${safe}*,phone.ilike.*${safe}*,wa_id.ilike.*${safe}*`);
+      }
+      qb
+        .order("last_inbound_at", { ascending: false, nullsFirst: false })
+        .limit(1000)
+        .then(({ data }: { data: unknown[] | null }) => {
+          if (cancel) return;
+          setSearchResults((data as unknown as Contact[]) ?? []);
+          setSearching(false);
+        });
+    }, 300);
+    return () => {
+      cancel = true;
+      clearTimeout(t);
+    };
+  }, [search, filterTag, dbSearch, supabase]);
+
   const stageOf = (c: Contact) => (Array.isArray(c.crm_leads) ? c.crm_leads[0]?.stage : c.crm_leads?.stage);
   const nameOf = (c: Contact) => c.name || c.profiles?.full_name || c.phone || c.wa_id || "?";
 
-  const filtered = useMemo(
-    () =>
-      contacts.filter((c) => {
-        if (filterTag && !(c.tags ?? []).includes(filterTag)) return false;
-        if (search) {
-          const q = search.toLowerCase();
-          const nm = nameOf(c).toLowerCase();
-          if (!nm.includes(q) && !(c.phone || c.wa_id || "").includes(q)) return false;
-        }
-        return true;
-      }),
-    [contacts, filterTag, search],
-  );
+  const filtered = useMemo(() => {
+    // dbMode (ada tag / search ≥2) → DB dah tapis, guna terus.
+    if (dbMode) return searchResults;
+    // Mod klien (tiada tag, search pendek) → tapis atas 1000 terkini.
+    return contacts.filter((c) => {
+      if (search) {
+        const q = search.toLowerCase();
+        const nm = nameOf(c).toLowerCase();
+        if (!nm.includes(q) && !(c.phone || c.wa_id || "").includes(q)) return false;
+      }
+      return true;
+    });
+  }, [contacts, searchResults, dbMode, search]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
@@ -75,7 +111,9 @@ export function ContactsClient() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-semibold text-gray-800">Contacts</h1>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{filtered.length} kontak</span>
+          <span className="text-sm text-gray-400">
+            {searching ? "mencari…" : dbMode ? `${filtered.length} jumpa` : `${filtered.length} terkini`}
+          </span>
           <ImportContacts />
         </div>
       </div>

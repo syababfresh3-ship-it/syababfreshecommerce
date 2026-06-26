@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText } from "@/lib/whatsapp-cloud";
+import { getSender } from "@/lib/wa-numbers";
 import { sendCapiPurchaseWhatsApp } from "@/lib/meta-capi";
 
 const CHIP_API_URL = "https://gate.chip-in.asia/api/v1";
@@ -172,11 +173,18 @@ export async function POST(req: NextRequest) {
 
   // Hantar WhatsApp + log
   const { data: contact } = await sb.from("wa_contacts").select("wa_id").eq("id", b.contactId).single();
+  const { data: conv } = await sb
+    .from("wa_conversations")
+    .select("id, phone_number_id")
+    .eq("contact_id", b.contactId)
+    .maybeSingle();
   let sendOk = false;
   if (contact) {
-    const send = await sendText(contact.wa_id, msg);
+    // Hantar dari nombor yang customer hubungi (window 24j ada pada nombor itu,
+    // bukan env default) — elak mesej gagal untuk customer nombor #2.
+    const sender = await getSender(sb, (conv as { phone_number_id?: string | null } | null)?.phone_number_id);
+    const send = await sendText(contact.wa_id, msg, sender);
     sendOk = send.ok;
-    const { data: conv } = await sb.from("wa_conversations").select("id").eq("contact_id", b.contactId).maybeSingle();
     if (conv) {
       await sb.from("wa_messages").insert({
         conversation_id: conv.id, contact_id: b.contactId, wa_message_id: send.id,
