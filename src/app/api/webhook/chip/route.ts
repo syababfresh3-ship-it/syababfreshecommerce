@@ -109,9 +109,13 @@ export async function POST(req: NextRequest) {
 
   if (!orderId) return NextResponse.json({ ok: true })
 
-  // Resolve outcome — prefer event_type when present, else fall back to purchase status
-  const FAILURE_EVENTS = ['purchase.failed', 'purchase.cancelled', 'purchase.expired', 'purchase.payment_failure']
-  const FAILURE_STATUSES = ['error', 'cancelled', 'expired']
+  // Resolve outcome — prefer event_type when present, else fall back to purchase status.
+  // NOTA: 'payment_failure' & 'error' adalah per-CUBAAN bayar (customer boleh cuba
+  // lagi pada link sama). JANGAN cancel order atasnya — jika tidak, customer yang
+  // berjaya pada cubaan kedua akan tersangkut "cancelled". Cancel HANYA bila
+  // purchase betul-betul mati (cancelled/expired). Pass 1c cron jadi jaring jika terlepas.
+  const FAILURE_EVENTS = ['purchase.cancelled', 'purchase.expired']
+  const FAILURE_STATUSES = ['cancelled', 'expired']
   const outcome = eventType
     ? (eventType === 'purchase.paid' ? 'paid' : FAILURE_EVENTS.includes(eventType) ? 'failed' : 'other')
     : (purchaseStatus === 'paid' ? 'paid' : FAILURE_STATUSES.includes(purchaseStatus ?? '') ? 'failed' : 'other')

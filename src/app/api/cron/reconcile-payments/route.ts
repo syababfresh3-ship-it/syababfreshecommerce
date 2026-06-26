@@ -6,7 +6,8 @@ import { confirmLpGuestOrder, confirmStorefrontOrder } from '@/lib/order-confirm
 export const runtime = 'nodejs'
 
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
-const FAILED_STATUSES = ['error', 'cancelled', 'expired']
+// 'error' adalah per-cubaan & transient (customer boleh cuba lagi) → JANGAN cancel.
+const FAILED_STATUSES = ['cancelled', 'expired']
 
 // Safety net for CHIP payments the webhook + browser fallback both missed.
 // Two passes:
@@ -46,8 +47,8 @@ export async function GET(req: Request) {
   }
 
   const summary = {
-    lp: { checked: 0, confirmed: 0, cancelled: 0 },
-    storefront: { checked: 0, confirmed: 0, cancelled: 0 },
+    lp: { checked: 0, confirmed: 0, cancelled: 0, recovered: 0 },
+    storefront: { checked: 0, confirmed: 0, cancelled: 0, recovered: 0 },
     replay: { scanned: 0, confirmed: 0 },
   }
 
@@ -96,6 +97,54 @@ export async function GET(req: Request) {
         .update({ status: 'cancelled', payment_status: 'failed' })
         .eq('id', row.id).eq('payment_status', 'unpaid')
       summary.storefront.cancelled++
+    }
+  }
+
+  // ── Pass 1c: pulihkan order CANCELLED-tapi-PAID ─────────────────────
+  // Pass 1a/1b cuma semak order belum-selesai. Order yang ter-cancelled (cth
+  // webhook 'expired' silap, atau cancel sebelum customer bayar) tak pernah
+  // dicheck balik — walaupun CHIP kemudian tunjuk paid → sale hilang. Di sini
+  // re-semak order cancelled (ada pay link, 14 hari) vs CHIP; kalau paid →
+  // re-open + confirm penuh (loyalty/email via confirm*Order).
+  const { data: lpCancelled } = await supabase
+    .from('lp_guest_orders')
+    .select('id, payment_ref')
+    .eq('status', 'cancelled')
+    .neq('payment_status', 'paid')
+    .in('payment_method', ['fpx', 'ewallet'])
+    .not('payment_ref', 'is', null)
+    .gte('created_at', windowStart)
+    .lte('created_at', minAge)
+    .limit(200)
+
+  for (const row of lpCancelled ?? []) {
+    const status = await chipStatus(row.payment_ref as string)
+    if (status === 'paid') {
+      // Re-open pending supaya confirmLpGuestOrder (guard status='pending') boleh confirm penuh.
+      await supabase.from('lp_guest_orders').update({ status: 'pending' }).eq('id', row.id).eq('status', 'cancelled')
+      const r = await confirmLpGuestOrder(supabase, row.id)
+      if (r === 'confirmed') summary.lp.recovered++
+    }
+  }
+
+  const { data: ordCancelled } = await supabase
+    .from('orders')
+    .select('id, payment_ref')
+    .eq('status', 'cancelled')
+    .neq('payment_status', 'paid')
+    .in('payment_method', ['fpx', 'ewallet'])
+    .not('payment_ref', 'is', null)
+    .gte('created_at', windowStart)
+    .lte('created_at', minAge)
+    .limit(200)
+
+  for (const row of ordCancelled ?? []) {
+    const status = await chipStatus(row.payment_ref as string)
+    if (status === 'paid') {
+      // Set semula unpaid supaya confirmStorefrontOrder (guard payment_status='unpaid') boleh confirm.
+      await supabase.from('orders').update({ payment_status: 'unpaid' }).eq('id', row.id).eq('status', 'cancelled')
+      const r = await confirmStorefrontOrder(supabase, row.id)
+      if (r === 'confirmed') summary.storefront.recovered++
     }
   }
 
