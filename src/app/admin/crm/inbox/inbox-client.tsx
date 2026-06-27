@@ -73,6 +73,9 @@ function playNotif() {
   }
 }
 
+const CONV_SELECT =
+  "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, ai_enabled, wa_contacts(id, wa_id, phone, name, tags, notes, ai_memory, profile_id, profiles(full_name, total_spend))";
+
 export function InboxClient() {
   const supabase = createClient();
   const [convos, setConvos] = useState<Conversation[]>([]);
@@ -92,6 +95,7 @@ export function InboxClient() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [filterTag, setFilterTag] = useState("");
   const [search, setSearch] = useState("");
+  const [searchConvos, setSearchConvos] = useState<Conversation[]>([]);
   const [needReplyOnly, setNeedReplyOnly] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
@@ -119,13 +123,47 @@ export function InboxClient() {
   const loadConvos = useCallback(async () => {
     const { data } = await supabase
       .from("wa_conversations")
-      .select(
-        "id, contact_id, last_message_at, last_message_preview, unread_count, window_expires_at, status, assigned_to, phone_number_id, needs_reply, ai_enabled, wa_contacts(id, wa_id, phone, name, tags, notes, ai_memory, profile_id, profiles(full_name, total_spend))",
-      )
+      .select(CONV_SELECT)
       .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(200);
+      .limit(500);
     setConvos((data as unknown as Conversation[]) ?? []);
   }, [supabase]);
+
+  // Carian hits DB — cari chat ikut nama/nombor merentas SEMUA conversation
+  // (bukan cuma 500 yang dimuat), supaya chat penting tetap jumpa bila search.
+  useEffect(() => {
+    const term = search.trim();
+    if (term.length < 2) {
+      setSearchConvos([]);
+      return;
+    }
+    const safe = term.replace(/[,()*%]/g, " ").trim();
+    let cancel = false;
+    const t = setTimeout(async () => {
+      const { data: cs } = await supabase
+        .from("wa_contacts")
+        .select("id")
+        .or(`name.ilike.*${safe}*,phone.ilike.*${safe}*,wa_id.ilike.*${safe}*`)
+        .limit(200);
+      const ids = (cs ?? []).map((c: { id: string }) => c.id);
+      if (cancel) return;
+      if (ids.length === 0) {
+        setSearchConvos([]);
+        return;
+      }
+      const { data } = await supabase
+        .from("wa_conversations")
+        .select(CONV_SELECT)
+        .in("contact_id", ids)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(200);
+      if (!cancel) setSearchConvos((data as unknown as Conversation[]) ?? []);
+    }, 300);
+    return () => {
+      cancel = true;
+      clearTimeout(t);
+    };
+  }, [search, supabase]);
 
   const loadMessages = useCallback(
     async (convId: string) => {
@@ -470,6 +508,10 @@ export function InboxClient() {
 
   const q = search.trim().toLowerCase();
   const qDigits = q.replace(/\D/g, "");
+  // Search ≥2 huruf → guna hasil DB (searchConvos) supaya chat di luar 500 dimuat
+  // tetap jumpa. <2 huruf → tapis sisi-klien atas senarai dimuat.
+  const dbSearch = search.trim().length >= 2;
+  const baseConvos = dbSearch ? searchConvos : convos;
 
   // Konteks = filter SKOP (label, nombor, Saya, search). Badge count + senarai ikut konteks ni
   // → tukar ke nombor #2, count "Perlu balas" jadi 0 (chat #2), bukan kekal global #1.
@@ -477,14 +519,14 @@ export function InboxClient() {
     if (filterTag && !c.wa_contacts?.tags?.includes(filterTag)) return false;
     if (numberFilter && c.phone_number_id !== numberFilter) return false;
     if (myOnly && c.assigned_to !== myId) return false;
-    if (q) {
+    if (q && !dbSearch) {
       const name = displayName(c).toLowerCase();
       const phone = c.wa_contacts?.phone || c.wa_contacts?.wa_id || "";
       if (!name.includes(q) && !(qDigits.length >= 3 && phone.includes(qDigits))) return false;
     }
     return true;
   };
-  const contextConvos = convos.filter(inContext);
+  const contextConvos = baseConvos.filter(inContext);
   const needReplyTotal = contextConvos.filter((c) => c.needs_reply).length;
   const dueCount = contextConvos.filter((c) => followups.some((f) => f.status === "pending" && f.contact_id === c.contact_id && new Date(f.remind_at) <= new Date())).length;
   const shownConvos = contextConvos.filter((c) => {
@@ -663,11 +705,13 @@ export function InboxClient() {
                     }`}
                   >
                     {m.media_url && (m.type === "image" || m.type === "sticker") && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={m.media_url} alt="gambar" className="rounded-md max-w-full mb-1" />
+                      <a href={m.media_url} target="_blank" rel="noreferrer" className="block mb-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={m.media_url} alt="gambar" className="rounded-md max-h-60 max-w-[240px] cursor-zoom-in" />
+                      </a>
                     )}
                     {m.media_url && m.type === "video" && (
-                      <video src={m.media_url} controls className="rounded-md max-w-full mb-1" />
+                      <video src={m.media_url} controls className="rounded-md max-h-60 max-w-[240px] mb-1" />
                     )}
                     {m.media_url && (m.type === "audio" || m.type === "voice") && (
                       <audio src={m.media_url} controls className="mb-1 max-w-full" />
