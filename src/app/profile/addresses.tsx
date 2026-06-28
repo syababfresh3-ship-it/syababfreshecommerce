@@ -130,8 +130,8 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
     <div className="bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.06)] p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-brand-fresh-50 flex items-center justify-center">
-            <MapPin className="h-3.5 w-3.5 text-brand-fresh-500" />
+          <div className="w-7 h-7 rounded-lg bg-brand-red-50 flex items-center justify-center">
+            <MapPin className="h-3.5 w-3.5 text-brand-red-600" />
           </div>
           <h2 className="font-bold text-gray-900 text-sm">Alamat Penghantaran</h2>
         </div>
@@ -140,7 +140,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
         {!showForm && addresses.length > 0 && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-1 text-xs text-white font-bold bg-brand-fresh-500 px-3 py-1.5 rounded-xl shadow-[0_2px_8px_rgba(34,197,94,0.25)] active:scale-95 transition-all"
+            className="flex items-center gap-1 text-xs text-white font-bold bg-brand-red-600 px-3 py-1.5 rounded-xl shadow-[0_2px_8px_rgba(225,29,42,0.25)] active:scale-95 transition-all"
           >
             <Plus className="h-3.5 w-3.5" />
             Tambah
@@ -153,9 +153,9 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
         <div className="flex flex-col items-center py-7 gap-1.5">
           {/* layered icon: outer ring + inner tinted square + icon */}
           <div className="relative mb-2">
-            <div className="absolute inset-0 rounded-2xl bg-brand-fresh-100/50 scale-[1.25] blur-sm" />
-            <div className="relative w-14 h-14 rounded-2xl bg-brand-fresh-50 border border-brand-fresh-100 flex items-center justify-center">
-              <MapPin className="h-6 w-6 text-brand-fresh-400" />
+            <div className="absolute inset-0 rounded-2xl bg-brand-red-100/50 scale-[1.25] blur-sm" />
+            <div className="relative w-14 h-14 rounded-2xl bg-brand-red-50 border border-brand-red-100 flex items-center justify-center">
+              <MapPin className="h-6 w-6 text-brand-red-400" />
             </div>
           </div>
           <p className="text-sm font-bold text-gray-700">Belum ada alamat</p>
@@ -164,7 +164,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
           </p>
           <button
             onClick={() => setShowForm(true)}
-            className="mt-3 flex items-center gap-1.5 text-xs font-bold text-white bg-brand-fresh-500 px-5 py-2.5 rounded-xl shadow-[0_3px_12px_rgba(34,197,94,0.32)] active:scale-[0.97] transition-all"
+            className="mt-3 flex items-center gap-1.5 text-xs font-bold text-white bg-brand-red-600 px-5 py-2.5 rounded-xl shadow-[0_3px_12px_rgba(225,29,42,0.32)] active:scale-[0.97] transition-all"
           >
             <Plus className="h-3.5 w-3.5" />
             Tambah Alamat
@@ -178,9 +178,9 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
             key={addr.id}
             className={`rounded-xl transition-all ${
               editingId === addr.id
-                ? 'border border-brand-fresh-200 bg-brand-fresh-50/40 p-3.5'
+                ? 'border border-brand-red-200 bg-brand-red-50/40 p-3.5'
                 : addr.is_default
-                  ? 'bg-brand-fresh-50/70 shadow-[-3px_0_0_0_rgba(34,197,94,0.55),0_2px_10px_rgba(34,197,94,0.08)] p-3.5'
+                  ? 'bg-brand-red-50/70 shadow-[-3px_0_0_0_rgba(225,29,42,0.55),0_2px_10px_rgba(225,29,42,0.08)] p-3.5'
                   : 'bg-white shadow-[0_1px_6px_rgba(0,0,0,0.06)] p-3.5'
             }`}
           >
@@ -191,41 +191,41 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                   <div>
                     <label className="block text-[10px] font-medium text-gray-500 mb-1">Label</label>
                     <select name="label" value={editForm.label} onChange={handleEditChange}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400">
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400">
                       {['Rumah', 'Pejabat', 'Lain-lain'].map((l) => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-medium text-gray-500 mb-1">Nama Penerima</label>
                     <input name="recipient_name" value={editForm.recipient_name} onChange={handleEditChange}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400" placeholder="Nama" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400" placeholder="Nama" />
                   </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-gray-500 mb-1">No. Telefon Penerima</label>
                   <input name="recipient_phone" type="tel" value={editForm.recipient_phone} onChange={handleEditChange}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400" placeholder="011-1234 5678" />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400" placeholder="011-1234 5678" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-gray-500 mb-1">Alamat Penuh *</label>
                   <textarea name="full_address" value={editForm.full_address} onChange={handleEditChange} rows={2} required
-                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400" placeholder="No. rumah, jalan, kawasan..." />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400" placeholder="No. rumah, jalan, kawasan..." />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="block text-[10px] font-medium text-gray-500 mb-1">Poskod</label>
                     <input name="postcode" value={editForm.postcode} onChange={handleEditChange} maxLength={5}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400" placeholder="47500" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400" placeholder="47500" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-medium text-gray-500 mb-1">Bandar</label>
                     <input name="city" value={editForm.city} onChange={handleEditChange}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400" placeholder="Subang Jaya" />
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400" placeholder="Subang Jaya" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-medium text-gray-500 mb-1">Negeri</label>
                     <select name="state" value={editForm.state} onChange={handleEditChange}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-fresh-400">
+                      className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-red-400">
                       <option value="">—</option>
                       {malaysiaStates.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -237,7 +237,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                     Batal
                   </button>
                   <button type="submit" disabled={loading}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-brand-fresh-500 text-white rounded-lg hover:bg-brand-fresh-600 disabled:opacity-50 transition-colors">
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium bg-brand-red-600 text-white rounded-lg hover:bg-brand-red-600 disabled:opacity-50 transition-colors">
                     {loading && <Loader2 className="h-3 w-3 animate-spin" />}
                     Simpan
                   </button>
@@ -249,7 +249,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-xs font-bold text-gray-700">{addr.label}</span>
                     {addr.is_default && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-brand-fresh-600 font-semibold bg-brand-fresh-100 px-1.5 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-brand-red-600 font-semibold bg-brand-red-100 px-1.5 py-0.5 rounded-full">
                         <Star className="h-2.5 w-2.5 fill-current" /> Utama
                       </span>
                     )}
@@ -265,12 +265,12 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
                   {!addr.is_default && (
                     <button onClick={() => handleSetDefault(addr.id)}
-                      className="text-[10px] text-brand-fresh-600 font-semibold bg-brand-fresh-50 border border-brand-fresh-100 px-2 py-0.5 rounded-full hover:bg-brand-fresh-100 transition-colors">
+                      className="text-[10px] text-brand-red-600 font-semibold bg-brand-red-50 border border-brand-red-100 px-2 py-0.5 rounded-full hover:bg-brand-red-100 transition-colors">
                       Jadikan utama
                     </button>
                   )}
                   <button onClick={() => startEdit(addr)}
-                    className="p-1.5 text-gray-300 hover:text-brand-fresh-500 transition-colors rounded-lg hover:bg-brand-fresh-50">
+                    className="p-1.5 text-gray-300 hover:text-brand-red-600 transition-colors rounded-lg hover:bg-brand-red-50">
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={() => handleDelete(addr.id)}
@@ -294,7 +294,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 name="label"
                 value={form.label}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
               >
                 {['Rumah', 'Pejabat', 'Lain-lain'].map((l) => (
                   <option key={l} value={l}>{l}</option>
@@ -307,7 +307,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 name="recipient_name"
                 value={form.recipient_name}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
                 placeholder="Nama"
               />
             </div>
@@ -320,7 +320,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
               type="tel"
               value={form.recipient_phone}
               onChange={handleChange}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
               placeholder="011-1234 5678"
             />
           </div>
@@ -333,7 +333,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
               onChange={handleChange}
               rows={2}
               required
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
               placeholder="No. rumah, jalan, kawasan..."
             />
           </div>
@@ -346,7 +346,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 value={form.postcode}
                 onChange={handleChange}
                 maxLength={5}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
                 placeholder="47500"
               />
             </div>
@@ -356,7 +356,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 name="city"
                 value={form.city}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
                 placeholder="Subang Jaya"
               />
             </div>
@@ -366,7 +366,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
                 name="state"
                 value={form.state}
                 onChange={handleChange}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
               >
                 <option value="">—</option>
                 {malaysiaStates.map((s) => (
@@ -387,7 +387,7 @@ export function AddressList({ addresses, userId }: { addresses: Address[]; userI
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-brand-fresh-500 text-white rounded-lg hover:bg-brand-fresh-600 disabled:opacity-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium bg-brand-red-600 text-white rounded-lg hover:bg-brand-red-600 disabled:opacity-50 transition-colors"
             >
               {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               Simpan

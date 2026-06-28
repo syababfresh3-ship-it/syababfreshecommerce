@@ -26,7 +26,7 @@ export function ProfileSection({ profile }: { profile: Profile }) {
         className="w-full flex items-center gap-3.5 px-4 py-4 text-left active:bg-gray-50/80 transition-colors"
       >
         {/* account page v3 conversion polish: avatar initial instead of settings icon — personal */}
-        <div className="w-10 h-10 rounded-xl bg-brand-fresh-50 flex items-center justify-center shrink-0 text-base font-black text-brand-fresh-500">
+        <div className="w-10 h-10 rounded-xl bg-brand-red-50 flex items-center justify-center shrink-0 text-base font-black text-brand-red-600">
           {initial}
         </div>
 

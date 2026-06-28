@@ -33,14 +33,14 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
       {order && order.status === 'pending' && isOnline && <LpPaymentVerifier orderId={order.id} />}
 
       <header className="bg-white border-b border-gray-100 px-5 py-3.5 flex items-center justify-between max-w-md mx-auto">
-        <Link href="/" className="font-black text-lg text-brand-fresh-600">SyababFresh</Link>
+        <Link href="/" className="font-black text-lg text-brand-red-600">SyababFresh</Link>
         <Link href="/products" className="text-[13px] text-gray-500">← Beli-belah</Link>
       </header>
 
       <div className="max-w-md mx-auto px-5 pt-8 pb-20">
         <div className="rounded-3xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.10)] mb-5">
           {/* Hero */}
-          <div className="bg-gradient-to-br from-brand-fresh-500 to-brand-fresh-600 px-6 py-9 text-center">
+          <div className="bg-gradient-to-br from-brand-red-600 to-brand-red-600 px-6 py-9 text-center">
             <div className="w-[72px] h-[72px] rounded-full bg-white/15 border-[3px] border-white/40 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-9 w-9 text-white" />
             </div>
@@ -55,10 +55,10 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
           <div className="bg-white px-5 py-6">
             {order ? (
               <>
-                <div className="bg-brand-fresh-50 rounded-2xl p-4 mb-4">
+                <div className="bg-brand-red-50 rounded-2xl p-4 mb-4">
                   <div className="flex justify-between text-[13px] mb-2 text-gray-500">
                     <span>No. Pesanan</span>
-                    <span className="font-black font-mono text-brand-fresh-700">{order.order_number}</span>
+                    <span className="font-black font-mono text-brand-red-700">{order.order_number}</span>
                   </div>
                   <div className="flex justify-between text-[13px] mb-2 text-gray-500">
                     <span>Nama</span><span className="font-bold text-gray-900">{order.name}</span>
@@ -66,7 +66,7 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
                   <div className="flex justify-between text-[13px] mb-2 text-gray-500">
                     <span>No. Telefon</span><span className="font-bold text-gray-900">{order.phone}</span>
                   </div>
-                  <div className="border-t border-brand-fresh-200 pt-2.5 mt-1">
+                  <div className="border-t border-brand-red-200 pt-2.5 mt-1">
                     {items.map((item: any, i: number) => (
                       <div key={i} className={`flex justify-between text-[13px] ${i < items.length - 1 ? 'mb-1.5' : ''}`}>
                         <span className="text-gray-700">{item.product_name}{item.variant_name ? ` · ${item.variant_name}` : ''} × {item.quantity}</span>
@@ -79,8 +79,8 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
                       <span>Penghantaran</span><span className="font-semibold">RM{Number(order.delivery_fee).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t-2 border-brand-fresh-200 pt-2.5 mt-2.5 font-black text-[17px]">
-                    <span>Jumlah</span><span className="text-brand-fresh-700">RM{Number(order.total).toFixed(2)}</span>
+                  <div className="flex justify-between border-t-2 border-brand-red-200 pt-2.5 mt-2.5 font-black text-[17px]">
+                    <span>Jumlah</span><span className="text-brand-red-700">RM{Number(order.total).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -90,7 +90,7 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
                 </div>
 
                 <a href={`/resit/${order.id}`}
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-brand-fresh-600 text-white rounded-2xl font-bold text-sm mb-2.5">
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-brand-red-600 text-white rounded-2xl font-bold text-sm mb-2.5">
                   <FileText className="h-4 w-4" /> Lihat / Muat Turun Resit
                 </a>
 

@@ -1,270 +1,58 @@
-export const dynamic = 'force-dynamic'
-// search conversion optimization
+// Redesign v2 — Katalog (storefront). Search + rail kategori + senarai produk.
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
-import { Pagination } from '@/components/ui/pagination'
-import { StoreLayout } from '@/components/layout/store-layout'
-import { ProductCard } from '@/components/store/product-card'
-import { StickyCartBar } from '@/components/store/sticky-cart-bar'
-import { CategoryFilter } from './category-filter'
-import { SearchBar } from './search-bar'
-import { SortFilter } from './sort-filter'
-import Link from 'next/link'
-import { Suspense } from 'react'
-import type { Category, Product } from '@/types'
+import { unstable_cache } from 'next/cache'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getAppSettings } from '@/lib/app-settings'
+import { SfShell } from '@/components/storev2/sf-shell'
+import { SfCatalog } from '@/components/storev2/sf-catalog'
 
-const POPULAR_SEARCHES = ['Durian', 'Mangga', 'Strawberry', 'Anggur', 'Tembikai', 'Harumanis', 'Limau', 'Betik']
+// Default bila admin belum set pengumuman katalog.
+const DEFAULT_ANNOUNCEMENT = 'Penghantaran ikut zon — semak poskod di Troli'
+
+export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: 'Produk',
+  title: 'Katalog',
   description: 'Beli buah segar online — durian, mangga, strawberry dan banyak lagi. Penghantaran dalam 24 jam ke Klang Valley.',
 }
 
-const PAGE_SIZE = 12
-
-interface ProductsPageProps {
-  searchParams: Promise<{
-    category?: string
-    q?: string
-    sort?: string
-    promo?: string
-    page?: string
-  }>
-}
-
-async function getData(category?: string, q?: string, sort?: string, promo?: string) {
-  const supabase = await createClient()
-
-  // Resolve category slug → IDs (parent + all children) for DB-level filtering
-  let categoryIds: string[] | null = null
-  if (category) {
-    const { data: allCatsRaw } = await supabase.from('categories').select('id, slug, parent_id').eq('is_active', true)
-    if (allCatsRaw) {
-      const parent = allCatsRaw.find(c => c.slug === category)
-      if (parent) {
-        const children = allCatsRaw.filter(c => c.parent_id === parent.id).map(c => c.id)
-        categoryIds = [parent.id, ...children]
-      }
-    }
-  }
-
-  const [categoriesRes, productsRes, stockRes, variantsRes] = await Promise.all([
-    supabase
-      .from('categories')
-      .select('id, name, slug, parent_id, sort_order, is_active')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true }),
-    (() => {
-      let q2 = supabase
+const getCatalog = unstable_cache(
+  async () => {
+    const sb = createAdminClient()
+    const [catsRes, prodsRes] = await Promise.all([
+      sb.from('categories').select('id, slug, name, parent_id, sort_order').eq('is_active', true).order('sort_order'),
+      sb
         .from('products')
-        .select('id, name, slug, price, compare_price, image_url, images, description, sort_order, is_active, is_featured, is_shippable, unit, category_id, created_at, updated_at, categories(name, slug)')
+        .select('id, name, slug, price, compare_price, image_url, unit, category_id, is_featured, product_variants(id, name, price, is_active, sort_order)')
         .eq('is_active', true)
-        .limit(500)
-      if (categoryIds && categoryIds.length > 0) {
-        q2 = q2.in('category_id', categoryIds)
-      }
-      return q2
-    })(),
-    supabase
-      .from('product_stock')
-      .select('product_id, available_stock')
-      .limit(500),
-    supabase
-      .from('product_variants')
-      .select('product_id')
-      .eq('is_active', true)
-      .limit(500),
-  ])
+        .order('sort_order')
+        .limit(500),
+    ])
+    return { categories: catsRes.data ?? [], products: prodsRes.data ?? [] }
+  },
+  ['catalog-data'],
+  { revalidate: 300, tags: ['products', 'categories'] },
+)
 
-  const stockMap: Record<string, number> = {}
-  for (const s of stockRes.data ?? []) {
-    stockMap[s.product_id] = s.available_stock
-  }
-
-  const variantProductIds = new Set((variantsRes.data ?? []).map((v) => v.product_id))
-
-  const allCategories = (categoriesRes.data ?? []) as Category[]
-  let products = (productsRes.data ?? []) as Product[]
-
-  // Category filtering is done at DB level above (categoryIds)
-  // No JS filtering needed for category
-
-  // Filter by search
-  if (q) {
-    const lower = q.toLowerCase()
-    products = products.filter((p) =>
-      p.name.toLowerCase().includes(lower) ||
-      p.description?.toLowerCase().includes(lower)
-    )
-  }
-
-  // Filter promo only
-  if (promo === '1') {
-    products = products.filter((p) => p.compare_price != null)
-  }
-
-  // Sort
-  if (sort === 'price_asc') {
-    products.sort((a, b) => Number(a.price) - Number(b.price))
-  } else if (sort === 'price_desc') {
-    products.sort((a, b) => Number(b.price) - Number(a.price))
-  } else if (sort === 'name') {
-    products.sort((a, b) => a.name.localeCompare(b.name))
-  } else {
-    // Default: sort_order
-    products.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-  }
-
-  return {
-    categories: allCategories,
-    products,
-    stockMap,
-    variantProductIds,
-  }
+interface Props {
+  searchParams: Promise<{ category?: string; q?: string }>
 }
 
-export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  const { category, q, sort, promo, page: pageStr } = await searchParams
-  const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
-  const { categories, products, stockMap, variantProductIds } = await getData(category, q, sort, promo)
-
-  const totalPages = Math.ceil(products.length / PAGE_SIZE)
-  const pagedProducts = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-
-  const activeCategory = categories.find((c) => c.slug === category)
-
-  const heading = activeCategory
-    ? activeCategory.name
-    : q
-    ? `"${q}"`
-    : promo === '1'
-    ? 'Tawaran & Promosi'
-    : 'Semua Produk'
-
+export default async function ProductsPage({ searchParams }: Props) {
+  const [{ categories, products }, sp, settings] = await Promise.all([getCatalog(), searchParams, getAppSettings()])
+  // Strip pengumuman: guna nilai admin; kosong → default; "off" → sembunyi.
+  const raw = (settings['catalog_announcement'] ?? '').trim()
+  const announcement = raw.toLowerCase() === 'off' ? undefined : (raw || DEFAULT_ANNOUNCEMENT)
   return (
-    <StoreLayout>
-      {/* final polish: gray-50 canvas — white cards float, feel premium and separated */}
-      <div className="bg-gray-50 min-h-screen">
-
-      {/* Sticky filter bar — white so it lifts above the gray page */}
-      <div className="sticky top-0 z-30 bg-white shadow-[0_1px_0_rgba(0,0,0,0.06)] px-4 pt-3 pb-2.5">
-
-        {/* Search */}
-        <Suspense><SearchBar defaultValue={q} /></Suspense>
-
-        {/* Category filter chips — horizontal scroll */}
-        <div className="mt-2.5">
-          <Suspense><CategoryFilter categories={categories} activeSlug={category} showPromo /></Suspense>
-        </div>
-      </div>
-
-      <div className="px-4 pt-3">
-
-        {/* Heading + sort — tight, minimal chrome */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-sm font-bold text-gray-900">{heading}</h2>
-            {/* conversion improvement: quantity cue reassures buyer there's good selection */}
-            <p className="text-[10px] text-gray-400 mt-0.5">{products.length} produk segar tersedia</p>
-          </div>
-          <Suspense><SortFilter activeSort={sort} /></Suspense>
-        </div>
-
-        {/* conversion improvement: fast delivery urgency strip */}
-        {!q && !promo && (
-          <div className="flex items-center gap-2 bg-brand-fresh-50 border border-brand-fresh-100 rounded-xl px-3 py-2 mb-3">
-            <span className="text-base">⚡</span>
-            <p className="text-[11px] text-brand-fresh-700 font-semibold">
-              Penghantaran hari ini · Order sebelum 2PM
-            </p>
-          </div>
-        )}
-
-        {/* Popular search chips — shown when idle (no query, no category, no promo) */}
-        {!q && !category && !promo && (
-          <div className="mb-4">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">
-              Carian popular
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {POPULAR_SEARCHES.map((term) => (
-                <Link
-                  key={term}
-                  href={`/products?q=${encodeURIComponent(term)}`}
-                  className="px-3 py-1.5 bg-white rounded-full text-xs font-semibold text-gray-700 shadow-[0_1px_6px_rgba(0,0,0,0.07)] border border-gray-100 active:scale-95 active:bg-gray-50 transition-all duration-150"
-                >
-                  🔍 {term}
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Products Grid */}
-        {products.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-center px-6">
-            <p className="text-4xl mb-4">😢</p>
-            <p className="text-[15px] font-bold text-gray-700 mb-1.5">Tak jumpa hasil carian</p>
-            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-              Cuba kata kunci lain atau semak ejaan
-            </p>
-            <Link
-              href="/products"
-              className="bg-brand-fresh-500 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-[0_4px_14px_rgba(34,197,94,0.38)] active:scale-[0.97] transition-all duration-150 mb-6"
-            >
-              Lihat semua produk
-            </Link>
-            {/* Popular searches in no-result state */}
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Cuba cari</p>
-            <div className="flex flex-wrap gap-2 justify-center">
-              {POPULAR_SEARCHES.slice(0, 6).map((term) => (
-                <Link
-                  key={term}
-                  href={`/products?q=${encodeURIComponent(term)}`}
-                  className="px-3 py-1.5 bg-white rounded-full text-xs font-semibold text-gray-600 shadow-[0_1px_6px_rgba(0,0,0,0.07)] border border-gray-100 active:scale-95 transition-all duration-150"
-                >
-                  {term}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* final polish: gap-4 gives rows room to breathe — scroll feels lighter */}
-            <div className="grid grid-cols-2 gap-4">
-              {pagedProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  stock={stockMap[product.id] ?? null}
-                  hasVariants={variantProductIds.has(product.id)}
-                />
-              ))}
-            </div>
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              buildHref={(p) => {
-                const params = new URLSearchParams()
-                if (category) params.set('category', category)
-                if (q) params.set('q', q)
-                if (sort) params.set('sort', sort)
-                if (promo) params.set('promo', promo)
-                params.set('page', String(p))
-                return `/products?${params.toString()}`
-              }}
-            />
-          </>
-        )}
-
-        {/* Extra bottom space so last card clears the sticky cart bar */}
-        <div className="h-20" />
-      </div>
-
-      </div> {/* end bg-gray-50 */}
-
-      {/* conversion improvement: sticky cart bar — always-visible checkout nudge */}
-      <StickyCartBar />
-    </StoreLayout>
+    <SfShell>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <SfCatalog
+        categories={categories as any}
+        products={products as any}
+        initialCategory={sp.category}
+        initialSearch={sp.q ?? ''}
+        announcement={announcement}
+      />
+    </SfShell>
   )
 }

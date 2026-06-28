@@ -102,8 +102,8 @@ export default function InfoPage() {
         </div>
 
         {/* Freshness guarantee */}
-        <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl p-4 flex gap-3">
-          <RotateCcw className="h-5 w-5 text-brand-fresh-600 shrink-0 mt-0.5" />
+        <div className="bg-brand-red-50 border border-brand-red-200 rounded-xl p-4 flex gap-3">
+          <RotateCcw className="h-5 w-5 text-brand-red-600 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-bold text-gray-900">Jaminan Kesegaran 100%</p>
             <p className="text-xs text-gray-600 mt-1 leading-relaxed">

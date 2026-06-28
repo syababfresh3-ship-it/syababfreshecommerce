@@ -14,8 +14,8 @@
   --color-brand-red-300: #FCA5A5;
   --color-brand-red-400: #F87171;
   --color-brand-red-500: #EF4444;
-  --color-brand-red-600: #DC2626;
-  --color-brand-red-700: #B91C1C;
+  --color-brand-red-600: #E11D2A;
+  --color-brand-red-700: #A01018;
   --color-brand-red-800: #991B1B;
   --color-brand-red-900: #7F1D1D;
 
@@ -35,6 +35,22 @@
   --color-brand-fresh-400: #4ADE80;
   --color-brand-fresh-500: #22C55E;
   --color-brand-fresh-600: #16A34A;
+
+  /* === Redesign v2 — design tokens (Merah) === */
+  --color-pri: #E11D2A;
+  --color-pri-dark: #A01018;
+  --color-pri-tint: #FDECEC;
+  --color-ink: #14181B;
+  --color-ink2: #5B6168;
+  --color-muted: #9AA0A6;
+  --color-faint: #C4C9CE;
+  --color-appbg: #F4F6F5;
+  --color-surface: #FFFFFF;
+  --color-line: #ECEEF0;
+  --color-divider: #F2F4F5;
+  --color-inputbg: #FAFBFB;
+  --color-inputline: #E3E6E9;
+  --color-gold: #F59E0B;
 }
 
 :root {

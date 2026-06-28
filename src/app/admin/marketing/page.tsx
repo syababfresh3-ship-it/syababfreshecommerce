@@ -12,11 +12,13 @@ interface Settings {
   flash_sale_label: string
   flash_sale_ends_at: string
   flash_sale_promo_code: string
+  catalog_announcement: string
 }
 
 const EMPTY: Settings = {
   meta_pixel_id: '', google_ads_id: '', google_ads_label: '', gtm_id: '',
   flash_sale_label: '', flash_sale_ends_at: '', flash_sale_promo_code: '',
+  catalog_announcement: '',
 }
 
 export default function MarketingPage() {
@@ -81,6 +83,26 @@ export default function MarketingPage() {
       </div>
 
       <form onSubmit={handleSave} className="space-y-5">
+
+        {/* Pengumuman Katalog */}
+        <div className={card}>
+          <div className="flex items-center gap-2.5 pb-2 border-b border-gray-50">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+              <Megaphone className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Pengumuman Katalog</p>
+              <p className="text-xs text-gray-400">Strip di atas senarai produk di skrin Katalog</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Teks Pengumuman</label>
+            <input type="text" value={settings.catalog_announcement} onChange={set('catalog_announcement')}
+              placeholder="Pesan sebelum 12 tgh hari — sampai hari ini di Lembah Klang" suppressHydrationWarning
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+            <p className="text-xs text-gray-400 mt-1">Kosong = guna default. Taip <span className="font-mono font-semibold">off</span> untuk sembunyikan strip.</p>
+          </div>
+        </div>
 
         {/* Flash Sale */}
         <div className={card}>

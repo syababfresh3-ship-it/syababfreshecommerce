@@ -74,7 +74,7 @@ export function WishlistCard({ product }: { product: Product }) {
 
         {/* Price row */}
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[16px] font-black text-brand-fresh-600 leading-none">
+          <span className="text-[16px] font-black text-brand-red-600 leading-none">
             RM{Number(product.price).toFixed(2)}
           </span>
           {product.compare_price && (
@@ -88,7 +88,7 @@ export function WishlistCard({ product }: { product: Product }) {
         {/* Full-width CTA */}
         <button
           onClick={handleAddToCart}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-fresh-500 text-white text-[12px] font-bold shadow-[0_4px_14px_rgba(34,197,94,0.42)] active:scale-[0.97] active:shadow-[0_1px_4px_rgba(34,197,94,0.25)] transition-all duration-150"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand-red-600 text-white text-[12px] font-bold shadow-[0_4px_14px_rgba(225,29,42,0.42)] active:scale-[0.97] active:shadow-[0_1px_4px_rgba(225,29,42,0.25)] transition-all duration-150"
         >
           <ShoppingCart className="h-3.5 w-3.5" />
           Tambah ke Troli

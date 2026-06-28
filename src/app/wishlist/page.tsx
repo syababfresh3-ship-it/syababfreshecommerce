@@ -54,7 +54,7 @@ export default async function WishlistPage() {
             </p>
             <Link
               href="/products"
-              className="bg-brand-fresh-500 text-white px-8 py-3.5 rounded-2xl text-sm font-bold shadow-[0_4px_16px_rgba(34,197,94,0.42)] active:scale-[0.97] transition-all duration-150"
+              className="bg-brand-red-600 text-white px-8 py-3.5 rounded-2xl text-sm font-bold shadow-[0_4px_16px_rgba(225,29,42,0.42)] active:scale-[0.97] transition-all duration-150"
             >
               Lihat Katalog
             </Link>

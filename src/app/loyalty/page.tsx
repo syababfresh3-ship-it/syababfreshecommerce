@@ -40,14 +40,14 @@ async function getLoyaltyData() {
 }
 
 const tierGradient: Record<string, string> = {
-  Hijau:    'from-brand-fresh-500 to-brand-fresh-700',
+  Hijau:    'from-brand-red-600 to-brand-red-700',
   Perak:    'from-gray-400 to-gray-600',
   Emas:     'from-yellow-400 to-amber-600',
   Platinum: 'from-purple-400 to-purple-700',
 }
 
 const tierAccent: Record<string, string> = {
-  Hijau:    'bg-brand-fresh-50 border-brand-fresh-200/60 text-brand-fresh-700',
+  Hijau:    'bg-brand-red-50 border-brand-red-200/60 text-brand-red-700',
   Perak:    'bg-gray-50 border-gray-200 text-gray-600',
   Emas:     'bg-yellow-50 border-yellow-200/60 text-yellow-700',
   Platinum: 'bg-purple-50 border-purple-200/60 text-purple-700',
@@ -124,8 +124,8 @@ export default async function LoyaltyPage() {
             <div className="bg-white rounded-2xl shadow-[0_6px_28px_rgba(0,0,0,0.12)] border border-gray-100/60 p-5">
               <div className="flex items-center justify-between mb-3.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-brand-fresh-50 flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 text-brand-fresh-600" />
+                  <div className="w-8 h-8 rounded-xl bg-brand-red-50 flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 text-brand-red-600" />
                   </div>
                   <p className="text-sm font-bold text-gray-900">Naik ke Tier {nextTier.name}</p>
                 </div>
@@ -137,7 +137,7 @@ export default async function LoyaltyPage() {
               {/* Progress bar — thick with glow + pulse shimmer */}
               <div className="h-5 bg-gray-100 rounded-full overflow-hidden mb-2.5">
                 <div
-                  className="relative h-full bg-gradient-to-r from-brand-fresh-400 to-amber-400 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.55)] transition-all"
+                  className="relative h-full bg-gradient-to-r from-brand-red-400 to-amber-400 rounded-full shadow-[0_0_10px_rgba(225,29,42,0.55)] transition-all"
                   style={{ width: `${progressToNext}%` }}
                 >
                   <div className="absolute inset-0 rounded-full bg-white/20 animate-pulse" style={{ animationDuration: '2.5s' }} />
@@ -145,7 +145,7 @@ export default async function LoyaltyPage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-[12px] font-bold text-brand-fresh-600">
+                <p className="text-[12px] font-bold text-brand-red-600">
                   Lagi RM{remainToNext.toFixed(0)} untuk naik ke Tier {nextTier.name} 🚀
                 </p>
                 <p className="text-[10px] text-gray-400 tabular-nums">
@@ -181,12 +181,12 @@ export default async function LoyaltyPage() {
                   <div
                     key={tier.id}
                     className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
-                      isActive ? 'bg-brand-fresh-50/60' : ''
+                      isActive ? 'bg-brand-red-50/60' : ''
                     }`}
                   >
                     {/* Tier dot */}
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-sm font-black ${
-                      isActive  ? 'bg-brand-fresh-500 text-white shadow-[0_2px_8px_rgba(34,197,94,0.4)]' :
+                      isActive  ? 'bg-brand-red-600 text-white shadow-[0_2px_8px_rgba(225,29,42,0.4)]' :
                       isPast    ? 'bg-gray-200 text-gray-500' :
                                   'bg-gray-100 text-gray-400'
                     }`}>
@@ -195,11 +195,11 @@ export default async function LoyaltyPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[13px] font-bold ${isActive ? 'text-brand-fresh-700' : isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <span className={`text-[13px] font-bold ${isActive ? 'text-brand-red-700' : isLocked ? 'text-gray-400' : 'text-gray-600'}`}>
                           {tier.name}
                         </span>
                         {isActive && (
-                          <span className="text-[10px] font-bold text-brand-fresh-600 bg-brand-fresh-100 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] font-bold text-brand-red-600 bg-brand-red-100 px-1.5 py-0.5 rounded-full">
                             Semasa
                           </span>
                         )}
@@ -228,12 +228,12 @@ export default async function LoyaltyPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <span className="text-sm font-bold text-gray-900">Jemput Rakan, Dapat Ganjaran</span>
-                <a href="/rujukan" className="text-xs text-brand-fresh-600 font-semibold">Lihat semua →</a>
+                <a href="/rujukan" className="text-xs text-brand-red-600 font-semibold">Lihat semua →</a>
               </div>
               <ReferralCodeCard code={profile.referral_code} name={profile.full_name} />
               <div className="bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.07)] p-4 flex gap-6">
                 <div className="text-center flex-1">
-                  <p className="text-2xl font-black text-brand-fresh-600">+50</p>
+                  <p className="text-2xl font-black text-brand-red-600">+50</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">mata untuk rakan</p>
                   <p className="text-[10px] text-gray-400">terus selepas daftar</p>
                 </div>
@@ -261,7 +261,7 @@ export default async function LoyaltyPage() {
                   icon: ShoppingBag,
                   label: 'Beli buah segar',
                   sub: `Setiap RM1 = ${multiplier} mata reward terus`,
-                  color: 'bg-brand-fresh-50 text-brand-fresh-600',
+                  color: 'bg-brand-red-50 text-brand-red-600',
                 },
                 {
                   icon: RefreshCcw,
@@ -290,7 +290,7 @@ export default async function LoyaltyPage() {
 
             <Link
               href="/products"
-              className="mt-5 w-full flex items-center justify-center gap-2 bg-brand-fresh-500 text-white font-bold py-4 rounded-2xl text-sm shadow-[0_6px_22px_rgba(34,197,94,0.50),0_0_0_1px_rgba(34,197,94,0.12)] active:scale-[0.97] active:shadow-[0_2px_8px_rgba(34,197,94,0.28)] transition-all duration-150"
+              className="mt-5 w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white font-bold py-4 rounded-2xl text-sm shadow-[0_6px_22px_rgba(225,29,42,0.50),0_0_0_1px_rgba(225,29,42,0.12)] active:scale-[0.97] active:shadow-[0_2px_8px_rgba(225,29,42,0.28)] transition-all duration-150"
             >
               🛒 Order Sekarang, Kumpul Mata!
               <ChevronRight className="h-4 w-4" />
@@ -314,10 +314,10 @@ export default async function LoyaltyPage() {
                   return (
                     <div key={tx.id} className="flex items-center gap-3 px-4 py-4">
                       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isEarn ? 'bg-brand-fresh-50 shadow-[0_1px_6px_rgba(34,197,94,0.15)]' : 'bg-red-50'
+                        isEarn ? 'bg-brand-red-50 shadow-[0_1px_6px_rgba(225,29,42,0.15)]' : 'bg-red-50'
                       }`}>
                         {isEarn
-                          ? <ArrowUpRight className="h-4 w-4 text-brand-fresh-600" />
+                          ? <ArrowUpRight className="h-4 w-4 text-brand-red-600" />
                           : <ArrowDownLeft className="h-4 w-4 text-red-500" />
                         }
                       </div>
@@ -331,7 +331,7 @@ export default async function LoyaltyPage() {
                           })}
                         </p>
                       </div>
-                      <span className={`text-[15px] font-black tabular-nums shrink-0 ${isEarn ? 'text-brand-fresh-600' : 'text-red-500'}`}>
+                      <span className={`text-[15px] font-black tabular-nums shrink-0 ${isEarn ? 'text-brand-red-600' : 'text-red-500'}`}>
                         {isEarn ? '+' : ''}{tx.points}
                       </span>
                     </div>

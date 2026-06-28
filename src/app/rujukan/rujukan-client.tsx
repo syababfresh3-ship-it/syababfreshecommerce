@@ -49,7 +49,7 @@ export function RujukanClient({
     <div className="bg-gray-50 min-h-screen pb-28">
 
       {/* Hero */}
-      <div className="bg-gradient-to-br from-brand-fresh-500 to-brand-fresh-700 px-5 pt-5 pb-12 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-brand-red-600 to-brand-red-700 px-5 pt-5 pb-12 relative overflow-hidden">
         <div className="pointer-events-none absolute -top-14 -right-14 w-60 h-60 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-10 w-44 h-44 rounded-full bg-black/12 blur-2xl" />
         <div className="relative">
@@ -87,7 +87,7 @@ export function RujukanClient({
               <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl px-4 py-3">
                 <div>
                   <p className="text-[10px] text-gray-400">Kod</p>
-                  <p className="text-xl font-black text-brand-fresh-600 tracking-widest">{code}</p>
+                  <p className="text-xl font-black text-brand-red-600 tracking-widest">{code}</p>
                 </div>
                 <div className="flex-1 min-w-0 text-right">
                   <p className="text-[10px] text-gray-400 truncate font-mono">/daftar?ref={code}</p>
@@ -97,9 +97,9 @@ export function RujukanClient({
 
             {/* Reward info */}
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-brand-fresh-50 rounded-xl px-3 py-2.5 text-center border border-brand-fresh-100">
-                <p className="text-lg font-black text-brand-fresh-600">+50</p>
-                <p className="text-[10px] text-brand-fresh-700">mata untuk rakan</p>
+              <div className="bg-brand-red-50 rounded-xl px-3 py-2.5 text-center border border-brand-red-100">
+                <p className="text-lg font-black text-brand-red-600">+50</p>
+                <p className="text-[10px] text-brand-red-700">mata untuk rakan</p>
                 <p className="text-[9px] text-gray-400 mt-0.5">terus selepas daftar</p>
               </div>
               <div className="bg-amber-50 rounded-xl px-3 py-2.5 text-center border border-amber-100">
@@ -122,7 +122,7 @@ export function RujukanClient({
                 onClick={handleCopy}
                 className="flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 font-semibold text-sm px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors"
               >
-                {copied ? <Check className="h-4 w-4 text-brand-fresh-500" /> : <Copy className="h-4 w-4" />}
+                {copied ? <Check className="h-4 w-4 text-brand-red-600" /> : <Copy className="h-4 w-4" />}
                 {copied ? 'Disalin!' : 'Salin'}
               </button>
             </div>
@@ -150,7 +150,7 @@ export function RujukanClient({
                 const isRewarded = r.status === 'rewarded'
                 return (
                   <div key={r.id} className="flex items-center gap-3 px-5 py-3.5">
-                    <div className="w-9 h-9 rounded-full bg-brand-fresh-100 flex items-center justify-center shrink-0 text-xs font-black text-brand-fresh-700">
+                    <div className="w-9 h-9 rounded-full bg-brand-red-100 flex items-center justify-center shrink-0 text-xs font-black text-brand-red-700">
                       {getInitials(referee?.full_name)}
                     </div>
                     <div className="flex-1 min-w-0">

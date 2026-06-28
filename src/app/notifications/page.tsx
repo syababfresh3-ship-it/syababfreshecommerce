@@ -31,8 +31,8 @@ const statusConfig: Record<OrderStatus, {
   },
   confirmed: {
     icon: PackageCheck,
-    iconBg: 'bg-brand-fresh-50',
-    iconColor: 'text-brand-fresh-600',
+    iconBg: 'bg-brand-red-50',
+    iconColor: 'text-brand-red-600',
     title: 'Pesanan disahkan',
     body: 'Pesanan anda telah disahkan dan akan disediakan.',
     priority: 'high',
@@ -55,8 +55,8 @@ const statusConfig: Record<OrderStatus, {
   },
   delivered: {
     icon: PackageCheck,
-    iconBg: 'bg-brand-fresh-50',
-    iconColor: 'text-brand-fresh-600',
+    iconBg: 'bg-brand-red-50',
+    iconColor: 'text-brand-red-600',
     title: 'Pesanan selesai',
     body: 'Produk segar anda telah sampai. Selamat menikmati!',
     priority: 'normal',

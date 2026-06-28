@@ -2,7 +2,7 @@ import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 
-const KEYS = ['meta_pixel_id', 'google_ads_id', 'google_ads_label', 'gtm_id', 'flash_sale_label', 'flash_sale_ends_at', 'flash_sale_promo_code'] as const
+const KEYS = ['meta_pixel_id', 'google_ads_id', 'google_ads_label', 'gtm_id', 'flash_sale_label', 'flash_sale_ends_at', 'flash_sale_promo_code', 'catalog_announcement'] as const
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()

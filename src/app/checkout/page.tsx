@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart'
-import { StoreLayout } from '@/components/layout/store-layout'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
@@ -12,8 +11,9 @@ import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
-  Lock, ChevronRight, Pencil, Truck, XCircle, Store,
+  Lock, ChevronRight, ChevronLeft, Pencil, Truck, XCircle, Store,
 } from 'lucide-react'
+import { CartSync } from '@/components/store/cart-sync'
 import type { Address } from '@/types'
 
 const PAYMENT_ICONS: Record<string, React.ElementType> = {
@@ -112,9 +112,23 @@ export default function CheckoutPage() {
         if (d.free_delivery_min != null) setFreeDeliveryMin(d.free_delivery_min)
         if (d.default_delivery_fee != null) setZoneBaseFee(d.default_delivery_fee)
         if (Array.isArray(d.slots) && d.slots.length > 0) setSlotConfigs(d.slots)
-        setPickupEnabled(d.pickup_enabled !== false)
+        const pe = d.pickup_enabled !== false
+        setPickupEnabled(pe)
+        // Hormati mod yang dipilih di Troli (localStorage sf_mode)
+        if (pe && localStorage.getItem('sf_mode') === 'pickup') setDeliveryMethod('pickup')
       })
       .catch(() => {})
+  }, [])
+
+  // Satu sumber state — prefill poskod yang disahkan di Troli (sf_postcode), guna semula di sini.
+  // Alamat tersimpan (login) akan tindih kemudian dalam effect getUser.
+  useEffect(() => {
+    const savedPc = localStorage.getItem('sf_postcode')
+    if (savedPc && /^\d{5}$/.test(savedPc)) {
+      setManualPostcode(savedPc)
+      checkPostcode(savedPc)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -302,12 +316,10 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <StoreLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-          <p className="text-gray-400 mb-4">Troli kosong</p>
-          <Link href="/products" className="text-brand-fresh-600 font-semibold">Kembali beli-belah</Link>
-        </div>
-      </StoreLayout>
+      <div className="min-h-screen bg-[#F4F6F5] flex flex-col items-center justify-center text-center px-4">
+        <p className="text-gray-400 mb-4">Troli kosong</p>
+        <Link href="/products" className="text-[#E11D2A] font-bold">Kembali beli-belah</Link>
+      </div>
     )
   }
 
@@ -315,6 +327,8 @@ export default function CheckoutPage() {
     e.preventDefault()
     if (!form.recipient_name.trim()) { toast.error('Sila masukkan nama penerima'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan nombor telefon penerima'); return }
+    // Email wajib untuk SEMUA (tracking pesanan dihantar via email — WA sering ban)
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Sila masukkan email yang sah untuk tracking pesanan'); return }
 
     if (isPickup) {
       if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
@@ -469,13 +483,19 @@ export default function CheckoutPage() {
   }
 
   // payment step UI: consistent section card
-  const card = 'bg-white rounded-2xl shadow-[0_2px_14px_rgba(0,0,0,0.06)] overflow-hidden'
+  const card = 'bg-white rounded-2xl border border-gray-200 overflow-hidden'
 
   return (
-    <StoreLayout>
-      <form id="checkout-form" onSubmit={handleSubmit} className="bg-gray-50 min-h-screen px-4 pt-4 pb-44 space-y-3">
-
-        <h1 className="text-lg font-bold text-gray-900 px-0.5">Checkout</h1>
+    <div className="min-h-screen bg-[#F4F6F5]">
+      <CartSync />
+      {/* Back header — pushed screen */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 h-[52px] flex items-center px-3">
+        <Link href="/cart" className="h-10 w-10 grid place-items-center -ml-1" aria-label="Kembali">
+          <ChevronLeft className="h-6 w-6 text-gray-900" />
+        </Link>
+        <span className="text-[16px] font-extrabold text-gray-900">Pembayaran</span>
+      </div>
+      <form id="checkout-form" onSubmit={handleSubmit} className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
 
         {/* ── 0. RECIPIENT INFO ────────────────────────────── */}
         <div className={card}>
@@ -492,7 +512,7 @@ export default function CheckoutPage() {
                 onChange={handleChange}
                 required
                 placeholder="Ahmad bin Ali"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
               />
             </div>
             <div>
@@ -507,31 +527,32 @@ export default function CheckoutPage() {
                 required
                 placeholder="0123456789"
                 inputMode="tel"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email {!loggedIn && <span className="text-red-400">*</span>}
+                Email <span className="text-red-400">*</span>
               </label>
               <input
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
+                required
                 placeholder="email@contoh.com"
                 autoComplete="email"
                 inputMode="email"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
               />
-              <p className="text-[11px] text-gray-400 mt-1">Resit & status pesanan dihantar ke email ini.</p>
+              <p className="text-[11px] text-gray-400 mt-1">Wajib — resit & <span className="font-semibold text-gray-500">tracking pesanan</span> dihantar ke email ini.</p>
             </div>
             {!loggedIn && (
-              <div className="bg-brand-fresh-50 border border-brand-fresh-100 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
-                <p className="text-[11px] text-brand-fresh-700 leading-snug">
+              <div className="bg-[#FDECEC] border border-[#FBD9DC] rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+                <p className="text-[11px] text-[#A01018] leading-snug">
                   Checkout sebagai tetamu — atau log masuk untuk kumpul & guna <span className="font-semibold">points</span>.
                 </p>
-                <Link href="/login?redirect=/checkout" className="text-[11px] font-bold text-brand-fresh-700 underline shrink-0">
+                <Link href="/login?redirect=/checkout" className="text-[11px] font-bold text-[#A01018] underline shrink-0">
                   Log masuk
                 </Link>
               </div>
@@ -549,7 +570,7 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={() => setDeliveryMethod('delivery')}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all active:scale-[0.98] ${
-                  !isPickup ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700' : 'border-gray-100 bg-white text-gray-500'
+                  !isPickup ? 'border-[#EC5460] bg-[#FDECEC] text-[#A01018]' : 'border-gray-100 bg-white text-gray-500'
                 }`}
               >
                 <Truck className="h-4 w-4" /> Penghantaran
@@ -558,7 +579,7 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={() => setDeliveryMethod('pickup')}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border-2 text-sm font-semibold transition-all active:scale-[0.98] ${
-                  isPickup ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700' : 'border-gray-100 bg-white text-gray-500'
+                  isPickup ? 'border-[#EC5460] bg-[#FDECEC] text-[#A01018]' : 'border-gray-100 bg-white text-gray-500'
                 }`}
               >
                 <Store className="h-4 w-4" /> Ambil Sendiri
@@ -573,17 +594,17 @@ export default function CheckoutPage() {
           <div className={card}>
             <div className="px-4 pt-4 pb-4 space-y-3">
               <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Lokasi Pickup</p>
-              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-3 flex items-start gap-2.5">
-                <MapPin className="h-4 w-4 text-brand-fresh-600 shrink-0 mt-0.5" />
+              <div className="bg-[#FDECEC] border border-[#F3AEB4] rounded-xl px-3.5 py-3 flex items-start gap-2.5">
+                <MapPin className="h-4 w-4 text-[#C81824] shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-brand-fresh-700">{STORE.name} — Bangi</p>
+                  <p className="text-sm font-bold text-[#A01018]">{STORE.name} — Bangi</p>
                   <p className="text-xs text-gray-600 mt-0.5 leading-snug">{STORE.address}</p>
                   <p className="text-[11px] text-gray-400 mt-1">🕐 {STORE.hours}</p>
                   <a
                     href={STORE.mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-fresh-600 mt-1.5"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#C81824] mt-1.5"
                   >
                     <MapPin className="h-3 w-3" /> Buka di Google Maps
                   </a>
@@ -598,7 +619,7 @@ export default function CheckoutPage() {
                   value={pickupDate}
                   min={pickupMinDate}
                   onChange={(e) => setPickupDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
                 />
                 <p className="text-[11px] text-gray-400 mt-1.5">Kami akan WhatsApp anda bila pesanan sedia diambil di kedai.</p>
               </div>
@@ -616,7 +637,7 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => setEditingAddress(!editingAddress)}
-                className="flex items-center gap-1 text-xs font-semibold text-brand-fresh-600 active:opacity-70"
+                className="flex items-center gap-1 text-xs font-semibold text-[#C81824] active:opacity-70"
               >
                 <Pencil className="h-3 w-3" />
                 {editingAddress ? 'Selesai' : 'Tukar'}
@@ -627,11 +648,11 @@ export default function CheckoutPage() {
           <div className="px-4 pb-4">
             {/* final polish: confirmed address feels like a destination, not a form field */}
             {!editingAddress && selectedAddr && (
-              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-3">
+              <div className="bg-[#FDECEC] border border-[#F3AEB4] rounded-xl px-3.5 py-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-[10px] font-extrabold text-brand-fresh-700 uppercase tracking-widest">
+                      <span className="text-[10px] font-extrabold text-[#A01018] uppercase tracking-widest">
                         {selectedAddr.label}
                       </span>
                       {selectedAddr.recipient_name && (
@@ -649,7 +670,7 @@ export default function CheckoutPage() {
                     )}
                   </div>
                   {/* final polish: checkmark chip reinforces "this is confirmed" */}
-                  <span className="shrink-0 flex items-center gap-1 bg-brand-fresh-100 text-brand-fresh-700 text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5">
+                  <span className="shrink-0 flex items-center gap-1 bg-[#FBD9DC] text-[#A01018] text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5">
                     <CheckCircle2 className="h-3 w-3" /> Disahkan
                   </span>
                 </div>
@@ -666,7 +687,7 @@ export default function CheckoutPage() {
                     onClick={() => handleSelectAddress(addr.id)}
                     className={`w-full text-left px-3.5 py-3 rounded-xl border-2 transition-all active:scale-[0.99] ${
                       selectedAddressId === addr.id
-                        ? 'border-brand-fresh-400 bg-brand-fresh-50'
+                        ? 'border-[#EC5460] bg-[#FDECEC]'
                         : 'border-gray-100 bg-gray-50'
                     }`}
                   >
@@ -680,7 +701,7 @@ export default function CheckoutPage() {
                         )}
                       </div>
                       {selectedAddressId === addr.id && (
-                        <CheckCircle2 className="h-4 w-4 text-brand-fresh-500 shrink-0" />
+                        <CheckCircle2 className="h-4 w-4 text-[#E11D2A] shrink-0" />
                       )}
                     </div>
                     <p className="text-xs text-gray-700 line-clamp-1">{addr.full_address}</p>
@@ -694,7 +715,7 @@ export default function CheckoutPage() {
                   onClick={() => handleSelectAddress('__manual__')}
                   className={`w-full text-left px-3.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all ${
                     selectedAddressId === '__manual__'
-                      ? 'border-brand-fresh-400 bg-brand-fresh-50 text-brand-fresh-700'
+                      ? 'border-[#EC5460] bg-[#FDECEC] text-[#A01018]'
                       : 'border-dashed border-gray-200 text-gray-400'
                   }`}
                 >
@@ -713,7 +734,7 @@ export default function CheckoutPage() {
                   required
                   rows={3}
                   placeholder="No. rumah, jalan, kawasan, bandar..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
                 />
                 <div className="flex gap-2">
                   <input
@@ -729,18 +750,18 @@ export default function CheckoutPage() {
                       if (v.length === 5) checkPostcode(v)
                     }}
                     placeholder="Poskod (5 digit) — wajib"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
                   />
                 </div>
                 {postcodeValid === true && (
-                  <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                  <p className="text-xs text-[#C81824] font-semibold flex items-center gap-1">
                     <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
                   </p>
                 )}
                 {postcodeValid === false && (
                   <div className="space-y-1.5">
                     {isNationwide ? (
-                      <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                      <p className="text-xs text-[#C81824] font-semibold flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5" /> Boleh dihantar ke seluruh Malaysia — anggaran 1–3 hari bekerja
                       </p>
                     ) : (
@@ -768,7 +789,7 @@ export default function CheckoutPage() {
             {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === false && (
               <div className="mt-2 space-y-1.5">
                 {isNationwide ? (
-                  <p className="text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+                  <p className="text-xs text-[#C81824] font-semibold flex items-center gap-1">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Boleh dihantar ke seluruh Malaysia — anggaran 1–3 hari bekerja
                   </p>
                 ) : (
@@ -790,7 +811,7 @@ export default function CheckoutPage() {
               </div>
             )}
             {selectedAddressId && selectedAddressId !== '__manual__' && postcodeValid === true && (
-              <p className="mt-2 text-xs text-brand-fresh-600 font-semibold flex items-center gap-1">
+              <p className="mt-2 text-xs text-[#C81824] font-semibold flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
               </p>
             )}
@@ -808,10 +829,10 @@ export default function CheckoutPage() {
 
           {isNationwide ? (
             <div className="px-4 pb-4">
-              <div className="bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-4 py-3.5 flex items-start gap-3">
-                <Truck className="h-4 w-4 text-brand-fresh-600 shrink-0 mt-0.5" />
+              <div className="bg-[#FDECEC] border border-[#F3AEB4] rounded-xl px-4 py-3.5 flex items-start gap-3">
+                <Truck className="h-4 w-4 text-[#C81824] shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-bold text-brand-fresh-700">1–3 Hari Bekerja</p>
+                  <p className="text-sm font-bold text-[#A01018]">1–3 Hari Bekerja</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">Penghantaran lori sejuk beku ke seluruh Malaysia. Anda akan dihubungi untuk pengesahan tarikh.</p>
                 </div>
               </div>
@@ -825,7 +846,7 @@ export default function CheckoutPage() {
                   onClick={() => setForm((p) => ({ ...p, delivery_slot: slot.value }))}
                   className={`px-3 py-3 rounded-xl text-xs font-semibold border-2 transition-all active:scale-[0.97] text-left ${
                     form.delivery_slot === slot.value
-                      ? 'bg-brand-fresh-500 text-white border-brand-fresh-500 shadow-[0_2px_8px_rgba(34,197,94,0.3)]'
+                      ? 'bg-[#E11D2A] text-white border-[#E11D2A] shadow-[0_2px_8px_rgba(225,29,42,0.3)]'
                       : 'bg-white text-gray-600 border-gray-100'
                   }`}
                 >
@@ -841,7 +862,7 @@ export default function CheckoutPage() {
               <Truck className="h-4 w-4 text-gray-400" />
               <span className="text-xs text-gray-500">Kos penghantaran</span>
             </div>
-            <span className={`text-xs font-bold ${deliveryFee === 0 ? 'text-brand-fresh-600' : 'text-gray-900'}`}>
+            <span className={`text-xs font-bold ${deliveryFee === 0 ? 'text-[#C81824]' : 'text-gray-900'}`}>
               {deliveryFee === 0 ? '✓ Percuma' : isNationwide ? 'Ikut berat' : `RM${deliveryFee.toFixed(2)}`}
             </span>
           </div>
@@ -867,13 +888,13 @@ export default function CheckoutPage() {
                   onClick={() => setForm((p) => ({ ...p, payment_method: opt.value }))}
                   className={`w-full flex items-center gap-3.5 p-3.5 rounded-2xl border-2 transition-all active:scale-[0.98] will-change-transform text-left ${
                     selected
-                      ? 'border-brand-fresh-400 bg-brand-fresh-50 shadow-[0_2px_10px_rgba(34,197,94,0.12)]'
+                      ? 'border-[#EC5460] bg-[#FDECEC] shadow-[0_2px_10px_rgba(225,29,42,0.12)]'
                       : 'border-gray-100 bg-white'
                   }`}
                 >
                   {/* payment step UI: icon pill changes color when selected */}
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                    selected ? 'bg-brand-fresh-500' : 'bg-gray-100'
+                    selected ? 'bg-[#E11D2A]' : 'bg-gray-100'
                   }`}>
                     <opt.icon className={`h-5 w-5 transition-colors ${selected ? 'text-white' : 'text-gray-500'}`} />
                   </div>
@@ -884,7 +905,7 @@ export default function CheckoutPage() {
                       </p>
                       {/* final polish: social proof badge on most-used method */}
                       {opt.value === 'fpx' && (
-                        <span className="text-[9px] font-extrabold bg-brand-yellow-100 text-brand-yellow-700 px-1.5 py-0.5 rounded-full leading-none">
+                        <span className="text-[9px] font-extrabold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full leading-none">
                           POPULAR
                         </span>
                       )}
@@ -893,7 +914,7 @@ export default function CheckoutPage() {
                   </div>
                   {/* payment step UI: checkmark confirms selection */}
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
-                    selected ? 'border-brand-fresh-500 bg-brand-fresh-500' : 'border-gray-200'
+                    selected ? 'border-[#E11D2A] bg-[#E11D2A]' : 'border-gray-200'
                   }`}>
                     {selected && <CheckCircle2 className="h-3.5 w-3.5 text-white fill-white" />}
                   </div>
@@ -920,11 +941,11 @@ export default function CheckoutPage() {
                 <Tag className="h-3.5 w-3.5" /> Ada kod promosi?
               </p>
               {appliedPromo ? (
-                <div className="flex items-center justify-between bg-brand-fresh-50 border border-brand-fresh-200 rounded-xl px-3.5 py-2.5">
+                <div className="flex items-center justify-between bg-[#FDECEC] border border-[#F3AEB4] rounded-xl px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-brand-fresh-500 shrink-0" />
-                    <span className="text-sm font-mono font-bold text-brand-fresh-700">{appliedPromo.code}</span>
-                    <span className="text-xs text-brand-fresh-600">
+                    <CheckCircle2 className="h-4 w-4 text-[#E11D2A] shrink-0" />
+                    <span className="text-sm font-mono font-bold text-[#A01018]">{appliedPromo.code}</span>
+                    <span className="text-xs text-[#C81824]">
                       {appliedPromo.type === 'percentage' ? `${appliedPromo.value}% off` : `RM${appliedPromo.value.toFixed(2)} off`}
                     </span>
                   </div>
@@ -944,7 +965,7 @@ export default function CheckoutPage() {
                       value={promoInput}
                       onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                       placeholder="Contoh: FRESH10, JIMAT5..."
-                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleApplyPromo())}
                     />
                     <button
@@ -968,18 +989,18 @@ export default function CheckoutPage() {
               <div className="border-t border-gray-100 pt-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Star className="h-3.5 w-3.5 text-brand-yellow-500" />
+                    <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                     <div>
                       <p className="text-xs font-semibold text-gray-700">
                         Mata Loyalty
-                        {usePoints && <span className="text-brand-fresh-600"> — jimat RM{pointsDiscount.toFixed(2)}</span>}
+                        {usePoints && <span className="text-[#C81824]"> — jimat RM{pointsDiscount.toFixed(2)}</span>}
                       </p>
                       <p className="text-[10px] text-gray-400">{userPoints.toLocaleString()} mata tersedia</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} className="sr-only peer" />
-                    <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-brand-fresh-500 after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+                    <div className="w-10 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#E11D2A] after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
                   </label>
                 </div>
               </div>
@@ -1016,7 +1037,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Kos penghantaran</span>
-                <span className={`tabular-nums ${deliveryFee === 0 ? 'text-brand-fresh-600 font-semibold' : 'text-gray-700'}`}>
+                <span className={`tabular-nums ${deliveryFee === 0 ? 'text-[#C81824] font-semibold' : 'text-gray-700'}`}>
                   {deliveryFee === 0 ? '✓ Percuma' : isNationwide ? 'Ikut berat' : `RM${deliveryFee.toFixed(2)}`}
                 </span>
               </div>
@@ -1031,7 +1052,7 @@ export default function CheckoutPage() {
                 </p>
               )}
               {appliedPromo && (
-                <div className="flex justify-between text-sm text-brand-fresh-600">
+                <div className="flex justify-between text-sm text-[#C81824]">
                   <span>Diskaun ({appliedPromo.code})</span>
                   <span className="tabular-nums">
                     -RM{(appliedPromo.type === 'percentage'
@@ -1041,7 +1062,7 @@ export default function CheckoutPage() {
                 </div>
               )}
               {usePoints && pointsDiscount > 0 && (
-                <div className="flex justify-between text-sm text-brand-fresh-600">
+                <div className="flex justify-between text-sm text-[#C81824]">
                   <span>Mata ({pointsUsed.toLocaleString()} pts)</span>
                   <span className="tabular-nums">-RM{pointsDiscount.toFixed(2)}</span>
                 </div>
@@ -1068,7 +1089,7 @@ export default function CheckoutPage() {
               onChange={handleChange}
               rows={2}
               placeholder="Cth: Tinggal di pintu, hubungi jika tiada orang..."
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
             />
           </div>
         </div>
@@ -1076,7 +1097,8 @@ export default function CheckoutPage() {
 
       {/* ── STICKY CTA BAR ───────────────────────────────── */}
       {/* payment step UI: the most important element — total + pay button, lock icon = safe */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 pt-3.5 pb-[calc(env(safe-area-inset-bottom)+4.25rem)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 pt-3.5 pb-[calc(env(safe-area-inset-bottom)+0.875rem)]">
+        <div className="max-w-2xl mx-auto">
 
         {/* Summary row */}
         <div className="flex items-center justify-between mb-3">
@@ -1100,7 +1122,7 @@ export default function CheckoutPage() {
           form="checkout-form"
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2.5 bg-brand-fresh-500 text-white font-bold py-4 rounded-2xl text-base shadow-[0_4px_18px_rgba(34,197,94,0.38)] disabled:opacity-60 active:scale-[0.98] transition-all will-change-transform"
+          className="w-full flex items-center justify-center gap-2.5 bg-[#E11D2A] text-white font-bold py-4 rounded-2xl text-base shadow-[0_4px_18px_rgba(225,29,42,0.38)] disabled:opacity-60 active:scale-[0.98] transition-all will-change-transform"
         >
           {loading ? (
             <>
@@ -1115,7 +1137,8 @@ export default function CheckoutPage() {
             </>
           )}
         </button>
+        </div>
       </div>
-    </StoreLayout>
+    </div>
   )
 }

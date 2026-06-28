@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
@@ -7,9 +7,11 @@ import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
 import { getAppSettings } from "@/lib/app-settings";
 import "./globals.css";
 
-const geistSans = Geist({
+// Redesign v2 — Nunito (dipetakan ke --font-geist-sans supaya font-sans guna ia).
+const geistSans = Nunito({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -112,20 +114,36 @@ export default async function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png" />
 
-        {/* Register Service Worker */}
-        <Script
-          id="register-sw"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
+        {/* Service Worker — daftar di PRODUCTION sahaja. Dalam dev, unregister +
+            buang cache supaya tiada lagi masalah HTML/JS stale masa develop. */}
+        {process.env.NODE_ENV === "production" ? (
+          <Script
+            id="register-sw"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js');
+                  });
+                }
+              `,
+            }}
+          />
+        ) : (
+          <Script
+            id="unregister-sw"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+                }
+                if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))); }
+              `,
+            }}
+          />
+        )}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}

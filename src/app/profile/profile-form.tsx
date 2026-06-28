@@ -61,7 +61,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           name="full_name"
           value={form.full_name}
           onChange={handleChange}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400"
         />
       </div>
       <div>
@@ -74,7 +74,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           value={form.phone}
           onChange={handleChange}
           required
-          className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-fresh-400 ${
+          className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-400 ${
             !form.phone ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'
           }`}
           placeholder="011-1234 5678"
@@ -99,7 +99,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 bg-brand-fresh-500 text-white font-semibold py-2.5 rounded-xl hover:bg-brand-fresh-600 disabled:opacity-60 transition-colors text-sm"
+        className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-brand-red-600 disabled:opacity-60 transition-colors text-sm"
       >
         {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         {loading ? 'Menyimpan...' : 'Simpan'}

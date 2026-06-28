@@ -247,7 +247,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
             {r.discount > 0 && (
               <div className="flex justify-between text-[13px]">
                 <span className="text-gray-400">Diskaun</span>
-                <span className="text-brand-fresh-600 font-medium tabular-nums">-RM{r.discount.toFixed(2)}</span>
+                <span className="text-brand-red-600 font-medium tabular-nums">-RM{r.discount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2.5 mt-1 border-t border-gray-100">

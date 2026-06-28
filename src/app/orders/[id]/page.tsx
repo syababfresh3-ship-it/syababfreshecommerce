@@ -170,7 +170,7 @@ export default async function OrderDetailPage({
             {/* ── 1. HERO ──────────────────────────────────────────
                 success page optimization: green gradient hero — emotionally reassuring
                 before any information is presented */}
-            <div className={`relative overflow-hidden rounded-3xl px-6 pt-10 pb-9 text-center bg-gradient-to-b ${isBankTransfer ? 'from-amber-400 to-amber-500' : 'from-brand-fresh-500 to-brand-fresh-600'}`}>
+            <div className={`relative overflow-hidden rounded-3xl px-6 pt-10 pb-9 text-center bg-gradient-to-b ${isBankTransfer ? 'from-amber-400 to-amber-500' : 'from-brand-red-600 to-brand-red-600'}`}>
 
               {/* Ambient decorative dots */}
               <div className="pointer-events-none absolute inset-0">
@@ -188,7 +188,7 @@ export default async function OrderDetailPage({
                 <div className="absolute inset-0 rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2s' }} />
                 <div className="absolute inset-2 rounded-full bg-white/15" />
                 <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg">
-                  <CheckCircle2 className="h-9 w-9 text-brand-fresh-500" strokeWidth={2.5} />
+                  <CheckCircle2 className="h-9 w-9 text-brand-red-600" strokeWidth={2.5} />
                 </div>
               </div>
 
@@ -225,7 +225,7 @@ export default async function OrderDetailPage({
                 <p className="text-4xl font-black text-gray-900 tabular-nums leading-none">
                   RM{Number(order.total).toFixed(2)}
                 </p>
-                <p className={`text-[11px] font-medium mt-2 flex items-center gap-1 ${isBankTransfer ? 'text-amber-600' : 'text-brand-fresh-600'}`}>
+                <p className={`text-[11px] font-medium mt-2 flex items-center gap-1 ${isBankTransfer ? 'text-amber-600' : 'text-brand-red-600'}`}>
                   {isBankTransfer ? '⏳ Menunggu pengesahan bayaran' : '📦 Sedang disiapkan sekarang di dapur kami'}
                 </p>
               </div>
@@ -263,7 +263,7 @@ export default async function OrderDetailPage({
               {/* success page optimization: delivery slot is 2nd most important info —
                   highlighted strongly so user immediately knows when to expect arrival */}
               {slotLabel && (
-                <div className="mx-4 mb-4 mt-2 flex items-center gap-3 bg-gradient-to-r from-brand-fresh-500 to-brand-fresh-600 rounded-xl px-4 py-3.5 shadow-[0_3px_12px_rgba(34,197,94,0.25)]">
+                <div className="mx-4 mb-4 mt-2 flex items-center gap-3 bg-gradient-to-r from-brand-red-600 to-brand-red-600 rounded-xl px-4 py-3.5 shadow-[0_3px_12px_rgba(225,29,42,0.25)]">
                   <Truck className="h-5 w-5 text-white shrink-0" />
                   <div>
                     <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">
@@ -302,36 +302,36 @@ export default async function OrderDetailPage({
                       {/* Connector: gradient green→gray after active, flat gray after next */}
                       {i < arr.length - 1 && (
                         <div className={`absolute top-[18px] left-1/2 w-full h-0.5 ${
-                          i === 0 ? 'bg-gradient-to-r from-brand-fresh-300 to-gray-100' : 'bg-gray-100'
+                          i === 0 ? 'bg-gradient-to-r from-brand-red-300 to-gray-100' : 'bg-gray-100'
                         }`} />
                       )}
 
                       {/* Icon circle: 3 distinct states — active has pulse ring */}
                       <div className={`relative z-10 w-9 h-9 rounded-full flex items-center justify-center mb-2 transition-all ${
-                        step.state === 'active' ? 'bg-brand-fresh-500 shadow-[0_3px_12px_rgba(34,197,94,0.40)]' :
-                        step.state === 'next'   ? 'bg-brand-fresh-100' :
+                        step.state === 'active' ? 'bg-brand-red-600 shadow-[0_3px_12px_rgba(225,29,42,0.40)]' :
+                        step.state === 'next'   ? 'bg-brand-red-100' :
                                                   'bg-gray-100'
                       }`}>
                         {step.state === 'active' && (
-                          <div className="absolute inset-0 rounded-full bg-brand-fresh-400 animate-ping opacity-30" style={{ animationDuration: '2.5s' }} />
+                          <div className="absolute inset-0 rounded-full bg-brand-red-400 animate-ping opacity-30" style={{ animationDuration: '2.5s' }} />
                         )}
                         <step.icon className={`h-4 w-4 relative z-10 ${
                           step.state === 'active' ? 'text-white' :
-                          step.state === 'next'   ? 'text-brand-fresh-500' :
+                          step.state === 'next'   ? 'text-brand-red-600' :
                                                     'text-gray-300'
                         }`} />
                       </div>
 
                       <p className={`text-[10px] font-bold text-center leading-tight whitespace-pre-line ${
-                        step.state === 'active' ? 'text-brand-fresh-700' :
-                        step.state === 'next'   ? 'text-brand-fresh-500' :
+                        step.state === 'active' ? 'text-brand-red-700' :
+                        step.state === 'next'   ? 'text-brand-red-600' :
                                                   'text-gray-300'
                       }`}>
                         {step.label}
                       </p>
                       <p className={`text-[9px] text-center mt-0.5 leading-tight ${
                         step.state === 'active' ? 'text-gray-400' :
-                        step.state === 'next'   ? 'text-brand-fresh-400' :
+                        step.state === 'next'   ? 'text-brand-red-400' :
                                                   'text-gray-200'
                       }`}>
                         {step.sub}
@@ -371,14 +371,14 @@ export default async function OrderDetailPage({
               <div className="px-4 py-3 border-t border-gray-100 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Penghantaran</span>
-                  <span className={`tabular-nums font-medium ${Number(order.delivery_fee) === 0 ? 'text-brand-fresh-600' : 'text-gray-700'}`}>
+                  <span className={`tabular-nums font-medium ${Number(order.delivery_fee) === 0 ? 'text-brand-red-600' : 'text-gray-700'}`}>
                     {Number(order.delivery_fee) === 0 ? '✓ Percuma' : `RM${Number(order.delivery_fee).toFixed(2)}`}
                   </span>
                 </div>
                 {Number(order.discount) > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Diskaun</span>
-                    <span className="text-brand-fresh-600 font-medium tabular-nums">
+                    <span className="text-brand-red-600 font-medium tabular-nums">
                       -RM{Number(order.discount).toFixed(2)}
                     </span>
                   </div>
@@ -400,7 +400,7 @@ export default async function OrderDetailPage({
             <div className="space-y-2.5 pt-1">
               <Link
                 href={`/orders/${order.id}`}
-                className={`w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl text-base active:scale-[0.98] transition-transform ${isBankTransfer ? 'bg-amber-500 shadow-[0_4px_16px_rgba(245,158,11,0.35)]' : 'bg-brand-fresh-500 shadow-[0_4px_16px_rgba(34,197,94,0.35)]'}`}
+                className={`w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-2xl text-base active:scale-[0.98] transition-transform ${isBankTransfer ? 'bg-amber-500 shadow-[0_4px_16px_rgba(245,158,11,0.35)]' : 'bg-brand-red-600 shadow-[0_4px_16px_rgba(225,29,42,0.35)]'}`}
               >
                 <Package className="h-4 w-4 opacity-80" />
                 {isBankTransfer ? 'Semak Status Pesanan' : 'Jejak Pesanan Sekarang'}
@@ -567,14 +567,14 @@ export default async function OrderDetailPage({
               <div className="px-4 py-3 border-t border-gray-100 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Penghantaran</span>
-                  <span className={`tabular-nums font-medium ${Number(order.delivery_fee) === 0 ? 'text-brand-fresh-600' : 'text-gray-700'}`}>
+                  <span className={`tabular-nums font-medium ${Number(order.delivery_fee) === 0 ? 'text-brand-red-600' : 'text-gray-700'}`}>
                     {Number(order.delivery_fee) === 0 ? '✓ Percuma' : `RM${Number(order.delivery_fee).toFixed(2)}`}
                   </span>
                 </div>
                 {Number(order.discount) > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Diskaun</span>
-                    <span className="text-brand-fresh-600 font-medium tabular-nums">
+                    <span className="text-brand-red-600 font-medium tabular-nums">
                       -RM{Number(order.discount).toFixed(2)}
                     </span>
                   </div>

@@ -27,6 +27,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Matikan butang dev indicator ("N" terapung) yang menutupi ikon bottom-nav masa dev.
+  devIndicators: false,
   // Pastikan fail SOP markdown dibundle untuk halaman /admin/sop di production
   outputFileTracingIncludes: {
     '/admin/sop': ['./docs/SOP-admin.md'],
