@@ -6,6 +6,7 @@ import Link from "next/link";
 interface Recipient {
   wa_id: string; name: string | null; status: string; error: string | null;
   sent_at: string | null; delivered_at: string | null; read_at: string | null;
+  orders?: number; revenue?: number;
 }
 interface Blast {
   id: string; name: string; template_name: string; status: string; total: number;
@@ -38,12 +39,14 @@ export function CampaignDetail({ id }: { id: string }) {
   if (!blast) return <div className="p-6 text-sm text-gray-400">Campaign tidak dijumpai. <Link href="/admin/crm/blast" className="text-emerald-600">Kembali</Link></div>;
 
   const p = progress ?? { total: blast.total, pending: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
+  const buyers = recipients.filter((r) => (r.orders ?? 0) > 0).length;
+  const revenue = recipients.reduce((s, r) => s + (r.revenue ?? 0), 0);
   const buckets = [
-    { label: "Pending", n: p.pending, c: "text-gray-500" },
     { label: "Unreached", n: p.failed, c: "text-red-500" },
     { label: "Sent", n: p.sent, c: "text-sky-500" },
     { label: "Delivered", n: p.delivered, c: "text-emerald-600" },
     { label: "Read", n: p.read, c: "text-violet-500" },
+    { label: revenue > 0 ? `Beli · RM${revenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "Beli", n: buyers, c: "text-[#E11D2A]" },
   ];
 
   return (
@@ -71,6 +74,11 @@ export function CampaignDetail({ id }: { id: string }) {
               <div className="flex-1 min-w-0">
                 <span className="text-gray-800">{r.name || r.wa_id}</span>
                 <span className="text-[11px] text-gray-400 ml-2">{r.wa_id}</span>
+                {(r.orders ?? 0) > 0 && (
+                  <span className="text-[10px] font-extrabold text-[#E11D2A] bg-[#FDECEC] rounded-full px-2 py-0.5 ml-2">
+                    🛒 Beli RM{Number(r.revenue ?? 0).toLocaleString("ms-MY", { maximumFractionDigits: 0 })}
+                  </span>
+                )}
                 {r.error && <span className="text-[11px] text-red-400 ml-2">{r.error}</span>}
               </div>
               <span className={`text-xs font-bold ${statusColor[r.status] ?? "text-gray-400"}`}>{r.status}</span>

@@ -3,12 +3,24 @@
 // (produk semua di Katalog).
 import Link from 'next/link'
 import { Leaf, Star, ChevronRight, ShoppingBag, Truck, PackageCheck, ShieldCheck } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { SfShell } from '@/components/storev2/sf-shell'
-import { SfPromo } from '@/components/storev2/sf-promo'
+import { SfPromo, type SfBanner } from '@/components/storev2/sf-promo'
 
 export const revalidate = 300
 
-export default function HomePage() {
+async function getBanners(): Promise<SfBanner[]> {
+  const sb = createAdminClient()
+  const { data } = await sb
+    .from('banners')
+    .select('id, image_url, title, subtitle, link, link_label, bg_class')
+    .eq('is_active', true)
+    .order('sort_order')
+  return (data ?? []) as SfBanner[]
+}
+
+export default async function HomePage() {
+  const banners = await getBanners()
   return (
     <SfShell>
       <div className="px-4 pt-4 space-y-5">
@@ -40,8 +52,8 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Promo carousel — banner Ceri RM79 (bawah stat pills) */}
-        <SfPromo />
+        {/* Promo carousel — banner dari /admin/banners (bawah stat pills) */}
+        <SfPromo banners={banners} />
 
         {/* Trust strip — jangkaan penghantaran JELAS ikut kawasan (elak keliru KV vs luar) */}
         <div className="rounded-2xl bg-white border border-gray-200 divide-y divide-gray-100">

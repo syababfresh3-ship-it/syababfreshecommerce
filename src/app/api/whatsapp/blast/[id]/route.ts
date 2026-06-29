@@ -27,16 +27,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { data: blast } = await sb.from("crm_blasts").select("*").eq("id", id).single();
   if (!blast) return NextResponse.json({ error: "Tidak dijumpai." }, { status: 404 });
 
-  const [{ data: recipients }, { data: progress }] = await Promise.all([
+  const [{ data: recipients }, { data: progress }, { data: attr }] = await Promise.all([
     sb.from("crm_blast_recipients")
       .select("wa_id, name, status, error, sent_at, delivered_at, read_at, created_at")
       .eq("blast_id", id)
       .order("created_at", { ascending: true })
       .limit(5000),
     sb.from("crm_blast_progress").select("*").eq("blast_id", id).maybeSingle(),
+    // Order yang dikira ke blast ni (padan nombor, dalam 7 hari) — view 084/085.
+    sb.from("crm_blast_order_attribution").select("wa_id, total").eq("blast_id", id),
   ]);
 
-  return NextResponse.json({ blast, recipients: recipients ?? [], progress: progress ?? null });
+  // Petakan wa_id → {orders, revenue} untuk tunjuk siapa beli.
+  const bought: Record<string, { orders: number; revenue: number }> = {};
+  for (const a of attr ?? []) {
+    const k = (a as { wa_id: string }).wa_id;
+    if (!bought[k]) bought[k] = { orders: 0, revenue: 0 };
+    bought[k].orders += 1;
+    bought[k].revenue += Number((a as { total: number }).total) || 0;
+  }
+  const recipientsOut = (recipients ?? []).map((r) => ({
+    ...r,
+    orders: bought[(r as { wa_id: string }).wa_id]?.orders ?? 0,
+    revenue: bought[(r as { wa_id: string }).wa_id]?.revenue ?? 0,
+  }));
+
+  return NextResponse.json({ blast, recipients: recipientsOut, progress: progress ?? null });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
