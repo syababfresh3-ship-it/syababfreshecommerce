@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Plus, Pencil, Search, GripVertical, Star, ImageOff } from 'lucide-react'
 import { ProductToggle } from './product-toggle'
 import { FeaturedToggle } from './featured-toggle'
+import { StorefrontToggle } from './storefront-toggle'
 import { Pagination } from '@/components/admin/pagination'
 
 const PAGE_SIZE = 20
@@ -169,6 +170,7 @@ export default async function AdminProductsPage({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {product.is_featured && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                <StorefrontToggle id={product.id} show={product.show_in_storefront !== false} />
                 <ProductToggle id={product.id} isActive={product.is_active} />
                 <Link
                   href={`/admin/products/${product.id}`}
@@ -199,13 +201,14 @@ export default async function AdminProductsPage({
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Featured</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Active</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Storefront</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-gray-400">
+                <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
                   {q ? `No product sepadan "${q}"` : (
                     <>No product. <Link href="/admin/products/new" className="text-red-600 font-semibold hover:underline">Add sekarang</Link></>
                   )}
@@ -257,6 +260,9 @@ export default async function AdminProductsPage({
                     </td>
                     <td className="px-5 py-3 text-center">
                       <ProductToggle id={product.id} isActive={product.is_active} />
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <StorefrontToggle id={product.id} show={product.show_in_storefront !== false} />
                     </td>
                     <td className="px-5 py-3 text-right">
                       <Link

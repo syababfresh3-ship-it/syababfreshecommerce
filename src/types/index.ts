@@ -45,6 +45,7 @@ export interface Product {
   images: string[] | null
   is_active: boolean
   is_featured: boolean
+  show_in_storefront: boolean
   is_shippable: boolean
   sort_order: number
   created_at: string

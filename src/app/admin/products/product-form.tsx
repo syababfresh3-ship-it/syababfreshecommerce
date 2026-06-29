@@ -32,6 +32,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     category_id: product?.category_id ?? '',
     is_active: product?.is_active ?? true,
     is_featured: product?.is_featured ?? false,
+    show_in_storefront: product?.show_in_storefront ?? true,
     is_shippable: product?.is_shippable ?? false,
     sort_order: product?.sort_order?.toString() ?? '0',
   })
@@ -84,6 +85,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       images: extraImages.filter(Boolean) as string[],
       is_active: form.is_active,
       is_featured: form.is_featured,
+      show_in_storefront: form.show_in_storefront,
       is_shippable: form.is_shippable,
       sort_order: parseInt(form.sort_order) || 0,
     }
@@ -313,6 +315,17 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
             />
             <label htmlFor="is_featured" className="text-sm font-medium text-gray-700">Featured (di halaman utama)</label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              id="show_in_storefront"
+              name="show_in_storefront"
+              type="checkbox"
+              checked={form.show_in_storefront}
+              onChange={handleChange}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="show_in_storefront" className="text-sm font-medium text-gray-700">Show in storefront (nampak di katalog; OFF = backend/landing je)</label>
           </div>
         </div>
 

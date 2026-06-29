@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     category_id: body.category_id ?? null,
     is_active: body.is_active ?? true,
     is_featured: body.is_featured ?? false,
+    show_in_storefront: body.show_in_storefront ?? true,
     sort_order: body.sort_order ?? 0,
     is_shippable: body.is_shippable ?? true,
   }

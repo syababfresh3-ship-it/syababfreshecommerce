@@ -25,6 +25,7 @@ const getCatalog = unstable_cache(
         .from('products')
         .select('id, name, slug, price, compare_price, image_url, unit, category_id, is_featured, product_variants(id, name, price, is_active, sort_order)')
         .eq('is_active', true)
+        .eq('show_in_storefront', true) // sorok duplicate landing-page dari katalog
         .order('sort_order')
         .limit(500),
     ])
