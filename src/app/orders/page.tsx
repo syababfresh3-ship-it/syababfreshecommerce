@@ -2,32 +2,19 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ShoppingBag, ChevronRight } from 'lucide-react'
 import { Pagination } from '@/components/ui/pagination'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { SfReorderButton, type ReorderItem } from '@/components/storev2/sf-reorder-button'
 import { SfActiveOrder } from '@/components/storev2/sf-active-order'
+import { GuestOrders } from './guest-orders'
+import { statusStyles, statusLabel } from './status'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
 
 const PAGE_SIZE = 10
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'delivering']
-
-const statusStyles: Record<string, string> = {
-  pending:    'bg-amber-50 text-amber-700 border border-amber-200',
-  confirmed:  'bg-blue-50 text-blue-700 border border-blue-200',
-  preparing:  'bg-purple-50 text-purple-700 border border-purple-200',
-  delivering: 'bg-orange-50 text-orange-700 border border-orange-200',
-  delivered:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  cancelled:  'bg-red-50 text-red-600 border border-red-200',
-  refunded:   'bg-gray-100 text-gray-500 border border-gray-200',
-}
-const statusLabel: Record<string, string> = {
-  pending: 'Menunggu', confirmed: 'Disahkan', preparing: 'Disediakan',
-  delivering: 'Dihantar', delivered: 'Selesai', cancelled: 'Dibatal', refunded: 'Dibayar Balik',
-}
 
 type OrderItem = { product_name: string; product_id?: string | null; variant_id?: string | null; quantity?: number | null }
 type Order = {
@@ -111,7 +98,8 @@ export default async function OrdersPage({
   const { page: pageStr } = await searchParams
   const page = Math.max(1, parseInt(pageStr ?? '1', 10) || 1)
   const all = await getOrders()
-  if (all === null) redirect('/login?redirect=/orders')
+  // Guest (tak log masuk) → view guest (CTA login + jejak ikut telefon), bukan paksa login.
+  if (all === null) return <SfShell><GuestOrders /></SfShell>
 
   // Utamakan order yang paling jauh progres (Dihantar dulu — yang boleh di-track),
   // kemudian paling terkini.

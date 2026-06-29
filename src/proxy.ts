@@ -46,7 +46,9 @@ export async function proxy(request: NextRequest) {
   // NOTA: /checkout SENGAJA tidak dilindungi — guest checkout dibenarkan (page
   // checkout sendiri bercabang guest vs member). /orders kekal dilindungi (sejarah
   // order member); guest guna pautan resit /resit/[id].
-  const protectedPaths = ['/orders', '/profile', '/loyalty', '/wishlist', '/notifications', '/vouchers', '/tetapan']
+  // /orders + /profile SENGAJA tak dilindungi — guest boleh tengok view guest (CTA
+  // login + jejak pesanan ikut telefon). /orders/[id] self-gate di page; alamat kekal gated.
+  const protectedPaths = ['/profile/addresses', '/loyalty', '/wishlist', '/notifications', '/vouchers', '/tetapan']
   const isProtected = protectedPaths.some(path => pathname.startsWith(path))
 
   if (isProtected && !user) {

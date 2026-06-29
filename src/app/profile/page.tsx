@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   Star, Ticket, Heart, Gift, Package, MapPin, Bell, HelpCircle,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { LogoutButton } from './logout-button'
+import { GuestProfile } from './guest-profile'
 
 async function getProfile() {
   const supabase = await createClient()
@@ -66,7 +66,8 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 
 export default async function ProfilePage() {
   const profile = await getProfile()
-  if (!profile) redirect('/login?redirect=/profile')
+  // Guest (tak log masuk) → view guest (CTA login/daftar + menu awam), bukan paksa login.
+  if (!profile) return <SfShell><GuestProfile /></SfShell>
 
   const tiers = await getTiers()
 
