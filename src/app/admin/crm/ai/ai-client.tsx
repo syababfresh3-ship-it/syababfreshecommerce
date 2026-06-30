@@ -11,6 +11,9 @@ interface Initial {
   model: string;
   knowledge: string;
   persona: string;
+  followupEnabled: boolean;
+  followupDelay: string;
+  followupMessage: string;
 }
 
 const MODES: { key: string; label: string; desc: string }[] = [
@@ -39,6 +42,29 @@ export function AiClient({ initial }: { initial: Initial }) {
   const [savingP, setSavingP] = useState(false);
   const [savedP, setSavedP] = useState(false);
   const [busy, setBusy] = useState("");
+  // Auto follow-up (Senario A)
+  const [fuEnabled, setFuEnabled] = useState(initial.followupEnabled);
+  const [fuDelay, setFuDelay] = useState(initial.followupDelay);
+  const [fuMsg, setFuMsg] = useState(initial.followupMessage);
+  const [savingFu, setSavingFu] = useState(false);
+  const [savedFu, setSavedFu] = useState(false);
+
+  async function toggleFollowup() {
+    const next = !fuEnabled;
+    setFuEnabled(next);
+    setBusy("fu");
+    const ok = await saveSetting("auto_followup_enabled", next ? "true" : "false");
+    if (!ok) setFuEnabled(!next);
+    setBusy("");
+  }
+  async function saveFollowup() {
+    setSavingFu(true);
+    setSavedFu(false);
+    const ok1 = await saveSetting("auto_followup_delay_hours", String(Number(fuDelay) || 4));
+    const ok2 = await saveSetting("auto_followup_message", fuMsg);
+    setSavingFu(false);
+    if (ok1 && ok2) { setSavedFu(true); setTimeout(() => setSavedFu(false), 2000); }
+  }
 
   async function toggleMaster() {
     const next = !enabled;
@@ -232,6 +258,65 @@ export function AiClient({ initial }: { initial: Initial }) {
           </button>
           {savedK && <span className="text-xs text-emerald-600 flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Disimpan</span>}
         </div>
+      </div>
+
+      {/* ── Auto Follow-up (Senario A) ── */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <MessageSquareText className="h-4 w-4 text-gray-700" />
+            <div>
+              <p className="text-sm font-bold text-gray-900">Auto Follow-up</p>
+              <p className="text-[11px] text-gray-400">Nudge customer yang dah reply tapi senyap & belum beli (chat masih terbuka).</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleFollowup}
+            disabled={busy === "fu"}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${fuEnabled ? "bg-emerald-500" : "bg-gray-300"} ${busy === "fu" ? "opacity-50" : ""}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${fuEnabled ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-gray-600">Hantar selepas</label>
+          <input
+            type="number" min={1} max={23}
+            value={fuDelay}
+            onChange={(e) => setFuDelay(e.target.value)}
+            className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+          />
+          <span className="text-xs text-gray-500">jam senyap (mesti &lt; 24 jam)</span>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Ayat follow-up <span className="text-gray-400 font-normal">(guna <code>{"{name}"}</code> untuk nama)</span></label>
+          <textarea
+            value={fuMsg}
+            onChange={(e) => setFuMsg(e.target.value)}
+            rows={3}
+            placeholder="Hi *{name}*! 👋 Masih berminat? Saya sedia bantu kalau ada soalan 🌿"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveFollowup}
+            disabled={savingFu}
+            className="bg-gray-800 text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {savingFu ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            Simpan
+          </button>
+          {savedFu && <span className="text-xs text-emerald-600 flex items-center gap-1"><Check className="h-3.5 w-3.5" /> Disimpan</span>}
+        </div>
+
+        <p className="text-[11px] text-gray-400">
+          Selamat: hanya hantar dalam window terbuka (free-form sah), sekali per perbualan,
+          hormati opt-out, dan skip kalau customer dah buat order.
+        </p>
       </div>
 
       <p className="text-[11px] text-gray-400">

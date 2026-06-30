@@ -243,6 +243,7 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
         unread_count: (conv.unread_count ?? 0) + 1,
         status: "open",
         needs_reply: true, // mesej masuk dari customer → perlu balas
+        auto_followup_sent_at: null, // re-arm auto follow-up (stall baru)
         ...(phoneNumberId ? { phone_number_id: phoneNumberId } : {}),
         ...(!conv.assigned_to && ownerId ? { assigned_to: ownerId } : {}),
       })
@@ -257,6 +258,7 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
         window_expires_at: windowExp,
         unread_count: 1,
         needs_reply: true,
+        auto_followup_sent_at: null,
         phone_number_id: phoneNumberId ?? null,
         assigned_to: ownerId,
       })
