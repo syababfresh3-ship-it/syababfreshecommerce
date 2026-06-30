@@ -102,13 +102,14 @@ export async function sendTemplate(
   name: string,
   language: string,
   bodyParams?: Record<string, string>,
-  headerImageUrl?: string,
+  header?: string | { type: "image" | "video" | "document"; link: string },
   opts?: SendOpts,
 ): Promise<SendResult> {
   const components: unknown[] = [];
-  // Header gambar (template promo yg ada IMAGE header)
-  if (headerImageUrl) {
-    components.push({ type: "header", parameters: [{ type: "image", image: { link: headerImageUrl } }] });
+  // Header media — string = IMAGE (backward-compat) | objek = image/video/document.
+  if (header) {
+    const h = typeof header === "string" ? { type: "image" as const, link: header } : header;
+    components.push({ type: "header", parameters: [{ type: h.type, [h.type]: { link: h.link } }] });
   }
   if (bodyParams && Object.keys(bodyParams).length) {
     const keys = Object.keys(bodyParams);

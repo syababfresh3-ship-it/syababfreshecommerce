@@ -69,6 +69,7 @@ export function BlastWizard() {
   const [tpl, setTpl] = useState<Template | null>(null);
   const [params, setParams] = useState<Record<string, string>>({});
   const [headerImage, setHeaderImage] = useState("");
+  const [headerVideo, setHeaderVideo] = useState("");
 
   // Send
   const [testNumber, setTestNumber] = useState("");
@@ -158,8 +159,10 @@ export function BlastWizard() {
     names.forEach((n) => (obj[n] = ""));
     setParams(obj);
     setHeaderImage("");
+    setHeaderVideo("");
   }
   const needsHeaderImage = tpl?.components.some((c) => c.type === "HEADER" && c.format === "IMAGE") ?? false;
+  const needsHeaderVideo = tpl?.components.some((c) => c.type === "HEADER" && c.format === "VIDEO") ?? false;
   const csvCols = csv?.cols ?? [];
 
   async function onCsvFile(file: File) {
@@ -170,7 +173,7 @@ export function BlastWizard() {
 
   // Validasi setiap langkah
   const step1Ok = name.trim().length > 0 && count > 0;
-  const step2Ok = !!tpl && (!needsHeaderImage || headerImage.trim().length > 0);
+  const step2Ok = !!tpl && (!needsHeaderImage || headerImage.trim().length > 0) && (!needsHeaderVideo || headerVideo.trim().length > 0);
 
   async function send(test: boolean) {
     if (test && !testNumber.trim()) { setMsg("Masukkan nombor test."); return; }
@@ -188,6 +191,7 @@ export function BlastWizard() {
         test,
         testNumber: test ? testNumber.trim() : undefined,
         headerImage: needsHeaderImage ? headerImage.trim() : undefined,
+        headerVideo: needsHeaderVideo ? headerVideo.trim() : undefined,
         phoneNumberId: fromNumber || undefined,
         scheduledAt: !test && scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       }),
@@ -379,6 +383,13 @@ export function BlastWizard() {
             <div>
               <label className="text-sm font-semibold text-gray-600">🖼️ Gambar header (URL)</label>
               <input value={headerImage} onChange={(e) => setHeaderImage(e.target.value)} placeholder="https://… (URL public)" className={`${inputCls} mt-1`} />
+            </div>
+          )}
+          {tpl && needsHeaderVideo && (
+            <div>
+              <label className="text-sm font-semibold text-gray-600">🎥 Video header (URL)</label>
+              <input value={headerVideo} onChange={(e) => setHeaderVideo(e.target.value)} placeholder="https://… (URL .mp4 public)" className={`${inputCls} mt-1`} />
+              <p className="text-[11px] text-gray-400 mt-1">Template ini guna header VIDEO. Letak URL video .mp4 yang boleh diakses awam (cth Supabase storage / CDN).</p>
             </div>
           )}
           <div className="flex justify-between">

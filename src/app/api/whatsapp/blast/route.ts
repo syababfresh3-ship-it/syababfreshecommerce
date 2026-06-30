@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     test = false,
     testNumber,
     headerImage,
+    headerVideo,
     scheduledAt,
     phoneNumberId,
   } = body as {
@@ -85,9 +86,12 @@ export async function POST(req: NextRequest) {
     test?: boolean;
     testNumber?: string;
     headerImage?: string;
+    headerVideo?: string;
     scheduledAt?: string;
     phoneNumberId?: string;
   };
+  // Header media: video diutamakan (objek), kalau tidak fallback gambar (string).
+  const headerMedia = headerVideo ? ({ type: "video" as const, link: headerVideo }) : headerImage;
 
   if (!templateName) return NextResponse.json({ error: "templateName diperlukan." }, { status: 400 });
 
@@ -99,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (!testNumber) return NextResponse.json({ error: "Masukkan nombor test." }, { status: 400 });
     const p = { ...params };
     for (const key of ["nama", "name"]) if (key in p && (!p[key] || !p[key].trim())) p[key] = "pelanggan";
-    const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerImage, sender);
+    const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerMedia, sender);
     return NextResponse.json({ ok: res.ok, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: res.error });
   }
 
@@ -122,6 +126,7 @@ export async function POST(req: NextRequest) {
       template_lang: templateLang,
       params,
       header_image: headerImage || null,
+      header_video: headerVideo || null,
       phone_number_id: phoneNumberId || null,
       audience,
       status: isScheduled ? "scheduled" : "sending",

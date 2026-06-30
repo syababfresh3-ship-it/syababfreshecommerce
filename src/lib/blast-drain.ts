@@ -37,7 +37,7 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
 
   let q = sb
     .from("crm_blasts")
-    .select("id, template_name, template_lang, params, header_image, status, scheduled_at, phone_number_id")
+    .select("id, template_name, template_lang, params, header_image, header_video, status, scheduled_at, phone_number_id")
     .in("status", ["scheduled", "sending"])
     .order("scheduled_at", { ascending: true, nullsFirst: true });
   if (opts.blastId) q = q.eq("id", opts.blastId);
@@ -71,7 +71,8 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
         for (const k of ["nama", "name"]) {
           if (k in p && (!p[k] || !String(p[k]).trim())) p[k] = r.name || "pelanggan";
         }
-        const res = await sendTemplate(r.wa_id, b.template_name, b.template_lang || "ms", p, b.header_image || undefined, sender);
+        const headerMedia = b.header_video ? ({ type: "video" as const, link: b.header_video as string }) : (b.header_image || undefined);
+        const res = await sendTemplate(r.wa_id, b.template_name, b.template_lang || "ms", p, headerMedia, sender);
         await sb.from("crm_blast_recipients").update({
           status: res.ok ? "sent" : "failed",
           error: res.ok ? null : res.error,
