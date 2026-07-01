@@ -132,29 +132,35 @@ export default async function ProfilePage() {
         </div>
 
         {/* ===== Kad Setia (live) ===== */}
-        <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#C81824,#7f0d14)' }}>
+        <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#E11D2A,#A01018)' }}>
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <h2 className="text-[16px] font-extrabold">Kad Setia</h2>
-              <p className="text-[11px] text-white/70 mt-0.5">Beli {stamp.target} kali → voucher RM{stamp.reward.toFixed(0)} (tebus mana-mana buah)</p>
+            <div className="min-w-0">
+              <span className="text-[12.5px] font-semibold text-white/80">Kad Setia</span>
+              <p className="text-[11px] text-white/70 mt-0.5">Beli {stamp.target} kali, tebus mana-mana buah sehingga RM{stamp.reward.toFixed(2)}</p>
             </div>
-            <span className="text-[16px] font-extrabold shrink-0">{stamp.stamps} / {stamp.target}</span>
+            <span className="text-[24px] font-extrabold leading-none shrink-0">{stamp.stamps} / {stamp.target}</span>
           </div>
-          <div className="grid gap-1.5 mt-3" style={{ gridTemplateColumns: `repeat(${stamp.target}, minmax(0, 1fr))` }}>
+          <div className="grid gap-2 mt-3.5" style={{ gridTemplateColumns: `repeat(${stamp.target}, minmax(0, 1fr))` }}>
             {Array.from({ length: stamp.target }).map((_, i) => {
               const filled = i < stamp.stamps
               return (
-                <div key={i} className={`aspect-square rounded-full grid place-items-center ${filled ? 'bg-amber-300' : 'bg-white/15'}`}>
-                  {filled ? <Star className="h-3 w-3 fill-amber-900 text-amber-900" /> : <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
+                <div
+                  key={i}
+                  className={`aspect-square rounded-full grid place-items-center text-[13px] ${filled ? 'bg-white shadow-sm' : 'border-2 border-dashed border-white/30 bg-white/5'}`}
+                >
+                  {filled ? '🍒' : ''}
                 </div>
               )
             })}
           </div>
-          <div className="mt-3 rounded-xl bg-white/15 py-2.5 flex items-center justify-center gap-2 text-[12.5px] font-bold">
-            <Gift className="h-4 w-4" />
-            {stamp.stamps >= stamp.target
-              ? `Tahniah! Voucher RM${stamp.reward.toFixed(0)} anda dah sedia`
-              : `${stamp.target - stamp.stamps} belian lagi untuk voucher RM${stamp.reward.toFixed(0)}`}
+          <div className="mt-3 rounded-xl bg-white/10 py-2 px-3 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-white/80">
+            {stamp.stamps >= stamp.target ? (
+              <Link href="/vouchers" className="flex items-center gap-1.5">
+                <Gift className="h-3.5 w-3.5" /> Tahniah! Voucher RM{stamp.reward.toFixed(2)} dah sedia — tebus di sini
+              </Link>
+            ) : (
+              <span>{stamp.target - stamp.stamps} belian lagi → tebus mana-mana buah sehingga RM{stamp.reward.toFixed(2)}!</span>
+            )}
           </div>
         </div>
 

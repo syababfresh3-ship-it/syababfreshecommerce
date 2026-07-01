@@ -32,7 +32,7 @@ export default async function HomePage() {
         {/* Stat pills — kedua-dua struktur identik: label + nombor besar + sub-teks galak + ikon */}
         <div className="grid grid-cols-2 gap-2.5">
           {/* Kad Setia */}
-          <div className="relative rounded-2xl bg-white border border-gray-200 p-4">
+          <Link href="/profile" className="relative rounded-2xl bg-white border border-gray-200 p-4 block active:scale-[0.98] transition">
             <div className="flex items-center gap-1.5">
               <span className="text-[12.5px] font-semibold text-gray-700">Kad Setia</span>
             </div>
@@ -41,7 +41,7 @@ export default async function HomePage() {
             </div>
             <p className="text-[10px] text-gray-400 mt-2 leading-tight">Beli 9 kali → buah free</p>
             <Leaf className="absolute top-4 right-4 h-[18px] w-[18px] text-brand-red-400" />
-          </div>
+          </Link>
           {/* Syabab Points */}
           <Link href="/profile" className="relative rounded-2xl bg-white border border-gray-200 p-4 block">
             <span className="text-[12.5px] font-semibold text-gray-700">Syabab Points</span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Users, Star, Crown, Leaf, ChevronRight } from 'lucide-react'
 import { CreateUserForm } from './create-user-form'
@@ -103,6 +103,14 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
     }
     return list
   }, [customers, q, activeSegment, activeChannel])
+
+  // Pagination (sisi-klien) — 25/page. Reset ke page 1 bila tapisan berubah.
+  const PER_PAGE = 25
+  const [page, setPage] = useState(1)
+  useEffect(() => { setPage(1) }, [q, activeSegment, activeChannel])
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
+  const pageClamped = Math.min(page, totalPages)
+  const paged = filtered.slice((pageClamped - 1) * PER_PAGE, pageClamped * PER_PAGE)
 
   // CRM stats
   const stats = useMemo(() => {
@@ -224,7 +232,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
             <Users className="h-10 w-10 text-gray-200" />
             <p className="font-medium text-sm">{q ? `No hasil untuk "${q}"` : 'No customer dalam segmen ini'}</p>
           </div>
-        ) : filtered.map((customer) => {
+        ) : paged.map((customer) => {
           const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
           const initials = (customer.full_name ?? '?').charAt(0).toUpperCase()
           return (
@@ -280,7 +288,7 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
                 </td>
               </tr>
             ) : (
-              filtered.map((customer) => {
+              paged.map((customer) => {
                 const tierName = customer.loyalty_tiers?.name ?? 'Hijau'
                 const initials = (customer.full_name ?? '?').charAt(0).toUpperCase()
                 const lastOrder = customer.last_order_at
@@ -347,6 +355,22 @@ export function CustomersClient({ customers }: { customers: Customer[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > PER_PAGE && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <span className="text-gray-400">
+            {(pageClamped - 1) * PER_PAGE + 1}–{Math.min(pageClamped * PER_PAGE, filtered.length)} dari {filtered.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={pageClamped <= 1}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Sebelum</button>
+            <span className="px-2 text-gray-500">{pageClamped} / {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={pageClamped >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 font-semibold text-gray-600 disabled:opacity-40 hover:bg-gray-50">Seterus</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
