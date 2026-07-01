@@ -70,6 +70,24 @@ export function BlasterDashboard() {
     else window.alert("Gagal padam.");
   }
 
+  const [cleaning, setCleaning] = useState(false);
+  async function cleanupDead() {
+    setCleaning(true);
+    try {
+      // Pratonton dulu (dry-run) — berapa nombor undeliverable.
+      const prev = await fetch("/api/whatsapp/contacts/cleanup-undeliverable").then((r) => r.json());
+      const n = prev.count ?? 0;
+      if (!n) { window.alert("Tiada nombor undeliverable (#131026) untuk dibersihkan. 👍"); return; }
+      if (!window.confirm(`Jumpa ${n} nombor "mati" (gagal terima / bukan WhatsApp aktif).\n\nMasukkan ke senarai suppress supaya tak di-blast lagi? (contact kekal, boleh undo di Unsubscribe)`)) return;
+      const res = await fetch("/api/whatsapp/contacts/cleanup-undeliverable", { method: "POST" }).then((r) => r.json());
+      window.alert(`✅ ${res.suppressed ?? 0} nombor disuppress. Blast akan datang auto-langkau mereka.`);
+    } catch {
+      window.alert("Gagal bersih nombor.");
+    } finally {
+      setCleaning(false);
+    }
+  }
+
   const totalRevenue = blasts.reduce((s, b) => s + Number(b.roas?.revenue ?? 0), 0);
   const totalOrders = blasts.reduce((s, b) => s + Number(b.roas?.orders_attributed ?? 0), 0);
 
@@ -88,6 +106,14 @@ export function BlasterDashboard() {
           <p className="text-sm text-gray-400 mt-0.5">Hantar mesej template WhatsApp ke kontak anda</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={cleanupDead}
+            disabled={cleaning}
+            className="text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+            title="Suppress nombor yang gagal terima (#131026 — bukan WhatsApp aktif)"
+          >
+            {cleaning ? "Membersih…" : "🧹 Bersih nombor mati"}
+          </button>
           <Link
             href="/admin/crm/blast/suppression"
             className="text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50"

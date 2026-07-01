@@ -199,7 +199,14 @@ export function BlastWizard() {
     const j = await res.json();
     setBusy(false);
     if (!res.ok) { setMsg("❌ " + (j.error || "Gagal.")); return; }
-    if (test) { setMsg(j.failed ? `❌ Test gagal: ${j.error || "?"}` : "✅ Test sampai ke telefon!"); return; }
+    if (test) {
+      setMsg(
+        j.failed
+          ? `❌ Test gagal: ${j.error || "?"}`
+          : "✅ Diterima WhatsApp — sila semak telefon. Kalau tak sampai: pastikan nombor ada WhatsApp aktif, & template pakai imej/param betul (accept ≠ delivered).",
+      );
+      return;
+    }
     if (j.scheduled) setMsg(`✅ Dijadualkan untuk ${new Date(j.scheduledAt).toLocaleString("ms-MY")} — drainer akan hantar bila tiba masa.`);
     else setMsg(`✅ Blast dimulakan — ${j.sent} dihantar, ${j.queued} dalam baris gilir (cron sambung).`);
     setDone(true);

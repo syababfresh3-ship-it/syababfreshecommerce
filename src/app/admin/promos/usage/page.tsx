@@ -47,6 +47,19 @@ export default async function PromoUsagePage() {
   const pointsRm = points.reduce((s, p) => s + p.amount, 0)
   const pointsTotal = points.reduce((s, p) => s + Number(p.pts || 0), 0)
 
+  // Insentif pendaftaran — kod per-user berprefix: Welcome = WL…, Kad Setia = KS…
+  const summarize = (prefix: string) => {
+    const cs = codes.filter((c: Row) => String(c.code).startsWith(prefix))
+    const os = coupons.filter((c) => String(c.code).startsWith(prefix))
+    const issued = cs.length
+    const redeemed = cs.filter((c: Row) => Number(c.uses_count) > 0).length
+    const given = os.reduce((s, c) => s + c.amount, 0)
+    const rate = issued ? Math.round((redeemed / issued) * 100) : 0
+    return { issued, redeemed, given, rate }
+  }
+  const wl = summarize('WL')
+  const ks = summarize('KS')
+
   const Card = ({ label, value, sub }: { label: string; value: string; sub?: string }) => (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
       <p className="text-xs text-gray-400">{label}</p>
@@ -69,6 +82,30 @@ export default async function PromoUsagePage() {
         <Card label="Order redeem points" value={String(points.length)} />
         <Card label="Points ditebus" value={pointsTotal.toLocaleString()} sub={`= RM${pointsRm.toFixed(2)}`} />
       </div>
+
+      {/* Insentif pendaftaran — Welcome Voucher + Kad Setia */}
+      <section>
+        <h2 className="font-semibold text-gray-800 mb-2">🎁 Insentif Pendaftaran</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {[
+            { title: 'Welcome Voucher (RM5)', hint: 'Auto bila daftar akaun', d: wl },
+            { title: 'Kad Setia (beli 9)', hint: 'Auto bila cukup stamp', d: ks },
+          ].map((x) => (
+            <div key={x.title} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <div className="flex items-baseline justify-between">
+                <p className="font-semibold text-gray-800">{x.title}</p>
+                <span className="text-xs text-gray-400">{x.d.rate}% ditebus</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mb-3">{x.hint}</p>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div><p className="text-lg font-black text-gray-900">{x.d.issued}</p><p className="text-[11px] text-gray-400">Dikeluarkan</p></div>
+                <div><p className="text-lg font-black text-emerald-600">{x.d.redeemed}</p><p className="text-[11px] text-gray-400">Ditebus</p></div>
+                <div><p className="text-lg font-black text-red-600">RM{x.d.given.toFixed(0)}</p><p className="text-[11px] text-gray-400">Diberi</p></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Ringkasan per kod */}
       <section>

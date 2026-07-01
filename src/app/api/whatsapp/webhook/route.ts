@@ -62,6 +62,8 @@ interface WaMessage {
   timestamp: string;
   type: string;
   text?: { body: string };
+  // Reaction emoji pada mesej sedia ada (customer react pada bubble).
+  reaction?: { message_id?: string; emoji?: string };
   // Hadir HANYA bila mesej berasal dari iklan Click-to-WhatsApp (CTWA).
   referral?: {
     source_id?: string;
@@ -142,6 +144,20 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
   const waId = m.from;
   const ts = new Date(Number(m.timestamp) * 1000).toISOString();
   const windowExp = new Date(Number(m.timestamp) * 1000 + 24 * 3600 * 1000).toISOString();
+
+  // Reaction: customer react (emoji) pada mesej sedia ada. WhatsApp hantar
+  // sebagai mesej "reaction" berasingan — kita kemas kini baris mesej SASARAN
+  // (jangan cipta bubble baru, jangan bump unread). Emoji kosong = ditarik balik.
+  if (m.type === "reaction") {
+    const rmid = m.reaction?.message_id;
+    if (rmid) {
+      await sb
+        .from("wa_messages")
+        .update({ reaction: m.reaction?.emoji || null })
+        .eq("wa_message_id", rmid);
+    }
+    return;
+  }
 
   // Multi-number: pemilik (salesperson) nombor yang customer hubungi → auto-assign.
   let ownerId: string | null = null;

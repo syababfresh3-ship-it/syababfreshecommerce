@@ -14,6 +14,17 @@ import { drainBlasts } from "@/lib/blast-drain";
 import { resolveAudience, type AudienceSpec } from "@/lib/blast-audience";
 import { getSender } from "@/lib/wa-numbers";
 
+// Terjemah error WhatsApp Cloud API kepada mesej yang admin faham (punca + tindakan).
+function friendlyWaError(err?: string): string | null {
+  if (!err) return null;
+  if (/132000|131008|132012/.test(err)) return `${err} — Template perlu header imej/param betul. Pastikan URL imej diisi & bilangan param padan template.`;
+  if (/132001/.test(err)) return `${err} — Template tak wujud pada WABA nombor penghantar. Tukar "Hantar dari" ke nombor yang memiliki template ini.`;
+  if (/131026/.test(err)) return `${err} — Nombor tak boleh terima (bukan WhatsApp aktif / belum terima ToS).`;
+  if (/131047/.test(err)) return `${err} — Di luar tetingkap 24 jam — guna template diluluskan.`;
+  if (/13005[0-9]|permission|OAuth|190\b/.test(err)) return `${err} — Isu token/kebenaran nombor penghantar.`;
+  return err;
+}
+
 async function auth() {
   const userClient = await createClient();
   const { data: { user } } = await userClient.auth.getUser();
@@ -104,7 +115,8 @@ export async function POST(req: NextRequest) {
     const p = { ...params };
     for (const key of ["nama", "name"]) if (key in p && (!p[key] || !p[key].trim())) p[key] = "pelanggan";
     const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerMedia, sender);
-    return NextResponse.json({ ok: res.ok, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: res.error });
+    // ok = Graph TERIMA permintaan (bukan jaminan delivered). id = wamid utk jejak.
+    return NextResponse.json({ ok: res.ok, id: res.id ?? null, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: friendlyWaError(res.error) });
   }
 
   // --- Resolusi penerima (resolver tunggal — preview guna fungsi yang SAMA) ---

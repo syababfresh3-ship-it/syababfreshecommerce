@@ -39,6 +39,7 @@ interface Message {
   media_url: string | null;
   template_name: string | null;
   status: string;
+  reaction: string | null;
   created_at: string;
 }
 interface Template {
@@ -169,7 +170,7 @@ export function InboxClient() {
     async (convId: string) => {
       const { data } = await supabase
         .from("wa_messages")
-        .select("id, conversation_id, direction, type, body, media_url, template_name, status, created_at")
+        .select("id, conversation_id, direction, type, body, media_url, template_name, status, reaction, created_at")
         .eq("conversation_id", convId)
         .order("created_at", { ascending: true })
         .limit(500);
@@ -700,9 +701,9 @@ export function InboxClient() {
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.direction === "out" ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[75%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
+                    className={`relative max-w-[75%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${
                       m.direction === "out" ? "bg-emerald-500 text-white" : "bg-white border text-gray-800"
-                    }`}
+                    } ${m.reaction ? "mb-2" : ""}`}
                   >
                     {m.media_url && (m.type === "image" || m.type === "sticker") && (
                       <a href={m.media_url} target="_blank" rel="noreferrer" className="block mb-1">
@@ -729,6 +730,14 @@ export function InboxClient() {
                     <div className={`text-[10px] mt-1 ${m.direction === "out" ? "text-emerald-100" : "text-gray-400"}`}>
                       {fmtTime(m.created_at)} {m.direction === "out" && `· ${m.status}`}
                     </div>
+                    {m.reaction && (
+                      <span
+                        className={`absolute -bottom-3 ${m.direction === "out" ? "left-2" : "right-2"} bg-white border rounded-full px-1 py-0.5 text-[12px] leading-none shadow-sm`}
+                        title="Reaction customer"
+                      >
+                        {m.reaction}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
