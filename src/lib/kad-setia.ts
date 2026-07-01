@@ -22,9 +22,10 @@ export async function addStamp(sb: SB, userId: string | null | undefined): Promi
     const { data: rows } = await sb
       .from("app_settings")
       .select("key, value")
-      .in("key", ["kad_setia_target", "kad_setia_reward"]);
+      .in("key", ["kad_setia_enabled", "kad_setia_target", "kad_setia_reward"]);
     const s: Record<string, string> = {};
     for (const r of rows ?? []) s[(r as { key: string }).key] = (r as { value: string }).value;
+    if (s.kad_setia_enabled === "false") return;
     const target = Number(s.kad_setia_target ?? "9") || 9;
     const reward = Number(s.kad_setia_reward ?? "15.90") || 15.9;
 

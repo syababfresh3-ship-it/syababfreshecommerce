@@ -7,8 +7,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = SupabaseClient<any, any, any>;
 
-const VALUE = 5;
-const MIN_ORDER = 30;
 const EXPIRY_DAYS = 90;
 const PREFIX = "WL"; // tanda voucher welcome
 
@@ -24,6 +22,17 @@ function randomCode(prefix: string, len = 6): string {
  * Guna admin client (RLS bypass). Return { code } atau null.
  */
 export async function ensureWelcomeVoucher(adminSb: SB, userId: string): Promise<{ code: string } | null> {
+  // Settings (boleh laras di Admin). Off-by... default ON.
+  const { data: cfg } = await adminSb
+    .from("app_settings")
+    .select("key, value")
+    .in("key", ["welcome_voucher_enabled", "welcome_voucher_value", "welcome_voucher_min"]);
+  const s: Record<string, string> = {};
+  for (const r of cfg ?? []) s[(r as { key: string }).key] = (r as { value: string }).value;
+  if (s.welcome_voucher_enabled === "false") return null;
+  const VALUE = Number(s.welcome_voucher_value ?? "5") || 5;
+  const MIN_ORDER = Number(s.welcome_voucher_min ?? "30") || 30;
+
   // Dah ada? (voucher milik user dengan prefix WL)
   const { data: existing } = await adminSb
     .from("promo_codes")
