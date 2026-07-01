@@ -35,12 +35,11 @@ export default async function HomePage() {
           <div className="relative rounded-2xl bg-white border border-gray-200 p-4">
             <div className="flex items-center gap-1.5">
               <span className="text-[12.5px] font-semibold text-gray-700">Kad Setia</span>
-              <span className="text-[8px] font-extrabold bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5 tracking-wide">SOON</span>
             </div>
             <div className="text-[22px] font-extrabold text-gray-900 mt-1 leading-none">
-              0<span className="text-gray-400 text-[15px] font-bold"> / 9</span>
+              9<span className="text-gray-400 text-[15px] font-bold"> = 🎁</span>
             </div>
-            <p className="text-[10px] text-gray-400 mt-2 leading-tight">Mula kumpul stamp</p>
+            <p className="text-[10px] text-gray-400 mt-2 leading-tight">Beli 9 kali → buah free</p>
             <Leaf className="absolute top-4 right-4 h-[18px] w-[18px] text-brand-red-400" />
           </div>
           {/* Syabab Points */}

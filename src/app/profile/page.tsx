@@ -39,6 +39,21 @@ async function getProfile() {
   return data
 }
 
+async function getStampCard(userId: string) {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  const [{ data: sc }, { data: st }, { data: rw }] = await Promise.all([
+    admin.from('stamp_cards').select('stamps').eq('user_id', userId).maybeSingle(),
+    admin.from('app_settings').select('value').eq('key', 'kad_setia_target').maybeSingle(),
+    admin.from('app_settings').select('value').eq('key', 'kad_setia_reward').maybeSingle(),
+  ])
+  return {
+    stamps: Number(sc?.stamps ?? 0),
+    target: Number(st?.value ?? '9') || 9,
+    reward: Number(rw?.value ?? '15.90') || 15.9,
+  }
+}
+
 async function getTiers() {
   const supabase = await createClient()
   const { data } = await supabase.from('loyalty_tiers').select('name, min_spend').order('min_spend', { ascending: true })
@@ -69,7 +84,7 @@ export default async function ProfilePage() {
   // Guest (tak log masuk) → view guest (CTA login/daftar + menu awam), bukan paksa login.
   if (!profile) return <SfShell><GuestProfile /></SfShell>
 
-  const tiers = await getTiers()
+  const [tiers, stamp] = await Promise.all([getTiers(), getStampCard(profile.id)])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const p = profile as any
@@ -116,27 +131,30 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        {/* ===== Kad Setia — Akan Datang ===== */}
+        {/* ===== Kad Setia (live) ===== */}
         <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#C81824,#7f0d14)' }}>
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-[16px] font-extrabold">Kad Setia</h2>
-                <span className="text-[8.5px] font-extrabold bg-amber-300 text-amber-900 rounded-full px-1.5 py-0.5 tracking-wide leading-none">AKAN DATANG</span>
-              </div>
-              <p className="text-[11px] text-white/70 mt-0.5">Beli 9 kali, tebus mana-mana buah</p>
+              <h2 className="text-[16px] font-extrabold">Kad Setia</h2>
+              <p className="text-[11px] text-white/70 mt-0.5">Beli {stamp.target} kali → voucher RM{stamp.reward.toFixed(0)} (tebus mana-mana buah)</p>
             </div>
-            <span className="text-[16px] font-extrabold shrink-0">0 / 9</span>
+            <span className="text-[16px] font-extrabold shrink-0">{stamp.stamps} / {stamp.target}</span>
           </div>
-          <div className="grid grid-cols-9 gap-1.5 mt-3">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="aspect-square rounded-full bg-white/15 grid place-items-center">
-                <span className="h-1.5 w-1.5 rounded-full bg-white/30" />
-              </div>
-            ))}
+          <div className="grid gap-1.5 mt-3" style={{ gridTemplateColumns: `repeat(${stamp.target}, minmax(0, 1fr))` }}>
+            {Array.from({ length: stamp.target }).map((_, i) => {
+              const filled = i < stamp.stamps
+              return (
+                <div key={i} className={`aspect-square rounded-full grid place-items-center ${filled ? 'bg-amber-300' : 'bg-white/15'}`}>
+                  {filled ? <Star className="h-3 w-3 fill-amber-900 text-amber-900" /> : <span className="h-1.5 w-1.5 rounded-full bg-white/30" />}
+                </div>
+              )
+            })}
           </div>
           <div className="mt-3 rounded-xl bg-white/15 py-2.5 flex items-center justify-center gap-2 text-[12.5px] font-bold">
-            <Gift className="h-4 w-4" /> Akan Datang
+            <Gift className="h-4 w-4" />
+            {stamp.stamps >= stamp.target
+              ? `Tahniah! Voucher RM${stamp.reward.toFixed(0)} anda dah sedia`
+              : `${stamp.target - stamp.stamps} belian lagi untuk voucher RM${stamp.reward.toFixed(0)}`}
           </div>
         </div>
 

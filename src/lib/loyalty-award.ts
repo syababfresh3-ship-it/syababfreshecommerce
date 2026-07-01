@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { addStamp } from './kad-setia'
 
 const MAX_POINTS_PER_ORDER = 5000
 
@@ -39,5 +40,6 @@ export async function awardOrderLoyalty(
     supabase.rpc('increment_points', { uid: order.user_id, pts: points }),
     supabase.rpc('increment_spend', { uid: order.user_id, amount: Number(order.total) }),
   ])
+  await addStamp(supabase, order.user_id) // Kad Setia: 1 stamp/pembelian
   return { awarded: true, points }
 }
