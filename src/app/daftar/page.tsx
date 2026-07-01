@@ -145,7 +145,14 @@ function DaftarForm() {
             <Gift className="h-4 w-4 text-yellow-600 shrink-0" />
             <p className="text-sm text-yellow-700">Kod rujukan tidak sah atau sudah tidak aktif.</p>
           </div>
-        ) : null}
+        ) : (
+          <div className="mb-4 flex items-center gap-2.5 bg-[#FDECEC] border border-[#E11D2A]/25 rounded-xl px-4 py-3">
+            <Gift className="h-4 w-4 text-[#E11D2A] shrink-0" />
+            <p className="text-sm text-[#A01018]">
+              Daftar dapat <span className="font-black">voucher RM5</span> untuk order pertama! 🎁
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <button

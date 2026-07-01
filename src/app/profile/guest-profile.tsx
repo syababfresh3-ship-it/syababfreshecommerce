@@ -55,14 +55,14 @@ export function GuestProfile() {
         </div>
       </div>
 
-      {/* Teaser loyalti */}
+      {/* Hook daftar — voucher RM5 */}
       <div className="rounded-2xl p-4 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#C81824,#7f0d14)' }}>
         <div className="flex items-center gap-2">
-          <Star className="h-5 w-5 fill-amber-300 text-amber-300" />
-          <h2 className="text-[15px] font-extrabold">Syabab Points & Kad Setia</h2>
+          <Gift className="h-5 w-5 text-amber-300" />
+          <h2 className="text-[15px] font-extrabold">Daftar & dapat RM5! 🎁</h2>
         </div>
-        <p className="text-[12px] text-white/75 mt-1">Log masuk untuk kumpul mata setiap belian & tebus ganjaran.</p>
-        <Link href="/login?redirect=/profile" className="inline-block mt-3 bg-white/15 rounded-xl px-4 py-2 text-[12.5px] font-bold">Log masuk untuk kumpul</Link>
+        <p className="text-[12px] text-white/80 mt-1">Voucher <span className="font-bold">RM5</span> untuk order pertama + kumpul Syabab Points setiap belian.</p>
+        <Link href="/daftar?redirect=/vouchers" className="inline-block mt-3 bg-white text-[#A01018] rounded-xl px-4 py-2 text-[12.5px] font-extrabold">Daftar sekarang</Link>
       </div>
 
       {/* Menu awam */}

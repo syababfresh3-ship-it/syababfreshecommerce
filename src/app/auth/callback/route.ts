@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
+import { ensureWelcomeVoucher } from '@/lib/welcome-voucher'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -77,6 +78,8 @@ export async function GET(request: NextRequest) {
           await awardLpLoyalty(adminDb, o)
         }
       }
+      // Welcome voucher RM5 (idempotent — 1 per akaun)
+      await ensureWelcomeVoucher(adminDb, data.user.id)
     } catch { /* non-fatal */ }
   }
 
