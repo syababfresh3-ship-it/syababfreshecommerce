@@ -80,6 +80,11 @@ export default function CheckoutPage() {
   const [appliedPromo, setAppliedPromo] = useState<{
     id: string; code: string; type: 'percentage' | 'fixed'; value: number
   } | null>(null)
+  // Voucher peribadi member (cth Welcome RM5) — auto-guna bila cukup min belian.
+  const [autoVoucher, setAutoVoucher] = useState<{
+    id: string; code: string; type: 'percentage' | 'fixed'; value: number; min_order: number
+  } | null>(null)
+  const [voucherDismissed, setVoucherDismissed] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [userMultiplier, setUserMultiplier] = useState(1)
   const [usePoints, setUsePoints] = useState(false)
@@ -158,6 +163,20 @@ export default function CheckoutPage() {
       if (!user) return
       setLoggedIn(true)
       if (user.email) setForm(prev => ({ ...prev, email: prev.email || user.email }))
+      // Voucher peribadi member (user_id-scoped, cth Welcome RM5) — ambil yang terbaik
+      // & masih sah, untuk auto-guna di checkout.
+      supabase
+        .from('promo_codes')
+        .select('id, code, type, value, min_order, max_uses, uses_count, expires_at')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .then(({ data }: { data: any[] | null }) => {
+          const now = Date.now()
+          const best = (data ?? [])
+            .filter((v) => (v.max_uses === null || v.uses_count < v.max_uses) && (!v.expires_at || new Date(v.expires_at).getTime() > now))
+            .sort((a, b) => Number(b.value) - Number(a.value))[0]
+          if (best) setAutoVoucher({ id: best.id, code: best.code, type: best.type, value: Number(best.value), min_order: Number(best.min_order) })
+        })
       Promise.all([
         supabase.from('addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
         supabase.from('profiles').select('total_points, full_name, phone, loyalty_tiers(multiplier)').eq('id', user.id).single(),
@@ -283,6 +302,17 @@ export default function CheckoutPage() {
     toast.success(`Kod ${data.code} berjaya digunakan!`)
     setPromoLoading(false)
   }
+
+  // Auto-apply voucher peribadi member (Welcome RM5, dsb) sebaik subtotal cukup min.
+  // Sekali sahaja — kalau member buang manual, hormati (voucherDismissed).
+  useEffect(() => {
+    if (!autoVoucher || appliedPromo || voucherDismissed) return
+    if (subtotal >= autoVoucher.min_order) {
+      setAppliedPromo({ id: autoVoucher.id, code: autoVoucher.code, type: autoVoucher.type, value: autoVoucher.value })
+      toast.success(`🎁 Voucher RM${autoVoucher.value.toFixed(2)} anda digunakan automatik!`)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoVoucher, subtotal, appliedPromo, voucherDismissed])
 
   const POINTS_RATE = 100 // 100 mata = RM1 (1% pulangan asas)
   const pointsDiscount = usePoints ? Math.min(userPoints / POINTS_RATE, subtotal + deliveryFee) : 0
@@ -951,7 +981,7 @@ export default function CheckoutPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { setAppliedPromo(null); setPromoInput('') }}
+                    onClick={() => { if (appliedPromo?.id === autoVoucher?.id) setVoucherDismissed(true); setAppliedPromo(null); setPromoInput('') }}
                     className="text-xs text-gray-400 hover:text-red-400 font-medium"
                   >
                     Buang
@@ -959,6 +989,11 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <>
+                  {autoVoucher && subtotal < autoVoucher.min_order && (
+                    <p className="text-[11px] text-[#A01018] bg-[#FDECEC] border border-[#F3AEB4] rounded-lg px-2.5 py-1.5 mb-2 font-semibold flex items-center gap-1.5">
+                      🎁 Tambah RM{(autoVoucher.min_order - subtotal).toFixed(2)} lagi untuk guna Voucher RM{autoVoucher.value.toFixed(2)} anda
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <input
                       type="text"
