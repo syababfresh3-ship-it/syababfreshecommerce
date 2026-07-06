@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Ban, Clock, Eraser, Eye, Plus, Trash2 } from "lucide-react";
 
 interface Progress {
   total: number; pending: number; sent: number; delivered: number; read: number; failed: number;
@@ -20,6 +21,7 @@ interface Blast {
   created_at: string;
   progress: Progress;
   roas?: Roas | null;
+  replies?: number;
 }
 interface Stats {
   campaigns_sent: number;
@@ -99,7 +101,7 @@ export function BlasterDashboard() {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Blaster</h1>
@@ -109,22 +111,25 @@ export function BlasterDashboard() {
           <button
             onClick={cleanupDead}
             disabled={cleaning}
-            className="text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50"
             title="Suppress nombor yang gagal terima (#131026 — bukan WhatsApp aktif)"
           >
-            {cleaning ? "Membersih…" : "🧹 Bersih nombor mati"}
+            <Eraser size={14} />
+            {cleaning ? "Membersih…" : "Bersih nombor mati"}
           </button>
           <Link
             href="/admin/crm/blast/suppression"
-            className="text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 text-gray-600 border border-gray-200 bg-white rounded-xl px-3.5 py-2.5 text-sm font-semibold hover:bg-gray-50"
           >
-            🚫 Unsubscribe
+            <Ban size={14} />
+            Unsubscribe
           </Link>
           <Link
             href="/admin/crm/blast/new"
-            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm"
+            className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm"
           >
-            + New Campaign
+            <Plus size={15} strokeWidth={2.5} />
+            New Campaign
           </Link>
         </div>
       </div>
@@ -162,12 +167,13 @@ export function BlasterDashboard() {
                   <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${statusBadge[b.status] ?? "bg-gray-100 text-gray-600"}`}>
                     {b.status}
                   </span>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] shrink-0 sm:w-72">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] shrink-0 sm:w-96">
                     <span className="text-gray-400">Pending <b className="text-gray-600">{p.pending}</b></span>
                     <span className="text-red-400">Unreached <b className="text-red-500">{p.failed}</b></span>
                     <span className="text-sky-400">Sent <b className="text-sky-500">{p.sent}</b></span>
-                    <span className="text-violet-400">Read <b className="text-violet-500">{p.read}</b></span>
                     <span className="text-emerald-400">Delivered <b className="text-emerald-600">{p.delivered}</b></span>
+                    <span className="text-violet-400">Read <b className="text-violet-500">{p.read}</b></span>
+                    <span className="text-gray-400">Reply <b className="text-gray-700">{b.replies ?? 0}</b></span>
                   </div>
                   <div className="text-[11px] shrink-0 sm:w-28">
                     {b.roas && Number(b.roas.revenue) > 0 ? (
@@ -180,12 +186,23 @@ export function BlasterDashboard() {
                       <span className="text-gray-300">—</span>
                     )}
                   </div>
-                  <div className="text-[11px] text-gray-400 shrink-0 sm:w-28">
-                    {b.scheduled_at ? `⏰ ${fmtDate(b.scheduled_at)}` : fmtDate(b.created_at)}
+                  <div className="inline-flex items-center gap-1 text-[11px] text-gray-400 shrink-0 sm:w-28">
+                    {b.scheduled_at ? (
+                      <>
+                        <Clock size={11} />
+                        {fmtDate(b.scheduled_at)}
+                      </>
+                    ) : (
+                      fmtDate(b.created_at)
+                    )}
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => router.push(`/admin/crm/blast/${b.id}`)} className="text-xs text-gray-500 hover:text-gray-900" title="Lihat">👁️</button>
-                    <button onClick={() => remove(b.id, b.name)} className="text-xs text-gray-300 hover:text-red-500" title="Padam">🗑️</button>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => router.push(`/admin/crm/blast/${b.id}`)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" title="Lihat">
+                      <Eye size={15} />
+                    </button>
+                    <button onClick={() => remove(b.id, b.name)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50" title="Padam">
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </div>
               );

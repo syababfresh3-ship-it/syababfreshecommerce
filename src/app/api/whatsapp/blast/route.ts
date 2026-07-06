@@ -58,10 +58,17 @@ export async function GET() {
     : { data: [] as { blast_id: string }[] };
   const rMap = new Map((roasRows ?? []).map((r: { blast_id: string }) => [r.blast_id, r]));
 
+  // Reply per kempen (additive — view crm_blast_replies, lihat 103).
+  const { data: replyRows } = ids.length
+    ? await sb.from("crm_blast_replies").select("blast_id, replies").in("blast_id", ids)
+    : { data: [] as { blast_id: string; replies: number }[] };
+  const repMap = new Map((replyRows ?? []).map((r: { blast_id: string; replies: number }) => [r.blast_id, r.replies]));
+
   const withProgress = (blasts ?? []).map((b) => ({
     ...b,
     progress: pMap.get(b.id) ?? { total: b.total ?? 0, pending: 0, sent: b.sent ?? 0, delivered: 0, read: 0, failed: b.failed ?? 0 },
     roas: rMap.get(b.id) ?? null,
+    replies: repMap.get(b.id) ?? 0,
   }));
 
   // Stats dashboard (semua campaign).
