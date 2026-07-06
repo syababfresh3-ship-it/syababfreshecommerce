@@ -18,6 +18,27 @@ function randomCode(prefix: string, len = 6): string {
 }
 
 /**
+ * First-time customer? = TIADA order terdahulu (bukan cancelled) —
+ * order berdaftar (user_id / email / phone) + order guest LP (email / phone).
+ * Customer sedia ada yang re-login TAK layak welcome voucher.
+ */
+async function isFirstTimeCustomer(adminSb: SB, userId: string, email?: string | null, phone?: string | null): Promise<boolean> {
+  const local = (phone ?? "").replace(/\D/g, "").slice(-8);
+  const countIn = async (table: string, col: string, op: "eq" | "ilike", val: string): Promise<number> => {
+    const q = adminSb.from(table).select("id", { count: "exact", head: true }).neq("status", "cancelled");
+    const { count } = await (op === "ilike" ? q.ilike(col, val) : q.eq(col, val));
+    return count ?? 0;
+  };
+  // Order berdaftar (storefront) — ikut user_id (jadual `orders` tiada kolum
+  // email/phone; kontak guest tersimpan dalam delivery_address).
+  if (await countIn("orders", "user_id", "eq", userId)) return false;
+  // Order guest (landing page) — ikut email atau phone.
+  if (email && (await countIn("lp_guest_orders", "email", "ilike", email))) return false;
+  if (local.length >= 8 && (await countIn("lp_guest_orders", "phone", "ilike", `%${local}%`))) return false;
+  return true;
+}
+
+/**
  * Pastikan member ada welcome voucher (cipta kalau belum). Idempotent.
  * Guna admin client (RLS bypass). Return { code } atau null.
  */
@@ -42,6 +63,12 @@ export async function ensureWelcomeVoucher(adminSb: SB, userId: string): Promise
     .limit(1)
     .maybeSingle();
   if (existing?.code) return { code: existing.code };
+
+  // Gate: HANYA first-time customer (tiada order terdahulu). Customer sedia ada
+  // yang baru daftar/re-login TAK layak.
+  const { data: prof } = await adminSb.from("profiles").select("email, phone").eq("id", userId).maybeSingle();
+  const p = prof as { email?: string | null; phone?: string | null } | null;
+  if (!(await isFirstTimeCustomer(adminSb, userId, p?.email, p?.phone))) return null;
 
   // Jana kod unik
   let code = randomCode(PREFIX);
