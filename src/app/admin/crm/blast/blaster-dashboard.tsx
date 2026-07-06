@@ -92,12 +92,16 @@ export function BlasterDashboard() {
 
   const totalRevenue = blasts.reduce((s, b) => s + Number(b.roas?.revenue ?? 0), 0);
   const totalOrders = blasts.reduce((s, b) => s + Number(b.roas?.orders_attributed ?? 0), 0);
+  const totalCost = blasts.reduce((s, b) => s + Number(b.roas?.cost ?? 0), 0);
+  const overallRoas = totalCost > 0 ? totalRevenue / totalCost : null;
 
   const cards = [
     { label: "Campaigns sent", value: stats ? String(stats.campaigns_sent) : "—" },
     { label: "Messages delivered", value: stats ? stats.messages_delivered.toLocaleString() : "—" },
     { label: "Read rate", value: stats ? pct(stats.messages_read, stats.messages_delivered) : "—" },
+    { label: "Order dari blast", value: totalOrders > 0 ? String(totalOrders) : "—", hint: totalOrders > 0 ? `${pct(totalOrders, stats?.messages_delivered ?? 0)} conversion` : undefined },
     { label: "Revenue dari blast", value: totalRevenue > 0 ? `RM${totalRevenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
+    { label: "ROAS keseluruhan", value: overallRoas != null ? `${overallRoas.toFixed(2)}×` : "—", hint: totalCost > 0 ? `kos WA ~RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : undefined },
   ];
 
   return (
@@ -135,7 +139,7 @@ export function BlasterDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {cards.map((c) => (
           <div key={c.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
             <p className="text-xs font-semibold text-gray-400">{c.label}</p>
