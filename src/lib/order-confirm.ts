@@ -216,7 +216,7 @@ export async function confirmStorefrontOrder(
       fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Pindahan Bank',
     }
     const itemLines = (order_items ?? [])
-      .map((i: any) => `• ${i.product_name} x${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
+      .map((i: any) => `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} x${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`)
       .join('\n')
     const stockWarning = oversoldItems.length > 0
       ? `\n\n⚠️ *STOK TIDAK MENCUKUPI:* ${oversoldItems.map((i: any) => i.product_name).join(', ')}`

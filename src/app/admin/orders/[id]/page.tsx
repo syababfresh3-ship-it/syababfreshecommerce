@@ -167,6 +167,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <div key={item.id} className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-gray-900 font-medium">{item.product_name}</p>
+                {item.variant_name && (
+                  <p className="text-xs font-semibold text-emerald-700">{item.variant_name}</p>
+                )}
                 <p className="text-xs text-gray-400 mt-0.5">
                   RM{Number(item.unit_price).toFixed(2)} × {item.quantity}
                 </p>
@@ -189,7 +192,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           <tbody className="divide-y divide-gray-50">
             {order.order_items?.map((item: any) => (
               <tr key={item.id}>
-                <td className="px-5 py-3 text-gray-900">{item.product_name}</td>
+                <td className="px-5 py-3 text-gray-900">
+                  {item.product_name}
+                  {item.variant_name && (
+                    <span className="block text-xs font-semibold text-emerald-700">{item.variant_name}</span>
+                  )}
+                </td>
                 <td className="px-5 py-3 text-right text-gray-600">RM{Number(item.unit_price).toFixed(2)}</td>
                 <td className="px-5 py-3 text-right text-gray-600">{item.quantity}</td>
                 <td className="px-5 py-3 text-right font-medium text-gray-900">RM{Number(item.subtotal).toFixed(2)}</td>
