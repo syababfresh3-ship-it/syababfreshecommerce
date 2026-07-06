@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ImportContacts } from "./import-contacts";
 
@@ -36,16 +37,11 @@ export function ContactsClient() {
   const [searching, setSearching] = useState(false);
   const [filterTag, setFilterTag] = useState("");
   const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
   const PER_PAGE = 50;
   const SELECT = "id, wa_id, name, phone, tags, profile_id, last_inbound_at, profiles(full_name, total_spend), crm_leads(stage)";
 
   useEffect(() => {
-    supabase
-      .from("wa_contacts")
-      .select(SELECT)
-      .order("last_inbound_at", { ascending: false, nullsFirst: false })
-      .limit(1000)
-      .then(({ data }: { data: unknown[] | null }) => setContacts((data as unknown as Contact[]) ?? []));
     supabase
       .from("crm_tags")
       .select("name")
@@ -53,10 +49,30 @@ export function ContactsClient() {
       .then(({ data }: { data: { name: string }[] | null }) => setAllTags((data ?? []).map((t) => t.name)));
   }, [supabase]);
 
-  // Carian / tapis-tag hits DB — cari antara SEMUA contacts (bukan cuma 1000 dimuat).
-  // Penting sebab contacts upload (tak pernah mesej) tersusun bawah, di luar 1000.
-  const dbSearch = search.trim().length >= 2;
+  // Carian / tapis-tag hits DB — cari antara SEMUA contacts (bukan cuma page dimuat).
+  // Penting sebab contacts upload (tak pernah mesej) tersusun bawah, di luar page awal.
+  const dbSearch = search.trim().length >= 1;
   const dbMode = dbSearch || !!filterTag;
+
+  // Mod browse (tiada carian/tag) — page dari server + jumlah sebenar (count exact),
+  // 50 baris satu masa. Jangan muat semua sekaligus: jimat IO (12k+ kontak).
+  useEffect(() => {
+    if (dbMode) return;
+    let cancel = false;
+    supabase
+      .from("wa_contacts")
+      .select(SELECT, { count: "exact" })
+      .order("last_inbound_at", { ascending: false, nullsFirst: false })
+      .range(page * PER_PAGE, (page + 1) * PER_PAGE - 1)
+      .then(({ data, count }: { data: unknown[] | null; count: number | null }) => {
+        if (cancel) return;
+        setContacts((data as unknown as Contact[]) ?? []);
+        if (count != null) setTotal(count);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [supabase, page, dbMode]);
   useEffect(() => {
     if (!dbSearch && !filterTag) {
       setSearchResults([]);
@@ -86,25 +102,35 @@ export function ContactsClient() {
     };
   }, [search, filterTag, dbSearch, supabase]);
 
+  // Padam tag dari senarai kekal. Kalau masih dipakai contact, API balas 409
+  // + bilangan → confirm sekali lagi sebelum tanggalkan dari semua & padam.
+  async function deleteTag(t: string) {
+    if (!window.confirm(`Padam tag "${t}" dari senarai?`)) return;
+    let res = await fetch(`/api/whatsapp/contacts/tags?name=${encodeURIComponent(t)}`, { method: "DELETE" });
+    if (res.status === 409) {
+      const j = await res.json().catch(() => ({ inUse: "?" }));
+      if (!window.confirm(`Tag "${t}" masih dipakai ${j.inUse} contact.\n\nTanggalkan dari semua contact tu & padam terus?`)) return;
+      res = await fetch(`/api/whatsapp/contacts/tags?name=${encodeURIComponent(t)}&force=1`, { method: "DELETE" });
+    }
+    if (!res.ok) {
+      window.alert("Gagal padam tag.");
+      return;
+    }
+    setAllTags((a) => a.filter((x) => x !== t));
+    if (filterTag === t) {
+      setFilterTag("");
+      setPage(0);
+    }
+  }
+
   const stageOf = (c: Contact) => (Array.isArray(c.crm_leads) ? c.crm_leads[0]?.stage : c.crm_leads?.stage);
   const nameOf = (c: Contact) => c.name || c.profiles?.full_name || c.phone || c.wa_id || "?";
 
-  const filtered = useMemo(() => {
-    // dbMode (ada tag / search ≥2) → DB dah tapis, guna terus.
-    if (dbMode) return searchResults;
-    // Mod klien (tiada tag, search pendek) → tapis atas 1000 terkini.
-    return contacts.filter((c) => {
-      if (search) {
-        const q = search.toLowerCase();
-        const nm = nameOf(c).toLowerCase();
-        if (!nm.includes(q) && !(c.phone || c.wa_id || "").includes(q)) return false;
-      }
-      return true;
-    });
-  }, [contacts, searchResults, dbMode, search]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  // dbMode (ada tag / carian) → DB dah tapis, page atas hasil carian.
+  // Mod browse → server dah page (contacts = satu page), kira dari total.
+  const filtered = dbMode ? searchResults : contacts;
+  const pageCount = Math.max(1, Math.ceil((dbMode ? filtered.length : total) / PER_PAGE));
+  const paged = dbMode ? filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE) : filtered;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -112,7 +138,7 @@ export function ContactsClient() {
         <h1 className="text-xl font-semibold text-gray-800">Contacts</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">
-            {searching ? "mencari…" : dbMode ? `${filtered.length} jumpa` : `${filtered.length} terkini`}
+            {searching ? "mencari…" : dbMode ? `${filtered.length} jumpa` : `${total.toLocaleString()} kontak`}
           </span>
           <ImportContacts />
         </div>
@@ -139,16 +165,27 @@ export function ContactsClient() {
           Semua
         </button>
         {allTags.map((t) => (
-          <button
+          <span
             key={t}
-            onClick={() => {
-              setFilterTag(filterTag === t ? "" : t);
-              setPage(0);
-            }}
-            className={`text-xs rounded-full px-2.5 py-1 ${filterTag === t ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
+            className={`inline-flex items-center text-xs rounded-full ${filterTag === t ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
           >
-            {t}
-          </button>
+            <button
+              onClick={() => {
+                setFilterTag(filterTag === t ? "" : t);
+                setPage(0);
+              }}
+              className="pl-2.5 pr-1 py-1"
+            >
+              {t}
+            </button>
+            <button
+              onClick={() => deleteTag(t)}
+              title={`Padam tag "${t}"`}
+              className={`pl-0.5 pr-2 py-1 ${filterTag === t ? "text-emerald-100 hover:text-white" : "text-gray-400 hover:text-gray-800"}`}
+            >
+              <X size={11} strokeWidth={2.5} />
+            </button>
+          </span>
         ))}
       </div>
 
