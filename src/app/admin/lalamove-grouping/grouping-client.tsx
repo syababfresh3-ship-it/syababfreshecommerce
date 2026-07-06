@@ -848,7 +848,7 @@ export function GroupingClient({ orders }: { orders: LalamoveOrder[] }) {
       {/* ── Bar pilihan melekat (gabung order terpilih jadi satu booking) ── */}
       {selectedIds.size > 0 && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] px-4 py-3">
-          <div className="max-w-4xl mx-auto flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <span className="text-sm font-bold text-gray-900">{selectedIds.size} order dipilih</span>
             <button onClick={() => setSelectedIds(new Set())} className="text-xs text-gray-500 hover:text-gray-700 font-semibold">
               Kosongkan

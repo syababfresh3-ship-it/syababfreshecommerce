@@ -63,7 +63,7 @@ export function SuppressionClient() {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <Link href="/admin/crm/blast" className="text-sm text-gray-400 hover:text-gray-700">← Blaster</Link>

@@ -162,7 +162,7 @@ export default function QuickOrderPage() {
   }
 
   if (success) return (
-    <div className="p-4 md:p-6 max-w-lg mx-auto">
+    <div className="p-4 md:p-6">
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="bg-green-600 p-8 text-center">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">

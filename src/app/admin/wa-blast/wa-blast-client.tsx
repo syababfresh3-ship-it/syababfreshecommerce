@@ -175,7 +175,7 @@ export function WaBlastClient({ rows }: { rows: BlastRow[] }) {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Send className="h-5 w-5 text-brand-fresh-600" /> WA Blast Tracking (ReplyLa)

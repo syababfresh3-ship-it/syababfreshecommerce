@@ -172,7 +172,7 @@ export default async function LalamoveGroupingPage() {
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto" data-orders={allOrders.length}>
+    <div className="p-4 md:p-6" data-orders={allOrders.length}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">

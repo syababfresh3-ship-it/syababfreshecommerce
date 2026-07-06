@@ -160,7 +160,7 @@ export function OrderClient() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto flex flex-col lg:flex-row gap-4">
+    <div className="p-4 md:p-6 flex flex-col lg:flex-row gap-4">
       <div className="flex-1 min-w-0 space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800">← Kembali</button>

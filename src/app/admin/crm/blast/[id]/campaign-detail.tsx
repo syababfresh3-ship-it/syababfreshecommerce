@@ -50,7 +50,7 @@ export function CampaignDetail({ id }: { id: string }) {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <div>
         <Link href="/admin/crm/blast" className="text-sm text-gray-400 hover:text-gray-700">← Blaster</Link>
         <h1 className="text-xl font-bold text-gray-900 mt-1">{blast.name}</h1>

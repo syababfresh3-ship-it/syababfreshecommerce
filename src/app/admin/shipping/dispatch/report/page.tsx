@@ -127,7 +127,7 @@ export default async function DispatchReportPage({ searchParams }: { searchParam
   const { courierRows, belumList, productRows, tertunggak, totals } = await getReport(date)
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">

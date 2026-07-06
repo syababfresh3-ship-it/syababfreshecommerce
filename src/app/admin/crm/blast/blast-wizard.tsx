@@ -216,7 +216,7 @@ export function BlastWizard() {
   const card = "bg-white rounded-2xl border border-gray-100 shadow-sm p-5";
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <div>
         <Link href="/admin/crm/blast" className="text-sm text-gray-400 hover:text-gray-700">← Blaster</Link>
         <h1 className="text-xl font-bold text-gray-900 mt-1">New Campaign</h1>
