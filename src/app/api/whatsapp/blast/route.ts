@@ -35,15 +35,35 @@ async function auth() {
   return { user, sb };
 }
 
-export async function GET() {
+const PER_PAGE = 20;
+
+export async function GET(req: NextRequest) {
   const { user, sb } = await auth();
   if (!user || !sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: blasts } = await sb
+  // Penapis + pagination: ?page=N (0-based), ?month=YYYY-MM (waktu MY),
+  // ?number=<phone_number_id> (+&includeNull=1 utk nombor default — blast lama
+  // sebelum multi-number tiada rekod nombor, dikira milik default).
+  const sp = req.nextUrl.searchParams;
+  const page = Math.max(0, parseInt(sp.get("page") ?? "0", 10) || 0);
+  const month = (sp.get("month") ?? "").trim();
+  const number = (sp.get("number") ?? "").trim();
+  const includeNull = sp.get("includeNull") === "1";
+
+  let q = sb
     .from("crm_blasts")
-    .select("id, name, template_name, status, total, sent, failed, scheduled_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .select("id, name, template_name, status, total, sent, failed, scheduled_at, created_at, phone_number_id", { count: "exact" })
+    .order("created_at", { ascending: false });
+  if (/^\d{4}-\d{2}$/.test(month)) {
+    const start = new Date(`${month}-01T00:00:00+08:00`);
+    const end = new Date(start);
+    end.setUTCMonth(end.getUTCMonth() + 1);
+    q = q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
+  }
+  if (number) {
+    q = includeNull ? q.or(`phone_number_id.eq.${number},phone_number_id.is.null`) : q.eq("phone_number_id", number);
+  }
+  const { data: blasts, count } = await q.range(page * PER_PAGE, (page + 1) * PER_PAGE - 1);
 
   // Progress sebenar (delivered/read) dari view — webhook yang kemas status penerima.
   const ids = (blasts ?? []).map((b) => b.id);
@@ -75,7 +95,19 @@ export async function GET() {
   const { data: ov } = await sb.rpc("crm_blaster_overview");
   const stats = Array.isArray(ov) ? ov[0] : ov;
 
-  return NextResponse.json({ blasts: withProgress, stats: stats ?? null });
+  // Totals SEMUA campaign (kad revenue/order/ROAS) — jangan kira dari page
+  // semasa sahaja, nanti angka mengecil bila berpagination.
+  const { data: roasAll } = await sb.from("crm_blast_roas").select("revenue, orders_attributed, cost").limit(1000);
+  const totals = (roasAll ?? []).reduce(
+    (t, r: { revenue: number | null; orders_attributed: number | null; cost: number | null }) => ({
+      revenue: t.revenue + Number(r.revenue ?? 0),
+      orders: t.orders + Number(r.orders_attributed ?? 0),
+      cost: t.cost + Number(r.cost ?? 0),
+    }),
+    { revenue: 0, orders: 0, cost: 0 },
+  );
+
+  return NextResponse.json({ blasts: withProgress, stats: stats ?? null, totals, count: count ?? 0, perPage: PER_PAGE });
 }
 
 export async function POST(req: NextRequest) {

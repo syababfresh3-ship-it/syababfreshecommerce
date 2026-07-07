@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Ban, Clock, Eraser, Eye, Plus, Trash2 } from "lucide-react";
@@ -19,9 +19,16 @@ interface Blast {
   total: number;
   scheduled_at: string | null;
   created_at: string;
+  phone_number_id: string | null; // null = nombor default masa itu
   progress: Progress;
   roas?: Roas | null;
   replies?: number;
+}
+interface WaNumber {
+  phone_number_id: string;
+  display_name: string;
+  is_active: boolean;
+  is_default: boolean;
 }
 interface Stats {
   campaigns_sent: number;
@@ -52,23 +59,49 @@ export function BlasterDashboard() {
   const router = useRouter();
   const [blasts, setBlasts] = useState<Blast[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [totals, setTotals] = useState<{ revenue: number; orders: number; cost: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [numbers, setNumbers] = useState<WaNumber[]>([]);
+  const [numFilter, setNumFilter] = useState(""); // "" = semua nombor
+  const [month, setMonth] = useState(""); // "" = semua bulan, "YYYY-MM"
+  const [page, setPage] = useState(0);
+  const [count, setCount] = useState(0);
+  const [perPage, setPerPage] = useState(20);
+
+  useEffect(() => {
+    fetch("/api/whatsapp/numbers")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((nj) => nj && setNumbers((nj.numbers ?? []).filter((n: WaNumber) => n.is_active)))
+      .catch(() => {});
+  }, []);
+
+  const defaultNumId = numbers.find((n) => n.is_default)?.phone_number_id ?? "";
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/whatsapp/blast");
+    const qs = new URLSearchParams({ page: String(page) });
+    if (month) qs.set("month", month);
+    if (numFilter) {
+      qs.set("number", numFilter);
+      // Blast lama tanpa rekod nombor = nombor default masa itu.
+      if (numFilter === defaultNumId) qs.set("includeNull", "1");
+    }
+    const res = await fetch(`/api/whatsapp/blast?${qs}`);
     const j = await res.json();
     setBlasts(j.blasts ?? []);
     setStats(j.stats ?? null);
+    setTotals(j.totals ?? null);
+    setCount(j.count ?? 0);
+    if (j.perPage) setPerPage(j.perPage);
     setLoading(false);
-  }, []);
+  }, [page, month, numFilter, defaultNumId]);
 
   useEffect(() => { load(); }, [load]);
 
   async function remove(id: string, name: string) {
     if (!window.confirm(`Padam campaign "${name}"? Rekod penerima juga dibuang.`)) return;
     const res = await fetch(`/api/whatsapp/blast/${id}`, { method: "DELETE" });
-    if (res.ok) setBlasts((b) => b.filter((x) => x.id !== id));
+    if (res.ok) load(); // reload — kekalkan count & pagination tepat
     else window.alert("Gagal padam.");
   }
 
@@ -90,9 +123,29 @@ export function BlasterDashboard() {
     }
   }
 
-  const totalRevenue = blasts.reduce((s, b) => s + Number(b.roas?.revenue ?? 0), 0);
-  const totalOrders = blasts.reduce((s, b) => s + Number(b.roas?.orders_attributed ?? 0), 0);
-  const totalCost = blasts.reduce((s, b) => s + Number(b.roas?.cost ?? 0), 0);
+  // Nama nombor penghantar per campaign (blast lama tanpa rekod = default).
+  const senderName = (b: Blast) =>
+    numbers.find((n) => n.phone_number_id === (b.phone_number_id ?? defaultNumId))?.display_name ?? null;
+
+  // Kumpul ikut tarikh — supaya cycle blast per database nampak sekali imbas.
+  const dayOf = (s: string) =>
+    new Date(s).toLocaleDateString("ms-MY", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+
+  // Pilihan bulan: 12 bulan terakhir.
+  const monthOpts = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return { val, label: d.toLocaleDateString("ms-MY", { month: "short", year: "numeric" }) };
+  });
+
+  const pageCount = Math.max(1, Math.ceil(count / perPage));
+  const shownBlasts = blasts;
+
+  // Kad atas = jumlah SEMUA campaign dari server (tak terjejas filter/page).
+  const totalRevenue = totals?.revenue ?? 0;
+  const totalOrders = totals?.orders ?? 0;
+  const totalCost = totals?.cost ?? 0;
   const overallRoas = totalCost > 0 ? totalRevenue / totalCost : null;
 
   const cards = [
@@ -151,22 +204,67 @@ export function BlasterDashboard() {
 
       {/* Campaign list */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 text-sm font-bold text-gray-700">
-          {blasts.length} campaign
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm font-bold text-gray-700">{count} campaign</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <select
+              value={month}
+              onChange={(e) => { setMonth(e.target.value); setPage(0); }}
+              className="text-xs border border-gray-200 rounded-full px-2.5 py-1 text-gray-600 bg-white"
+            >
+              <option value="">Semua bulan</option>
+              {monthOpts.map((m) => (
+                <option key={m.val} value={m.val}>{m.label}</option>
+              ))}
+            </select>
+            {numbers.length > 1 && (
+              <>
+                <button
+                  onClick={() => { setNumFilter(""); setPage(0); }}
+                  className={`text-xs rounded-full px-2.5 py-1 ${!numFilter ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                >
+                  Semua nombor
+                </button>
+                {numbers.map((n) => (
+                  <button
+                    key={n.phone_number_id}
+                    onClick={() => { setNumFilter(numFilter === n.phone_number_id ? "" : n.phone_number_id); setPage(0); }}
+                    className={`text-xs rounded-full px-2.5 py-1 ${numFilter === n.phone_number_id ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                  >
+                    {n.display_name}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         </div>
         {loading ? (
           <div className="p-8 text-center text-sm text-gray-400">Memuatkan…</div>
-        ) : blasts.length === 0 ? (
-          <div className="p-8 text-center text-sm text-gray-400">Belum ada campaign. Klik “+ New Campaign”.</div>
+        ) : shownBlasts.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-400">
+            {month || numFilter ? "Tiada campaign padan filter." : "Belum ada campaign. Klik “+ New Campaign”."}
+          </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {blasts.map((b) => {
+            {shownBlasts.map((b, i) => {
               const p = b.progress;
+              const day = dayOf(b.created_at);
+              const showDay = i === 0 || dayOf(shownBlasts[i - 1].created_at) !== day;
+              const sn = senderName(b);
               return (
-                <div key={b.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-gray-50/60">
+                <Fragment key={b.id}>
+                  {showDay && (
+                    <div className="px-4 py-1.5 bg-gray-50 text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                      {day}
+                    </div>
+                  )}
+                <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 hover:bg-gray-50/60">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">{b.name}</p>
-                    <p className="text-[11px] text-gray-400">{b.template_name}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {b.template_name}
+                      {numbers.length > 1 && sn && <span className="text-gray-300"> · via {sn}</span>}
+                    </p>
                   </div>
                   <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${statusBadge[b.status] ?? "bg-gray-100 text-gray-600"}`}>
                     {b.status}
@@ -179,13 +277,18 @@ export function BlasterDashboard() {
                     <span className="text-violet-400">Read <b className="text-violet-500">{p.read}</b></span>
                     <span className="text-gray-400">Reply <b className="text-gray-700">{b.replies ?? 0}</b></span>
                   </div>
-                  <div className="text-[11px] shrink-0 sm:w-28">
+                  <div className="text-[11px] shrink-0 sm:w-36">
                     {b.roas && Number(b.roas.revenue) > 0 ? (
                       <>
                         <span className="text-emerald-600 font-bold">RM{Number(b.roas.revenue).toLocaleString("ms-MY", { maximumFractionDigits: 0 })}</span>
                         <span className="text-gray-400"> · {b.roas.orders_attributed} order</span>
-                        {b.roas.roas != null && <div className="text-gray-400">ROAS <b className="text-gray-600">{b.roas.roas}×</b></div>}
+                        <div className="text-gray-400">
+                          {b.roas.roas != null && <>ROAS <b className="text-gray-600">{b.roas.roas}×</b> · </>}
+                          kos RM{Number(b.roas.cost).toFixed(2)}
+                        </div>
                       </>
+                    ) : b.roas && Number(b.roas.cost) > 0 ? (
+                      <span className="text-gray-400">kos RM{Number(b.roas.cost).toFixed(2)}</span>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
@@ -209,11 +312,32 @@ export function BlasterDashboard() {
                     </button>
                   </div>
                 </div>
+                </Fragment>
               );
             })}
           </div>
         )}
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0 || loading}
+            className="px-3 py-1 border border-gray-200 bg-white rounded-lg disabled:opacity-40"
+          >
+            ‹ Prev
+          </button>
+          <span className="text-gray-500">Page {page + 1} / {pageCount}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={page >= pageCount - 1 || loading}
+            className="px-3 py-1 border border-gray-200 bg-white rounded-lg disabled:opacity-40"
+          >
+            Next ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
