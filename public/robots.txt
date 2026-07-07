@@ -8,3 +8,9 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /checkout/
+Disallow: /cart
+Disallow: /profile/
+Disallow: /tetapan/
+
+Sitemap: https://shop.syababfresh.my/sitemap.xml

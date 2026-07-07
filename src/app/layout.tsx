@@ -5,6 +5,7 @@ import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
 import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
 import { getAppSettings } from "@/lib/app-settings";
+import { JsonLd, organizationSchema, websiteSchema } from "@/components/seo/json-ld";
 import "./globals.css";
 
 // Redesign v2 — Nunito (dipetakan ke --font-geist-sans supaya font-sans guna ia).
@@ -108,6 +109,10 @@ export default async function RootLayout({
             <link rel="dns-prefetch" href={supabaseOrigin} />
           </>
         )}
+
+        {/* Structured data — SEO/AEO/GEO: kenalkan organisasi & website pada Google/AI */}
+        <JsonLd data={organizationSchema()} />
+        <JsonLd data={websiteSchema()} />
 
         {/* PWA Icons */}
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />

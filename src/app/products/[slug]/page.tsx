@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SfProduct } from '@/components/storev2/sf-product'
+import { JsonLd, productSchema } from '@/components/seo/json-ld'
 
 async function getProduct(slug: string) {
   const supabase = await createClient()
@@ -55,6 +56,12 @@ export default async function ProductDetailPage({
   const product = await getProduct(slug)
   if (!product) notFound()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <SfProduct product={product as any} />
+  return (
+    <>
+      {/* Structured data — beritahu Google/AI: nama produk, harga, stok */}
+      <JsonLd data={productSchema(product)} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <SfProduct product={product as any} />
+    </>
+  )
 }
