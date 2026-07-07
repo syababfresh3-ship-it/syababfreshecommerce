@@ -62,6 +62,10 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  // Google Search Console — bukti pemilikan domain
+  verification: {
+    google: "HESUxsbOYPFwqW-5TYmx7m2ITjVBKRGDFnLl5jHWtec",
+  },
 };
 
 export const viewport: Viewport = {
