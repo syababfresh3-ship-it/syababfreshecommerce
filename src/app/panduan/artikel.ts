@@ -12,6 +12,80 @@ export type Artikel = {
 
 export const ARTIKEL: Artikel[] = [
   {
+    slug: 'cara-simpan-ceri',
+    title: 'Cara Simpan Ceri Supaya Tahan Lama (Panduan Lengkap)',
+    description:
+      'Ceri cepat rosak kalau salah simpan. Panduan penuh: cara simpan dalam peti sejuk sampai 10 hari, cara bekukan sampai berbulan, dan kesilapan yang buat ceri cepat lembik.',
+    updated: '2026-07',
+    sections: [
+      {
+        heading: 'Kenapa ceri cepat rosak?',
+        body: [
+          'Ceri ialah antara buah paling sensitif di dunia. Selepas dipetik, ia terus "bernafas" dan setiap jam pada suhu panas memendekkan hayatnya — sebab tu ceri import diterbangkan masuk dan dihantar dalam bungkusan sejuk. Tiga musuh utama ceri: haba, lembapan berlebihan, dan lebam.',
+          'Berita baiknya: dengan cara simpan yang betul, ceri yang sampai segar boleh bertahan lebih seminggu. Kuncinya cuma tiga peraturan di bawah.',
+        ],
+      },
+      {
+        heading: 'Peraturan 1: Terus masuk peti sejuk, jangan tunggu',
+        body: [
+          'Sebaik ceri sampai, keluarkan dari kotak penghantaran dan terus masukkan ke dalam chiller (bahagian bawah peti sejuk, 0–4°C). Setiap jam ceri duduk atas meja pada suhu bilik Malaysia bersamaan kira-kira sehari hayat yang hilang.',
+          'Jangan letak ceri di pintu peti sejuk — suhu di situ naik turun setiap kali pintu dibuka. Bahagian paling dalam dan paling bawah adalah yang paling stabil.',
+        ],
+      },
+      {
+        heading: 'Peraturan 2: Jangan basuh sampai nak makan',
+        body: [
+          'Ini kesilapan paling biasa. Air yang tertinggal di permukaan ceri mempercepatkan kulat dan reput. Simpan ceri dalam keadaan kering — basuh hanya bahagian yang nak dimakan, masa nak makan.',
+          'Kekalkan tangkai pada buah. Tangkai yang tercabut meninggalkan luka kecil tempat bakteria masuk, dan ceri bertangkai kekal segar lebih lama.',
+        ],
+      },
+      {
+        heading: 'Peraturan 3: Bekas yang betul',
+        body: [
+          'Guna bekas yang ada sedikit pengudaraan — bekas asal penghantaran biasanya sudah sesuai, atau bekas bertutup yang dibuka sedikit penjurunya. Bekas kedap sepenuhnya memerangkap lembapan; bekas terbuka penuh pula membuat ceri kering dan berkedut.',
+          'Petua tambahan: alas dasar bekas dengan sehelai tuala kertas. Ia menyerap lembapan berlebihan dan boleh ditukar kalau basah. Jangan tindih ceri tebal-tebal — dua tiga lapis maksimum, sebab lapisan bawah akan lebam.',
+          'Dengan tiga peraturan ni, ceri tahan 5–10 hari dalam chiller. Di suhu bilik? 1–2 hari sahaja. Bezanya besar.',
+        ],
+      },
+      {
+        heading: 'Nak simpan berbulan? Bekukan',
+        body: [
+          'Kalau beli banyak masa promo (memang patut pun, jimat), lebihan boleh dibekukan: basuh ceri, keringkan betul-betul dengan tuala, buang biji kalau rajin (guna penyedut minuman tebal — tolak biji keluar dari arah tangkai), susun sekata atas dulang dan bekukan 2 jam, lepas tu pindahkan ke beg kedap udara.',
+          'Ceri beku tahan 6–12 bulan dan paling sedap dibuat smoothie, topping aiskrim, atau dimakan sejuk-sejuk terus dari freezer — rasa macam sorbet mini.',
+        ],
+      },
+      {
+        heading: 'Macam mana nak tahu ceri dah tak elok?',
+        body: [
+          'Tanda-tanda ceri patut diketepikan: lembik berair bila disentuh, kulit berkedut teruk, ada tompok kulat putih/kelabu, atau berbau masam macam nak jadi cuka. Satu dua biji rosak dalam bekas — buang cepat, sebab reput merebak ke biji sebelah.',
+          'Ceri yang kulitnya masih tegang dan berkilat tapi rasa kurang manis? Itu bukan rosak — itu memang karakter batch tu. Manis ceri ditentukan masa ia dipetik, ia tidak bertambah manis selepas petik.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Berapa lama ceri tahan dalam peti sejuk?',
+        a: '5 hingga 10 hari dalam chiller (0–4°C) — dengan syarat tidak dibasuh, tangkai dikekalkan, dan disimpan dalam bekas yang ada sedikit pengudaraan beralas tuala kertas.',
+      },
+      {
+        q: 'Ceri kena basuh dulu sebelum simpan ke?',
+        a: 'Jangan. Air mempercepatkan kulat dan reput. Simpan kering, basuh hanya bila nak makan.',
+      },
+      {
+        q: 'Boleh ke simpan ceri luar peti sejuk?',
+        a: 'Pada suhu bilik Malaysia, ceri hanya tahan 1–2 hari. Kalau nak makan hari sama, tak apa. Selain tu, terus masuk chiller.',
+      },
+      {
+        q: 'Ceri beku tahan berapa lama?',
+        a: '6 hingga 12 bulan dalam beg kedap udara. Sesuai untuk smoothie, topping, atau dimakan terus macam sorbet.',
+      },
+      {
+        q: 'Kenapa ceri saya cepat lembik walaupun dalam peti sejuk?',
+        a: 'Kemungkinan besar sebab dibasuh sebelum simpan, bekas terlalu kedap (lembapan terperangkap), ceri bertindih terlalu tebal, atau disimpan di pintu peti sejuk yang suhunya tidak stabil.',
+      },
+    ],
+  },
+  {
     slug: 'panduan-ceri-turki',
     title: 'Panduan Ceri Turki: Cara Pilih, Simpan & Bila Musimnya',
     description:
