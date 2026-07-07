@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Reply, Tag, Smartphone, Clock, User, Search, FileText, Paperclip, Send, Loader2, X, Bot } from "lucide-react";
 
@@ -118,6 +118,18 @@ export function InboxClient() {
   const [purchase, setPurchase] = useState<{ count: number; total: number; lastAt: string | null } | null>(null);
   const threadRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLElement>(null);
+  // Susunan senarai STATIC sepanjang sesi (aduan CS: senarai re-sort & lompat
+  // atas setiap kali reply / mesej masuk, hilang tempat masa kerja ikut turutan).
+  // Snapshot id→seq dibina SEKALI pada fetch pertama; fetch berikutnya hanya
+  // selit conversation BARU di atas (seq negatif) — baris sedia ada tak bergerak,
+  // cuma field (preview/unread/masa) yang segar. Susunan ikut terbaru semula
+  // hanya bila page di-refresh (snapshot mati bersama komponen). Sengaja.
+  const orderRef = useRef<Map<string, number>>(new Map());
+  const orderSeqRef = useRef(0);
+  // Anchor scroll: baris pertama yang kelihatan (+2 calon ganti) sebelum data
+  // baru render, supaya viewport tak anjak bila baris diselit atas / hilang.
+  const anchorRef = useRef<{ ids: string[]; top: number } | null>(null);
 
   const inWindow = selected?.window_expires_at ? new Date(selected.window_expires_at) > new Date() : false;
 
@@ -127,7 +139,30 @@ export function InboxClient() {
       .select(CONV_SELECT)
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(500);
-    setConvos((data as unknown as Conversation[]) ?? []);
+    const rows = (data as unknown as Conversation[]) ?? [];
+
+    if (orderRef.current.size === 0) {
+      // Fetch pertama — kunci susunan ikut server (terbaru dulu).
+      orderRef.current = new Map(rows.map((c, i) => [c.id, i]));
+    } else {
+      // Selit id baru sahaja; loop dari bawah supaya paling baru dapat seq paling kecil.
+      const seq = orderRef.current;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        if (!seq.has(rows[i].id)) seq.set(rows[i].id, --orderSeqRef.current);
+      }
+      // Rakam anchor SEBELUM setConvos — DOM di sini masih susunan lama.
+      const el = listRef.current;
+      if (el) {
+        const asideTop = el.getBoundingClientRect().top;
+        const rowEls = Array.from(el.querySelectorAll<HTMLElement>("[data-cid]"));
+        const firstIdx = rowEls.findIndex((r) => r.getBoundingClientRect().bottom > asideTop);
+        if (firstIdx >= 0) {
+          const cands = rowEls.slice(firstIdx, firstIdx + 3);
+          anchorRef.current = { ids: cands.map((r) => r.dataset.cid as string), top: cands[0].getBoundingClientRect().top };
+        }
+      }
+    }
+    setConvos(rows);
   }, [supabase]);
 
   // Carian hits DB — cari chat ikut nama/nombor merentas SEMUA conversation
@@ -352,6 +387,23 @@ export function InboxClient() {
     threadRef.current?.scrollTo(0, threadRef.current.scrollHeight);
   }, [messages]);
 
+  // Pulihkan kedudukan scroll senarai selepas data baru render (sebelum paint —
+  // useLayoutEffect, bukan rAF, supaya tiada frame di posisi salah). Kalau baris
+  // anchor pertama dah hilang (cth. tab "Perlu balas" selepas dibalas), calon
+  // seterusnya ambil slot sama — chat berikutnya naik tepat ke tempat tu.
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const el = listRef.current;
+    if (!a || !el) return;
+    anchorRef.current = null;
+    for (const id of a.ids) {
+      const row = el.querySelector<HTMLElement>(`[data-cid="${CSS.escape(id)}"]`);
+      if (!row) continue;
+      el.scrollTop += row.getBoundingClientRect().top - a.top;
+      return;
+    }
+  }, [convos]);
+
   async function openConvo(c: Conversation) {
     setSelected(c);
     setErr("");
@@ -430,7 +482,9 @@ export function InboxClient() {
     }
   }
 
-  async function sendImage(file: File) {
+  // Hantar attachment — gambar ATAU PDF (dokumen). PDF pergi sebagai mesej
+  // dokumen WhatsApp dengan nama fail asal supaya customer nampak tajuknya.
+  async function sendAttachment(file: File) {
     if (!selected) return;
     setUploading(true);
     setErr("");
@@ -443,7 +497,12 @@ export function InboxClient() {
       setErr(uj.error || "Upload gagal.");
       return;
     }
-    await postSend({ conversationId: selected.id, imageUrl: uj.url, caption: reply.trim() || undefined });
+    const isPdf = file.type === "application/pdf";
+    await postSend(
+      isPdf
+        ? { conversationId: selected.id, documentUrl: uj.url, filename: file.name, caption: reply.trim() || undefined }
+        : { conversationId: selected.id, imageUrl: uj.url, caption: reply.trim() || undefined },
+    );
     setUploading(false);
     setReply("");
   }
@@ -512,7 +571,17 @@ export function InboxClient() {
   // Search ≥2 huruf → guna hasil DB (searchConvos) supaya chat di luar 500 dimuat
   // tetap jumpa. <2 huruf → tapis sisi-klien atas senarai dimuat.
   const dbSearch = search.trim().length >= 2;
-  const baseConvos = dbSearch ? searchConvos : convos;
+  // Susunan paparan ikut snapshot sesi (seq kecil = atas). Fallback
+  // MIN_SAFE_INTEGER: id belum berdaftar naik atas; seri kekal susunan server
+  // (sort JS stabil). JANGAN guna -Infinity — tolak sesama jadi NaN.
+  const orderedConvos = useMemo(() => {
+    const seq = orderRef.current;
+    if (seq.size === 0) return convos;
+    return [...convos].sort(
+      (a, b) => (seq.get(a.id) ?? Number.MIN_SAFE_INTEGER) - (seq.get(b.id) ?? Number.MIN_SAFE_INTEGER),
+    );
+  }, [convos]);
+  const baseConvos = dbSearch ? searchConvos : orderedConvos;
 
   // Konteks = filter SKOP (label, nombor, Saya, search). Badge count + senarai ikut konteks ni
   // → tukar ke nombor #2, count "Perlu balas" jadi 0 (chat #2), bukan kekal global #1.
@@ -539,7 +608,7 @@ export function InboxClient() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] bg-gray-100">
       {/* Senarai perbualan */}
-      <aside className={`w-full lg:w-80 shrink-0 border-r bg-white overflow-y-auto ${selected ? "hidden lg:block" : "block"}`}>
+      <aside ref={listRef} className={`w-full lg:w-80 shrink-0 border-r bg-white overflow-y-auto ${selected ? "hidden lg:block" : "block"}`}>
         <div className="p-3 border-b font-semibold text-gray-800 flex items-center justify-between">
           <span>Inbox WhatsApp</span>
           <a href="/admin/crm/numbers" className="text-xs font-normal text-gray-400 hover:text-gray-700" title="Urus nombor WhatsApp">⚙️ Nombor</a>
@@ -632,6 +701,7 @@ export function InboxClient() {
           return (
             <button
               key={c.id}
+              data-cid={c.id}
               onClick={() => openConvo(c)}
               className={`w-full text-left px-3 py-2.5 border-b hover:bg-gray-50 flex gap-2.5 ${selected?.id === c.id ? "bg-emerald-50" : ""}`}
             >
@@ -798,11 +868,11 @@ export function InboxClient() {
                   <input
                     ref={fileRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,application/pdf"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) sendImage(f);
+                      if (f) sendAttachment(f);
                       e.target.value = "";
                     }}
                   />

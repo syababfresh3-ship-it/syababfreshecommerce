@@ -80,18 +80,24 @@ export async function sendText(to: string, body: string, opts?: SendOpts): Promi
   }, opts);
 }
 
-// Hantar gambar/video via URL public (cth Cloudinary) — dalam window 24j.
+// Hantar gambar/video/dokumen via URL public — dalam window 24j.
+// `filename` (dokumen sahaja): nama fail yang customer nampak di WhatsApp.
 export async function sendMedia(
   to: string,
   link: string,
   caption?: string,
   kind: "image" | "video" | "document" = "image",
   opts?: SendOpts,
+  filename?: string,
 ): Promise<SendResult> {
   return postMessage({
     to: formatWaPhone(to),
     type: kind,
-    [kind]: { link, ...(caption ? { caption } : {}) },
+    [kind]: {
+      link,
+      ...(caption ? { caption } : {}),
+      ...(kind === "document" && filename ? { filename } : {}),
+    },
   }, opts);
 }
 

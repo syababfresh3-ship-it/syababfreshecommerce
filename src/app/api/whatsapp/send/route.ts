@@ -21,13 +21,15 @@ export async function POST(req: NextRequest) {
   if (!profile?.is_admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
-  const { conversationId, text, templateName, templateLang, templateParams, imageUrl, caption } = body as {
+  const { conversationId, text, templateName, templateLang, templateParams, imageUrl, documentUrl, filename, caption } = body as {
     conversationId?: string;
     text?: string;
     templateName?: string;
     templateLang?: string;
     templateParams?: Record<string, string>;
     imageUrl?: string;
+    documentUrl?: string; // PDF/dokumen — customer nampak `filename`
+    filename?: string;
     caption?: string;
   };
 
@@ -58,6 +60,10 @@ export async function POST(req: NextRequest) {
     result = await sendMedia(waId, imageUrl, caption?.trim() || undefined, "image", sender);
     type = "image";
     preview = caption?.trim() || "📷 Gambar";
+  } else if (documentUrl) {
+    result = await sendMedia(waId, documentUrl, caption?.trim() || undefined, "document", sender, filename?.trim() || undefined);
+    type = "document";
+    preview = caption?.trim() || `📄 ${filename?.trim() || "Dokumen"}`;
   } else if (text && text.trim()) {
     result = await sendText(waId, text.trim(), sender);
     type = "text";
@@ -78,8 +84,8 @@ export async function POST(req: NextRequest) {
     wa_message_id: result.id,
     direction: "out",
     type,
-    body: type === "text" ? text!.trim() : type === "image" ? caption?.trim() || null : null,
-    media_url: type === "image" ? imageUrl : null,
+    body: type === "text" ? text!.trim() : type === "image" || type === "document" ? caption?.trim() || null : null,
+    media_url: type === "image" ? imageUrl : type === "document" ? documentUrl : null,
     template_name: templateName ?? null,
     status: "sent",
     sent_by: user.id,
