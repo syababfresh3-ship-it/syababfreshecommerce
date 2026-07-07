@@ -63,15 +63,16 @@ export async function GET() {
       for (const v of variants) {
         items.push(
           itemXml(p, {
-            id: `${p.slug}-${v.id}`,
+            // Google hadkan id max 50 aksara — guna UUID variant sahaja (unik & stabil)
+            id: `v-${v.id}`.slice(0, 50),
             title: v.name ? `${p.name} — ${v.name}` : p.name,
             price: Number(v.price),
-            groupId: variants.length > 1 ? p.slug : undefined,
+            groupId: variants.length > 1 ? p.slug.slice(0, 50) : undefined,
           }),
         )
       }
     } else if (p.price != null && isFinite(Number(p.price)) && Number(p.price) > 0) {
-      items.push(itemXml(p, { id: p.slug, title: p.name, price: Number(p.price) }))
+      items.push(itemXml(p, { id: p.slug.slice(0, 50), title: p.name, price: Number(p.price) }))
     }
     // Produk tanpa sebarang harga sah — langkau (Google reject item tanpa harga)
   }
