@@ -122,7 +122,8 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
               <th className="px-3 py-2 font-semibold text-right">Untung</th>
               <th className="px-3 py-2 font-semibold text-right">Margin</th>
               <th className="px-3 py-2 font-semibold">Status</th>
-              <th className="px-3 py-2 font-semibold text-right">Cadangan</th>
+              <th className="px-3 py-2 font-semibold text-right">Cadangan @{settings.targetMarginPct}%</th>
+              <th className="px-3 py-2 font-semibold text-right">Cadangan @{settings.targetMarginPct2}%</th>
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
@@ -139,7 +140,8 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
               }
               const eco = computeUnitEconomics(r.harga, cost, settings)
               const status = statusOf(eco.untung, eco.marginPct)
-              const cadangan = cadanganHarga(eco.kosTetap, settings)
+              const cadangan = cadanganHarga(eco.kosTetap, settings, settings.targetMarginPct)
+              const cadangan2 = cadanganHarga(eco.kosTetap, settings, settings.targetMarginPct2)
 
               const inputCls =
                 'w-16 rounded-lg border border-gray-200 px-1.5 py-1 text-right text-[12px] focus:outline-none focus:ring-1 focus:ring-red-300'
@@ -178,7 +180,10 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                         </span>
                       </td>
                       <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">
-                        {cadangan ? `${fmtRM(cadangan)} @ ${settings.targetMarginPct}%` : '—'}
+                        {cadangan ? fmtRM(cadangan) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">
+                        {cadangan2 ? fmtRM(cadangan2) : '—'}
                       </td>
                     </>
                   ) : (
@@ -192,6 +197,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                           Kos belum diisi
                         </span>
                       </td>
+                      <td className="px-3 py-2 text-right text-gray-300">—</td>
                       <td className="px-3 py-2 text-right text-gray-300">—</td>
                     </>
                   )}

@@ -6,6 +6,7 @@ const KEYS = [
   'gateway_fee_ewallet_pct',
   'gateway_fee_fixed_rm',
   'pricing_target_margin_pct',
+  'pricing_target_margin_pct_2',
 ] as const
 
 export async function GET() {
@@ -25,6 +26,7 @@ export async function GET() {
     gateway_fee_ewallet_pct: Number(map.gateway_fee_ewallet_pct ?? 1.5),
     gateway_fee_fixed_rm: Number(map.gateway_fee_fixed_rm ?? 0),
     pricing_target_margin_pct: Number(map.pricing_target_margin_pct ?? 25),
+    pricing_target_margin_pct_2: Number(map.pricing_target_margin_pct_2 ?? 30),
   })
 }
 

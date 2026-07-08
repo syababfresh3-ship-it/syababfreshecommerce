@@ -17,7 +17,8 @@ export interface GatewaySettings {
   fpxPct: number      // % fee gateway untuk FPX
   ewalletPct: number  // % fee gateway untuk e-wallet
   fixedRm: number     // fee tetap per transaksi (RM)
-  targetMarginPct: number
+  targetMarginPct: number   // target margin 1 (cth 25%)
+  targetMarginPct2: number  // target margin 2 (cth 30%) — untuk banding dengan market
 }
 
 export const DEFAULT_SETTINGS: GatewaySettings = {
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: GatewaySettings = {
   ewalletPct: 1.5,
   fixedRm: 0,
   targetMarginPct: 25,
+  targetMarginPct2: 30,
 }
 
 export function parseSettings(map: Record<string, string>): GatewaySettings {
@@ -37,6 +39,7 @@ export function parseSettings(map: Record<string, string>): GatewaySettings {
     ewalletPct: num(map.gateway_fee_ewallet_pct, DEFAULT_SETTINGS.ewalletPct),
     fixedRm: num(map.gateway_fee_fixed_rm, DEFAULT_SETTINGS.fixedRm),
     targetMarginPct: num(map.pricing_target_margin_pct, DEFAULT_SETTINGS.targetMarginPct),
+    targetMarginPct2: num(map.pricing_target_margin_pct_2, DEFAULT_SETTINGS.targetMarginPct2),
   }
 }
 
@@ -97,8 +100,9 @@ export function statusOf(untung: number, marginPct: number): StatusKos {
 
 // Cadangan harga untuk capai target margin — PAPARAN SAHAJA, tak pernah tulis ke harga jual.
 // harga = (kosTetap + fixed) / (1 - target% - gateway%), bundar NAIK ke RM0.50 terdekat.
-export function cadanganHarga(tetap: number, s: GatewaySettings): number | null {
-  const denom = 1 - s.targetMarginPct / 100 - s.fpxPct / 100
+export function cadanganHarga(tetap: number, s: GatewaySettings, targetPct?: number): number | null {
+  const target = targetPct ?? s.targetMarginPct
+  const denom = 1 - target / 100 - s.fpxPct / 100
   if (denom <= 0 || tetap <= 0) return null
   const raw = (tetap + s.fixedRm) / denom
   return Math.ceil(raw * 2) / 2

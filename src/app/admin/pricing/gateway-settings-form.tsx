@@ -12,6 +12,7 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
   const [ewallet, setEwallet] = useState(String(settings.ewalletPct))
   const [fixed, setFixed] = useState(String(settings.fixedRm))
   const [target, setTarget] = useState(String(settings.targetMarginPct))
+  const [target2, setTarget2] = useState(String(settings.targetMarginPct2))
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -25,6 +26,7 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
           gateway_fee_ewallet_pct: parseFloat(ewallet),
           gateway_fee_fixed_rm: parseFloat(fixed),
           pricing_target_margin_pct: parseFloat(target),
+          pricing_target_margin_pct_2: parseFloat(target2),
         }),
       })
       const json = await res.json()
@@ -55,8 +57,12 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
         <input type="number" min="0" step="0.01" value={fixed} onChange={(e) => setFixed(e.target.value)} className={cls} />
       </div>
       <div>
-        <label className="block text-[11px] font-bold text-gray-500 mb-1">Target Margin (%)</label>
+        <label className="block text-[11px] font-bold text-gray-500 mb-1">Target Margin 1 (%)</label>
         <input type="number" min="0" step="1" value={target} onChange={(e) => setTarget(e.target.value)} className={cls} />
+      </div>
+      <div>
+        <label className="block text-[11px] font-bold text-gray-500 mb-1">Target Margin 2 (%)</label>
+        <input type="number" min="0" step="1" value={target2} onChange={(e) => setTarget2(e.target.value)} className={cls} />
       </div>
       <button
         onClick={save}
