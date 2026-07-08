@@ -27,6 +27,8 @@ export default function BantuanPage() {
   const [step, setStep] = useState<'identify' | 'chat'>('identify')
   const [orderNumber, setOrderNumber] = useState('')
   const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [loading, setLoading] = useState(false)
   const [picks, setPicks] = useState<{ order_number: string; status: string; created_at: string }[] | null>(null)
 
@@ -42,13 +44,31 @@ export default function BantuanPage() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, sending])
 
+  async function requestOtp(e?: React.FormEvent) {
+    e?.preventDefault()
+    if (!phone.trim()) { toast.error('Masukkan no telefon dulu'); return }
+    setLoading(true)
+    try {
+      const res = await fetch('/api/support/request-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Gagal hantar kod')
+      setOtpSent(true)
+      toast.success('Kod pengesahan dihantar ke WhatsApp anda')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal')
+    } finally { setLoading(false) }
+  }
+
   async function identify(e?: React.FormEvent, pickOrder?: string) {
     e?.preventDefault()
     setLoading(true)
     try {
       const res = await fetch('/api/support/identify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, orderNumber: pickOrder ?? (orderNumber.trim() || undefined) }),
+        body: JSON.stringify({ phone, otp, orderNumber: pickOrder ?? (orderNumber.trim() || undefined) }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal')
@@ -160,24 +180,45 @@ export default function BantuanPage() {
             </>
           ) : (
             <>
-              <p className="text-sm text-gray-400 mb-5">Masukkan no telefon anda — kami cari order anda automatik. Pembantu AI bantu semak penghantaran atau selesaikan masalah.</p>
-              <form onSubmit={identify} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">No Telefon</label>
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth 0123456789" inputMode="tel" autoFocus
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
-                </div>
-                <details className="group">
-                  <summary className="text-xs text-gray-400 cursor-pointer select-none hover:text-gray-600">+ Ada no order? (pilihan)</summary>
-                  <input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="cth LP-20260601-0001"
-                    className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" />
-                </details>
-                <button type="submit" disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-brand-red-700 disabled:opacity-50 transition-colors">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
-                  Cari order saya
-                </button>
-              </form>
+              <p className="text-sm text-gray-400 mb-5">Masukkan no telefon anda — kami hantar kod pengesahan ke WhatsApp untuk lindungi maklumat anda, kemudian cari order automatik.</p>
+              {!otpSent ? (
+                <form onSubmit={requestOtp} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">No Telefon</label>
+                    <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="cth 0123456789" inputMode="tel" autoFocus
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
+                  </div>
+                  <button type="submit" disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-brand-red-700 disabled:opacity-50 transition-colors">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                    Hantar Kod ke WhatsApp
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={identify} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Kod Pengesahan (6 digit)</label>
+                    <p className="text-[11px] text-gray-400 mb-1.5">Dihantar ke WhatsApp {phone}</p>
+                    <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="cth 123456"
+                      inputMode="numeric" autoFocus maxLength={6}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm tracking-[0.3em] text-center focus:outline-none focus:ring-2 focus:ring-brand-red-500" required />
+                  </div>
+                  <details className="group">
+                    <summary className="text-xs text-gray-400 cursor-pointer select-none hover:text-gray-600">+ Ada no order? (pilihan)</summary>
+                    <input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="cth LP-20260601-0001"
+                      className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red-500" />
+                  </details>
+                  <button type="submit" disabled={loading || otp.length !== 6}
+                    className="w-full flex items-center justify-center gap-2 bg-brand-red-600 text-white text-sm font-semibold rounded-xl py-2.5 hover:bg-brand-red-700 disabled:opacity-50 transition-colors">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShoppingBag className="h-4 w-4" />}
+                    Sahkan & cari order
+                  </button>
+                  <div className="flex items-center justify-between text-xs">
+                    <button type="button" onClick={() => { setOtpSent(false); setOtp('') }} className="text-gray-400 hover:text-gray-700">← Tukar nombor</button>
+                    <button type="button" onClick={() => requestOtp()} disabled={loading} className="text-brand-red-600 hover:text-brand-red-700 disabled:opacity-50">Hantar semula kod</button>
+                  </div>
+                </form>
+              )}
             </>
           )}
           {!picks && (

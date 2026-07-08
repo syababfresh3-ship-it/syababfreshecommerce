@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
 import { issueSupportToken } from '@/lib/support/token'
+import { verifyOtp } from '@/lib/support/otp'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 interface Cand {
@@ -19,12 +20,20 @@ interface Cand {
 // Sahkan pelanggan via TELEFON (no order optional). Kalau telefon padan >1 order,
 // pulang senarai untuk pilih (latest dahulu). Kalau 1, terus buka/sambung aduan.
 export async function POST(req: Request) {
-  const { orderNumber, phone }: { orderNumber?: string; phone?: string } = await req.json().catch(() => ({}))
+  const { orderNumber, phone, otp }: { orderNumber?: string; phone?: string; otp?: string } = await req.json().catch(() => ({}))
   const on = (orderNumber ?? '').trim()
   const phoneNorm = normalizePhone(phone)
   if (!phoneNorm) return NextResponse.json({ error: 'Sila masukkan no telefon.' }, { status: 400 })
 
   const admin = createAdminClient()
+
+  // Wajib sahkan OTP dulu — pastikan pemanggil memang tuan nombor ini
+  // (tutup enumerasi telefon + impersonation).
+  const otpOk = await verifyOtp(admin, phoneNorm, (otp ?? '').trim())
+  if (!otpOk) {
+    return NextResponse.json({ error: 'Kod OTP salah atau sudah tamat tempoh. Sila minta kod baru.' }, { status: 401 })
+  }
+
   const cands = await findCandidates(admin, phoneNorm, on)
 
   if (cands.length === 0) {
