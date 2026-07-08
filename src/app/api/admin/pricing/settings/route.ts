@@ -7,6 +7,7 @@ const KEYS = [
   'gateway_fee_fixed_rm',
   'pricing_target_margin_pct',
   'pricing_target_margin_pct_2',
+  'kurier_free_shipping_rm',
 ] as const
 
 export async function GET() {
@@ -27,6 +28,7 @@ export async function GET() {
     gateway_fee_fixed_rm: Number(map.gateway_fee_fixed_rm ?? 0),
     pricing_target_margin_pct: Number(map.pricing_target_margin_pct ?? 25),
     pricing_target_margin_pct_2: Number(map.pricing_target_margin_pct_2 ?? 30),
+    kurier_free_shipping_rm: Number(map.kurier_free_shipping_rm ?? 15),
   })
 }
 

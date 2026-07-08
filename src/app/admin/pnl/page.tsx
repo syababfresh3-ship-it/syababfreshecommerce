@@ -114,14 +114,16 @@ export default async function PnlPage({
     const total = Number(o.total) || 0
     const items = itemsByOrder.get(o.id) ?? []
     const pnl = computeOrderPnl(items, total, o.payment_method, lookup, settings)
+    // Shipping ditanggung customer KECUALI free shipping (delivery_fee = 0, order ≥ threshold)
+    const kurierOrder = pnl.kurier + (total > 0 && (Number(o.delivery_fee) || 0) <= 0 ? settings.freeShipKurierRm : 0)
     revenue += total
     cogs += pnl.cogs
     packaging += pnl.packaging
-    kurier += pnl.kurier
+    kurier += kurierOrder
     lain += pnl.lain
     gateway += pnl.gateway
     missing += pnl.missingCostItems
-    addDay(o.created_at, total, pnl.cogs + pnl.packaging + pnl.kurier + pnl.lain + pnl.gateway)
+    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway)
   }
 
   for (const o of lpOrders) {
@@ -137,14 +139,15 @@ export default async function PnlPage({
       items = [{ product_id: o.product_id, variant_id: o.variant_id ?? null, quantity: Number(o.quantity) || 1 }]
     }
     const pnl = computeOrderPnl(items, total, o.payment_method, lookup, settings)
+    const kurierOrder = pnl.kurier + (total > 0 && (Number(o.delivery_fee) || 0) <= 0 ? settings.freeShipKurierRm : 0)
     revenue += total
     cogs += pnl.cogs
     packaging += pnl.packaging
-    kurier += pnl.kurier
+    kurier += kurierOrder
     lain += pnl.lain
     gateway += pnl.gateway
     missing += pnl.missingCostItems
-    addDay(o.created_at, total, pnl.cogs + pnl.packaging + pnl.kurier + pnl.lain + pnl.gateway)
+    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway)
   }
 
   const kosOperasi = opsCosts.reduce((s, c) => s + (Number(c.amaun) || 0), 0)
@@ -159,7 +162,7 @@ export default async function PnlPage({
   const costLines: { label: string; value: number }[] = [
     { label: 'Kos Buah (COGS)', value: cogs },
     { label: 'Packaging', value: packaging },
-    { label: 'Kurier (anggaran)', value: kurier },
+    { label: 'Kurier free shipping (anggaran)', value: kurier },
     { label: 'Lain-lain (per unit)', value: lain },
     { label: 'Yuran Gateway (anggaran)', value: gateway },
     { label: 'Kos Operasi (trip/pekerja/dll)', value: kosOperasi },

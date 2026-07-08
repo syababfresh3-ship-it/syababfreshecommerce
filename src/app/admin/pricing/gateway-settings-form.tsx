@@ -13,6 +13,7 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
   const [fixed, setFixed] = useState(String(settings.fixedRm))
   const [target, setTarget] = useState(String(settings.targetMarginPct))
   const [target2, setTarget2] = useState(String(settings.targetMarginPct2))
+  const [freeShip, setFreeShip] = useState(String(settings.freeShipKurierRm))
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -27,6 +28,7 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
           gateway_fee_fixed_rm: parseFloat(fixed),
           pricing_target_margin_pct: parseFloat(target),
           pricing_target_margin_pct_2: parseFloat(target2),
+          kurier_free_shipping_rm: parseFloat(freeShip),
         }),
       })
       const json = await res.json()
@@ -64,6 +66,10 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
         <label className="block text-[11px] font-bold text-gray-500 mb-1">Target Margin 2 (%)</label>
         <input type="number" min="0" step="1" value={target2} onChange={(e) => setTarget2(e.target.value)} className={cls} />
       </div>
+      <div>
+        <label className="block text-[11px] font-bold text-gray-500 mb-1">Kurier Free Ship (RM)</label>
+        <input type="number" min="0" step="0.50" value={freeShip} onChange={(e) => setFreeShip(e.target.value)} className={cls} />
+      </div>
       <button
         onClick={save}
         disabled={saving}
@@ -72,7 +78,8 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
         {saving ? 'Menyimpan…' : 'Simpan Settings'}
       </button>
       <p className="w-full text-[11px] text-gray-400 -mt-1">
-        COD & bank transfer dikira tiada fee gateway. Fee ini anggaran — semak kadar sebenar CHIP.
+        COD & bank transfer dikira tiada fee gateway. Shipping ditanggung customer kecuali free shipping —
+        &quot;Kurier Free Ship&quot; = anggaran kos kurier kita bila order layak free shipping (dikira dalam P&L).
       </p>
     </div>
   )

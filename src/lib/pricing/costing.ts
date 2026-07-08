@@ -19,6 +19,7 @@ export interface GatewaySettings {
   fixedRm: number     // fee tetap per transaksi (RM)
   targetMarginPct: number   // target margin 1 (cth 25%)
   targetMarginPct2: number  // target margin 2 (cth 30%) — untuk banding dengan market
+  freeShipKurierRm: number  // anggaran kos kurier ditanggung seller bila order dapat FREE shipping (≥RM189)
 }
 
 export const DEFAULT_SETTINGS: GatewaySettings = {
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: GatewaySettings = {
   fixedRm: 0,
   targetMarginPct: 25,
   targetMarginPct2: 30,
+  freeShipKurierRm: 15,
 }
 
 export function parseSettings(map: Record<string, string>): GatewaySettings {
@@ -40,6 +42,7 @@ export function parseSettings(map: Record<string, string>): GatewaySettings {
     fixedRm: num(map.gateway_fee_fixed_rm, DEFAULT_SETTINGS.fixedRm),
     targetMarginPct: num(map.pricing_target_margin_pct, DEFAULT_SETTINGS.targetMarginPct),
     targetMarginPct2: num(map.pricing_target_margin_pct_2, DEFAULT_SETTINGS.targetMarginPct2),
+    freeShipKurierRm: num(map.kurier_free_shipping_rm, DEFAULT_SETTINGS.freeShipKurierRm),
   }
 }
 
