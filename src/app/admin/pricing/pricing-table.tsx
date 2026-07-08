@@ -1,11 +1,11 @@
 'use client'
 
 // Jadual pricing dengan inline edit kos. Kira live guna formula sama dengan server.
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  computeUnitEconomics, statusOf, cadanganHarga, kosTetap, fmtRM,
+  computeUnitEconomics, statusOf, cadanganHarga, fmtRM,
   type GatewaySettings, type StatusKos,
 } from '@/lib/pricing/costing'
 
@@ -14,6 +14,7 @@ export interface PricingRow {
   variantId: string | null
   nama: string
   variantNama: string | null
+  kategori: string
   imageUrl: string | null
   harga: number
   kos: { kos_buah: number; kos_packaging: number; kos_kurier: number; kos_lain: number; source: string } | null
@@ -128,8 +129,9 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => {
+            {filtered.map((r, idx) => {
               const k = keyOf(r)
+              const showKategori = idx === 0 || filtered[idx - 1].kategori !== r.kategori
               const d = getDraft(r)
               const hasAny = r.kos != null || dirty[k]
               const cost = {
@@ -147,7 +149,15 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                 'w-16 rounded-lg border border-gray-200 px-1.5 py-1 text-right text-[12px] focus:outline-none focus:ring-1 focus:ring-red-300'
 
               return (
-                <tr key={k} className="border-b border-gray-50 hover:bg-gray-50/50">
+                <Fragment key={k}>
+                {showKategori && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={14} className="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-gray-600">
+                      {r.kategori}
+                    </td>
+                  </tr>
+                )}
+                <tr className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="px-3 py-2">
                     <div className="font-bold text-gray-900 leading-tight">{r.nama}</div>
                     {r.variantNama && <div className="text-gray-500">{r.variantNama}</div>}
@@ -213,6 +223,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                     )}
                   </td>
                 </tr>
+                </Fragment>
               )
             })}
           </tbody>

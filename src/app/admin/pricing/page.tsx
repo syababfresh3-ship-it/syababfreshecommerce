@@ -13,7 +13,7 @@ export default async function PricingPage() {
   const [prodRes, varRes, costRes, settingsRes] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, price, unit, image_url, sort_order')
+      .select('id, name, price, unit, image_url, sort_order, categories(name)')
       .eq('is_active', true)
       .order('sort_order', { ascending: true }),
     supabase
@@ -45,6 +45,9 @@ export default async function PricingPage() {
 
   const rows: PricingRow[] = []
   for (const p of products) {
+    // categories(name) balik sebagai objek atau array bergantung relationship — handle dua-dua
+    const catRaw = (p as unknown as { categories?: { name?: string } | { name?: string }[] }).categories
+    const kategori = (Array.isArray(catRaw) ? catRaw[0]?.name : catRaw?.name) ?? 'Tanpa Kategori'
     const vs = variantsByProduct.get(p.id) ?? []
     if (vs.length === 0) {
       const c = lookup(p.id, null)
@@ -53,6 +56,7 @@ export default async function PricingPage() {
         variantId: null,
         nama: p.name,
         variantNama: p.unit ? `per ${p.unit}` : null,
+        kategori,
         imageUrl: p.image_url,
         harga: Number(p.price) || 0,
         kos: c
@@ -67,6 +71,7 @@ export default async function PricingPage() {
           variantId: v.id,
           nama: p.name,
           variantNama: v.name,
+          kategori,
           imageUrl: p.image_url,
           harga: Number(v.price) || 0,
           kos: c
@@ -76,6 +81,9 @@ export default async function PricingPage() {
       }
     }
   }
+
+  // Susun ikut kategori (A-Z), dalam kategori ikut nama produk
+  rows.sort((a, b) => a.kategori.localeCompare(b.kategori) || a.nama.localeCompare(b.nama))
 
   const belumIsi = rows.filter((r) => !r.kos).length
 
