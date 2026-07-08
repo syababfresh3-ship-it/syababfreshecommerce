@@ -10,8 +10,14 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone, isValidPhone } from "@/lib/phone";
+import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
+  // Had kadar: 10 lookup / 60 saat per IP (halang enumerasi telefon).
+  if (!rateLimit(`track:${clientIp(req)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Terlalu banyak permintaan. Cuba sebentar lagi." }, { status: 429 });
+  }
+
   const raw = req.nextUrl.searchParams.get("phone") ?? "";
   if (!isValidPhone(raw)) {
     return NextResponse.json({ error: "No. telefon tidak sah" }, { status: 400 });

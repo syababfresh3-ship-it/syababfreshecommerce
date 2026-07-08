@@ -5,10 +5,16 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone, isValidPhone } from '@/lib/phone'
 import { checkRateLimit, issueOtp } from '@/lib/support/otp'
 import { sendWhatsApp } from '@/lib/murpati'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 
 // Hantar OTP ke WhatsApp nombor pelanggan. Perlu sebelum /api/support/identify
-// akan dedah sebarang PII. Ada had kadar (60s cooldown, max 5/jam per nombor).
+// akan dedah sebarang PII. Ada had kadar (60s cooldown, max 5/jam per nombor + per IP).
 export async function POST(req: Request) {
+  // Had kadar per IP — halang seorang spam banyak nombor berbeza.
+  if (!rateLimit(`otp:${clientIp(req)}`, 15, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Terlalu banyak permintaan. Cuba lagi kemudian.' }, { status: 429 })
+  }
+
   const { phone }: { phone?: string } = await req.json().catch(() => ({}))
   const phoneNorm = normalizePhone(phone)
   if (!isValidPhone(phoneNorm)) {

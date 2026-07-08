@@ -29,14 +29,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const raw = await req.text();
 
-  // Sahkan signature (kalau app secret diset)
+  // Sahkan signature — WAJIB. Fail-closed: kalau secret tak diset, tolak (jangan
+  // proses payload tak disahkan).
   const secret = process.env.WHATSAPP_APP_SECRET;
-  if (secret) {
-    const sig = req.headers.get("x-hub-signature-256") || "";
-    const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
-    if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
-      return new NextResponse("Bad signature", { status: 401 });
-    }
+  if (!secret) {
+    console.error("[wa-webhook] WHATSAPP_APP_SECRET tidak diset — tolak permintaan");
+    return new NextResponse("Server misconfigured", { status: 500 });
+  }
+  const sig = req.headers.get("x-hub-signature-256") || "";
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    return new NextResponse("Bad signature", { status: 401 });
   }
 
   let body: WaWebhookBody;

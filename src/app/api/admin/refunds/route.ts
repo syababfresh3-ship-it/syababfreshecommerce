@@ -25,9 +25,13 @@ export async function GET(request: Request) {
 
   if (status) query = query.eq('status', status)
   if (search) {
-    query = query.or(
-      `order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%,tracking_no.ilike.%${search}%`
-    )
+    // Bersihkan aksara yang boleh rosakkan ekspresi PostgREST .or() (,()*\)
+    const safe = search.replace(/[,()*\\]/g, ' ').trim()
+    if (safe) {
+      query = query.or(
+        `order_number.ilike.%${safe}%,customer_name.ilike.%${safe}%,customer_phone.ilike.%${safe}%,tracking_no.ilike.%${safe}%`
+      )
+    }
   }
   if (dateFrom) query = query.gte('created_at', dateFrom)
   if (dateTo) {
