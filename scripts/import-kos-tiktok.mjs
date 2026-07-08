@@ -102,16 +102,27 @@ for (const sku of catalog) {
     continue
   }
 
-  // Padankan saiz dengan variant
+  // Padankan saiz dengan variant — mesti TEPAT (elak "0.5kg" termatch "5kg")
   const vs = variantsByProduct.get(best.id) ?? []
   const skuSize = normSize(sku.size || '')
   let variant = null
-  if (vs.length > 0 && skuSize) {
-    variant = vs.find((v) => normSize(v.name).includes(skuSize) || skuSize.includes(normSize(v.name))) ?? null
-  }
-  if (vs.length > 0 && !variant) {
-    unmatched.push({ sku: sku.name, sebab: `produk "${best.name}" padan tapi saiz "${sku.size}" tak jumpa variant` })
-    continue
+  if (vs.length > 0) {
+    if (!skuSize) {
+      unmatched.push({ sku: sku.name, sebab: `produk "${best.name}" ada variant tapi SKU tiada saiz` })
+      continue
+    }
+    variant = vs.find((v) => normSize(v.name) === skuSize) ?? null
+    if (!variant) {
+      unmatched.push({ sku: sku.name, sebab: `produk "${best.name}" padan tapi saiz "${sku.size}" tak jumpa variant` })
+      continue
+    }
+  } else if (skuSize) {
+    // Produk TANPA variant: saiz SKU mesti tersebut dalam nama produk, kalau tak — jangan teka
+    const pNorm = norm(best.name).replace(/\s/g, '')
+    if (!pNorm.includes(skuSize.replace(/\s/g, ''))) {
+      unmatched.push({ sku: sku.name, sebab: `produk "${best.name}" (tiada variant) — saiz "${sku.size}" tak dapat disahkan` })
+      continue
+    }
   }
 
   const key = `${best.id}:${variant ? variant.id : 'null'}`
