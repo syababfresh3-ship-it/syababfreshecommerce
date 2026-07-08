@@ -53,6 +53,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
   const [dirty, setDirty] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()) // kategori terbuka (default semua tutup)
 
   const keyOf = (r: PricingRow) => `${r.productId}:${r.variantId ?? 'null'}`
 
@@ -95,18 +96,52 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
     }
   }
 
-  const filtered = search.trim()
+  const searching = search.trim().length > 0
+  const filtered = searching
     ? rows.filter((r) => `${r.nama} ${r.variantNama ?? ''}`.toLowerCase().includes(search.toLowerCase()))
     : rows
 
+  // Kira ringkasan per kategori (jumlah baris + berapa dah ada kos)
+  const catStats = new Map<string, { total: number; isi: number }>()
+  for (const r of filtered) {
+    const st = catStats.get(r.kategori) ?? { total: 0, isi: 0 }
+    st.total += 1
+    if (r.kos != null) st.isi += 1
+    catStats.set(r.kategori, st)
+  }
+
+  const isOpen = (kat: string) => searching || expanded.has(kat)
+  function toggleCat(kat: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(kat)) next.delete(kat)
+      else next.add(kat)
+      return next
+    })
+  }
+
   return (
     <div>
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Cari produk…"
-        className="mb-3 w-full sm:w-72 rounded-xl border border-gray-200 px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-200"
-      />
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari produk…"
+          className="w-full sm:w-72 rounded-xl border border-gray-200 px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-red-200"
+        />
+        <button
+          onClick={() => setExpanded(new Set(catStats.keys()))}
+          className="rounded-full border border-gray-200 px-3 py-2 text-[12px] font-bold text-gray-600 hover:bg-gray-50"
+        >
+          Buka semua
+        </button>
+        <button
+          onClick={() => setExpanded(new Set())}
+          className="rounded-full border border-gray-200 px-3 py-2 text-[12px] font-bold text-gray-600 hover:bg-gray-50"
+        >
+          Tutup semua
+        </button>
+      </div>
 
       <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
         <table className="w-full text-[12px]">
@@ -148,15 +183,23 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
               const inputCls =
                 'w-16 rounded-lg border border-gray-200 px-1.5 py-1 text-right text-[12px] focus:outline-none focus:ring-1 focus:ring-red-300'
 
+              const open = isOpen(r.kategori)
+              const st = catStats.get(r.kategori)
+
               return (
                 <Fragment key={k}>
                 {showKategori && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={14} className="px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-wide text-gray-600">
+                  <tr className="bg-gray-50 cursor-pointer hover:bg-gray-100" onClick={() => toggleCat(r.kategori)}>
+                    <td colSpan={14} className="px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-gray-600 select-none">
+                      <span className="inline-block w-4">{open ? '▾' : '▸'}</span>
                       {r.kategori}
+                      <span className="ml-2 font-normal normal-case text-gray-400">
+                        ({st?.total} item{st && st.isi < st.total ? ` · ${st.total - st.isi} belum isi` : ''})
+                      </span>
                     </td>
                   </tr>
                 )}
+                {open && (
                 <tr className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="px-3 py-2">
                     <div className="font-bold text-gray-900 leading-tight">{r.nama}</div>
@@ -223,6 +266,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                     )}
                   </td>
                 </tr>
+                )}
                 </Fragment>
               )
             })}
