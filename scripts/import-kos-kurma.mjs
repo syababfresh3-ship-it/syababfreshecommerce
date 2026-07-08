@@ -56,31 +56,33 @@ for (const tab of ['Kurma 2026', 'DROPSHIP RETAIL']) {
 }
 
 // MAP: [regex produk website, nama Excel (UPPER)]. Grade diandaikan — semak di page.
+// PENTING: rule lebih spesifik (Premium Kotak) mesti DULU; setiap produk padan SATU rule sahaja.
 const MAP = [
+  [/premium \(kotak\).*ajwa|ajwa aliyah premium \(kotak\)/i, 'AJWA ALIYAH PREMIUM'],
+  [/^ajwa aliyah/i, 'AJWA ALIYAH PREMIUM'],
   [/^ajwa medium/i, 'AJWA PREMIUM A'],
   [/^ajwa large/i, 'AJWA PREMIUM AA'],
-  [/^ajwa jumbo/i, 'AJWA JUMBO'],
   [/^ajwa super jumbo/i, 'AJWA SUPER JUMBO VIP'],
-  [/^ajwa aliyah/i, 'AJWA ALIYAH PREMIUM'],
-  [/^mariami a\b/i, 'MARIAMI A'],
-  [/^mariami aa\b/i, 'MARIAMI AA'],
-  [/^mariami aaa/i, 'MARIAMI AAA'],
+  [/^ajwa jumbo/i, 'AJWA JUMBO'],
   [/^mariami premium/i, 'MARIAMI AAA'],
+  [/^mariami aaa/i, 'MARIAMI AAA'],
+  [/^mariami aa\b/i, 'MARIAMI AA'],
+  [/^mariami a\b/i, 'MARIAMI A'],
   [/^safawi jumbo premium/i, 'SAFAWI JUMBO'],
   [/^safawi jumbo/i, 'SAFAWI JUMBO'],
   [/^safawi large/i, 'SAFAWI LARGE'],
   [/^safawi medium/i, 'SAFAWI MEDIUM'],
   [/^medjoul.*super jumbo/i, 'MEDJOUL PALASTINE MIX JUMBO & SUPER JUMBO'],
-  [/^medjoul.*jumbo/i, 'MEDJOUL PALASTINE JUMBO'],
   [/^medjoul.*large/i, 'MEDJOUL PALASTINE LARGE'],
-  [/^dry sukkari/i, 'DRY SUKKARI'],
+  [/^medjoul.*jumbo/i, 'MEDJOUL PALASTINE JUMBO'],
   [/^rotab sukkari/i, 'ROTAB SUKKARI'],
+  [/^dry sukkari/i, 'DRY SUKKARI'],
   [/^mabroom/i, 'MABROOM'],
   [/^kurma tunisia/i, 'KURMA TUNISIA (TANGKAI LOOSE)'],
-  [/^kismis sultana/i, 'KISMIS SULTANA'],
   [/^kismis golden jumbo/i, 'KISMIS GOLDEN JUMBO'],
-  [/^kismis golden\b/i, 'KISMIS GOLDEN SMALL'],
+  [/^kismis golden/i, 'KISMIS GOLDEN SMALL'],
   [/^kismis black/i, 'KISMIS BLACK JUMBO'],
+  [/^kismis sultana/i, 'KISMIS SULTANA'],
   [/^pistachio/i, 'PISTACHIO'],
   [/^roasted almond/i, 'ALMOND'],
   [/^roasted cashew/i, 'ROASTED CASHEW WITH SKIN'],
@@ -95,9 +97,11 @@ const now = new Date().toISOString()
 const updates = []
 const skipped = []
 
-for (const [re, excelName] of MAP) {
-  const p = products.find((x) => re.test(x.name))
-  if (!p) { skipped.push(`(produk web tak jumpa: ${re})`); continue }
+// Loop ikut PRODUK — setiap produk cari rule pertama yang padan (elak .find silap produk)
+for (const p of products) {
+  const rule = MAP.find(([re]) => re.test(p.name))
+  if (!rule) continue
+  const excelName = rule[1]
   const sizes = cogsMap.get(excelName)
   if (!sizes) { skipped.push(`${p.name} — Excel "${excelName}" tiada COGS`); continue }
   const vs = variants.filter((v) => v.product_id === p.id)
