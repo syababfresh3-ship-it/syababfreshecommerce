@@ -98,7 +98,7 @@ export default async function PnlPage({
   }
 
   // Aggregate P&L
-  let revenue = 0, cogs = 0, packaging = 0, kurier = 0, lain = 0, gateway = 0, missing = 0
+  let revenue = 0, cogs = 0, packaging = 0, kurier = 0, lain = 0, gateway = 0, salesTeam = 0, marketing = 0, missing = 0
   const byDay = new Map<string, { jualan: number; kos: number; order: number }>()
 
   function addDay(dateIso: string, jualan: number, kos: number) {
@@ -122,8 +122,10 @@ export default async function PnlPage({
     kurier += kurierOrder
     lain += pnl.lain
     gateway += pnl.gateway
+    salesTeam += pnl.salesTeam
+    marketing += pnl.marketing
     missing += pnl.missingCostItems
-    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway)
+    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway + pnl.salesTeam + pnl.marketing)
   }
 
   for (const o of lpOrders) {
@@ -146,13 +148,15 @@ export default async function PnlPage({
     kurier += kurierOrder
     lain += pnl.lain
     gateway += pnl.gateway
+    salesTeam += pnl.salesTeam
+    marketing += pnl.marketing
     missing += pnl.missingCostItems
-    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway)
+    addDay(o.created_at, total, pnl.cogs + pnl.packaging + kurierOrder + pnl.lain + pnl.gateway + pnl.salesTeam + pnl.marketing)
   }
 
   const kosOperasi = opsCosts.reduce((s, c) => s + (Number(c.amaun) || 0), 0)
   const untungKasar = revenue - cogs
-  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - kosOperasi
+  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketing - kosOperasi
   const marginBersih = revenue > 0 ? (untungBersih / revenue) * 100 : 0
   const totalOrder = orders.length + lpOrders.length
 
@@ -165,6 +169,8 @@ export default async function PnlPage({
     { label: 'Kurier free shipping (anggaran)', value: kurier },
     { label: 'Lain-lain (per unit)', value: lain },
     { label: 'Yuran Gateway (anggaran)', value: gateway },
+    { label: 'Komisen Team Sale', value: salesTeam },
+    { label: 'Marketing (peruntukan)', value: marketing },
     { label: 'Kos Operasi (trip/pekerja/dll)', value: kosOperasi },
   ]
 

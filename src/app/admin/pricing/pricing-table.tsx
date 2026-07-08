@@ -117,7 +117,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
               <th className="px-3 py-2 font-semibold text-right">Packaging</th>
               <th className="px-3 py-2 font-semibold text-right">Kurier</th>
               <th className="px-3 py-2 font-semibold text-right">Lain</th>
-              <th className="px-3 py-2 font-semibold text-right">Gateway*</th>
+              <th className="px-3 py-2 font-semibold text-right">Fee+Komisen*</th>
               <th className="px-3 py-2 font-semibold text-right">Kos Total</th>
               <th className="px-3 py-2 font-semibold text-right">Untung</th>
               <th className="px-3 py-2 font-semibold text-right">Margin</th>
@@ -168,7 +168,7 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
                   ))}
                   {hasAny ? (
                     <>
-                      <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">{fmtRM(eco.kosGateway)}</td>
+                      <td className="px-3 py-2 text-right text-gray-500 whitespace-nowrap">{fmtRM(eco.kosGateway + eco.kosSalesTeam + eco.kosMarketing)}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{fmtRM(eco.kosTotal)}</td>
                       <td className={`px-3 py-2 text-right font-bold whitespace-nowrap ${eco.untung < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                         {fmtRM(eco.untung)}
@@ -220,7 +220,8 @@ export function PricingTable({ rows, settings }: { rows: PricingRow[]; settings:
       </div>
 
       <p className="mt-2 text-[11px] text-gray-400">
-        *Gateway = anggaran fee pembayaran (kadar FPX). Cadangan harga adalah cadangan sahaja — harga jual tidak diubah automatik.
+        *Fee+Komisen = gateway (kadar FPX) + komisen sales + peruntukan marketing, dikira dari harga jual.
+        Cadangan harga adalah cadangan sahaja — harga jual tidak diubah automatik.
       </p>
     </div>
   )

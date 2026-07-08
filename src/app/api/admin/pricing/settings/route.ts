@@ -8,6 +8,8 @@ const KEYS = [
   'pricing_target_margin_pct',
   'pricing_target_margin_pct_2',
   'kurier_free_shipping_rm',
+  'sales_team_pct',
+  'marketing_pct',
 ] as const
 
 export async function GET() {
@@ -29,6 +31,8 @@ export async function GET() {
     pricing_target_margin_pct: Number(map.pricing_target_margin_pct ?? 25),
     pricing_target_margin_pct_2: Number(map.pricing_target_margin_pct_2 ?? 30),
     kurier_free_shipping_rm: Number(map.kurier_free_shipping_rm ?? 15),
+    sales_team_pct: Number(map.sales_team_pct ?? 2),
+    marketing_pct: Number(map.marketing_pct ?? 10),
   })
 }
 

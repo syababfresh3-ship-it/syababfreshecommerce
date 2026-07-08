@@ -14,6 +14,8 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
   const [target, setTarget] = useState(String(settings.targetMarginPct))
   const [target2, setTarget2] = useState(String(settings.targetMarginPct2))
   const [freeShip, setFreeShip] = useState(String(settings.freeShipKurierRm))
+  const [sales, setSales] = useState(String(settings.salesTeamPct))
+  const [marketing, setMarketing] = useState(String(settings.marketingPct))
   const [saving, setSaving] = useState(false)
 
   async function save() {
@@ -29,6 +31,8 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
           pricing_target_margin_pct: parseFloat(target),
           pricing_target_margin_pct_2: parseFloat(target2),
           kurier_free_shipping_rm: parseFloat(freeShip),
+          sales_team_pct: parseFloat(sales),
+          marketing_pct: parseFloat(marketing),
         }),
       })
       const json = await res.json()
@@ -69,6 +73,14 @@ export function GatewaySettingsForm({ settings }: { settings: GatewaySettings })
       <div>
         <label className="block text-[11px] font-bold text-gray-500 mb-1">Kurier Free Ship (RM)</label>
         <input type="number" min="0" step="0.50" value={freeShip} onChange={(e) => setFreeShip(e.target.value)} className={cls} />
+      </div>
+      <div>
+        <label className="block text-[11px] font-bold text-gray-500 mb-1">Komisen Sales (%)</label>
+        <input type="number" min="0" step="0.5" value={sales} onChange={(e) => setSales(e.target.value)} className={cls} />
+      </div>
+      <div>
+        <label className="block text-[11px] font-bold text-gray-500 mb-1">Marketing (%)</label>
+        <input type="number" min="0" step="0.5" value={marketing} onChange={(e) => setMarketing(e.target.value)} className={cls} />
       </div>
       <button
         onClick={save}

@@ -20,6 +20,8 @@ export interface GatewaySettings {
   targetMarginPct: number   // target margin 1 (cth 25%)
   targetMarginPct2: number  // target margin 2 (cth 30%) — untuk banding dengan market
   freeShipKurierRm: number  // anggaran kos kurier ditanggung seller bila order dapat FREE shipping (≥RM189)
+  salesTeamPct: number      // komisen team sale, % dari harga jual
+  marketingPct: number      // peruntukan marketing, % dari harga jual
 }
 
 export const DEFAULT_SETTINGS: GatewaySettings = {
@@ -29,6 +31,8 @@ export const DEFAULT_SETTINGS: GatewaySettings = {
   targetMarginPct: 25,
   targetMarginPct2: 30,
   freeShipKurierRm: 15,
+  salesTeamPct: 2,
+  marketingPct: 10,
 }
 
 export function parseSettings(map: Record<string, string>): GatewaySettings {
@@ -43,6 +47,8 @@ export function parseSettings(map: Record<string, string>): GatewaySettings {
     targetMarginPct: num(map.pricing_target_margin_pct, DEFAULT_SETTINGS.targetMarginPct),
     targetMarginPct2: num(map.pricing_target_margin_pct_2, DEFAULT_SETTINGS.targetMarginPct2),
     freeShipKurierRm: num(map.kurier_free_shipping_rm, DEFAULT_SETTINGS.freeShipKurierRm),
+    salesTeamPct: num(map.sales_team_pct, DEFAULT_SETTINGS.salesTeamPct),
+    marketingPct: num(map.marketing_pct, DEFAULT_SETTINGS.marketingPct),
   }
 }
 
@@ -74,7 +80,9 @@ export function kosTetap(c: Pick<VariantCost, 'kos_buah' | 'kos_packaging' | 'ko
 
 export interface UnitEconomics {
   kosTetap: number
-  kosGateway: number // anggaran, guna kadar FPX (kaedah paling biasa)
+  kosGateway: number    // anggaran, guna kadar FPX (kaedah paling biasa)
+  kosSalesTeam: number  // komisen team sale (% harga)
+  kosMarketing: number  // peruntukan marketing (% harga)
   kosTotal: number
   untung: number
   marginPct: number
@@ -87,10 +95,12 @@ export function computeUnitEconomics(
 ): UnitEconomics {
   const tetap = kosTetap(cost)
   const kosGateway = harga > 0 ? harga * (s.fpxPct / 100) + s.fixedRm : 0
-  const kosTotal = tetap + kosGateway
+  const kosSalesTeam = harga > 0 ? harga * (s.salesTeamPct / 100) : 0
+  const kosMarketing = harga > 0 ? harga * (s.marketingPct / 100) : 0
+  const kosTotal = tetap + kosGateway + kosSalesTeam + kosMarketing
   const untung = harga - kosTotal
   const marginPct = harga > 0 ? (untung / harga) * 100 : 0
-  return { kosTetap: tetap, kosGateway, kosTotal, untung, marginPct }
+  return { kosTetap: tetap, kosGateway, kosSalesTeam, kosMarketing, kosTotal, untung, marginPct }
 }
 
 export type StatusKos = 'bahaya' | 'perhatian' | 'sihat'
@@ -102,10 +112,10 @@ export function statusOf(untung: number, marginPct: number): StatusKos {
 }
 
 // Cadangan harga untuk capai target margin — PAPARAN SAHAJA, tak pernah tulis ke harga jual.
-// harga = (kosTetap + fixed) / (1 - target% - gateway%), bundar NAIK ke RM0.50 terdekat.
+// harga = (kosTetap + fixed) / (1 - target% - gateway% - sales% - marketing%), bundar NAIK ke RM0.50.
 export function cadanganHarga(tetap: number, s: GatewaySettings, targetPct?: number): number | null {
   const target = targetPct ?? s.targetMarginPct
-  const denom = 1 - target / 100 - s.fpxPct / 100
+  const denom = 1 - target / 100 - s.fpxPct / 100 - s.salesTeamPct / 100 - s.marketingPct / 100
   if (denom <= 0 || tetap <= 0) return null
   const raw = (tetap + s.fixedRm) / denom
   return Math.ceil(raw * 2) / 2
@@ -118,6 +128,8 @@ export interface OrderPnl {
   kurier: number
   lain: number
   gateway: number
+  salesTeam: number
+  marketing: number
   missingCostItems: number
 }
 
@@ -140,7 +152,9 @@ export function computeOrderPnl(
   }
   const pct = gatewayPct(paymentMethod, s)
   const gateway = orderTotal > 0 && pct > 0 ? orderTotal * (pct / 100) + s.fixedRm : 0
-  return { cogs, packaging, kurier, lain, gateway, missingCostItems }
+  const salesTeam = orderTotal > 0 ? orderTotal * (s.salesTeamPct / 100) : 0
+  const marketing = orderTotal > 0 ? orderTotal * (s.marketingPct / 100) : 0
+  return { cogs, packaging, kurier, lain, gateway, salesTeam, marketing, missingCostItems }
 }
 
 export function fmtRM(n: number): string {
