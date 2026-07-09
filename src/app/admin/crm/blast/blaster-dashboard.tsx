@@ -147,6 +147,7 @@ export function BlasterDashboard() {
   const totalOrders = totals?.orders ?? 0;
   const totalCost = totals?.cost ?? 0;
   const overallRoas = totalCost > 0 ? totalRevenue / totalCost : null;
+  const overallCpp = totalOrders > 0 ? totalCost / totalOrders : null; // Cost Per Purchase (kos/order)
 
   const cards = [
     { label: "Campaigns sent", value: stats ? String(stats.campaigns_sent) : "—" },
@@ -155,6 +156,7 @@ export function BlasterDashboard() {
     { label: "Order dari blast", value: totalOrders > 0 ? String(totalOrders) : "—", hint: totalOrders > 0 ? `${pct(totalOrders, stats?.messages_delivered ?? 0)} conversion` : undefined },
     { label: "Revenue dari blast", value: totalRevenue > 0 ? `RM${totalRevenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
     { label: "ROAS keseluruhan", value: overallRoas != null ? `${overallRoas.toFixed(2)}×` : "—", hint: totalCost > 0 ? `kos WA ~RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : undefined },
+    { label: "CPP (kos/order)", value: overallCpp != null ? `RM${overallCpp.toFixed(2)}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
   ];
 
   return (
