@@ -34,6 +34,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     is_featured: product?.is_featured ?? false,
     show_in_storefront: product?.show_in_storefront ?? true,
     is_shippable: product?.is_shippable ?? false,
+    is_cold: product?.is_cold ?? true, // default sejuk — majoriti katalog buah segar
     sort_order: product?.sort_order?.toString() ?? '0',
   })
 
@@ -87,6 +88,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       is_featured: form.is_featured,
       show_in_storefront: form.show_in_storefront,
       is_shippable: form.is_shippable,
+      is_cold: form.is_cold,
       sort_order: parseInt(form.sort_order) || 0,
     }
 
@@ -368,6 +370,23 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               </span>
             </button>
           </div>
+          {/* Cold chain — BERASINGAN dari skop: tentukan courier di Shipping
+              exports (sejuk → Lalamove/Ninja Cold; kering → Poslaju). */}
+          <label className="mt-3 flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.is_cold}
+              onChange={(e) => setForm(p => ({ ...p, is_cold: e.target.checked }))}
+              className="mt-0.5"
+            />
+            <span className="text-xs">
+              <span className="font-bold text-gray-700">Item sejuk (perlu cold chain)</span>
+              <span className="block text-[10px] text-gray-400 leading-tight mt-0.5">
+                Ditick: hantar Lalamove (LK) / Ninja Cold (luar LK). Untick untuk barang kering
+                (jus botol, kurma dll) — pergi Poslaju biasa.
+              </span>
+            </span>
+          </label>
         </div>
       </div>
 

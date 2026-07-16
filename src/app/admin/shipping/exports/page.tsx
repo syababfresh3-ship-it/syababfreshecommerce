@@ -46,7 +46,7 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
       : Promise.resolve({ data: [] }),
     supabase
       .from('order_items')
-      .select('order_id, product_name, quantity, variant_name, products(is_shippable)')
+      .select('order_id, product_name, quantity, variant_name, products(is_shippable, is_cold)')
       .in('order_id', orderIds),
   ])
 
@@ -74,16 +74,19 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
   }
 
   const itemsMap = new Map<string, { product_name: string; quantity: number; variant_name: string | null; is_shippable: boolean }[]>()
-  const hasFreshMap = new Map<string, boolean>() // order_id → has any non-shippable item
+  const hasFreshMap = new Map<string, boolean>() // order_id → ada item COLD (fresh)
 
   for (const item of itemsRes.data ?? []) {
-    const productInfo = ((item.products as unknown) as { is_shippable: boolean } | null)
-    // When product info missing, default false (assume segar — safer for cold chain)
-    const isShippable = productInfo !== null ? productInfo.is_shippable : false
+    const productInfo = ((item.products as unknown) as { is_shippable: boolean; is_cold: boolean } | null)
+    // Fresh/dry ikut is_cold (cold chain) — BUKAN is_shippable (itu skop kawasan:
+    // boleh-dipos vs Klang-Valley-sahaja, konsep lain). Produk hilang → anggap
+    // sejuk (selamat untuk cold chain).
+    const isCold = productInfo !== null ? productInfo.is_cold : true
     const existing = itemsMap.get(item.order_id) ?? []
-    existing.push({ product_name: item.product_name, quantity: item.quantity, variant_name: item.variant_name, is_shippable: isShippable })
+    // is_shippable dalam senarai item = penanda "dry" untuk Senarai Pack (kekal songsang is_cold).
+    existing.push({ product_name: item.product_name, quantity: item.quantity, variant_name: item.variant_name, is_shippable: !isCold })
     itemsMap.set(item.order_id, existing)
-    if (!isShippable) hasFreshMap.set(item.order_id, true)
+    if (isCold) hasFreshMap.set(item.order_id, true)
   }
 
   return orders.map((o) => {

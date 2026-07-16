@@ -47,6 +47,7 @@ export interface Product {
   is_featured: boolean
   show_in_storefront: boolean
   is_shippable: boolean
+  is_cold: boolean
   sort_order: number
   created_at: string
   updated_at: string
