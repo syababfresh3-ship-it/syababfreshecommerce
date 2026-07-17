@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { User, Phone, Send, CheckCircle } from 'lucide-react'
+import { HoneypotField } from '@/components/honeypot-field'
 
 export function LpLeadForm({ slug, thankYouTitle, thankYouMessage, thankYouWaLink, thankYouRedirect }: {
   slug: string
@@ -14,6 +15,7 @@ export function LpLeadForm({ slug, thankYouTitle, thankYouMessage, thankYouWaLin
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [source, setSource] = useState('')
+  const [website, setWebsite] = useState('') // honeypot anti-bot
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -34,7 +36,7 @@ export function LpLeadForm({ slug, thankYouTitle, thankYouMessage, thankYouWaLin
       const res = await fetch(`/api/lp/${slug}/lead`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), source }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), source, website }),
       })
       if (!res.ok) { toast.error('Gagal hantar. Cuba semula.'); return }
 
@@ -82,6 +84,7 @@ export function LpLeadForm({ slug, thankYouTitle, thankYouMessage, thankYouWaLin
     <div className="my-6 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
       <p className="font-bold text-gray-900 text-base mb-4">Tinggalkan maklumat anda</p>
       <form onSubmit={handleSubmit} className="space-y-3">
+        <HoneypotField value={website} onChange={setWebsite} />
         <div className="relative">
           <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input

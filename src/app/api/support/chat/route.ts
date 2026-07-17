@@ -3,6 +3,7 @@ export const maxDuration = 60
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimit, clientIp } from '@/lib/rate-limit'
 import { verifySupportToken } from '@/lib/support/token'
 import { runSupportChat, type ChatTurn } from '@/lib/support/agent'
 import { buildGuestSystemPrompt } from '@/lib/support/knowledge'
@@ -24,6 +25,10 @@ export async function POST(req: Request) {
 
   // ── Mod GUEST (soalan umum, tiada order) — FAQ + produk sahaja, tiada DB ──
   if (complaintId === 'guest') {
+    // Anti-bot: token guest identity konstan ('guest' untuk semua) → had ikut
+    // IP sahaja. Tanpa ni, kos LLM boleh dispam percuma.
+    if (!rateLimit('gchat:' + clientIp(req), 10, 60_000))
+      return NextResponse.json({ error: 'Terlalu banyak mesej. Cuba sekejap lagi.' }, { status: 429 })
     const ctx = { admin, complaintId: 'guest', orderKind: 'store' as const, orderId: '', orderNumber: '' }
     const guestHistory: ChatTurn[] = (Array.isArray(clientHistory) ? clientHistory : [])
       .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string')

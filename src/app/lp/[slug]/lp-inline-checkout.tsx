@@ -7,6 +7,7 @@ import type { Product, ProductVariant } from '@/types'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
+import { HoneypotField } from '@/components/honeypot-field'
 
 interface Props {
   product: Product & { product_variants?: ProductVariant[] }
@@ -31,6 +32,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   )
   const [qty, setQty] = useState(1)
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', postcode: '', notes: '' })
+  const [website, setWebsite] = useState('') // honeypot anti-bot
   const [paymentMethod, setPaymentMethod] = useState('')
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
@@ -120,7 +122,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || null,
+          name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || null, website,
           address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
@@ -236,6 +238,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
       </div>
 
       <form onSubmit={handleSubmit}>
+        <HoneypotField value={website} onChange={setWebsite} />
 
         {/* ── STEP 1: Variant + Qty ── */}
         <div style={{ padding: '20px 20px 0' }}>

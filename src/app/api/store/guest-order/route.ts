@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { upsertCustomer } from '@/lib/customers'
+import { rateLimit } from '@/lib/rate-limit'
+import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { NextResponse } from 'next/server'
 
 // Guest checkout STOREFRONT — tanpa login. Disimpan dalam lp_guest_orders
@@ -30,7 +32,19 @@ interface OrderItem {
 }
 
 export async function POST(request: Request) {
+  // Anti-bot lapisan 1: burst gate in-memory (halang script burst murah-murah).
+  const ip = safeClientIp(request)
+  if (!rateLimit('go:' + (ip ?? 'unknown'), 8, 60_000))
+    return NextResponse.json({ error: FLOOD_ERROR }, { status: 429 })
+
   const body = await request.json().catch(() => ({}))
+
+  // Anti-bot lapisan 3: honeypot — balas fake-200 (bot tak belajar), tiada row/email.
+  if (isHoneypotFilled(body)) {
+    console.warn(`[order-guard] honeypot hit (guest-order) ip=${ip}`)
+    return NextResponse.json({ ok: true, orderId: crypto.randomUUID(), order_number: fakeOrderNumber(), total: 0, delivery_fee: 0, payment_method: body?.payment_method ?? 'cod' })
+  }
+
   const { name, phone, address, postcode, notes, payment_method = 'cod', items, delivery_method, pickup_date, promo_code, email } = body
 
   const isPickup = delivery_method === 'pickup'
@@ -65,6 +79,11 @@ export async function POST(request: Request) {
   }
 
   const supabase = createAdminClient()
+
+  // Anti-bot lapisan 2: had global merentas instance (20/IP, 3/telefon, 3/email sejam).
+  // Sebelum semua IO produk — cubaan disekat hanya kos satu query.
+  const flood = await checkGuestOrderFlood(supabase, ip, phone.trim(), customerEmail)
+  if (!flood.ok) return NextResponse.json({ error: flood.error }, { status: 429 })
 
   // Auth pilihan — kalau ada sesi, link user_id (jarang; member biasa guna /api/orders)
   const userClient = await createClient()
@@ -184,6 +203,7 @@ export async function POST(request: Request) {
       order_number: orderNumber,
       page_id: null,                 // bukan dari landing page
       source: 'store-guest',         // guest checkout storefront
+      client_ip: ip,
       name: name.trim(),
       phone: phone.trim(),
       email: customerEmail,

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
 import { freeDeliveryActive } from '@/lib/shipping'
+import { HoneypotField } from '@/components/honeypot-field'
 import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
@@ -103,6 +104,7 @@ export default function CheckoutPage() {
     phone: '',
     email: '',
   })
+  const [website, setWebsite] = useState('') // honeypot anti-bot (guest sahaja)
 
   useEffect(() => {
     if (items.length > 0) trackInitiateCheckout(getTotal())
@@ -409,6 +411,7 @@ export default function CheckoutPage() {
           pickup_date: isPickup ? pickupDate : null,
           notes: form.notes || null,
           promo_code: appliedPromo?.code ?? null,
+          website,
         }),
       })
       if (!guestRes.ok) {
@@ -526,6 +529,7 @@ export default function CheckoutPage() {
         <span className="text-[16px] font-extrabold text-gray-900">Pembayaran</span>
       </div>
       <form id="checkout-form" onSubmit={handleSubmit} className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
+        <HoneypotField value={website} onChange={setWebsite} />
 
         {/* ── 0. RECIPIENT INFO ────────────────────────────── */}
         <div className={card}>

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { upsertCustomer } from '@/lib/customers'
+import { rateLimit } from '@/lib/rate-limit'
+import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { NextResponse } from 'next/server'
 
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
@@ -29,7 +31,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!slug || !/^[a-z0-9-]+$/.test(slug))
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
+  // Anti-bot lapisan 1: burst gate in-memory.
+  const ip = safeClientIp(request)
+  if (!rateLimit('lpo:' + (ip ?? 'unknown'), 8, 60_000))
+    return NextResponse.json({ error: FLOOD_ERROR }, { status: 429 })
+
   const body = await request.json().catch(() => ({}))
+
+  // Anti-bot lapisan 3: honeypot — fake-200, tiada row/email/CHIP.
+  if (isHoneypotFilled(body)) {
+    console.warn(`[order-guard] honeypot hit (lp-order:${slug}) ip=${ip}`)
+    return NextResponse.json({ ok: true, order_number: fakeOrderNumber(), total: 0, delivery_fee: 0, payment_method: body?.payment_method ?? 'cod' })
+  }
+
   const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email } = body
 
   const isPickup = delivery_method === 'pickup'
@@ -67,6 +81,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   const supabase = createAdminClient()
+
+  // Anti-bot lapisan 2: had global merentas instance (20/IP, 3/telefon, 3/email sejam).
+  const flood = await checkGuestOrderFlood(supabase, ip, phone.trim(), customerEmail)
+  if (!flood.ok) return NextResponse.json({ error: flood.error }, { status: 429 })
 
   // Auth pilihan — pembeli LP yang login boleh tebus mata loyalty (guest kekal dibenarkan)
   const userClient = await createClient()
@@ -207,6 +225,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .insert({
       order_number: orderNumber,
       page_id: page.id,
+      client_ip: ip,
       name: name.trim(),
       phone: phone.trim(),
       address: isPickup ? PICKUP_ADDRESS : address.trim(),

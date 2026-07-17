@@ -2,13 +2,26 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { sendCapiLead } from '@/lib/meta-capi'
 import { upsertCustomer } from '@/lib/customers'
+import { rateLimit } from '@/lib/rate-limit'
+import { safeClientIp, isHoneypotFilled } from '@/lib/order-guard'
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   if (!slug || !/^[a-z0-9-]+$/.test(slug))
     return NextResponse.json({ error: 'Tidak sah' }, { status: 400 })
 
+  // Anti-bot: burst gate — lead spam rosakkan optimization iklan Meta (CAPI).
+  const ip = safeClientIp(request)
+  if (!rateLimit('lead:' + (ip ?? 'unknown'), 5, 60_000))
+    return NextResponse.json({ error: 'Terlalu banyak permintaan. Cuba sebentar lagi.' }, { status: 429 })
+
   const body = await request.json().catch(() => ({}))
+
+  // Honeypot — fake-ok: skip DB, CRM & CAPI, bot tak belajar.
+  if (isHoneypotFilled(body)) {
+    console.warn(`[order-guard] honeypot hit (lead:${slug}) ip=${ip}`)
+    return NextResponse.json({ ok: true })
+  }
   const name = typeof body.name === 'string' ? body.name.trim().slice(0, 120) : null
   const phone = typeof body.phone === 'string' ? body.phone.trim().slice(0, 30) : null
   const source = typeof body.source === 'string' ? body.source.trim().slice(0, 120) : null
