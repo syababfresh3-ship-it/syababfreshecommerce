@@ -56,12 +56,59 @@ export default async function ProductDetailPage({
   const product = await getProduct(slug)
   if (!product) notFound()
 
+  const supabase = await createClient()
+
+  // Ulasan sebenar + produk berkaitan + kelayakan tulis ulasan — selari.
+  const [reviewsRes, relatedRes, { data: { user } }] = await Promise.all([
+    supabase
+      .from('product_reviews')
+      .select('id, rating, comment, created_at, profiles(full_name)')
+      .eq('product_id', product.id)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    product.category_id
+      ? supabase
+          .from('products')
+          .select('id, name, slug, price, unit, image_url')
+          .eq('category_id', product.category_id)
+          .eq('is_active', true)
+          .eq('show_in_storefront', true)
+          .neq('id', product.id)
+          .limit(4)
+      : Promise.resolve({ data: [] }),
+    supabase.auth.getUser(),
+  ])
+
+  // Layak tulis ulasan: pernah terima (delivered) order yang ada produk ni,
+  // dan belum pernah ulas. Guest → tak layak (perlu akaun).
+  let canReview = false
+  if (user) {
+    const [{ data: bought }, { data: mine }] = await Promise.all([
+      supabase
+        .from('orders')
+        .select('id, order_items!inner(product_id)')
+        .eq('user_id', user.id)
+        .eq('status', 'delivered')
+        .eq('order_items.product_id', product.id)
+        .limit(1),
+      supabase.from('product_reviews').select('id').eq('product_id', product.id).eq('user_id', user.id).limit(1),
+    ])
+    canReview = (bought?.length ?? 0) > 0 && (mine?.length ?? 0) === 0
+  }
+
   return (
     <>
       {/* Structured data — beritahu Google/AI: nama produk, harga, stok */}
       <JsonLd data={productSchema(product)} />
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <SfProduct product={product as any} />
+      <SfProduct
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        product={product as any}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        reviews={(reviewsRes.data ?? []) as any}
+        canReview={canReview}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        related={(relatedRes.data ?? []) as any}
+      />
     </>
   )
 }

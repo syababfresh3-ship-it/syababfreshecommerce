@@ -3,17 +3,30 @@
 // Redesign v2 — Produk detail (pushed screen): hero + pemilih variant + benefit + sticky add.
 // Seksyen I: nama bersih (buang saiz), label dinamik (Saiz/Pakej), harga per-unit + jimat,
 // kuantiti berasingan dari variant, penunjuk stok.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Heart, Star, Leaf, Truck, RotateCcw, Plus, Minus, Check } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/lib/stores/cart";
+import { ProductReviews } from "@/app/products/[slug]/reviews";
+import { SfWaitlist } from "@/components/storev2/sf-waitlist";
 import type { Product, ProductVariant } from "@/types";
 
 type DetailProduct = Product & {
   categories?: { name: string; slug: string } | null;
   product_variants?: ProductVariant[];
 };
+
+interface ReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  profiles?: { full_name: string | null };
+}
+
+type RelatedProduct = Pick<Product, "id" | "name" | "slug" | "price" | "unit" | "image_url">;
 
 // Hurai nama variant → kiraan bundle + unit + sama ada ia berat.
 function parseVariant(name: string): { count: number; unit: string; weight: boolean } {
@@ -25,7 +38,17 @@ function parseVariant(name: string): { count: number; unit: string; weight: bool
   return { count: weight ? 1 : num, unit, weight };
 }
 
-export function SfProduct({ product }: { product: DetailProduct }) {
+export function SfProduct({
+  product,
+  reviews = [],
+  canReview = false,
+  related = [],
+}: {
+  product: DetailProduct;
+  reviews?: ReviewRow[];
+  canReview?: boolean;
+  related?: RelatedProduct[];
+}) {
   const variants = (product.product_variants ?? [])
     .filter((v) => v.is_active !== false)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
@@ -35,6 +58,42 @@ export function SfProduct({ product }: { product: DetailProduct }) {
   const [qty, setQty] = useState(1);
   const [liked, setLiked] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
+
+  // Wishlist SEBENAR (table wishlists) — sebelum ni useState lokal je, hilang bila refresh.
+  useEffect(() => {
+    const supabase = createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.auth.getUser() as Promise<any>).then((res) => {
+      const user = res.data?.user;
+      if (!user) return;
+      supabase
+        .from("wishlists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("product_id", product.id)
+        .maybeSingle()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .then((r: any) => setLiked(!!r.data));
+    });
+  }, [product.id]);
+
+  async function toggleWishlist() {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Sila log masuk untuk simpan produk");
+      return;
+    }
+    if (liked) {
+      setLiked(false);
+      await supabase.from("wishlists").delete().eq("user_id", user.id).eq("product_id", product.id);
+      toast.success("Dibuang dari senarai suka");
+    } else {
+      setLiked(true);
+      await supabase.from("wishlists").insert({ user_id: user.id, product_id: product.id });
+      toast.success("Disimpan ke senarai suka!");
+    }
+  }
 
   // #1 Buang saiz/berat dalam kurungan dari nama (paparan sahaja): "Sweet Lychee (500Gram)" → "Sweet Lychee".
   const cleanName = product.name.replace(/\s*\([^)]*\)\s*$/, "").trim() || product.name;
@@ -84,7 +143,7 @@ export function SfProduct({ product }: { product: DetailProduct }) {
             <span className="absolute top-3 left-3 bg-gray-900 text-white text-[10px] font-bold rounded-full px-2.5 py-1">{catName}</span>
           )}
           <button
-            onClick={() => setLiked((v) => !v)}
+            onClick={toggleWishlist}
             className="absolute top-3 right-3 h-9 w-9 grid place-items-center rounded-full bg-white shadow"
             aria-label="Senarai suka"
           >
@@ -96,11 +155,16 @@ export function SfProduct({ product }: { product: DetailProduct }) {
         <div className="px-4 pt-4 max-w-2xl mx-auto">
           {catName && <div className="text-[11px] font-bold text-[#E11D2A] uppercase tracking-wide">{catName}</div>}
           <h1 className="text-[22px] font-extrabold text-gray-900 mt-0.5 leading-tight">{cleanName}</h1>
-          <div className="flex items-center gap-1.5 mt-1">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            <span className="text-[13px] font-bold text-gray-900">4.9</span>
-            <span className="text-[12px] text-gray-400">(128 ulasan)</span>
-          </div>
+          {/* Rating SEBENAR dari ulasan customer — tiada ulasan = tak tunjuk nombor palsu */}
+          {reviews.length > 0 ? (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              <span className="text-[13px] font-bold text-gray-900">
+                {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
+              </span>
+              <span className="text-[12px] text-gray-400">({reviews.length} ulasan)</span>
+            </div>
+          ) : null}
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-[26px] font-extrabold text-[#E11D2A]">RM{Number(unitPrice).toFixed(2)}</span>
             {variant && <span className="text-[13px] text-gray-400 font-medium">/{variant.name}</span>}
@@ -127,6 +191,9 @@ export function SfProduct({ product }: { product: DetailProduct }) {
               </span>
             )}
           </div>
+
+          {/* Waitlist — HANYA muncul bila habis stok (tiada kesan pada flow biasa) */}
+          {soldOut && <SfWaitlist productId={product.id} />}
 
           {/* #1/#2/#4 Pemilih variant */}
           {hasVariants && (
@@ -193,6 +260,38 @@ export function SfProduct({ product }: { product: DetailProduct }) {
             <div className="text-[14px] font-extrabold text-gray-900 mb-1.5">Tentang produk</div>
             <p className="text-[13px] text-gray-500 leading-relaxed whitespace-pre-line">{about}</p>
           </div>
+
+          {/* Ulasan customer (data sebenar dari product_reviews) */}
+          <div className="mt-6 border-t border-gray-100 pt-5">
+            <ProductReviews productId={product.id} reviews={reviews} canReview={canReview} />
+          </div>
+
+          {/* Produk berkaitan — kategori sama */}
+          {related.length > 0 && (
+            <div className="mt-6 border-t border-gray-100 pt-5">
+              <div className="text-[14px] font-extrabold text-gray-900 mb-2.5">Anda mungkin suka</div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {related.map((r) => (
+                  <Link key={r.id} href={`/products/${r.slug}`} className="bg-[#F4F6F5] rounded-xl overflow-hidden">
+                    <div className="aspect-square overflow-hidden">
+                      {r.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.image_url} alt={r.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full grid place-items-center text-3xl">🍎</div>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <div className="text-[12px] font-bold text-gray-900 truncate">{r.name}</div>
+                      <div className="text-[12px] font-extrabold text-[#E11D2A] mt-0.5">
+                        RM{Number(r.price).toFixed(2)}<span className="text-[10px] text-gray-400 font-medium">/{r.unit}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

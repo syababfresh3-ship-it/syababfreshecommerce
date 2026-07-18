@@ -56,8 +56,8 @@ self.addEventListener('push', (event) => {
   const title = data.title ?? 'SyababFresh'
   const options = {
     body: data.body ?? '',
-    icon: '/icon-192.png',
-    badge: '/icon-72.png',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
     tag: data.tag ?? 'syababfresh',
     data: { url: data.url ?? '/' },
   }
