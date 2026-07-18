@@ -4,13 +4,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { parseSettings, costLookup, type VariantCost } from '@/lib/pricing/costing'
 import { PricingTable, type PricingRow } from './pricing-table'
 import { GatewaySettingsForm } from './gateway-settings-form'
+import { SheetSuggestions, type SuggestionRow } from './sheet-suggestions'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PricingPage() {
   const supabase = createAdminClient()
 
-  const [prodRes, varRes, costRes, settingsRes] = await Promise.all([
+  const [prodRes, varRes, costRes, settingsRes, sugRes] = await Promise.all([
     supabase
       .from('products')
       .select('id, name, price, unit, image_url, sort_order, categories(name)')
@@ -26,6 +27,10 @@ export default async function PricingPage() {
       .from('app_settings')
       .select('key, value')
       .in('key', ['gateway_fee_fpx_pct', 'gateway_fee_ewallet_pct', 'gateway_fee_fixed_rm', 'pricing_target_margin_pct']),
+    supabase
+      .from('cost_suggestions')
+      .select('id, product_id, variant_id, kos_buah_lama, kos_buah_baru, breakdown')
+      .eq('status', 'pending'),
   ])
 
   const products = prodRes.data ?? []
@@ -87,6 +92,26 @@ export default async function PricingPage() {
 
   const belumIsi = rows.filter((r) => !r.kos).length
 
+  // Cadangan kos dari sheet (pending) → petakan nama produk/variant untuk paparan.
+  const prodName = new Map<string, string>()
+  for (const p of products) prodName.set(p.id, p.name)
+  const varName = new Map<string, string>()
+  for (const v of variants) varName.set(v.id, v.name)
+  const suggestions: SuggestionRow[] = (sugRes.data ?? []).map((s) => {
+    const bd = (s.breakdown ?? {}) as { cfr?: number; clearance?: number; rule?: string; tarikh?: string }
+    return {
+      id: s.id as string,
+      nama: prodName.get(s.product_id as string) ?? '(produk)',
+      variantNama: s.variant_id ? (varName.get(s.variant_id as string) ?? null) : null,
+      kos_buah_lama: s.kos_buah_lama != null ? Number(s.kos_buah_lama) : null,
+      kos_buah_baru: Number(s.kos_buah_baru),
+      cfr: Number(bd.cfr ?? 0),
+      clearance: Number(bd.clearance ?? 0),
+      rule: bd.rule ?? '',
+      tarikh: bd.tarikh ?? '',
+    }
+  })
+
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="mb-4">
@@ -98,6 +123,8 @@ export default async function PricingPage() {
       </div>
 
       <GatewaySettingsForm settings={settings} />
+
+      <SheetSuggestions suggestions={suggestions} />
 
       {belumIsi > 0 && (
         <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-[13px] text-amber-800">
