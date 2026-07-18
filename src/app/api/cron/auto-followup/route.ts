@@ -10,6 +10,7 @@ export const maxDuration = 50;
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runAutoFollowup } from "@/lib/auto-followup";
+import { stampHeartbeat } from "@/lib/cron-heartbeat";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -17,5 +18,6 @@ export async function GET(req: NextRequest) {
   }
   const admin = createAdminClient();
   const res = await runAutoFollowup(admin, { budgetMs: 20_000 });
+  await stampHeartbeat(admin, 'auto-followup');
   return NextResponse.json(res);
 }

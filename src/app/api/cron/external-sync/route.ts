@@ -9,6 +9,7 @@ export const maxDuration = 120;
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncExternalCustomers } from "@/lib/external-sync";
+import { stampHeartbeat, stampHeartbeatError } from "@/lib/cron-heartbeat";
 
 export async function GET(req: Request) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -16,5 +17,7 @@ export async function GET(req: Request) {
   }
   const sb = createAdminClient();
   const r = await syncExternalCustomers(sb);
+  if (r.ok) await stampHeartbeat(sb, "external-sync");
+  else await stampHeartbeatError(sb, "external-sync", r.error);
   return Response.json(r, { status: r.ok ? 200 : (r.status ?? 500) });
 }

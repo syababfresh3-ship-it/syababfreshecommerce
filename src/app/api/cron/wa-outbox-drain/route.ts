@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWhatsApp } from '@/lib/murpati'
+import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
 // Drainer wa_outbox. Dipanggil scheduler luar (cron-job.org ~tiap 5 min) sebab
 // Vercel Hobby cron hanya sekali/hari. Ambil mesej 'pending' yg scheduled_at <= now,
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
     .limit(PER_TICK)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!due?.length) return NextResponse.json({ sent: 0, failed: 0, due: 0 })
+  if (!due?.length) { await stampHeartbeat(admin, 'wa-outbox-drain'); return NextResponse.json({ sent: 0, failed: 0, due: 0 }) }
 
   let sent = 0
   let failed = 0
@@ -79,5 +80,6 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(`[wa-outbox-drain] sent ${sent}, failed ${failed}, due ${due.length}`)
+  await stampHeartbeat(admin, 'wa-outbox-drain')
   return NextResponse.json({ sent, failed, due: due.length })
 }

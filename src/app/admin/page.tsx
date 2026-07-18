@@ -21,6 +21,7 @@ async function getStats() {
     totalOrders, activeProducts, customers,
     pendingOrders, pendingRefunds, lowStock,
     lpTodayOrders, lpTodayRevenue, lpTotalOrders,
+    heartbeats,
   ] = await Promise.all([
     supabase.from('orders').select('total').eq('payment_status', 'paid').gte('created_at', yearStart.toISOString()),
     supabase.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
@@ -39,7 +40,15 @@ async function getStats() {
     supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
     supabase.from('lp_guest_orders').select('total').eq('status', 'confirmed').gte('created_at', todayStart.toISOString()),
     supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }),
+    supabase.from('cron_heartbeats').select('job, last_ok_at, expected_minutes'),
   ])
+
+  // Cron "senyap": tiada stamp langsung, atau stamp terakhir > 3x selang jangkaan.
+  // (Jadual mungkin belum wujud sebelum migration 109 → data null → tiada alert.)
+  const staleCrons = (heartbeats.data ?? []).filter((h: { last_ok_at: string | null; expected_minutes: number }) => {
+    if (!h.last_ok_at) return true
+    return Date.now() - new Date(h.last_ok_at).getTime() > h.expected_minutes * 3 * 60_000
+  }).map((h: { job: string }) => h.job)
 
   return {
     revenue: allRevenue.data?.reduce((s, o) => s + Number(o.total), 0) ?? 0,
@@ -52,6 +61,7 @@ async function getStats() {
     urgentPending: pendingOrders.data ?? [],
     pendingRefunds: pendingRefunds.count ?? 0,
     lowStockCount: lowStock.data?.length ?? 0,
+    staleCrons,
   }
 }
 
@@ -93,7 +103,7 @@ const statusConfig: Record<string, { label: string; cls: string }> = {
 
 export default async function AdminDashboard() {
   const [stats, recentOrders] = await Promise.all([getStats(), getRecentOrders()])
-  const hasAlerts = stats.urgentPending.length > 0 || stats.pendingRefunds > 0 || stats.lowStockCount > 0
+  const hasAlerts = stats.urgentPending.length > 0 || stats.pendingRefunds > 0 || stats.lowStockCount > 0 || stats.staleCrons.length > 0
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-7xl">
@@ -131,6 +141,15 @@ export default async function AdminDashboard() {
                 {stats.lowStockCount} product stock rendah
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
+            )}
+            {stats.staleCrons.length > 0 && (
+              <span
+                className="flex items-center gap-2 bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm"
+                title={`Cron senyap melebihi jangkaan: ${stats.staleCrons.join(', ')}. Semak cron-job.org / log Vercel (docs/cron-inventory.md)`}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                CRON SENYAP: {stats.staleCrons.join(', ')}
+              </span>
             )}
           </div>
         </div>

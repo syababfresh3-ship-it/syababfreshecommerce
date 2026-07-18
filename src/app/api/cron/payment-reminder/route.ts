@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPaymentReminderEmail } from '@/lib/zeptomail'
+import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
 // Abandoned-payment reminder. Dipanggil oleh scheduler luar (GitHub Actions tiap
 // ~30 min) sebab Vercel Hobby cron hanya sekali/hari. Cari order FPX/e-wallet
@@ -79,5 +80,6 @@ export async function GET(req: NextRequest) {
   }
 
   console.log(`[payment-reminder] sent ${sent} (sf=${sf?.length ?? 0}, lp=${lp?.length ?? 0})`)
+  await stampHeartbeat(supabase, 'payment-reminder')
   return NextResponse.json({ sent, candidates: candidates.length })
 }

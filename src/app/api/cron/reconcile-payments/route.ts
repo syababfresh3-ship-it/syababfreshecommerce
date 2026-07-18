@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { confirmLpGuestOrder, confirmStorefrontOrder } from '@/lib/order-confirm'
+import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
 export const runtime = 'nodejs'
 
@@ -202,5 +203,6 @@ export async function GET(req: Request) {
     }
   }
 
+  await stampHeartbeat(supabase, 'reconcile-payments')
   return Response.json({ ok: true, ...summary })
 }

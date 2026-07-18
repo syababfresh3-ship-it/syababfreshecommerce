@@ -9,6 +9,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { drainBlasts } from "@/lib/blast-drain";
+import { stampHeartbeat } from "@/lib/cron-heartbeat";
 
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`)
@@ -17,5 +18,6 @@ export async function GET(req: NextRequest) {
   const sb = createAdminClient();
   // Bajet < maxDuration supaya fungsi sempat tutup elok; baki di-drain pusingan depan.
   const result = await drainBlasts(sb, { budgetMs: 240_000 });
+  await stampHeartbeat(sb, 'blast-drain');
   return NextResponse.json({ ok: true, ...result });
 }

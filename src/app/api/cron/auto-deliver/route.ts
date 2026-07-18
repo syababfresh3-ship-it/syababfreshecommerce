@@ -5,6 +5,7 @@ export const maxDuration = 60
 import { createAdminClient } from '@/lib/supabase/admin'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
+import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
 // Auto-mark order 'delivering' → 'delivered' selepas 7 hari, sebab tiada sync
 // status dari courier (Ninja/Pos/Lalamove). Tanpa ini, order tersangkut di
@@ -83,5 +84,6 @@ export async function GET(req: Request) {
   }
 
   console.log(`[auto-deliver] storefront ${sfDelivered}, lp ${lpDelivered} (days=${CUTOFF_DAYS}, cutoff ${cutoff})`)
+  await stampHeartbeat(admin, 'auto-deliver')
   return Response.json({ ok: true, days: CUTOFF_DAYS, sfDelivered, lpDelivered, cutoff })
 }

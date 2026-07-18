@@ -3,6 +3,8 @@ export const runtime = 'nodejs'
 export const maxDuration = 60 // headroom; bulk upsert kini patut siap dlm beberapa saat
 
 import { refreshCustomerAggregates } from '@/lib/customers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { stampHeartbeat, stampHeartbeatError } from '@/lib/cron-heartbeat'
 
 // Segar agregat master customer (order_count / total_spend / recency) supaya
 // kad stat & segmen CRM tak basi. `upsertCustomer` cuma jaga identiti + sumber +
@@ -18,9 +20,11 @@ export async function GET(req: Request) {
   }
   try {
     const summary = await refreshCustomerAggregates()
+    await stampHeartbeat(createAdminClient(), 'refresh-customers')
     return Response.json({ ok: true, ...summary })
   } catch (err) {
     console.error('[cron/refresh-customers] failed:', err)
+    await stampHeartbeatError(createAdminClient(), 'refresh-customers', err)
     return Response.json({ ok: false, error: (err as Error).message }, { status: 500 })
   }
 }

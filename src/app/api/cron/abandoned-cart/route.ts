@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import webpush from 'web-push'
+import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
 // Called by Vercel Cron every hour
 // Finds users with items in cart but no order in the last 2 hours → send push reminder
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
     .select('*')
     .in('user_id', abandonedUserIds)
 
-  if (!subs?.length) return NextResponse.json({ sent: 0 })
+  if (!subs?.length) { await stampHeartbeat(supabase, 'abandoned-cart'); return NextResponse.json({ sent: 0 }) }
 
   const payload = JSON.stringify({
     title: '🛒 Jangan lupa troli anda!',
@@ -72,5 +73,6 @@ export async function GET(req: NextRequest) {
 
   const sent = results.filter(r => r.status === 'fulfilled').length
   console.log(`[abandoned-cart] Sent ${sent}/${subs.length} reminders`)
+  await stampHeartbeat(supabase, 'abandoned-cart')
   return NextResponse.json({ sent, total: subs.length })
 }
