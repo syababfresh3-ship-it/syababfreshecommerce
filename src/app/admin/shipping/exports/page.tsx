@@ -23,7 +23,7 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
 
   let q = supabase
     .from('orders')
-    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, exported_at, pickup_date')
+    .select('id, order_number, status, payment_method, payment_status, total, notes, created_at, user_id, address_id, delivery_address, postcode, exported_at, pickup_date')
     // Export: confirmed/preparing sahaja (delivering = dah ada tracking → keluar).
     // Pickup: sertakan 'delivering' (= sedia diambil) supaya staf boleh tanda "Dah Diambil".
     .in('status', pickup ? ['confirmed', 'preparing', 'delivering'] : ['confirmed', 'preparing'])
@@ -63,8 +63,8 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
     if (!pc || pc.length !== 5) return null
     const n = parseInt(pc, 10)
     if (isNaN(n)) return null
-    // Selangor: 40000-48999, KL: 50000-60000, Putrajaya: 62000-64000
-    return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000)
+    // Selangor: 40000-48999, KL: 50000-60000, Putrajaya: 62000-64000, Ampang/Batu Caves: 68000-68100
+    return (n >= 40000 && n <= 48999) || (n >= 50000 && n <= 60000) || (n >= 62000 && n <= 64000) || (n >= 68000 && n <= 68100)
   }
 
   function extractPostcode(addr: string | null | undefined): string | null {
@@ -93,8 +93,10 @@ async function getOrders(from: string, to: string, pickup: boolean, overrides: M
     const profile = profileMap.get(o.user_id)
     const address = o.address_id ? addressMap.get(o.address_id) : null
     const state = address?.state ?? null
-    // Determine KL: try state first, then postcode
-    const postcode = address?.postcode ?? extractPostcode(o.delivery_address)
+    // Determine KL: try state first, then postcode.
+    // Utamakan kolum orders.postcode (diisi masa checkout storefront, address_id sering NULL);
+    // fallback ke alamat table & regex address string macam sedia ada.
+    const postcode = o.postcode ?? address?.postcode ?? extractPostcode(o.delivery_address)
     const isKlByState = state ? KL_STATES.has(state) : null
     const isKlByPostcode = postcode ? isKlPostcode(postcode) : null
     const is_kl = applyOverride(postcode ? overrides.get(postcode) : undefined, isKlByState ?? isKlByPostcode ?? false)
