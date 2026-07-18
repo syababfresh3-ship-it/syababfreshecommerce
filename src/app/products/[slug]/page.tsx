@@ -9,7 +9,8 @@ async function getProduct(slug: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('products')
-    .select('*, categories(name, slug), product_variants(id, name, price, compare_price, is_active, sort_order)')
+    // `stock` variant WAJIB — penunjuk "Habis stok" + butang waitlist bergantung padanya
+    .select('*, categories(name, slug), product_variants(id, name, price, compare_price, is_active, sort_order, stock)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -58,8 +59,8 @@ export default async function ProductDetailPage({
 
   const supabase = await createClient()
 
-  // Ulasan sebenar + produk berkaitan + kelayakan tulis ulasan — selari.
-  const [reviewsRes, relatedRes, { data: { user } }] = await Promise.all([
+  // Ulasan sebenar + produk berkaitan + stok produk + kelayakan ulasan — selari.
+  const [reviewsRes, relatedRes, stockRes, { data: { user } }] = await Promise.all([
     supabase
       .from('product_reviews')
       .select('id, rating, comment, created_at, profiles(full_name)')
@@ -76,6 +77,8 @@ export default async function ProductDetailPage({
           .neq('id', product.id)
           .limit(4)
       : Promise.resolve({ data: [] }),
+    // Stok produk tanpa variant — dari view product_stock (batch belum luput).
+    supabase.from('product_stock').select('available_stock').eq('product_id', product.id).maybeSingle(),
     supabase.auth.getUser(),
   ])
 
@@ -108,6 +111,7 @@ export default async function ProductDetailPage({
         canReview={canReview}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         related={(relatedRes.data ?? []) as any}
+        productStock={stockRes.data?.available_stock ?? null}
       />
     </>
   )

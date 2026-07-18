@@ -43,11 +43,13 @@ export function SfProduct({
   reviews = [],
   canReview = false,
   related = [],
+  productStock = null,
 }: {
   product: DetailProduct;
   reviews?: ReviewRow[];
   canReview?: boolean;
   related?: RelatedProduct[];
+  productStock?: number | null; // stok produk TANPA variant (view product_stock); null = tak dijejak
 }) {
   const variants = (product.product_variants ?? [])
     .filter((v) => v.is_active !== false)
@@ -106,8 +108,9 @@ export function SfProduct({
   const total = unitPrice * qty;
   const catName = product.categories?.name;
 
-  // #5 Penunjuk stok (dari variant terpilih).
-  const stock = variant?.stock;
+  // #5 Penunjuk stok — variant terpilih; produk tanpa variant guna product_stock
+  // (batch). null/undefined = stok tak dijejak → anggap ada (perangai lama).
+  const stock = hasVariants ? variant?.stock : (productStock ?? undefined);
   const soldOut = stock !== undefined && stock <= 0;
   const lowStock = stock !== undefined && stock > 0 && stock <= 10;
 

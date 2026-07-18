@@ -6,7 +6,10 @@ import { Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
 import type { Product, ProductVariant } from "@/types";
 
-type CardProduct = Product & { product_variants?: ProductVariant[] };
+type CardProduct = Product & {
+  product_variants?: ProductVariant[];
+  product_stock?: { available_stock: number }[]; // embed view (produk tanpa variant)
+};
 
 export function SfProductCard({ product }: { product: CardProduct }) {
   const variants = (product.product_variants ?? []).filter((v) => v.is_active !== false);
@@ -18,15 +21,26 @@ export function SfProductCard({ product }: { product: CardProduct }) {
   const qty = items.find((i) => i.product.id === product.id && !i.variant)?.quantity ?? 0;
   const minPrice = hasVariants ? Math.min(...variants.map((v) => v.price)) : product.price;
 
+  // Badge "Habis" — variant: SEMUA variant aktif stok 0; tanpa variant: view
+  // product_stock 0. Stok tak dijejak (undefined / tiada row) = anggap ada.
+  const soldOut = hasVariants
+    ? variants.every((v) => v.stock !== undefined && v.stock <= 0)
+    : (product.product_stock?.length ?? 0) > 0 && (product.product_stock![0].available_stock ?? 1) <= 0;
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
       <Link href={`/products/${product.slug}`} className="block">
-        <div className="aspect-square bg-[#F4F6F5] overflow-hidden">
+        <div className="relative aspect-square bg-[#F4F6F5] overflow-hidden">
           {product.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+            <img src={product.image_url} alt={product.name} className={`h-full w-full object-cover ${soldOut ? "opacity-50 grayscale" : ""}`} />
           ) : (
             <div className="h-full grid place-items-center text-3xl">🍎</div>
+          )}
+          {soldOut && (
+            <span className="absolute top-2 left-2 bg-gray-900/85 text-white text-[10px] font-bold rounded-full px-2.5 py-1">
+              Habis stok
+            </span>
           )}
         </div>
       </Link>
@@ -45,7 +59,15 @@ export function SfProductCard({ product }: { product: CardProduct }) {
             <p className="text-[10px] text-gray-400 mt-0.5">/{product.unit}</p>
           </div>
 
-          {hasVariants ? (
+          {soldOut ? (
+            // Habis: bawa ke PDP — di sana ada butang waitlist "Bagitahu bila ada"
+            <Link
+              href={`/products/${product.slug}`}
+              className="shrink-0 text-[10px] font-bold text-gray-500 border border-gray-200 rounded-full px-2.5 py-1.5"
+            >
+              Bagitahu saya
+            </Link>
+          ) : hasVariants ? (
             <Link
               href={`/products/${product.slug}`}
               className="shrink-0 h-7 w-7 grid place-items-center rounded-full bg-[#E11D2A] text-white shadow-[0_4px_12px_rgba(225,29,42,0.32)] active:scale-90 transition"

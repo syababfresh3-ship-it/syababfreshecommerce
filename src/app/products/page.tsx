@@ -23,7 +23,8 @@ const getCatalog = unstable_cache(
       sb.from('categories').select('id, slug, name, parent_id, sort_order').eq('is_active', true).order('sort_order'),
       sb
         .from('products')
-        .select('id, name, slug, price, compare_price, image_url, unit, category_id, is_featured, product_variants(id, name, price, is_active, sort_order)')
+        // stock variant + product_stock (view) — untuk badge "Habis" pada kad
+        .select('id, name, slug, price, compare_price, image_url, unit, category_id, is_featured, product_variants(id, name, price, is_active, sort_order, stock), product_stock(available_stock)')
         .eq('is_active', true)
         .eq('show_in_storefront', true) // sorok duplicate landing-page dari katalog
         .order('sort_order')
