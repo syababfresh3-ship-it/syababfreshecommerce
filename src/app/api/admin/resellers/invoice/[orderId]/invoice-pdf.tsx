@@ -21,7 +21,7 @@ const SELLER = {
   name: 'Syabab Trading Sdn Bhd',
   regNew: '202401038338',
   regOld: '1584185-T',
-  tin: 'C 5955687080',
+  tin: 'C 59556871080',
   sst: '',                       // tiada buat masa ini
   msic: '103014, 46316',
   activity: 'Wholesale of dates, fruits',

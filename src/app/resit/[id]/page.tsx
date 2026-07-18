@@ -11,7 +11,7 @@ const BUSINESS = {
   name: 'Syabab Trading Sdn Bhd',
   regNew: '202401038338',
   regOld: '1584185-T',
-  tin: 'C 5955687080',
+  tin: 'C 59556871080',
   address:
     'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, Bandar Baru Bangi',
   phone: '011 9003 6446',
