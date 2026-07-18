@@ -2,7 +2,7 @@
 
 // Redesign v2 — kad produk grid (Zus-style): imej kotak + nama + harga + add.
 import Link from "next/link";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Bell } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
 import type { Product, ProductVariant } from "@/types";
 
@@ -59,15 +59,7 @@ export function SfProductCard({ product }: { product: CardProduct }) {
             <p className="text-[10px] text-gray-400 mt-0.5">/{product.unit}</p>
           </div>
 
-          {soldOut ? (
-            // Habis: bawa ke PDP — di sana ada butang waitlist "Bagitahu bila ada"
-            <Link
-              href={`/products/${product.slug}`}
-              className="shrink-0 text-[10px] font-bold text-gray-500 border border-gray-200 rounded-full px-2.5 py-1.5"
-            >
-              Bagitahu saya
-            </Link>
-          ) : hasVariants ? (
+          {soldOut ? null : hasVariants ? (
             <Link
               href={`/products/${product.slug}`}
               className="shrink-0 h-7 w-7 grid place-items-center rounded-full bg-[#E11D2A] text-white shadow-[0_4px_12px_rgba(225,29,42,0.32)] active:scale-90 transition"
@@ -95,6 +87,16 @@ export function SfProductCard({ product }: { product: CardProduct }) {
             </div>
           )}
         </div>
+
+        {/* Habis: butang waitlist baris penuh (elak bertindih dgn harga) */}
+        {soldOut && (
+          <Link
+            href={`/products/${product.slug}`}
+            className="mt-2 flex items-center justify-center gap-1 text-[11px] font-bold text-gray-700 border border-gray-300 rounded-full py-1.5 active:scale-[0.98] transition"
+          >
+            <Bell className="h-3 w-3" /> Bagitahu bila ada
+          </Link>
+        )}
       </div>
     </div>
   );
