@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { awardOrderLoyalty } from '@/lib/loyalty-award'
+import { sendReviewRequestEmail } from '@/lib/zeptomail'
 
 // An order counts as "settled" — and therefore eligible to earn loyalty — when:
 //   - it was paid online (payment_status === 'paid'), OR
@@ -133,4 +134,42 @@ export async function handleOrderDelivered(supabase: SupabaseClient, orderId: st
   }
   await processReferralReward(supabase, order.user_id, orderId)
   await processAffiliateCommission(supabase, order.user_id, orderId, Number(order.total))
+  await sendReviewRequest(supabase, order.user_id, orderId, order.order_number)
+}
+
+// Email jemput ulasan — sekali per order (review_request_sent_at). Best-effort:
+// gagal email tak patut gagalkan transisi delivered.
+async function sendReviewRequest(
+  supabase: SupabaseClient,
+  userId: string | null,
+  orderId: string,
+  orderNumber: string,
+) {
+  try {
+    if (!userId) return
+    // Kunci dulu (idempotent) — hanya SATU panggilan menang; ulangan skip.
+    const { data: claimed } = await supabase
+      .from('orders')
+      .update({ review_request_sent_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .is('review_request_sent_at', null)
+      .select('id')
+    if (!claimed || claimed.length === 0) return
+
+    const [{ data: prof }, { data: items }] = await Promise.all([
+      supabase.from('profiles').select('email, full_name').eq('id', userId).maybeSingle(),
+      supabase.from('order_items').select('product_name, products(slug)').eq('order_id', orderId),
+    ])
+    if (!prof?.email) return
+
+    await sendReviewRequestEmail({
+      to: prof.email,
+      customerName: prof.full_name ?? 'Pelanggan',
+      orderNumber,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      items: (items ?? []).map((i: any) => ({ name: i.product_name, slug: i.products?.slug ?? null })),
+    })
+  } catch (err) {
+    console.error('[order-delivered] review request email error:', err)
+  }
 }

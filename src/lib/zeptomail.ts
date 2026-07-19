@@ -595,3 +595,48 @@ export async function sendVoucherReminderEmail(params: {
     html,
   })
 }
+
+// ─── email 10: jemput ulasan selepas delivered (baki Tier 1.1) ─────────────────
+// Member sahaja (ulasan perlukan akaun). Sekali per order
+// (orders.review_request_sent_at). CTA terus ke page produk (seksyen ulasan).
+export async function sendReviewRequestEmail(params: {
+  to: string
+  customerName: string
+  orderNumber: string
+  items: { name: string; slug: string | null }[]
+}) {
+  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+  const rows = params.items.slice(0, 3).map((i) => `
+    <tr><td style="padding:6px 0;">
+      <a href="${base}${i.slug ? `/products/${i.slug}` : '/products'}" style="display:block;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;text-decoration:none;">
+        <span style="font-size:14px;font-weight:700;color:#111827;">${esc(i.name)}</span>
+        <span style="float:right;font-size:13px;font-weight:700;color:#16a34a;">Beri ulasan ⭐</span>
+      </a>
+    </td></tr>`).join('')
+
+  const html = layout('Macam Mana Buah Anda?', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(params.customerName)}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Dah rasa? Kongsi pendapat anda 🍒</h1>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.6;">
+      Pesanan <strong>${esc(params.orderNumber)}</strong> anda dah selamat sampai.
+      Ulasan ikhlas anda membantu pelanggan lain pilih buah terbaik — dan membantu
+      kami kekalkan kualiti.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">${rows}</table>
+
+    <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+      Log masuk & tekan "Tulis Ulasan" di page produk. Terima kasih! 💚
+    </p>
+  `)
+
+  await send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `Macam mana buah anda? Kongsi ulasan — ${params.orderNumber}`,
+    html,
+  })
+}
