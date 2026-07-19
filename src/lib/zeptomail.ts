@@ -543,3 +543,55 @@ export async function sendCustomerInvoiceEmail(params: {
     attachments: [{ name: `${params.invoiceNumber}.pdf`, contentBase64: params.pdfBase64, mimeType: 'application/pdf' }],
   })
 }
+
+// ─── email 9: peringatan voucher hampir luput (Tier 2.2) ───────────────────────
+// Voucher peribadi (welcome / kad setia) belum ditebus & luput ≤7 hari.
+// Sekali sahaja per voucher (cron stamp reminder_sent_at).
+export async function sendVoucherReminderEmail(params: {
+  to: string
+  customerName: string
+  code: string
+  value: number      // RM (type fixed)
+  minOrder: number
+  expiresAt: string  // ISO
+}) {
+  const tarikh = new Date(params.expiresAt).toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long' })
+  const html = layout('Voucher Anda Hampir Luput', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(params.customerName)}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Voucher RM${Number(params.value).toFixed(2)} anda luput ${esc(tarikh)} ⏳</h1>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.6;">
+      Jangan biar ia terbakar — voucher ini milik anda dan boleh terus digunakan
+      di checkout${params.minOrder > 0 ? ` (pembelian minimum RM${Number(params.minOrder).toFixed(2)})` : ''}.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf5;border:2px dashed #10b981;border-radius:12px;padding:16px;margin-bottom:24px;">
+      <tr><td align="center">
+        <div style="font-size:12px;color:#047857;margin-bottom:4px;">Kod voucher anda</div>
+        <div style="font-size:24px;font-weight:800;letter-spacing:3px;color:#065f46;">${esc(params.code)}</div>
+        <div style="font-size:13px;color:#047857;margin-top:4px;">Diskaun RM${Number(params.value).toFixed(2)} · sah sehingga ${esc(tarikh)}</div>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr><td align="center">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/products" style="display:inline-block;background:#16a34a;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 32px;border-radius:12px;">
+          🍒 Guna Voucher Sekarang
+        </a>
+      </td></tr>
+    </table>
+
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+      Voucher dimasukkan automatik di checkout bila anda log masuk.
+    </p>
+  `)
+
+  await send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.customerName,
+    subject: `⏳ Voucher RM${Number(params.value).toFixed(2)} anda luput ${tarikh} — jangan terlepas`,
+    html,
+  })
+}

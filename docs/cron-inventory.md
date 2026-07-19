@@ -16,6 +16,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | external-sync | `/api/cron/external-sync` | Sync pembeli TikTok dari ops app → contacts | harian (03:00) | cron-job.org |
 | payment-reminder | `/api/cron/payment-reminder` | Email order FPX belum bayar 1-24j | tiap ~2 jam | cron-job.org |
 | refresh-customers | `/api/cron/refresh-customers` | Kira semula agregat customer (spend/recency) | harian, lepas 01:00 | cron-job.org |
+| voucher-reminder | `/api/cron/voucher-reminder` | Email voucher peribadi luput ≤7 hari (sekali/voucher) | harian (~10:00) | cron-job.org |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 
