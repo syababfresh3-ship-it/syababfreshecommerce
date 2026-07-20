@@ -105,3 +105,63 @@ export function productSchema(p: ProductForSchema) {
     ...(offers ? { offers } : {}),
   }
 }
+
+// Rating agregat dari ulasan sebenar — suntik ke productSchema bila ada ulasan.
+// Google papar bintang dalam hasil carian (rich result) bila cukup isyarat.
+export function withAggregateRating(
+  schema: Record<string, unknown>,
+  reviews: { rating: number }[],
+): Record<string, unknown> {
+  if (!reviews.length) return schema
+  const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+  return {
+    ...schema,
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: avg.toFixed(1),
+      reviewCount: reviews.length,
+      bestRating: '5',
+      worstRating: '1',
+    },
+  }
+}
+
+// BreadcrumbList — bantu Google faham hierarki & papar breadcrumb dalam carian.
+export function breadcrumbSchema(items: { name: string; path: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      item: `${BASE_URL}${it.path}`,
+    })),
+  }
+}
+
+// LocalBusiness — kedai fizikal Bangi (pickup + kawasan hantar). Muncul dalam
+// carian tempatan "kedai buah bangi" / Maps. Lengkapkan dengan Google Business
+// Profile (didaftar berasingan oleh admin).
+export function localBusinessSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'GroceryStore',
+    '@id': `${BASE_URL}/#localbusiness`,
+    name: 'SyababFresh — Kedai Buah Segar Bangi',
+    parentOrganization: { '@id': `${BASE_URL}/#organization` },
+    url: BASE_URL,
+    image: `${BASE_URL}/og-image.png`,
+    telephone: '+601190036446',
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: 'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16',
+      addressLocality: 'Bandar Baru Bangi',
+      addressRegion: 'Selangor',
+      postalCode: '43650',
+      addressCountry: 'MY',
+    },
+    priceRange: 'RM',
+    areaServed: ['Lembah Klang', 'Semenanjung Malaysia'],
+  }
+}

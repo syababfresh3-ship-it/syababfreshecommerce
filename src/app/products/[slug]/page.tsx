@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SfProduct } from '@/components/storev2/sf-product'
-import { JsonLd, productSchema } from '@/components/seo/json-ld'
+import { JsonLd, productSchema, withAggregateRating, breadcrumbSchema } from '@/components/seo/json-ld'
 
 async function getProduct(slug: string) {
   const supabase = await createClient()
@@ -101,8 +101,16 @@ export default async function ProductDetailPage({
 
   return (
     <>
-      {/* Structured data — beritahu Google/AI: nama produk, harga, stok */}
-      <JsonLd data={productSchema(product)} />
+      {/* Structured data — produk + rating sebenar (bintang di carian Google) + breadcrumb */}
+      <JsonLd data={withAggregateRating(productSchema(product), reviewsRes.data ?? [])} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: 'Utama', path: '/' },
+          { name: 'Katalog', path: '/products' },
+          ...(product.categories?.name ? [{ name: product.categories.name, path: `/products?cat=${product.categories.slug}` }] : []),
+          { name: product.name, path: `/products/${product.slug}` },
+        ])}
+      />
       <SfProduct
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         product={product as any}
