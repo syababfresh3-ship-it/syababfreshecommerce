@@ -108,7 +108,7 @@ export function AiClient({ initial }: { initial: Initial }) {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Bot className="h-5 w-5 text-gray-700" />

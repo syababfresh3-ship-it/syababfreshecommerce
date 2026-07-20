@@ -112,7 +112,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const segCfg = SEGMENT_CONFIG[segment]
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl">
+    <div className="p-4 md:p-6">
       {/* Back + header */}
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <Link href="/admin/customers" className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">

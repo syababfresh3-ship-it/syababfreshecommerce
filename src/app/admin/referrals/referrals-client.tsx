@@ -43,7 +43,7 @@ export function AdminReferralsClient({ referrals }: { referrals: any[] }) {
   const maxMonthly = Math.max(...monthlyStats.map(([, v]) => v.total), 1)
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl">
+    <div className="p-4 md:p-6">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900">Program Referral</h1>
         <p className="text-sm text-gray-400 mt-0.5">All jemputan dan ganjaran</p>

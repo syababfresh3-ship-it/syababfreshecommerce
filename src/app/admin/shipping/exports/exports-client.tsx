@@ -871,7 +871,7 @@ export function ExportsClient({
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">

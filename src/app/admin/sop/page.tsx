@@ -16,7 +16,7 @@ async function getSop(): Promise<string> {
 export default async function SopPage() {
   const md = await getSop()
   return (
-    <div className="p-4 md:p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center shrink-0">
           <BookOpen className="h-5 w-5 text-emerald-600" />

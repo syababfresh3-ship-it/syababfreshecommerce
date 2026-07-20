@@ -75,7 +75,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl">
+    <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">

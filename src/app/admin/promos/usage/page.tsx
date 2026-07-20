@@ -69,7 +69,7 @@ export default async function PromoUsagePage() {
   )
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div>
         <Link href="/admin/promos" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700"><ArrowLeft className="h-4 w-4" /> Promos</Link>
         <h1 className="text-xl font-bold text-gray-900 mt-1">Penggunaan Kupon & Points</h1>

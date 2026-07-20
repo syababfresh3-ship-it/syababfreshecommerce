@@ -38,7 +38,7 @@ export function AnalyticsClient() {
   }, [days]);
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl space-y-4">
+    <div className="p-4 md:p-6 max-w-4xl space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-gray-700" />

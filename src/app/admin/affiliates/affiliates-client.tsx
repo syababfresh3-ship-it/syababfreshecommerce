@@ -191,7 +191,7 @@ export function AffiliatesClient({ profiles, withdrawals, commissionPct, commiss
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl">
+    <div className="p-4 md:p-6">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900">Program Affiliate</h1>
         <p className="text-sm text-gray-400 mt-0.5">Urus affiliate, komisyen, dan pengeluaran</p>

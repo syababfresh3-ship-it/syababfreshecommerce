@@ -26,7 +26,7 @@ export default function RefundAnalyticsPage() {
     ))
 
   return (
-    <div className="p-6 max-w-3xl space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <Link href="/admin/refunds" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800">
         <ArrowLeft className="h-4 w-4" /> Kembali
       </Link>

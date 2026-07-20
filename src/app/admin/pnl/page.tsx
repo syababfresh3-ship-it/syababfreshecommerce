@@ -177,7 +177,7 @@ export default async function PnlPage({
   const pct = (n: number) => (revenue > 0 ? `${((n / revenue) * 100).toFixed(1)}%` : '—')
 
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6">
       <div className="mb-4">
         <h1 className="text-xl font-extrabold text-gray-900">P&L Website</h1>
         <p className="text-[13px] text-gray-500">

@@ -61,7 +61,7 @@ export function PlaygroundClient() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl space-y-4 flex flex-col h-[calc(100vh-2rem)]">
+    <div className="p-4 md:p-6 max-w-4xl space-y-4 flex flex-col h-[calc(100vh-2rem)]">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <FlaskConical className="h-5 w-5 text-gray-700" />

@@ -190,7 +190,7 @@ export default function QuickOrderPage() {
   )
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl">
+    <div className="p-4 md:p-6">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-green-600" /> Quick Order

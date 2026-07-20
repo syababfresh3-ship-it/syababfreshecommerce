@@ -52,7 +52,7 @@ export default function TiktokSyncPage() {
   const totalOrders = data?.total_orders ?? 0
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl">
+    <div className="p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>

@@ -77,7 +77,7 @@ export function ContactsClient({ contacts }: { contacts: Contact[] }) {
   }
 
   return (
-    <div className="max-w-5xl">
+    <div>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Users className="h-5 w-5 text-gray-700" /> All Contacts</h1>

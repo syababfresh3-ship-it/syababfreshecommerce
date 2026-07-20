@@ -70,7 +70,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl space-y-5">
+    <div className="p-4 md:p-6 space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Broadcast Notifications</h1>
         <p className="text-sm text-gray-400 mt-0.5">Send push notification ke all customer yang active</p>

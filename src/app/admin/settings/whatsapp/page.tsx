@@ -147,7 +147,7 @@ export default function WhatsAppTemplatesPage() {
   if (loading) return <div className="p-6 text-gray-400">Loading...</div>
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">

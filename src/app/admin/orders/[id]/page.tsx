@@ -51,7 +51,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   if (!order) notFound()
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{order.order_number}</h1>

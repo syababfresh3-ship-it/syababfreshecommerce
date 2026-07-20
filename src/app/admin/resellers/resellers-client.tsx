@@ -88,7 +88,7 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Store className="h-5 w-5 text-rose-500" /> Reseller</h1>

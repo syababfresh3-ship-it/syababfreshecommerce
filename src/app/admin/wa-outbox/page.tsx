@@ -121,7 +121,7 @@ export default function WaOutboxPage() {
   ]
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">

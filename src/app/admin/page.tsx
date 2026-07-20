@@ -106,7 +106,7 @@ export default async function AdminDashboard() {
   const hasAlerts = stats.urgentPending.length > 0 || stats.pendingRefunds > 0 || stats.lowStockCount > 0 || stats.staleCrons.length > 0
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-7xl">
+    <div className="p-4 md:p-6 space-y-5">
 
       {/* ALERTS */}
       {hasAlerts && (

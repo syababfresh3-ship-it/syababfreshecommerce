@@ -136,7 +136,7 @@ export default function AdminBannersPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Banner Utama</h1>
