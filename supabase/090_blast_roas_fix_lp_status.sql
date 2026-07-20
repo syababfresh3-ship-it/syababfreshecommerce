@@ -60,3 +60,8 @@ from (
   where o.status in ('confirmed','preparing','delivering','delivered')
 ) u
 order by u.order_id, u.blast_sent_at desc;  -- last-touch, tiada double-count
+
+-- WAJIB selepas setiap `create or replace view`: klausa itu RESET reloptions ke
+-- default (security_invoker = off = kelakuan SECURITY DEFINER), jadi ia membatalkan
+-- 089. Ditambah 2026-07-20 selepas Security Advisor tangkap regression ini.
+alter view public.crm_blast_order_attribution set (security_invoker = on);
