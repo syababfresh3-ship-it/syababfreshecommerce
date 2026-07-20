@@ -20,10 +20,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3005'
+// JANGAN fallback localhost — NEXT_PUBLIC_SITE_URL tak diset di Vercel dan
+// og:url production pernah jadi localhost:3005 (rosakkan indexing Google).
+const BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  'https://shop.syababfresh.my'
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
+  // Canonical kendiri untuk SEMUA page (relatif → resolve ikut laluan semasa).
+  // Buang variasi query (?ref=, ?utm=) dari mata Google — fix
+  // "Duplicate without user-selected canonical".
+  alternates: { canonical: './' },
   other: {
     'facebook-domain-verification': 'm2ub8z949x2rsq9bnbw89391g5phc1',
   },
