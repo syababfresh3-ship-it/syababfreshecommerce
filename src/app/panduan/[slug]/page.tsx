@@ -9,6 +9,30 @@ import { ARTIKEL, getArtikel } from '../artikel'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
 
+// Pautan dalaman dalam badan artikel: tulis [teks](/laluan) dalam artikel.ts.
+// Hanya laluan dalaman (bermula '/') dijadikan pautan — apa-apa lain dibiarkan
+// sebagai teks biasa, supaya kandungan artikel tak boleh suntik URL luar.
+// Teks tanpa sebarang [..](..) kekal berfungsi seperti sebelum ini.
+const LINK_RE = /\[([^\]]+)\]\((\/[^)\s]*)\)/g
+
+function renderBody(text: string) {
+  const out: React.ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  LINK_RE.lastIndex = 0
+  while ((m = LINK_RE.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    out.push(
+      <Link key={`${m.index}`} href={m[2]} className="text-red-600 font-semibold hover:underline">
+        {m[1]}
+      </Link>,
+    )
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return out.length ? out : text
+}
+
 export function generateStaticParams() {
   return ARTIKEL.map((a) => ({ slug: a.slug }))
 }
@@ -80,7 +104,7 @@ export default async function PanduanArtikelPage({
               <h2 className="text-[15px] font-extrabold text-gray-900 mb-2">{s.heading}</h2>
               <div className="space-y-2">
                 {s.body.map((p, i) => (
-                  <p key={i} className="text-[13px] text-gray-600 leading-relaxed">{p}</p>
+                  <p key={i} className="text-[13px] text-gray-600 leading-relaxed">{renderBody(p)}</p>
                 ))}
               </div>
             </section>

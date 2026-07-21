@@ -58,7 +58,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Macam mana nak tahu ceri dah tak elok?',
         body: [
           'Tanda-tanda ceri patut diketepikan: lembik berair bila disentuh, kulit berkedut teruk, ada tompok kulat putih/kelabu, atau berbau masam macam nak jadi cuka. Satu dua biji rosak dalam bekas — buang cepat, sebab reput merebak ke biji sebelah.',
-          'Ceri yang kulitnya masih tegang dan berkilat tapi rasa kurang manis? Itu bukan rosak — itu memang karakter batch tu. Manis ceri ditentukan masa ia dipetik, ia tidak bertambah manis selepas petik.',
+          'Ceri yang kulitnya masih tegang dan berkilat tapi rasa kurang manis? Itu bukan rosak — itu memang karakter batch tu. Manis ceri ditentukan masa ia dipetik, ia tidak bertambah manis selepas petik. [Lihat ceri yang ada sekarang](/kategori/ceri).',
         ],
       },
     ],
@@ -265,7 +265,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
           'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — Medium, Large, Jumbo dan Super Jumbo — jadi harga banyak bergantung pada saiz, bukan rasa.',
-          'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah.',
+          'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah. [Lihat semua kurma Ajwa](/kategori/kurma-ajwa).',
         ],
       },
       {
@@ -273,7 +273,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Juga dari Madinah, tetapi bentuknya lebih panjang dan kulitnya lebih berkilat berbanding Ajwa. Isinya lembut dengan manis sederhana, dan ada sedikit nota karamel yang tidak ada pada Ajwa.',
           'Safawi sering jadi pilihan orang yang suka profil Ajwa tetapi mahukan sesuatu yang sedikit lebih manis dan lebih berpatutan. Ia juga digredkan Medium, Large dan Jumbo.',
-          'Pilih Safawi kalau: anda mahu kurma harian yang mudah diterima semua orang di rumah, termasuk kanak-kanak.',
+          'Pilih Safawi kalau: anda mahu kurma harian yang mudah diterima semua orang di rumah, termasuk kanak-kanak. [Lihat pilihan Safawi](/kategori/kurma-safawi).',
         ],
       },
       {
@@ -282,7 +282,7 @@ export const ARTIKEL: Artikel[] = [
           'Digelar raja kurma, dan sebaik anda pegang sebiji anda akan faham kenapa. Medjoul jauh lebih besar daripada kurma biasa, isinya sangat tebal dan lembap, dan rasanya paling hampir kepada karamel atau gula perang antara semua jenis.',
           'Kerana saiznya, satu biji Medjoul sudah cukup mengenyangkan sebagai snek. Ia juga kurma yang paling sesuai dibelah dan diisi dengan badam, keju atau mentega kacang — sesuatu yang sukar dibuat dengan kurma yang lebih kecil.',
           'Medjoul yang sampai ke Malaysia banyak datang dari Palestin. Ia digredkan Large, Jumbo dan Super Jumbo, dan harganya naik ketara mengikut saiz.',
-          'Pilih Medjoul kalau: anda mahu kurma yang terasa mewah, untuk dihidang kepada tetamu penting atau dijadikan hadiah tanpa perlu apa-apa hiasan tambahan.',
+          'Pilih Medjoul kalau: anda mahu kurma yang terasa mewah, untuk dihidang kepada tetamu penting atau dijadikan hadiah tanpa perlu apa-apa hiasan tambahan. [Lihat pilihan Medjoul](/kategori/kurma-medjoul).',
         ],
       },
       {
@@ -290,7 +290,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Mariami ialah kurma harian yang paling ramai kenal di Malaysia. Isinya lembut, kulitnya nipis, dan manisnya mesra tanpa terlalu pekat. Ia digredkan A, AA dan AAA mengikut saiz, dengan AAA yang paling besar dan paling seragam.',
           'Kerana teksturnya lembut dan tidak melekit, Mariami senang dimakan kanak-kanak dan warga emas, dan senang juga dicincang masuk ke dalam smoothie, bubur atau kuih.',
-          'Pilih Mariami kalau: anda mahu stok kurma tetap di rumah yang semua orang boleh makan, pada harga yang tidak membebankan.',
+          'Pilih Mariami kalau: anda mahu stok kurma tetap di rumah yang semua orang boleh makan, pada harga yang tidak membebankan. [Lihat pilihan Mariami](/kategori/kurma-mariami).',
         ],
       },
       {
@@ -298,15 +298,15 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Nama Sukkari berasal daripada perkataan gula dalam bahasa Arab, dan itu memang menggambarkan rasanya. Datang dari Arab Saudi, warnanya kuning keemasan — bukan hitam seperti Ajwa dan Safawi — dan manisnya paling jelas antara semua jenis di sini.',
           'Sukkari ada dalam dua bentuk. Versi kering lebih pejal, sedikit rangup pada gigitan pertama, dan senang dibawa ke mana-mana. Versi Rotab pula ialah kurma pada peringkat separuh masak yang masih lembap dan gebu — biasanya disimpan sejuk beku dan dimakan sejuk seperti pencuci mulut.',
-          'Pilih Sukkari kalau: anda memang suka manis, atau mahu mencuba kurma dalam bentuk yang berbeza daripada kurma kering biasa.',
+          'Pilih Sukkari kalau: anda memang suka manis, atau mahu mencuba kurma dalam bentuk yang berbeza daripada kurma kering biasa. [Lihat pilihan Sukkari](/kategori/kurma-sukkari).',
         ],
       },
       {
         heading: 'Jenis lain yang patut anda tahu',
         body: [
           'Deglet Noor dari Tunisia — coklat keemasan, langsing, isinya lebih pejal dan manisnya bersih. Sesuai kalau anda tidak gemar tekstur yang terlalu lembut. Ia juga dijual dalam bentuk masih melekat pada tangkai, yang cantik untuk hidangan meja dan hadiah.',
-          'Mabroom dari Madinah — panjang, langsing dan berkedut rapat. Teksturnya paling kenyal antara semua, memberi pengalaman mengunyah yang lebih lama. Kegemaran mereka yang bosan dengan kurma terlalu lembik.',
-          'Kurma muda dan segar seperti dari Libya — dipetik sebelum kering sepenuhnya, jadi teksturnya masih berair atau separuh kering bergantung gred. Ini pilihan bermusim yang hanya ada bila kiriman masuk.',
+          'Mabroom dari Madinah — panjang, langsing dan berkedut rapat. Teksturnya paling kenyal antara semua, memberi pengalaman mengunyah yang lebih lama. Kegemaran mereka yang bosan dengan kurma terlalu lembik. [Lihat kurma lain-lain](/kategori/kurma-lain-lain).',
+          'Kurma muda dan segar seperti dari Libya — dipetik sebelum kering sepenuhnya, jadi teksturnya masih berair atau separuh kering bergantung gred. Ini pilihan bermusim yang hanya ada bila kiriman masuk. [Lihat kurma muda & segar](/kategori/kurma-muda-segar).',
         ],
       },
       {
@@ -317,7 +317,7 @@ export const ARTIKEL: Artikel[] = [
           'Untuk hadiah dan bingkisan — Medjoul Super Jumbo, Ajwa gred besar, atau mana-mana pilihan kotak siap bungkus.',
           'Untuk yang memang suka manis — Sukkari.',
           'Untuk yang tak suka kurma lembik — Deglet Noor Tunisia atau Mabroom.',
-          'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda.',
+          'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda. [Lihat semua kurma](/kategori/kurma).',
         ],
       },
       {
@@ -373,7 +373,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Ajwa ialah kultivar kurma yang ditanam di sekitar Madinah, Arab Saudi. Ia mudah dikenali daripada rupanya: warna hitam kelam hampir seragam, permukaan berkedut halus, dan bentuk yang lebih bulat serta padat berbanding kurma panjang seperti Safawi atau Mabroom.',
           'Yang paling membezakan Ajwa bukan rupanya, tetapi rasanya. Antara semua kurma popular, Ajwa mempunyai manis yang paling halus — tidak menyengat tekak, tiada rasa karamel pekat seperti Medjoul. Sebab itulah ramai yang boleh makan beberapa biji berturut-turut tanpa rasa muak.',
-          'Di Malaysia, Ajwa adalah antara kurma paling dicari, terutamanya menjelang Ramadan dan musim perayaan. Ia juga kurma yang paling kerap dipilih sebagai hadiah dan buah tangan.',
+          'Di Malaysia, Ajwa adalah antara kurma paling dicari, terutamanya menjelang Ramadan dan musim perayaan. Ia juga kurma yang paling kerap dipilih sebagai hadiah dan buah tangan. [Lihat semua gred Ajwa](/kategori/kurma-ajwa).',
         ],
       },
       {
@@ -416,7 +416,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Pek 100g sesuai kalau anda belum pernah mencuba Ajwa, atau mahu membandingkan gred sebelum membeli banyak. Ia juga saiz yang senang dijadikan buah tangan ringkas.',
           'Pek 300g dan 500g adalah saiz kegunaan rumah — cukup untuk seminggu dua bagi kebanyakan keluarga tanpa risiko kurma terlalu lama terdedah.',
-          'Pek 1kg ke atas hingga karton lebih berbaloi dari segi harga seunit, tetapi hanya kalau anda memang menghabiskannya — untuk keluarga besar, agihan surau dan masjid, majlis, atau jualan semula. Kalau tidak, kurma yang tersimpan terlalu lama akan mengeras walaupun disimpan dengan betul.',
+          'Pek 1kg ke atas hingga karton lebih berbaloi dari segi harga seunit, tetapi hanya kalau anda memang menghabiskannya — untuk keluarga besar, agihan surau dan masjid, majlis, atau jualan semula. Kalau tidak, kurma yang tersimpan terlalu lama akan mengeras walaupun disimpan dengan betul. Belum pasti Ajwa pilihan anda? [Banding dengan jenis kurma lain](/kategori/kurma).',
         ],
       },
       {
