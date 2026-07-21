@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { SfCatalog } from '@/components/storev2/sf-catalog'
+import { JsonLd, faqPageSchema } from '@/components/seo/json-ld'
+import { KATALOG_FAQ } from './faq'
 
 // Default bila admin belum set pengumuman katalog.
 const DEFAULT_ANNOUNCEMENT = 'Penghantaran ikut zon — semak poskod di Troli'
@@ -47,6 +49,9 @@ export default async function ProductsPage({ searchParams }: Props) {
   const announcement = raw.toLowerCase() === 'off' ? undefined : (raw || DEFAULT_ANNOUNCEMENT)
   return (
     <SfShell>
+      {/* FAQPage — soalan yang sama dipapar di hujung katalog (SfCatalog).
+          Kedua-duanya baca KATALOG_FAQ supaya tidak lari sesama sendiri. */}
+      <JsonLd data={faqPageSchema(KATALOG_FAQ)} />
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <SfCatalog
         categories={categories as any}

@@ -5,8 +5,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Megaphone, PackageOpen,
-  Flame, Globe, Leaf, Star, Crown, Snowflake, Cherry, GlassWater, Grape, Cookie, Citrus, ShoppingBasket, Apple,
+  Flame, Globe, Leaf, Star, Crown, Snowflake, Cherry, GlassWater, Grape, Cookie, Citrus, ShoppingBasket, Apple, ChevronDown,
 } from "lucide-react";
+import { KATALOG_FAQ } from "@/app/products/faq";
 import type { ComponentType } from "react";
 import { SfProductCard } from "./sf-product-card";
 import type { Product, ProductVariant } from "@/types";
@@ -216,6 +217,26 @@ export function SfCatalog({
                 </div>
               );
             })
+          )}
+
+          {/* Soalan lazim — WAJIB kelihatan supaya schema FAQPage di
+              products/page.tsx layak dapat rich result. Disembunyikan semasa
+              carian aktif supaya tak mengganggu hasil carian. */}
+          {!search.trim() && (
+            <div className="pt-8 pb-4">
+              <h2 className="text-[15px] font-extrabold text-gray-900 mb-3">Soalan lazim</h2>
+              <div className="space-y-2">
+                {KATALOG_FAQ.map((f) => (
+                  <details key={f.q} className="rounded-2xl border border-gray-100 bg-white px-4 py-3">
+                    <summary className="text-[13px] font-bold text-gray-900 cursor-pointer list-none flex items-center justify-between gap-2">
+                      {f.q}
+                      <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                    </summary>
+                    <p className="text-[13px] text-gray-500 leading-relaxed mt-2">{f.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
