@@ -32,6 +32,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('products')
       .select('slug, updated_at')
       .eq('is_active', true)
+      // Produk yang disorok dari katalog ialah duplicate landing-page — jangan
+      // jemput Google index page pendua (jejas kualiti tapak).
+      .eq('show_in_storefront', true)
 
     const productPages: MetadataRoute.Sitemap = (products ?? []).map((p) => ({
       url: `${BASE_URL}/products/${p.slug}`,
@@ -39,7 +42,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 0.8,
     }))
-    return [...staticPages, ...productPages]
+
+    // Page kategori — sasar carian seperti "kurma ajwa", "ceri", "anggur".
+    // HANYA kategori yang ada produk: page kategori kosong = page nipis, dan
+    // menjemput Google index page kosong menjejaskan kualiti tapak. Bila stok
+    // masuk semula (cth durian bermusim), kategori itu muncul sendiri di sini.
+    const [{ data: categories }, { data: catProducts }] = await Promise.all([
+      supabase.from('categories').select('id, slug, parent_id').eq('is_active', true),
+      supabase
+        .from('products')
+        .select('category_id')
+        .eq('is_active', true)
+        .eq('show_in_storefront', true),
+    ])
+
+    const withProducts = new Set((catProducts ?? []).map((p) => p.category_id))
+    // Kategori induk dikira "ada produk" jika mana-mana anaknya ada produk.
+    const hasProducts = (c: { id: string }) =>
+      withProducts.has(c.id) ||
+      (categories ?? []).some((k) => k.parent_id === c.id && withProducts.has(k.id))
+
+    // Kategori simpanan/serba-serbi — tiada nilai carian, jangan index.
+    const SKIP_SLUGS = new Set(['lain-lain'])
+
+    const categoryPages: MetadataRoute.Sitemap = (categories ?? [])
+      .filter((c) => !SKIP_SLUGS.has(c.slug) && hasProducts(c))
+      .map((c) => ({
+        url: `${BASE_URL}/kategori/${c.slug}`,
+        changeFrequency: 'weekly' as const,
+        priority: 0.85, // atas page produk, bawah /products
+      }))
+
+    return [...staticPages, ...categoryPages, ...productPages]
   } catch {
     // Kalau DB tak dapat dihubungi, masih hantar page statik (jangan 500)
     return staticPages

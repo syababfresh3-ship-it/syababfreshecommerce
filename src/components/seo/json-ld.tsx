@@ -165,3 +165,23 @@ export function localBusinessSchema() {
     areaServed: ['Lembah Klang', 'Semenanjung Malaysia'],
   }
 }
+
+// ItemList — beritahu Google page ini senarai produk, bukan artikel. Dipakai
+// pada page kategori supaya Google faham susunan & bilangan produk di dalamnya.
+export function itemListSchema(
+  name: string,
+  items: { name: string; slug: string }[],
+) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: items.length,
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      url: `${BASE_URL}/products/${it.slug}`,
+    })),
+  }
+}

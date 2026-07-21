@@ -107,7 +107,9 @@ export default async function ProductDetailPage({
         data={breadcrumbSchema([
           { name: 'Utama', path: '/' },
           { name: 'Katalog', path: '/products' },
-          ...(product.categories?.name ? [{ name: product.categories.name, path: `/products?cat=${product.categories.slug}` }] : []),
+          // Tunjuk ke page kategori sebenar (bukan ?cat= yang tiada page sendiri) —
+          // pautan dalaman ini yang bantu Google jumpa & nilaikan page kategori.
+          ...(product.categories?.name ? [{ name: product.categories.name, path: `/kategori/${product.categories.slug}` }] : []),
           { name: product.name, path: `/products/${product.slug}` },
         ])}
       />
