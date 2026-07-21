@@ -246,6 +246,214 @@ export const ARTIKEL: Artikel[] = [
       },
     ],
   },
+  {
+    slug: 'jenis-kurma-malaysia',
+    title: 'Jenis Kurma di Malaysia: Beza Ajwa, Safawi, Medjoul, Mariami & Sukkari',
+    description:
+      'Keliru nak pilih kurma mana? Panduan bandingkan lima jenis kurma paling popular di Malaysia — rasa, tekstur, harga dan yang mana sesuai untuk makan harian, hidangan tetamu atau hadiah.',
+    updated: '2026-07',
+    sections: [
+      {
+        heading: 'Kenapa kurma ada banyak jenis?',
+        body: [
+          'Kurma bukan satu buah dengan satu rasa. Sama seperti mangga ada Harumanis, Chokanan dan Kimling, kurma pun ada ratusan kultivar — dan setiap satu berbeza dari segi saiz, kelembapan, tahap manis dan tekstur. Yang sampai ke Malaysia biasanya datang dari Arab Saudi, Palestin, Tunisia, Mesir dan Libya.',
+          'Perbezaan paling ketara antara satu jenis dengan yang lain ialah dua perkara: berapa lembap isinya, dan berapa pekat manisnya. Faham dua paksi ni sahaja, anda sudah boleh pilih dengan yakin.',
+        ],
+      },
+      {
+        heading: 'Ajwa — hitam, lembut, manis halus',
+        body: [
+          'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
+          'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — Medium, Large, Jumbo dan Super Jumbo — jadi harga banyak bergantung pada saiz, bukan rasa.',
+          'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah.',
+        ],
+      },
+      {
+        heading: 'Safawi — hitam memanjang, sedikit rasa karamel',
+        body: [
+          'Juga dari Madinah, tetapi bentuknya lebih panjang dan kulitnya lebih berkilat berbanding Ajwa. Isinya lembut dengan manis sederhana, dan ada sedikit nota karamel yang tidak ada pada Ajwa.',
+          'Safawi sering jadi pilihan orang yang suka profil Ajwa tetapi mahukan sesuatu yang sedikit lebih manis dan lebih berpatutan. Ia juga digredkan Medium, Large dan Jumbo.',
+          'Pilih Safawi kalau: anda mahu kurma harian yang mudah diterima semua orang di rumah, termasuk kanak-kanak.',
+        ],
+      },
+      {
+        heading: 'Medjoul — paling besar, paling berkaramel',
+        body: [
+          'Digelar raja kurma, dan sebaik anda pegang sebiji anda akan faham kenapa. Medjoul jauh lebih besar daripada kurma biasa, isinya sangat tebal dan lembap, dan rasanya paling hampir kepada karamel atau gula perang antara semua jenis.',
+          'Kerana saiznya, satu biji Medjoul sudah cukup mengenyangkan sebagai snek. Ia juga kurma yang paling sesuai dibelah dan diisi dengan badam, keju atau mentega kacang — sesuatu yang sukar dibuat dengan kurma yang lebih kecil.',
+          'Medjoul yang sampai ke Malaysia banyak datang dari Palestin. Ia digredkan Large, Jumbo dan Super Jumbo, dan harganya naik ketara mengikut saiz.',
+          'Pilih Medjoul kalau: anda mahu kurma yang terasa mewah, untuk dihidang kepada tetamu penting atau dijadikan hadiah tanpa perlu apa-apa hiasan tambahan.',
+        ],
+      },
+      {
+        heading: 'Mariami — lembut, kulit nipis, mesra semua orang',
+        body: [
+          'Mariami ialah kurma harian yang paling ramai kenal di Malaysia. Isinya lembut, kulitnya nipis, dan manisnya mesra tanpa terlalu pekat. Ia digredkan A, AA dan AAA mengikut saiz, dengan AAA yang paling besar dan paling seragam.',
+          'Kerana teksturnya lembut dan tidak melekit, Mariami senang dimakan kanak-kanak dan warga emas, dan senang juga dicincang masuk ke dalam smoothie, bubur atau kuih.',
+          'Pilih Mariami kalau: anda mahu stok kurma tetap di rumah yang semua orang boleh makan, pada harga yang tidak membebankan.',
+        ],
+      },
+      {
+        heading: 'Sukkari — paling manis, keemasan',
+        body: [
+          'Nama Sukkari berasal daripada perkataan gula dalam bahasa Arab, dan itu memang menggambarkan rasanya. Datang dari Arab Saudi, warnanya kuning keemasan — bukan hitam seperti Ajwa dan Safawi — dan manisnya paling jelas antara semua jenis di sini.',
+          'Sukkari ada dalam dua bentuk. Versi kering lebih pejal, sedikit rangup pada gigitan pertama, dan senang dibawa ke mana-mana. Versi Rotab pula ialah kurma pada peringkat separuh masak yang masih lembap dan gebu — biasanya disimpan sejuk beku dan dimakan sejuk seperti pencuci mulut.',
+          'Pilih Sukkari kalau: anda memang suka manis, atau mahu mencuba kurma dalam bentuk yang berbeza daripada kurma kering biasa.',
+        ],
+      },
+      {
+        heading: 'Jenis lain yang patut anda tahu',
+        body: [
+          'Deglet Noor dari Tunisia — coklat keemasan, langsing, isinya lebih pejal dan manisnya bersih. Sesuai kalau anda tidak gemar tekstur yang terlalu lembut. Ia juga dijual dalam bentuk masih melekat pada tangkai, yang cantik untuk hidangan meja dan hadiah.',
+          'Mabroom dari Madinah — panjang, langsing dan berkedut rapat. Teksturnya paling kenyal antara semua, memberi pengalaman mengunyah yang lebih lama. Kegemaran mereka yang bosan dengan kurma terlalu lembik.',
+          'Kurma muda dan segar seperti dari Libya — dipetik sebelum kering sepenuhnya, jadi teksturnya masih berair atau separuh kering bergantung gred. Ini pilihan bermusim yang hanya ada bila kiriman masuk.',
+        ],
+      },
+      {
+        heading: 'Ringkasnya: mana satu untuk anda?',
+        body: [
+          'Untuk makan setiap hari tanpa rasa memberat — Ajwa atau Mariami.',
+          'Untuk hidangan tetamu yang nampak menarik di dulang — Safawi Jumbo atau Medjoul.',
+          'Untuk hadiah dan bingkisan — Medjoul Super Jumbo, Ajwa gred besar, atau mana-mana pilihan kotak siap bungkus.',
+          'Untuk yang memang suka manis — Sukkari.',
+          'Untuk yang tak suka kurma lembik — Deglet Noor Tunisia atau Mabroom.',
+          'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda.',
+        ],
+      },
+      {
+        heading: 'Cara simpan kurma supaya tidak mengeras',
+        body: [
+          'Musuh utama kurma ialah udara. Kurma yang dibiarkan dalam bungkusan terbuka akan hilang lembapan dan mengeras dalam masa beberapa hari. Pindahkan ke bekas kedap udara sebaik dibuka.',
+          'Simpan di tempat sejuk dan gelap. Dalam cuaca Malaysia yang panas, peti sejuk adalah pilihan yang lebih selamat terutama untuk kurma lembap seperti Medjoul dan Ajwa gred besar.',
+          'Untuk Rotab dan kurma muda yang masih lembap, simpanan sejuk beku adalah cara yang betul — keluarkan sedikit demi sedikit mengikut keperluan, dan elak mencairkan berulang kali.',
+          'Kalau kurma anda sudah mengeras, ia masih boleh dimakan. Kukus sebentar atau simpan dalam bekas tertutup bersama sekeping roti selama sehari — kurma akan menyerap semula sedikit lembapan.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Kurma mana paling sesuai untuk makan setiap hari?',
+        a: 'Ajwa dan Mariami. Kedua-duanya manis sederhana, jadi tidak memberat walaupun dimakan beberapa biji setiap hari. Mariami lebih berpatutan; Ajwa lebih halus rasanya.',
+      },
+      {
+        q: 'Apa beza Ajwa dan Safawi?',
+        a: 'Kedua-duanya kurma hitam dari Madinah. Ajwa lebih bulat dengan manis yang paling halus; Safawi lebih panjang, kulitnya lebih berkilat, dan ada sedikit nota karamel dengan manis yang sedikit lebih jelas.',
+      },
+      {
+        q: 'Kenapa Medjoul lebih mahal?',
+        a: 'Saiznya jauh lebih besar dan isinya lebih tebal, jadi bilangan biji sekilogram lebih sedikit. Gred Super Jumbo disaring pada saiz maksimum, dan itu menaikkan lagi harganya.',
+      },
+      {
+        q: 'Apa maksud Rotab?',
+        a: 'Rotab ialah kurma pada peringkat separuh masak — belum kering sepenuhnya, jadi isinya masih lembap dan gebu. Ia biasanya disimpan sejuk beku dan dimakan sejuk, teksturnya lebih hampir kepada pencuci mulut berbanding kurma kering.',
+      },
+      {
+        q: 'Gred A, AA, AAA pada Mariami tu apa maksudnya?',
+        a: 'Ia gred saiz. AAA paling besar dan paling seragam bentuknya, diikuti AA, kemudian A. Rasa asasnya sama — yang berubah ialah saiz biji dan penampilan.',
+      },
+      {
+        q: 'Kurma saya dah keras. Boleh selamatkan tak?',
+        a: 'Boleh. Kukus sebentar, atau simpan dalam bekas tertutup bersama sekeping roti selama sehari supaya kurma menyerap semula sedikit lembapan. Ia masih selamat dimakan.',
+      },
+      {
+        q: 'Kurma kena simpan dalam peti sejuk ke?',
+        a: 'Untuk cuaca Malaysia, ya — terutama kurma lembap seperti Medjoul dan Ajwa gred besar. Yang paling penting ialah bekas kedap udara; udara terbuka yang membuat kurma mengeras.',
+      },
+    ],
+  },
+  {
+    slug: 'panduan-kurma-ajwa',
+    title: 'Panduan Kurma Ajwa: Beza Gred Medium, Large, Jumbo & Cara Simpan',
+    description:
+      'Semua yang perlu anda tahu tentang kurma Ajwa Madinah — apa beza gred Medium, Large, Jumbo dan Super Jumbo, gred mana untuk tujuan apa, ciri Ajwa yang biasa, dan cara simpan supaya kekal lembut.',
+    updated: '2026-07',
+    sections: [
+      {
+        heading: 'Apa itu kurma Ajwa?',
+        body: [
+          'Ajwa ialah kultivar kurma yang ditanam di sekitar Madinah, Arab Saudi. Ia mudah dikenali daripada rupanya: warna hitam kelam hampir seragam, permukaan berkedut halus, dan bentuk yang lebih bulat serta padat berbanding kurma panjang seperti Safawi atau Mabroom.',
+          'Yang paling membezakan Ajwa bukan rupanya, tetapi rasanya. Antara semua kurma popular, Ajwa mempunyai manis yang paling halus — tidak menyengat tekak, tiada rasa karamel pekat seperti Medjoul. Sebab itulah ramai yang boleh makan beberapa biji berturut-turut tanpa rasa muak.',
+          'Di Malaysia, Ajwa adalah antara kurma paling dicari, terutamanya menjelang Ramadan dan musim perayaan. Ia juga kurma yang paling kerap dipilih sebagai hadiah dan buah tangan.',
+        ],
+      },
+      {
+        heading: 'Gred Ajwa: apa sebenarnya yang berbeza?',
+        body: [
+          'Ini soalan paling kerap ditanya, dan jawapannya lebih mudah daripada yang disangka: gred Ajwa ialah gred SAIZ, bukan gred rasa. Ajwa Medium dan Ajwa Super Jumbo datang dari kultivar yang sama dengan profil rasa yang sama. Yang berbeza ialah saiz biji dan keseragaman bentuk.',
+          'Medium ialah saiz asas — muat sekali suap dan paling menjimatkan. Large lebih berisi dan padat. Jumbo ketara lebih besar dengan isi yang lebih tebal. Super Jumbo VIP pula disaring pada saiz paling besar dan bentuk paling seragam, jadi ia yang paling menonjol bila disusun dalam bekas atau dulang.',
+          'Kerana rasa asasnya sama, memilih gred sebenarnya soal tujuan dan bajet — bukan soal mana lebih sedap.',
+        ],
+      },
+      {
+        heading: 'Gred mana untuk tujuan apa',
+        body: [
+          'Untuk makan harian dan bekalan berterusan — Medium. Ia memberi rasa Ajwa yang sama pada harga paling rendah, jadi anda boleh simpan stok tanpa fikir panjang.',
+          'Untuk hidangan tetamu yang singgah — Large. Saiznya sudah cukup cantik untuk dihidang, tetapi masih berpatutan untuk dibeli kerap.',
+          'Untuk majlis, jamuan dan dulang buka puasa — Jumbo. Saiz besar menyerlah bila disusun dalam bekas kaca atau dulang.',
+          'Untuk hadiah dan bingkisan — Super Jumbo VIP atau pilihan kotak siap bungkus. Kalau anda mahu sesuatu yang nampak berkelas tanpa perlu bungkusan tambahan, di sinilah tempatnya.',
+          'Ada juga pilihan Aliyah Mix — saiz bercampur dalam satu pek. Kerana tidak disaring ketat pada satu saiz, harganya lebih berpatutan. Sesuai bila anda mementingkan rasa dan kuantiti berbanding keseragaman rupa, seperti untuk agihan atau bekalan surau.',
+        ],
+      },
+      {
+        heading: 'Ciri Ajwa yang biasa dilihat',
+        body: [
+          'Ajwa lazimnya berwarna hitam kelam yang agak seragam, dengan kedutan halus yang rapat di permukaan. Isinya lembut tetapi tidak berair, dan bila dibelah, warnanya coklat gelap.',
+          'Ajwa juga tidak sepatutnya berkilat berminyak secara berlebihan. Permukaannya lebih kering dan matt berbanding kurma lembap seperti Medjoul.',
+          'Perlu diingat: ciri-ciri ini berbeza sedikit mengikut musim, gred dan cara penyimpanan. Kurma dari batch yang sama pun boleh berbeza rupa. Cara paling selamat ialah membeli dari penjual yang anda percaya dan boleh dihubungi kalau ada masalah — bukan bergantung sepenuhnya pada pemeriksaan mata.',
+        ],
+      },
+      {
+        heading: 'Cara simpan supaya kekal lembut',
+        body: [
+          'Musuh utama Ajwa ialah udara. Kurma yang dibiarkan dalam bungkusan terbuka akan hilang lembapan dan mengeras dalam beberapa hari. Sebaik pek dibuka, pindahkan ke bekas kedap udara.',
+          'Simpan di tempat sejuk dan gelap, jauh daripada cahaya matahari terus. Dalam cuaca panas Malaysia, peti sejuk adalah pilihan yang lebih selamat — terutama untuk gred besar yang isinya lebih tebal dan lembap.',
+          'Kalau disimpan dalam peti sejuk, keluarkan sebentar sebelum dihidang. Ajwa yang dimakan terus dari peti terasa lebih keras daripada sepatutnya; beberapa minit di suhu bilik sudah memulihkan teksturnya.',
+          'Ajwa yang sudah mengeras masih selamat dimakan. Kukus sebentar, atau simpan dalam bekas tertutup bersama sekeping roti selama sehari — kurma akan menyerap semula sedikit lembapan.',
+        ],
+      },
+      {
+        heading: 'Saiz pek mana yang berbaloi?',
+        body: [
+          'Pek 100g sesuai kalau anda belum pernah mencuba Ajwa, atau mahu membandingkan gred sebelum membeli banyak. Ia juga saiz yang senang dijadikan buah tangan ringkas.',
+          'Pek 300g dan 500g adalah saiz kegunaan rumah — cukup untuk seminggu dua bagi kebanyakan keluarga tanpa risiko kurma terlalu lama terdedah.',
+          'Pek 1kg ke atas hingga karton lebih berbaloi dari segi harga seunit, tetapi hanya kalau anda memang menghabiskannya — untuk keluarga besar, agihan surau dan masjid, majlis, atau jualan semula. Kalau tidak, kurma yang tersimpan terlalu lama akan mengeras walaupun disimpan dengan betul.',
+        ],
+      },
+      {
+        heading: 'Bila masa terbaik untuk beli?',
+        body: [
+          'Permintaan kurma melonjak menjelang Ramadan, dan itu memberi kesan kepada dua perkara: harga dan ketersediaan gred besar. Gred Jumbo dan Super Jumbo biasanya yang paling cepat habis.',
+          'Kalau anda merancang untuk majlis atau hadiah semasa Ramadan atau Aidilfitri, membeli awal memberi anda pilihan gred yang lebih luas. Membeli di luar musim pula selalunya lebih tenang dan stok lebih stabil.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Apa beza Ajwa Medium, Large, Jumbo dan Super Jumbo?',
+        a: 'Semuanya kurma Ajwa yang sama dengan rasa yang sama — yang berbeza hanya saiz biji dan keseragaman bentuk. Medium paling kecil dan paling menjimatkan; Super Jumbo VIP disaring pada saiz paling besar dan paling seragam.',
+      },
+      {
+        q: 'Ajwa gred besar lebih sedap ke?',
+        a: 'Tidak semestinya. Gred ialah ukuran saiz, bukan rasa. Gred besar dipilih kerana penampilannya lebih menyerlah untuk hidangan dan hadiah, bukan kerana rasanya berbeza.',
+      },
+      {
+        q: 'Ajwa Aliyah Mix tu apa?',
+        a: 'Ia pek Ajwa Aliyah dengan saiz bercampur — ada yang sederhana, ada yang lebih besar. Kerana tidak disaring pada satu saiz tetap, harganya lebih berpatutan. Sesuai bila rasa dan kuantiti lebih penting daripada keseragaman rupa.',
+      },
+      {
+        q: 'Kenapa Ajwa saya mengeras?',
+        a: 'Hampir selalu kerana terdedah kepada udara. Pindahkan ke bekas kedap udara sebaik pek dibuka. Kalau sudah mengeras, kukus sebentar atau simpan sehari bersama sekeping roti dalam bekas tertutup.',
+      },
+      {
+        q: 'Ajwa kena simpan dalam peti sejuk ke?',
+        a: 'Dalam cuaca Malaysia, peti sejuk lebih selamat — terutama untuk gred besar. Yang paling penting tetap bekas kedap udara. Keluarkan sebentar sebelum makan supaya teksturnya kembali lembut.',
+      },
+      {
+        q: 'Berapa pek patut saya beli?',
+        a: 'Mulakan dengan 100g kalau belum pernah mencuba. Untuk kegunaan rumah, 300g hingga 500g paling praktikal. Pek 1kg ke atas berbaloi hanya kalau anda memang menghabiskannya — kurma yang terlalu lama tersimpan akan mengeras.',
+      },
+    ],
+  },
 ]
 
 export function getArtikel(slug: string) {

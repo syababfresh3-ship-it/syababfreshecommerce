@@ -7,10 +7,10 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 140
-- **Level:** 1 — Baru Bermula
+- **Mata:** 200
+- **Level:** 1 — Baru Bermula *(201 mata = naik Lv2, tinggal 1 mata!)*
 - **Streak:** 1 hari berturut-turut
-- **Pencapaian dibuka:** 4 / 14
+- **Pencapaian dibuka:** 5 / 14
 - **Kemaskini terakhir:** 21 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
@@ -69,7 +69,7 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [ ] **Semakan kelajuan (Core Web Vitals)** — LCP < 2.5s pada homepage & katalog (+50)
 
 ## 📝 KANDUNGAN (AEO / GEO — bawa pembeli & autoriti)
-- [ ] **6 artikel panduan** (sekarang 4 → tambah 2) (+60)
+- [x] **6 artikel panduan** (sekarang 4 → tambah 2) (+60) ✔ 21 Jul — `jenis-kurma-malaysia`, `panduan-kurma-ajwa`
 - [ ] **8 artikel panduan** (+60)
 - [ ] **FAQ + FAQPage schema pada katalog** (soalan pembeli: "berapa lama sampai", "kawasan hantar") (+40)
 - [ ] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80)
@@ -96,6 +96,7 @@ Menang bawah dulu, naik ke atas:
 | Tarikh | Disiapkan | Mata | Streak |
 |--------|-----------|------|--------|
 | 21 Jul 2026 | BreadcrumbList produk · H1 homepage · H1 katalog · pautan panduan dari homepage | +140 | 1 |
+| 21 Jul 2026 | 2 artikel panduan baharu (jenis kurma Malaysia · panduan kurma Ajwa) | +60 | 1 |
 
 ---
 
