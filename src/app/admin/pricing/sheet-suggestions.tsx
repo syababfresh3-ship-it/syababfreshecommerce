@@ -18,12 +18,22 @@ export interface SuggestionRow {
   tarikh: string
 }
 
+export interface ScanReport {
+  cadangan: number
+  dilangkau: number
+  baris_sheet: number
+  skipped: { apa: string; sebab: string }[]
+}
+
 const rm = (n: number) => `RM${n.toFixed(2)}`
 
 export function SheetSuggestions({ suggestions }: { suggestions: SuggestionRow[] }) {
   const router = useRouter()
   const [scanning, setScanning] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
+  // Laporan scan terakhir — supaya "0 cadangan" ada sebab yang boleh dibaca.
+  const [laporan, setLaporan] = useState<ScanReport | null>(null)
+  const [bukaLaporan, setBukaLaporan] = useState(false)
 
   async function scan() {
     setScanning(true)
@@ -32,6 +42,13 @@ export function SheetSuggestions({ suggestions }: { suggestions: SuggestionRow[]
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Gagal semak sheet')
       toast.success(`${json.cadangan} cadangan · ${json.dilangkau} dilangkau (${json.baris_sheet} baris sheet)`)
+      setLaporan({
+        cadangan: Number(json.cadangan ?? 0),
+        dilangkau: Number(json.dilangkau ?? 0),
+        baris_sheet: Number(json.baris_sheet ?? 0),
+        skipped: Array.isArray(json.skipped) ? json.skipped : [],
+      })
+      setBukaLaporan(json.cadangan === 0) // 0 cadangan → terus buka sebabnya
       router.refresh()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Gagal semak sheet')
@@ -76,6 +93,34 @@ export function SheetSuggestions({ suggestions }: { suggestions: SuggestionRow[]
           {scanning ? 'Menyemak…' : 'Semak Kos dari Sheet'}
         </button>
       </div>
+
+      {laporan && (
+        <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12px] text-gray-600">
+              Scan terakhir: <span className="font-semibold text-gray-900">{laporan.cadangan} cadangan</span>
+              {' · '}{laporan.dilangkau} dilangkau{' · '}{laporan.baris_sheet} baris sheet dibaca
+            </p>
+            {laporan.skipped.length > 0 && (
+              <button
+                onClick={() => setBukaLaporan((b) => !b)}
+                className="text-[12px] font-semibold text-blue-600 hover:underline"
+              >
+                {bukaLaporan ? 'Sembunyi sebab' : `Kenapa dilangkau? (${laporan.skipped.length})`}
+              </button>
+            )}
+          </div>
+          {bukaLaporan && laporan.skipped.length > 0 && (
+            <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2">
+              {laporan.skipped.map((s, i) => (
+                <li key={i} className="text-[12px] text-gray-600">
+                  <span className="font-semibold text-gray-800">{s.apa}</span> — {s.sebab}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {suggestions.length === 0 ? (
         <p className="px-4 py-4 text-[13px] text-gray-500">

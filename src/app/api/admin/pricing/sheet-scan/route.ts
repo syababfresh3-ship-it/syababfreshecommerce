@@ -43,6 +43,6 @@ export async function POST() {
     baris_sheet: sheetRows,
     cadangan: suggestions.length,
     dilangkau: skipped.length,
-    skipped: skipped.slice(0, 40),
+    skipped: skipped.slice(0, 200),
   })
 }

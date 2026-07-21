@@ -56,6 +56,22 @@ const RULES: Rule[] = [
   { nama: 'Melon', productRe: /melon/i, sheetRe: /melon/i, unit: 'biji' },
   { nama: 'Delima', productRe: /delima|pomegranate/i, sheetRe: /delima|pomegranate/i, unit: 'biji' },
   { nama: 'Gold Kiwi', productRe: /gold\s*kiwi|kiwi/i, sheetRe: /kiwi/i, unit: 'biji' },
+
+  // ── Tambahan: buah yang ada dalam sheet invois tapi belum ada rule ───────────
+  // Diletak di HUJUNG supaya keutamaan rule sedia ada tidak berubah langsung.
+  // 'Cherry Fresh Turki …' tak padan rule Ceri Turki di atas kerana ada perkataan
+  // di antara "Cherry" dan "Turki" — rule alt ini tangkap ejaan tersebut.
+  { nama: 'Ceri Turki (ejaan alt)', productRe: /cherry.*turki|ceri.*turki/i, sheetRe: /ziraat|cherry\s*turk|ceri\s*turk/i, unit: 'kg', clearanceRe: /cherr|ceri/i },
+  { nama: 'Winter Jujube', productRe: /jujube|bidara/i, sheetRe: /jujube/i, unit: 'kg' },
+  { nama: 'Red Plum', productRe: /red\s*plum|plum/i, sheetRe: /red\s*plum|plum/i, unit: 'kg' },
+  { nama: 'Pulasan', productRe: /pulasan/i, sheetRe: /pulasan/i, unit: 'kg' },
+  { nama: 'Buah Naga', productRe: /buah\s*naga|dragon\s*fruit/i, sheetRe: /buah\s*naga|dragon\s*fruit/i, unit: 'kg' },
+  { nama: 'Mangga Chokanan', productRe: /chokanan|chokonan/i, sheetRe: /chokonan|chokanan/i, unit: 'kg' },
+  { nama: 'Keledek Vietnam', productRe: /sweet\s*potato\s*vietnam|keledek\s*vietnam/i, sheetRe: /vietnam\s*sweet\s*potato/i, unit: 'kg' },
+  { nama: 'Packham Pear', productRe: /packham/i, sheetRe: /packham/i, unit: 'biji' },
+  { nama: 'Century Pear', productRe: /century\s*pear/i, sheetRe: /century\s*pear/i, unit: 'biji' },
+  { nama: 'Forelle Pear', productRe: /forelle|forella/i, sheetRe: /forelle|forella/i, unit: 'biji' },
+  { nama: 'Lemon', productRe: /^lemon/i, sheetRe: /lemon/i, unit: 'biji' },
 ]
 
 // ── CSV parser (RFC4180 ringkas: handle petik & koma/newline dalam field) ──────
@@ -146,6 +162,13 @@ function beratKg(v: Variant): number | null {
   if (g) return parseFloat(g[1]) / 1000
   return null
 }
+// Produk tanpa variant: berat diambil dari products.weight_grams (atau nama produk).
+// Sebelum ini produk begini sentiasa dilangkau kerana berat hanya dibaca dari variant.
+function beratKgProduk(p: { name: string; weight_grams?: number | null }): number | null {
+  if (p.weight_grams && p.weight_grams > 0) return p.weight_grams / 1000
+  return beratKg({ id: '', product_id: '', name: p.name, weight_grams: null })
+}
+
 function countOf(v: Variant, unit: string): number | null {
   const t = (v.name ?? '').toLowerCase()
   const m = t.match(new RegExp(`(\\d+)\\s*${unit}`))
@@ -170,7 +193,7 @@ export async function buildSuggestions(
   const rows = await fetchSheetRows()
 
   const [{ data: products }, { data: variants }, { data: costs }] = await Promise.all([
-    supabase.from('products').select('id, name, is_active').eq('is_active', true),
+    supabase.from('products').select('id, name, weight_grams, is_active').eq('is_active', true),
     supabase.from('product_variants').select('id, product_id, name, weight_grams, is_active').eq('is_active', true),
     supabase.from('variant_costs').select('product_id, variant_id, kos_buah'),
   ])
@@ -188,9 +211,11 @@ export async function buildSuggestions(
   const suggestions: Suggestion[] = []
   const skipped: SkipInfo[] = []
 
-  for (const p of (products ?? []) as { id: string; name: string }[]) {
+  for (const p of (products ?? []) as { id: string; name: string; weight_grams?: number | null }[]) {
     const rule = RULES.find((r) => r.productRe.test(p.name))
-    if (!rule) continue
+    // Dulu produk tanpa rule dilangkau SENYAP — admin tak tahu ia tak disemak.
+    // Sekarang ia dilaporkan supaya sebab 'tiada cadangan' jelas.
+    if (!rule) { skipped.push({ apa: p.name, sebab: 'tiada rule padanan — buah ini tak disemak dari sheet' }); continue }
     const fc = latestFruitCost(rows, rule)
     if (!fc) { skipped.push({ apa: p.name, sebab: `kos '${rule.nama}' tak dijumpai dalam sheet` }); continue }
     const clearance = latestClearance(rows, rule)
@@ -202,9 +227,9 @@ export async function buildSuggestions(
     for (const v of targets) {
       let scaled: number | null = null
       if (rule.unit === 'kg') {
-        const kg = v ? beratKg(v) : null
+        const kg = v ? beratKg(v) : beratKgProduk(p)
         if (kg) scaled = perUnitLanded * kg
-        else { skipped.push({ apa: `${p.name} / ${v?.name ?? '(produk)'}`, sebab: 'berat variant tak dapat ditentukan' }); continue }
+        else { skipped.push({ apa: `${p.name} / ${v?.name ?? '(produk)'}`, sebab: v ? 'berat variant tak dapat ditentukan' : 'berat produk (weight_grams) belum diisi' }); continue }
       } else if (rule.unit === 'ctn') {
         const n = v ? (countOf(v, 'ctn') ?? countOf(v, 'kotak')) : null
         if (n) scaled = perUnitLanded * n
