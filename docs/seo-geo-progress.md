@@ -7,21 +7,65 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 0
+- **Mata:** 140
 - **Level:** 1 — Baru Bermula
-- **Streak:** 0 hari berturut-turut
-- **Pencapaian dibuka:** 0 / 14
+- **Streak:** 1 hari berturut-turut
+- **Pencapaian dibuka:** 4 / 14
 - **Kemaskini terakhir:** 21 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
 
 ---
 
+## ✅ SUDAH SIAP SEBELUM PAPAN INI DIBUAT (21 Julai 2026)
+> Asas yang sudah wujud tetapi tiada kotaknya dalam senarai di bawah. Direkodkan
+> supaya papan ini bermula dari keadaan sebenar, bukan sifar. Tiada mata diberi —
+> ini garis permulaan, bukan pencapaian baharu.
+
+**Infrastruktur teknikal**
+- `robots.txt` — sekat `/api/`, `/admin/`, `/checkout/`, `/cart`, `/profile/`, `/tetapan/`
+- `sitemap.ts` dinamik — 125 URL; produk & kategori auto-masuk; page pendua dan
+  kategori kosong ditapis keluar
+- Canonical kendiri semua page; `metadataBase`; OG penuh (`ms_MY`)
+- Pengesahan Google Search Console + Google Business Profile (aktif)
+- Feed Google Merchant Center `/merchant-feed.xml` (belum disambung ke MC)
+
+**Structured data (JSON-LD)** — 8 jenis
+- Organization, WebSite, GroceryStore/LocalBusiness (semua page)
+- Product + AggregateRating + BreadcrumbList (page produk)
+- Article + FAQPage (artikel panduan)
+- ItemList + BreadcrumbList (page kategori)
+
+**Kandungan**
+- **94 description produk** — sebelum ini 93 daripada 94 kosong dan semua page
+  berkongsi satu ayat fallback yang sama (duplicate content)
+- **33 description kategori**
+- **24 page kategori** `/kategori/[slug]` dengan metadata, H1 dan ItemList sendiri —
+  sebelum ini kategori hanya parameter URL, sifar page
+- 4 artikel panduan
+- `llms.txt` untuk enjin AI (AEO/GEO)
+
+**Titik permulaan Google Search Console (3 bulan hingga 21 Julai 2026)**
+| Metrik | Nilai |
+|---|---|
+| Klik | 53 |
+| Impression | 958 |
+| CTR | 5.5% |
+| Kedudukan purata | 3.1 (tinggi kerana hampir semua query jenama) |
+| Jumlah query | 42 |
+| Klik bukan-jenama | **0** |
+
+> Inilah nombor sebenar yang perlu dikalahkan. 66% klik datang dari orang yang
+> taip nama "syabab fresh" — mereka sudah kenal kedai. Kejayaan bermakna klik
+> bukan-jenama naik dari sifar.
+
+---
+
 ## 🏗️ ASAS TEKNIKAL (quick wins — mudah, mula sini)
-- [ ] **H1 laman utama** — `src/app/page.tsx` (+30 mata)
-- [ ] **H1 katalog** — `src/components/storev2/sf-catalog.tsx` (+30)
-- [ ] **BreadcrumbList schema** pada halaman produk (+40)
-- [ ] **Pautan panduan dari homepage** — internal linking (+40)
+- [x] **H1 laman utama** — `src/app/page.tsx` (+30 mata) ✔ 21 Jul
+- [x] **H1 katalog** — `src/components/storev2/sf-catalog.tsx` (+30) ✔ 21 Jul
+- [x] **BreadcrumbList schema** pada halaman produk (+40) ✔ 21 Jul
+- [x] **Pautan panduan dari homepage** — internal linking (+40) ✔ 21 Jul
 - [ ] **Semakan kelajuan (Core Web Vitals)** — LCP < 2.5s pada homepage & katalog (+50)
 
 ## 📝 KANDUNGAN (AEO / GEO — bawa pembeli & autoriti)
@@ -51,7 +95,7 @@ Menang bawah dulu, naik ke atas:
 
 | Tarikh | Disiapkan | Mata | Streak |
 |--------|-----------|------|--------|
-| _(belum ada)_ | | | |
+| 21 Jul 2026 | BreadcrumbList produk · H1 homepage · H1 katalog · pautan panduan dari homepage | +140 | 1 |
 
 ---
 

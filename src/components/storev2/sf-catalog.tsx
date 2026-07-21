@@ -128,8 +128,14 @@ export function SfCatalog({
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)]">
+      {/* H1 katalog — isyarat topik untuk Google. Ringkas supaya tak makan
+          ruang skrin; carian & rail kekal di posisi asal. */}
+      <div className="px-4 pt-3 bg-[#F4F6F5]">
+        <h1 className="text-[15px] font-extrabold text-gray-900">Katalog Buah Segar Online</h1>
+      </div>
+
       {/* Search */}
-      <div className="px-4 pt-3 pb-2 bg-[#F4F6F5]">
+      <div className="px-4 pt-2 pb-2 bg-[#F4F6F5]">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
