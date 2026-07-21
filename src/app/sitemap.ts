@@ -10,6 +10,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: 'daily', priority: 1 },
     { url: `${BASE_URL}/products`, changeFrequency: 'daily', priority: 0.9 },
+    // Halaman kluster — pillar page yang menyatukan kategori & panduan.
+    { url: `${BASE_URL}/buah-online`, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/info`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/terma`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE_URL}/jadi-ejen`, changeFrequency: 'monthly', priority: 0.5 },

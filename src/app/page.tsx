@@ -82,6 +82,18 @@ export default async function HomePage() {
                 Semua
               </Link>
             </div>
+            {/* Pautan ke halaman kluster — pillar page perlukan pautan dalaman
+                dari page berautoriti supaya Google nilaikan ia sebagai penting. */}
+            <Link
+              href="/buah-online"
+              className="mb-2 flex items-center gap-2 rounded-2xl bg-white border border-gray-200 px-4 py-3"
+            >
+              <BookOpen className="h-[18px] w-[18px] text-[#E11D2A] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-gray-900">Beli buah online — panduan penuh</p>
+                <p className="text-[11px] text-gray-400">Apa perlu diperiksa sebelum order, dan cara pilih ikut keperluan</p>
+              </div>
+            </Link>
             <div className="rounded-2xl bg-white border border-gray-200 divide-y divide-gray-100">
               {ARTIKEL.slice(0, 4).map((a) => (
                 <Link

@@ -7,10 +7,10 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 240
-- **Level:** 2 — Membina 🎉 *(naik dari Lv1 hari ini)*
+- **Mata:** 320
+- **Level:** 2 — Membina
 - **Streak:** 1 hari berturut-turut
-- **Pencapaian dibuka:** 6 / 14
+- **Pencapaian dibuka:** 7 / 14
 - **Kemaskini terakhir:** 21 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
@@ -72,7 +72,7 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [x] **6 artikel panduan** (sekarang 4 → tambah 2) (+60) ✔ 21 Jul — `jenis-kurma-malaysia`, `panduan-kurma-ajwa`
 - [ ] **8 artikel panduan** (+60)
 - [x] **FAQ + FAQPage schema pada katalog** (soalan pembeli: "berapa lama sampai", "kawasan hantar") (+40) ✔ 21 Jul — 6 soalan, dipapar + schema
-- [ ] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80)
+- [x] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80) ✔ 21 Jul — `/buah-online`, 6 pautan kategori + 6 panduan
 
 ## 🔍 RANKING (ukur via Google Search Console)
 - [ ] 🌱 **5 terma long-tail dapat impressions** dalam GSC (dah diindeks & muncul) (+50)
@@ -99,6 +99,7 @@ Menang bawah dulu, naik ke atas:
 | 21 Jul 2026 | 2 artikel panduan baharu (jenis kurma Malaysia · panduan kurma Ajwa) | +60 | 1 |
 | 21 Jul 2026 | Pautan dalaman artikel → page kategori (11 pautan) | +0 | 1 |
 | 21 Jul 2026 | FAQ + FAQPage schema pada katalog — **naik Level 2** | +40 | 1 |
+| 21 Jul 2026 | Halaman kluster /buah-online (pillar page) | +80 | 1 |
 
 ---
 
