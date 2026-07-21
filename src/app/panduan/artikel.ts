@@ -454,6 +454,191 @@ export const ARTIKEL: Artikel[] = [
       },
     ],
   },
+  {
+    slug: 'panduan-anggur-import',
+    title: 'Panduan Anggur Import: Shine Muscat, Sweet Sapphire & Cara Simpan',
+    description:
+      'Beza lima jenis anggur import tanpa biji yang paling popular — Shine Muscat, Sweet Sapphire, Autumn Royal, Sweet Globe dan Crimson. Termasuk kenapa Shine Muscat mahal, cara kenal anggur segar dan cara simpan supaya kekal rangup.',
+    updated: '2026-07',
+    sections: [
+      {
+        heading: 'Kenapa anggur import semua tanpa biji?',
+        body: [
+          'Hampir semua anggur meja yang dijual hari ini adalah kultivar tanpa biji — bukan kerana diproses, tetapi kerana memang dibiakkan begitu. Pembeli lebih suka anggur yang boleh terus dimakan tanpa perlu meludah biji, jadi ladang komersial menumpukan kultivar tanpa biji.',
+          'Kulit anggur import juga nipis dan boleh dimakan. Tidak perlu dikupas — cuma bilas sebelum makan.',
+        ],
+      },
+      {
+        heading: 'Shine Muscat — hijau, wangi, paling manis',
+        body: [
+          'Shine Muscat ialah kultivar yang dibangunkan di Jepun dan kini turut ditanam di beberapa negara lain, jadi asalnya berbeza mengikut kiriman. Cirinya konsisten: butir hijau kekuningan yang besar, kulit nipis, dan aroma muscat yang wangi — bau bunga yang manis, sangat berbeza daripada anggur biasa.',
+          'Manisnya antara yang paling tinggi dalam dunia anggur meja, tetapi bukan manis yang memualkan; ia diimbangi oleh keharuman itu. Teksturnya rangup dan padat, bukan lembik.',
+          'Kenapa mahal? Tiga sebab: hasil per pokok lebih rendah berbanding kultivar biasa, ia memerlukan penjagaan lebih rapi di ladang, dan permintaannya tinggi. Harga juga berbeza ketara mengikut gred dan asal kiriman. [Lihat anggur yang ada](/kategori/anggur).',
+        ],
+      },
+      {
+        heading: 'Sweet Sapphire — ungu, berbentuk jari',
+        body: [
+          'Paling mudah dikenali antara semua: bentuknya memanjang seperti jari, bukan bulat. Warnanya ungu gelap hampir kehitaman dengan kulit nipis dan tekstur yang rangup.',
+          'Rasanya manis pekat tanpa masam yang ketara. Kerana bentuknya yang unik dan senang dipegang, ia pilihan popular untuk platter buah, bekal sekolah dan hidangan majlis yang mahu nampak berbeza.',
+        ],
+      },
+      {
+        heading: 'Autumn Royal, Sweet Globe & Crimson',
+        body: [
+          'Autumn Royal — hitam keunguan, bujur dan besar, dengan manis sekata sehingga hujung tanpa masam yang mengganggu. Warna gelapnya menonjol atas pinggan buah.',
+          'Sweet Globe — hijau cerah, bulat dan besar, dengan tekstur paling tegas antara semua. Gigitan pertama memang terasa bunyi rangupnya. Manisnya bersih tanpa aroma muscat.',
+          'Crimson — merah menyala, rangup, manis dengan sedikit masam di hujung. Masam nipis itulah yang membuatkan ia tidak cepat memualkan, jadi ia pilihan harian yang baik dan biasanya paling berpatutan antara lima.',
+        ],
+      },
+      {
+        heading: 'Cara kenal anggur yang segar',
+        body: [
+          'Tengok tangkainya dahulu, bukan buahnya. Tangkai yang hijau dan lentur bermaksud anggur baru dipetik; tangkai yang coklat, kering dan rapuh bermaksud ia sudah lama dalam simpanan walaupun butirnya masih nampak elok.',
+          'Butir anggur sepatutnya melekat kuat pada tangkai. Kalau banyak butir tercicir di dasar bekas, itu tanda ia sudah lama.',
+          'Lapisan putih keabuan pada kulit anggur bukan habuk atau racun — itu bloom, lapisan lilin semula jadi yang dihasilkan oleh buah sendiri untuk melindungi daripada kehilangan air. Kehadirannya sebenarnya tanda anggur belum banyak dikendalikan. Ia hilang bila digosok.',
+        ],
+      },
+      {
+        heading: 'Cara simpan supaya kekal rangup',
+        body: [
+          'Jangan basuh sebelum simpan. Air yang tertinggal antara butir mempercepatkan kulat, dan ia juga membuang bloom yang melindungi buah. Basuh hanya bahagian yang hendak dimakan.',
+          'Kekalkan anggur pada tangkainya. Butir yang ditanggalkan awal meninggalkan luka kecil di tempat sambungan, dan dari situlah reput bermula.',
+          'Simpan dalam peti sejuk di dalam bekas yang ada sedikit pengudaraan — bukan plastik kedap sepenuhnya yang memerangkap lembapan, dan bukan juga terbuka luas yang membuat anggur kering berkedut.',
+          'Anggur tidak bertambah manis selepas dipetik. Kalau satu kiriman kurang manis daripada yang sebelumnya, itu bukan kerana cara simpan — itu memang karakter kiriman tersebut.',
+        ],
+      },
+      {
+        heading: 'Kalau anggur mula lembik',
+        body: [
+          'Butir yang mula berkedut masih selamat dimakan dan selalunya lebih manis kerana airnya berkurang. Kalau teksturnya sudah tidak menyenangkan, bekukan — anggur beku dimakan terus dari peti sejuk beku rasanya seperti sorbet mini, dan ia juga sesuai dimasukkan ke dalam smoothie.',
+          'Buang butir yang sudah pecah atau berkulat dengan segera. Reput merebak cepat kepada butir bersebelahan dalam bekas yang sama.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Kenapa Shine Muscat mahal?',
+        a: 'Hasil per pokok lebih rendah berbanding kultivar anggur biasa, penjagaan di ladang lebih rapi, dan permintaannya tinggi. Harga juga berbeza mengikut gred dan asal kiriman.',
+      },
+      {
+        q: 'Anggur mana paling manis?',
+        a: 'Shine Muscat, dan ia juga satu-satunya dengan aroma muscat yang wangi. Autumn Royal dan Sweet Globe manis tetapi tanpa keharuman itu; Crimson ada sedikit masam di hujung.',
+      },
+      {
+        q: 'Serbuk putih pada anggur tu apa? Selamat ke?',
+        a: 'Itu bloom — lapisan lilin semula jadi yang dihasilkan oleh anggur sendiri untuk mengurangkan kehilangan air. Ia selamat, dan kehadirannya tanda anggur belum banyak dikendalikan. Ia hilang bila digosok atau dibasuh.',
+      },
+      {
+        q: 'Anggur kena basuh sebelum simpan ke?',
+        a: 'Jangan. Air yang tertinggal antara butir mempercepatkan kulat dan membuang bloom yang melindungi buah. Basuh hanya sebelum makan.',
+      },
+      {
+        q: 'Kenapa anggur saya cepat gugur dari tangkai?',
+        a: 'Butir yang mudah tercicir menandakan anggur sudah agak lama selepas dipetik. Anggur segar melekat kuat pada tangkainya, dan tangkainya masih hijau serta lentur.',
+      },
+      {
+        q: 'Anggur boleh dibekukan?',
+        a: 'Boleh, dan ia cara terbaik menyelamatkan anggur yang mula berkedut. Dimakan terus dari peti sejuk beku rasanya seperti sorbet; sesuai juga untuk smoothie.',
+      },
+    ],
+  },
+  {
+    slug: 'cara-simpan-buah-peti-sejuk',
+    title: 'Cara Simpan Buah dalam Peti Sejuk Supaya Tahan Lama',
+    description:
+      'Bukan semua buah patut masuk peti sejuk. Panduan lengkap: buah mana kena sejuk, buah mana rosak kalau disejukkan, kenapa buah tak boleh disimpan bersama, dan kesilapan paling biasa yang buat buah cepat rosak.',
+    updated: '2026-07',
+    sections: [
+      {
+        heading: 'Kesilapan pertama: masukkan semua buah ke peti sejuk',
+        body: [
+          'Ramai menganggap peti sejuk memanjangkan hayat semua buah. Sebenarnya sebahagian buah tropika rosak apabila disejukkan sebelum masak — proses masaknya terhenti, teksturnya bertukar berkeras atau berair, dan rasanya jadi hambar. Kerosakan ini tidak boleh dipulihkan walaupun buah dikeluarkan semula.',
+          'Peraturan mudahnya: buah yang perlu masak lagi, biarkan di suhu bilik dahulu. Setelah cukup masak, barulah masuk peti sejuk untuk memperlahankan proses seterusnya.',
+        ],
+      },
+      {
+        heading: 'Buah yang patut terus masuk peti sejuk',
+        body: [
+          'Semua beri dan buah berkulit nipis: ceri, anggur, strawberi, blueberry. Buah ini tidak akan masak lagi selepas dipetik — yang berlaku hanya penurunan kualiti, dan sejuk memperlahankannya. Setiap jam di suhu bilik Malaysia bermakna hayat yang hilang.',
+          'Buah yang sudah dipotong, tanpa kecuali. Permukaan yang terdedah adalah pintu masuk bakteria. Simpan dalam bekas bertutup dan habiskan cepat.',
+          'Buah yang sudah cukup masak dan anda belum sempat makan — mangga, avocado, pear yang sudah lembut. Menyejukkan pada tahap ini memberi anda beberapa hari tambahan.',
+        ],
+      },
+      {
+        heading: 'Buah yang biar di suhu bilik dahulu',
+        body: [
+          'Mangga, avocado, pisang, betik dan nanas yang masih keras. Buah ini terus masak selepas dipetik, dan proses itu memerlukan suhu bilik. Menyejukkannya terlalu awal menghentikan proses tersebut secara kekal — buah akan kekal keras tetapi tidak akan jadi manis.',
+          'Cara uji kemasakan: tekan lembut di hujung tangkai. Kalau memberi sedikit, ia sudah sedia. Untuk mangga, tambah satu lagi petunjuk — hidu bahagian tangkai; mangga masak berbau wangi walaupun kulitnya masih hijau.',
+          'Nak cepat masak? Simpan dalam beg kertas bersama sebiji pisang. Gas etilena daripada pisang mempercepatkan proses.',
+        ],
+      },
+      {
+        heading: 'Kenapa buah tidak patut disimpan bercampur',
+        body: [
+          'Sesetengah buah mengeluarkan gas etilena — antaranya pisang, mangga, betik dan avocado matang. Gas ini mempercepatkan kemasakan buah lain di sekelilingnya.',
+          'Itu berguna kalau anda memang mahu buah cepat masak. Ia menjadi masalah apabila pisang diletakkan bersebelahan anggur atau ceri di dalam peti sejuk — buah yang sepatutnya tahan seminggu akan merosot dalam beberapa hari.',
+          'Penyelesaian mudah: asingkan pisang dan mangga dari beri dan anggur. Tidak perlu bekas khas, cukup letak di rak berbeza.',
+        ],
+      },
+      {
+        heading: 'Basuh atau tidak?',
+        body: [
+          'Jangan basuh sebelum simpan. Ini peraturan yang paling kerap dilanggar, dan ia punca nombor satu buah cepat berkulat. Lembapan yang tertinggal di permukaan adalah tempat paling sesuai untuk kulat tumbuh.',
+          'Basuh hanya bahagian yang hendak dimakan, tepat sebelum makan. Kalau anda terlanjur membasuh semuanya, keringkan betul-betul dengan tuala kertas sebelum menyimpan.',
+        ],
+      },
+      {
+        heading: 'Bekas yang betul',
+        body: [
+          'Bekas kedap sepenuhnya memerangkap lembapan yang dikeluarkan oleh buah, dan itu mempercepatkan reput. Bekas terbuka luas pula membiarkan buah kehilangan air sehingga berkedut.',
+          'Yang paling sesuai ialah bekas dengan sedikit pengudaraan — bekas asal penghantaran selalunya sudah direka begitu. Alas dasarnya dengan tuala kertas untuk menyerap lembapan berlebihan, dan tukar bila basah.',
+          'Jangan tindih terlalu tebal. Buah di lapisan bawah akan lebam oleh berat di atasnya, dan lebam adalah tempat reput bermula.',
+        ],
+      },
+      {
+        heading: 'Bahagian mana dalam peti sejuk?',
+        body: [
+          'Elakkan pintu. Suhu di situ naik turun setiap kali pintu dibuka, dan turun naik suhu lebih memudaratkan buah daripada suhu sejuk yang stabil.',
+          'Bahagian paling dalam dan paling bawah — biasanya laci sayur — adalah yang paling stabil suhunya. Itulah tempat terbaik untuk buah yang sensitif.',
+        ],
+      },
+      {
+        heading: 'Bila buah mula merosot, jangan terus buang',
+        body: [
+          'Buah yang mula berkedut selalunya lebih manis kerana kandungan airnya berkurang. Ia masih sesuai untuk smoothie, jus, atau dibakar dalam kek dan muffin.',
+          'Bekukan sebelum ia terlalu jauh. Anggur, ceri dan mangga semuanya sesuai dibekukan — potong, susun sekata atas dulang, bekukan, kemudian pindahkan ke beg kedap udara supaya tidak melekat menjadi satu ketul.',
+          'Yang perlu dibuang: buah yang sudah berkulat, berbau masam seperti hendak menjadi cuka, atau berair apabila disentuh. Satu biji berkulat dalam bekas perlu dibuang segera kerana ia merebak kepada yang bersebelahan. [Lihat buah yang ada sekarang](/kategori/buah-import).',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Semua buah kena masuk peti sejuk ke?',
+        a: 'Tidak. Buah yang masih perlu masak — mangga, avocado, pisang, betik, nanas keras — biarkan di suhu bilik dahulu. Menyejukkannya terlalu awal menghentikan proses masak secara kekal. Setelah cukup masak, barulah masuk peti sejuk.',
+      },
+      {
+        q: 'Kenapa buah saya cepat berkulat walaupun dalam peti sejuk?',
+        a: 'Punca paling biasa ialah dibasuh sebelum disimpan. Lembapan yang tertinggal adalah tempat kulat tumbuh. Punca lain: bekas terlalu kedap, buah ditindih terlalu tebal, atau disimpan di pintu peti sejuk yang suhunya tidak stabil.',
+      },
+      {
+        q: 'Boleh ke simpan pisang bersama buah lain?',
+        a: 'Tidak digalakkan. Pisang mengeluarkan gas etilena yang mempercepatkan kemasakan buah di sekelilingnya. Asingkan pisang dan mangga daripada anggur, ceri dan beri.',
+      },
+      {
+        q: 'Macam mana nak cepatkan mangga atau avocado masak?',
+        a: 'Simpan dalam beg kertas bersama sebiji pisang. Gas etilena daripada pisang mempercepatkan proses. Periksa setiap hari — tekan lembut di hujung tangkai; kalau memberi sedikit, ia sudah sedia.',
+      },
+      {
+        q: 'Bahagian mana dalam peti sejuk paling sesuai untuk buah?',
+        a: 'Bahagian paling dalam dan paling bawah, biasanya laci sayur. Elakkan pintu kerana suhunya naik turun setiap kali pintu dibuka, dan turun naik suhu lebih memudaratkan daripada sejuk yang stabil.',
+      },
+      {
+        q: 'Buah dah berkedut — masih boleh makan?',
+        a: 'Boleh, dan selalunya lebih manis kerana airnya berkurang. Sesuai untuk smoothie, jus atau bakeri. Yang perlu dibuang hanya buah yang berkulat, berbau masam, atau berair apabila disentuh.',
+      },
+    ],
+  },
 ]
 
 export function getArtikel(slug: string) {
