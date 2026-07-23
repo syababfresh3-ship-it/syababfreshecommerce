@@ -111,7 +111,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Peraturan paling penting: jangan basuh ceri sebelum simpan. Air mempercepatkan proses reput. Basuh hanya bila nak makan.',
           'Simpan dalam peti sejuk (bahagian chiller, 0–4°C) dalam bekas asal atau bekas bertutup yang ada sedikit pengudaraan. Dengan cara ni ceri boleh tahan 5–10 hari. Di suhu bilik, ceri hanya tahan 1–2 hari.',
-          'Nak simpan lebih lama? Buang biji, masukkan dalam beg kedap udara dan bekukan — ceri beku tahan berbulan dan sedap dibuat smoothie.',
+          'Nak simpan lebih lama? Buang biji, masukkan dalam beg kedap udara dan bekukan — ceri beku tahan berbulan dan sedap dibuat smoothie. Baca juga panduan [buah import online](/buah-online) sebelum pesan.',
         ],
       },
       {
@@ -326,7 +326,7 @@ export const ARTIKEL: Artikel[] = [
           'Musuh utama kurma ialah udara. Kurma yang dibiarkan dalam bungkusan terbuka akan hilang lembapan dan mengeras dalam masa beberapa hari. Pindahkan ke bekas kedap udara sebaik dibuka.',
           'Simpan di tempat sejuk dan gelap. Dalam cuaca Malaysia yang panas, peti sejuk adalah pilihan yang lebih selamat terutama untuk kurma lembap seperti Medjoul dan Ajwa gred besar.',
           'Untuk Rotab dan kurma muda yang masih lembap, simpanan sejuk beku adalah cara yang betul — keluarkan sedikit demi sedikit mengikut keperluan, dan elak mencairkan berulang kali.',
-          'Kalau kurma anda sudah mengeras, ia masih boleh dimakan. Kukus sebentar atau simpan dalam bekas tertutup bersama sekeping roti selama sehari — kurma akan menyerap semula sedikit lembapan.',
+          'Kalau kurma anda sudah mengeras, ia masih boleh dimakan. Kukus sebentar atau simpan dalam bekas tertutup bersama sekeping roti selama sehari — kurma akan menyerap semula sedikit lembapan. Lihat cara [pesan buah segar online](/buah-online) di SyababFresh.',
         ],
       },
     ],
@@ -505,7 +505,7 @@ export const ARTIKEL: Artikel[] = [
           'Jangan basuh sebelum simpan. Air yang tertinggal antara butir mempercepatkan kulat, dan ia juga membuang bloom yang melindungi buah. Basuh hanya bahagian yang hendak dimakan.',
           'Kekalkan anggur pada tangkainya. Butir yang ditanggalkan awal meninggalkan luka kecil di tempat sambungan, dan dari situlah reput bermula.',
           'Simpan dalam peti sejuk di dalam bekas yang ada sedikit pengudaraan — bukan plastik kedap sepenuhnya yang memerangkap lembapan, dan bukan juga terbuka luas yang membuat anggur kering berkedut.',
-          'Anggur tidak bertambah manis selepas dipetik. Kalau satu kiriman kurang manis daripada yang sebelumnya, itu bukan kerana cara simpan — itu memang karakter kiriman tersebut.',
+          'Anggur tidak bertambah manis selepas dipetik. Kalau satu kiriman kurang manis daripada yang sebelumnya, itu bukan kerana cara simpan — itu memang karakter kiriman tersebut. Baru nak mula? Panduan [beli buah online](/buah-online) terangkan apa perlu diperiksa sebelum pesan.',
         ],
       },
       {
@@ -608,7 +608,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Buah yang mula berkedut selalunya lebih manis kerana kandungan airnya berkurang. Ia masih sesuai untuk smoothie, jus, atau dibakar dalam kek dan muffin.',
           'Bekukan sebelum ia terlalu jauh. Anggur, ceri dan mangga semuanya sesuai dibekukan — potong, susun sekata atas dulang, bekukan, kemudian pindahkan ke beg kedap udara supaya tidak melekat menjadi satu ketul.',
-          'Yang perlu dibuang: buah yang sudah berkulat, berbau masam seperti hendak menjadi cuka, atau berair apabila disentuh. Satu biji berkulat dalam bekas perlu dibuang segera kerana ia merebak kepada yang bersebelahan. [Lihat buah yang ada sekarang](/kategori/buah-import).',
+          'Yang perlu dibuang: buah yang sudah berkulat, berbau masam seperti hendak menjadi cuka, atau berair apabila disentuh. Satu biji berkulat dalam bekas perlu dibuang segera kerana ia merebak kepada yang bersebelahan. [Lihat buah yang ada sekarang](/kategori/buah-import), atau baca [panduan lengkap beli buah online](/buah-online).',
         ],
       },
     ],

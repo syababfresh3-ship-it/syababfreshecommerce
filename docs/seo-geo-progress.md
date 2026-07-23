@@ -7,10 +7,10 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 430
-- **Level:** 2 — Membina
+- **Mata:** 470
+- **Level:** 2 — Membina *(30 mata lagi ke Level 3)*
 - **Streak:** 2 hari berturut-turut 🔥
-- **Pencapaian dibuka:** 9 / 14
+- **Pencapaian dibuka:** 10 / 15
 - **Kemaskini terakhir:** 22 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
@@ -73,6 +73,7 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [x] **8 artikel panduan** (+60) ✔ 21 Jul — `panduan-anggur-import`, `cara-simpan-buah-peti-sejuk`
 - [x] **FAQ + FAQPage schema pada katalog** (soalan pembeli: "berapa lama sampai", "kawasan hantar") (+40) ✔ 21 Jul — 6 soalan, dipapar + schema
 - [x] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80) ✔ 21 Jul — `/buah-online`, 6 pautan kategori + 6 panduan
+- [x] **Pautan dua hala kluster buah-online** — artikel & indeks panduan → pillar page (+40) ✔ 22 Jul — 4 artikel (anchor variasi: beli buah online / pesan buah segar online / buah import online / panduan lengkap beli buah online) + kad di /panduan
 
 ## 🔍 RANKING (ukur via Google Search Console)
 - [ ] 🌱 **5 terma long-tail dapat impressions** dalam GSC (dah diindeks & muncul) (+50)
@@ -102,6 +103,7 @@ Menang bawah dulu, naik ke atas:
 | 21 Jul 2026 | Halaman kluster /buah-online (pillar page) | +80 | 1 |
 | 21 Jul 2026 | 2 artikel panduan lagi (anggur import · cara simpan buah) — 8 artikel | +60 | 1 |
 | 22 Jul 2026 | Core Web Vitals diaudit (homepage LCP 1.7s · /products 2.1s) — lulus | +50 | 2 |
+| 22 Jul 2026 | Pautan dua hala kluster buah-online (4 artikel + indeks → pillar) | +40 | 2 |
 
 ---
 

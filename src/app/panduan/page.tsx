@@ -26,6 +26,21 @@ export default function PanduanIndexPage() {
         </p>
 
         <div className="space-y-3">
+          {/* Pautan MASUK ke pillar page — kuatkan kluster "buah online". */}
+          <Link
+            href="/buah-online"
+            className="flex items-center gap-3 rounded-2xl border border-red-100 bg-red-50/50 p-4 shadow-sm hover:border-red-200 transition-colors"
+          >
+            <div className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-red-600 text-white">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-extrabold text-gray-900 leading-snug">Panduan lengkap beli buah online</div>
+              <div className="text-[12px] text-gray-500 line-clamp-2 mt-0.5">Apa perlu diperiksa sebelum pesan, cara buah dihantar, dan cara pilih ikut keperluan.</div>
+            </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+          </Link>
+
           {ARTIKEL.map((a) => (
             <Link
               key={a.slug}
