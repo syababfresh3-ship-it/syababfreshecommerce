@@ -7,11 +7,11 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 380
+- **Mata:** 430
 - **Level:** 2 — Membina
-- **Streak:** 1 hari berturut-turut
-- **Pencapaian dibuka:** 8 / 14
-- **Kemaskini terakhir:** 21 Julai 2026
+- **Streak:** 2 hari berturut-turut 🔥
+- **Pencapaian dibuka:** 9 / 14
+- **Kemaskini terakhir:** 22 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
 
@@ -66,7 +66,7 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [x] **H1 katalog** — `src/components/storev2/sf-catalog.tsx` (+30) ✔ 21 Jul
 - [x] **BreadcrumbList schema** pada halaman produk (+40) ✔ 21 Jul
 - [x] **Pautan panduan dari homepage** — internal linking (+40) ✔ 21 Jul
-- [ ] **Semakan kelajuan (Core Web Vitals)** — LCP < 2.5s pada homepage & katalog (+50)
+- [x] **Semakan kelajuan (Core Web Vitals)** — LCP < 2.5s pada homepage & katalog (+50) ✔ 22 Jul — homepage skor 93 (LCP 1.7s), /products skor 88 (LCP 2.1s); CLS 0, TBT 0ms kedua-dua. Lulus tanpa pembetulan.
 
 ## 📝 KANDUNGAN (AEO / GEO — bawa pembeli & autoriti)
 - [x] **6 artikel panduan** (sekarang 4 → tambah 2) (+60) ✔ 21 Jul — `jenis-kurma-malaysia`, `panduan-kurma-ajwa`
@@ -101,6 +101,7 @@ Menang bawah dulu, naik ke atas:
 | 21 Jul 2026 | FAQ + FAQPage schema pada katalog — **naik Level 2** | +40 | 1 |
 | 21 Jul 2026 | Halaman kluster /buah-online (pillar page) | +80 | 1 |
 | 21 Jul 2026 | 2 artikel panduan lagi (anggur import · cara simpan buah) — 8 artikel | +60 | 1 |
+| 22 Jul 2026 | Core Web Vitals diaudit (homepage LCP 1.7s · /products 2.1s) — lulus | +50 | 2 |
 
 ---
 
