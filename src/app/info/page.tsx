@@ -132,7 +132,21 @@ export default function InfoPage() {
               </a>
             </p>
             <p className="text-xs text-gray-600">
+              <span className="font-medium">E-mel:</span>{' '}
+              <a href="mailto:syababtrading@gmail.com" className="text-brand-red-600 hover:underline">
+                syababtrading@gmail.com
+              </a>
+            </p>
+            <p className="text-xs text-gray-600">
+              <span className="font-medium">Telefon:</span>{' '}
+              <a href="tel:+601190036446" className="text-brand-red-600 hover:underline">011 9003 6446</a>
+            </p>
+            <p className="text-xs text-gray-600">
               <span className="font-medium">Waktu Operasi:</span> Isnin–Ahad, 8am–9pm
+            </p>
+            <p className="text-[11px] text-gray-400 pt-1 leading-relaxed">
+              Syabab Trading Sdn. Bhd. (202401038338 / 1584185-T)<br />
+              Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, 43650 Bandar Baru Bangi, Selangor
             </p>
           </div>
         </div>

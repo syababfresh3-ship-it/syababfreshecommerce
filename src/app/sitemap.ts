@@ -14,6 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/buah-online`, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${BASE_URL}/info`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/terma`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE_URL}/refund`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE_URL}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${BASE_URL}/jadi-ejen`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/jadi-affiliate`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/panduan`, changeFrequency: 'weekly', priority: 0.7 },

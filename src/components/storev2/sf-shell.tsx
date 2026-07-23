@@ -66,7 +66,29 @@ export function SfShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ===== Content ===== */}
-      <main className="mx-auto max-w-5xl pb-24 lg:pb-10">{children}</main>
+      <main className="mx-auto max-w-5xl">{children}</main>
+
+      {/* ===== Footer — maklumat syarikat + polisi (muncul setiap halaman) ===== */}
+      <footer className="mx-auto max-w-5xl px-4 pt-10 pb-24 lg:pb-10 border-t border-gray-200 mt-8">
+        <div className="text-[12px] text-gray-500 leading-relaxed space-y-3">
+          <div>
+            <p className="font-bold text-gray-700">Syabab Trading Sdn. Bhd.</p>
+            <p>No. Pendaftaran: 202401038338 (1584185-T)</p>
+            <p>Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, 43650 Bandar Baru Bangi, Selangor</p>
+            <p>
+              E-mel: <a href="mailto:syababtrading@gmail.com" className="text-gray-700 underline">syababtrading@gmail.com</a>
+              {" · "}Tel: <a href="tel:+601190036446" className="text-gray-700 underline">011 9003 6446</a>
+            </p>
+          </div>
+          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/terma" className="hover:text-gray-800">Terma &amp; Syarat</Link>
+            <Link href="/refund" className="hover:text-gray-800">Polisi Pemulangan</Link>
+            <Link href="/privacy" className="hover:text-gray-800">Polisi Privasi</Link>
+            <Link href="/info" className="hover:text-gray-800">Hubungi Kami</Link>
+          </nav>
+          <p className="text-[11px] text-gray-400">© {2026} SyababFresh. Hak cipta terpelihara.</p>
+        </div>
+      </footer>
 
       {/* ===== Bottom nav (mobile sahaja) ===== */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200">

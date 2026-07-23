@@ -35,7 +35,7 @@ const SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: '7. Hubungi Kami',
-    body: 'Sebarang pertanyaan, sila hubungi kami melalui halaman Bantuan & Sokongan atau WhatsApp rasmi SyababFresh.',
+    body: 'Sebarang pertanyaan, sila hubungi kami melalui e-mel syababtrading@gmail.com, telefon 011 9003 6446, halaman Bantuan & Sokongan, atau WhatsApp rasmi SyababFresh. Syabab Trading Sdn. Bhd. (No. Pendaftaran 202401038338 / 1584185-T), Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, 43650 Bandar Baru Bangi, Selangor.',
   },
 ]
 
