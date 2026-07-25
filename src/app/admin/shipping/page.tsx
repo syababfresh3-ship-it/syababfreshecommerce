@@ -429,7 +429,8 @@ export default function ShippingPage() {
                 <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[520px]">
                 <thead>
                   <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     <th className="text-left px-5 py-3">Weight (kg)</th>
@@ -568,6 +569,7 @@ export default function ShippingPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         ))}

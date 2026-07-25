@@ -236,7 +236,8 @@ export default function DeliveryRatesPage() {
             {search ? `No kawasan sepadan "${search}"` : 'No kawasan'}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Kawasan</th>
@@ -314,6 +315,7 @@ export default function DeliveryRatesPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

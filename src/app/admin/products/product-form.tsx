@@ -162,7 +162,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">Maklumat Product</h2>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Name Product *</label>
             <input
@@ -203,7 +203,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">Price & Unit</h2>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Price (RM) *</label>
             <input
@@ -267,7 +267,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h2 className="font-semibold text-gray-900">Category & Settings</h2>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
             <select

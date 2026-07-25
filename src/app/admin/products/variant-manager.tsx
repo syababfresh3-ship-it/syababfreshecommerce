@@ -246,11 +246,13 @@ export function VariantManager({ productId }: Props) {
             const isDirty = !!editing[v.id]
             return (
               <div key={v.id} className={`bg-white border rounded-xl p-3 transition-all ${v.is_active ? 'border-gray-100' : 'border-gray-100 opacity-50'}`}>
-                <div className="flex items-end gap-2">
-                  <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mb-1.5" />
+                {/* flex-wrap: di mobile input harga/berat/stok wrap ke baris
+                    bawah (elak sesak); di desktop kekal satu baris. */}
+                <div className="flex flex-wrap items-end gap-2">
+                  <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mb-1.5 hidden sm:block" />
 
                   {/* Name */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-[140px]">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Name</p>
                     <input
                       value={String(getVal(v, 'name'))}
