@@ -7,6 +7,7 @@ import {
   ClipboardList, AlertTriangle, RotateCcw, Plus,
   Clock, ArrowRight, Banknote,
 } from 'lucide-react'
+import { AdminNotifNudge } from '@/components/admin/admin-notif-nudge'
 
 export const metadata: Metadata = { robots: { index: false, follow: false } }
 
@@ -107,6 +108,9 @@ export default async function AdminDashboard() {
 
   return (
     <div className="p-4 md:p-6 space-y-5">
+
+      {/* Jemputan notifikasi (hilang sendiri bila dah aktif) */}
+      <AdminNotifNudge />
 
       {/* ALERTS */}
       {hasAlerts && (

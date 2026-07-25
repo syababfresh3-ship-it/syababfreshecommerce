@@ -13,7 +13,9 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)))
 }
 
-export function PushSubscribeButton() {
+// onChange: dimaklum bila status langganan berubah (opt-in) — guna oleh kad
+// jemputan admin untuk sorok diri sendiri bila notifikasi dah aktif.
+export function PushSubscribeButton({ onChange }: { onChange?: (subscribed: boolean) => void } = {}) {
   const [subscribed, setSubscribed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [supported, setSupported] = useState(false)
@@ -22,10 +24,10 @@ export function PushSubscribeButton() {
     if ('serviceWorker' in navigator && 'PushManager' in window && VAPID_PUBLIC) {
       setSupported(true)
       navigator.serviceWorker.ready.then(reg =>
-        reg.pushManager.getSubscription().then(sub => setSubscribed(!!sub))
+        reg.pushManager.getSubscription().then(sub => { setSubscribed(!!sub); onChange?.(!!sub) })
       )
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!supported) return null
 
@@ -44,6 +46,7 @@ export function PushSubscribeButton() {
           })
         }
         setSubscribed(false)
+        onChange?.(false)
         toast.success('Notifikasi dimatikan')
       } else {
         const sub = await reg.pushManager.subscribe({
@@ -57,6 +60,7 @@ export function PushSubscribeButton() {
           body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
         })
         setSubscribed(true)
+        onChange?.(true)
         toast.success('Notifikasi diaktifkan!')
       }
     } catch {
