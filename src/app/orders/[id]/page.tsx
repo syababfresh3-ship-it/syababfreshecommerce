@@ -12,6 +12,7 @@ import { CancelButton } from './cancel-button'
 import { BankTransferInfo } from './bank-transfer-info'
 import { PurchaseTracker } from '@/components/analytics/purchase-tracker'
 import { PaymentVerifier } from './payment-verifier'
+import { PushSubscribeButton } from '@/components/store/push-subscribe'
 
 // success page optimization: timeline step — used in returning (non-success) view only
 function TimelineItem({
@@ -209,6 +210,19 @@ export default async function OrderDetailPage({
                 <span className="text-sm font-black font-mono text-white tracking-wider">
                   {order.order_number}
                 </span>
+              </div>
+            </div>
+
+            {/* ── Jemputan notifikasi (halus, bukan popup paksa) ──────
+                Butang opt-in — customer klik sendiri untuk hidupkan. Kalau
+                browser tak sokong / dah aktif, komponen kendali sendiri. */}
+            <div className={card}>
+              <div className="px-4 py-4">
+                <p className="text-sm font-bold text-gray-900 mb-0.5">Nak tahu bila pesanan dihantar?</p>
+                <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+                  Aktifkan notifikasi untuk dapat kemas kini status pesanan terus ke telefon anda.
+                </p>
+                <PushSubscribeButton />
               </div>
             </div>
 
