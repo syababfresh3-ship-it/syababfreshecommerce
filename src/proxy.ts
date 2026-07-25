@@ -61,8 +61,9 @@ export async function proxy(request: NextRequest) {
   // ⚠️ AMARAN: middleware ini hanya lindungi PAGE (/admin/*). API di /api/admin/*
   // TIDAK dilindungi di sini (path mula dengan /api). Setiap route /api/admin/*
   // WAJIB panggil requireAdmin() sendiri — kalau tertinggal, route jadi PUBLIC.
-  // Admin routes — must be logged in AND is_admin
-  if (pathname.startsWith('/admin')) {
+  // Admin routes — must be logged in AND is_admin.
+  // Kecuali /admin-manifest.json (fail PWA awam — browser fetch tanpa auth).
+  if (pathname.startsWith('/admin') && pathname !== '/admin-manifest.json') {
     if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'

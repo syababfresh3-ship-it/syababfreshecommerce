@@ -1,0 +1,24 @@
+{
+  "name": "SyababFresh Admin",
+  "short_name": "SF Admin",
+  "description": "Panel pentadbir SyababFresh — urus pesanan, produk, inbox & lain-lain.",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#F3F4F6",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "scope": "/admin",
+  "icons": [
+    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-384x384.png", "sizes": "384x384", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "ms",
+  "dir": "ltr",
+  "shortcuts": [
+    { "name": "Pesanan", "short_name": "Orders", "url": "/admin/orders", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] },
+    { "name": "Inbox WhatsApp", "short_name": "Inbox", "url": "/admin/crm/inbox", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] },
+    { "name": "Produk", "short_name": "Produk", "url": "/admin/products", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] }
+  ]
+}
