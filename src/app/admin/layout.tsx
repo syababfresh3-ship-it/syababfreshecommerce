@@ -1,32 +1,15 @@
-'use client'
+// Layout admin (SERVER) — tetapkan manifest PWA admin di peringkat server
+// supaya "Add to Home Screen" guna start_url /admin (bukan storefront).
+// Override manifest root ("/manifest.json") untuk semua laluan /admin/*.
+import type { Metadata } from 'next'
+import { AdminShell } from '@/components/admin/admin-shell'
 
-import { useState } from 'react'
-import { AdminSidebar } from '@/components/admin/admin-sidebar'
-import { AdminHeader } from '@/components/admin/admin-header'
-import { AdminPwa } from '@/components/admin/admin-pwa'
+export const metadata: Metadata = {
+  manifest: '/admin-manifest.json',
+  appleWebApp: { capable: true, title: 'SF Admin', statusBarStyle: 'default' },
+  robots: { index: false, follow: false },
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Mobile backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <AdminHeader onMenuToggle={() => setSidebarOpen((p) => !p)} />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </div>
-      <AdminPwa />
-    </div>
-  )
+  return <AdminShell>{children}</AdminShell>
 }

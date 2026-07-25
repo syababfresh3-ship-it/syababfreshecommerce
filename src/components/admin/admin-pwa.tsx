@@ -1,52 +1,32 @@
 'use client'
 
-// Admin PWA — jadikan panel admin boleh dipasang sebagai app berasingan
-// (ikon sendiri, buka terus ke /admin, bukan storefront).
-//
-// Dua kerja:
-// 1. Tukar <link rel="manifest"> ke /admin-manifest.json semasa di admin
-//    (root layout tunjuk manifest storefront). Pulihkan bila keluar admin.
-// 2. Tangkap beforeinstallprompt → papar butang "Pasang App Admin".
-//    iOS Safari tak sokong prompt — tunjuk hint ringkas sebaliknya.
+// Admin PWA — butang/panduan pasang panel admin sebagai app.
+// Manifest admin ditetapkan di peringkat server (admin/layout.tsx), jadi
+// "Add to Home Screen" guna start_url /admin. Komponen ini cuma uruskan
+// prompt pasang + panduan manual (iOS / Android tanpa prompt).
 import { useEffect, useState } from 'react'
-import { Download, X, Share } from 'lucide-react'
+import { Download, X, Share, MoreVertical } from 'lucide-react'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BIPEvent = any
+const DISMISS_KEY = 'admin-pwa-dismissed'
 
 export function AdminPwa() {
   const [prompt, setPrompt] = useState<BIPEvent | null>(null)
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(true) // default sorok sehingga disemak
   const [isIOS, setIsIOS] = useState(false)
   const [installed, setInstalled] = useState(false)
 
-  // 1. Tukar manifest ke admin (+ pulih bila unmount / keluar admin)
-  useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')
-    const prev = link?.getAttribute('href') ?? null
-    if (link) link.setAttribute('href', '/admin-manifest.json')
-    // apple-mobile-web-app-title untuk ikon iOS
-    let metaTitle = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]')
-    const prevTitle = metaTitle?.getAttribute('content') ?? null
-    if (!metaTitle) {
-      metaTitle = document.createElement('meta')
-      metaTitle.setAttribute('name', 'apple-mobile-web-app-title')
-      document.head.appendChild(metaTitle)
-    }
-    metaTitle.setAttribute('content', 'SF Admin')
-    return () => {
-      if (link && prev) link.setAttribute('href', prev)
-      if (metaTitle && prevTitle) metaTitle.setAttribute('content', prevTitle)
-    }
-  }, [])
-
-  // 2. Kesan keadaan pasang + tangkap prompt
   useEffect(() => {
     const standalone =
       window.matchMedia?.('(display-mode: standalone)').matches ||
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window.navigator as any).standalone === true
     if (standalone) { setInstalled(true); return }
+
+    // Sudah ditolak sebelum ini? Jangan ganggu lagi.
+    if (localStorage.getItem(DISMISS_KEY) === '1') return
+    setDismissed(false)
 
     const ua = window.navigator.userAgent
     setIsIOS(/iphone|ipad|ipod/i.test(ua) && !/crios|fxios/i.test(ua))
@@ -61,27 +41,29 @@ export function AdminPwa() {
     }
   }, [])
 
-  if (installed || dismissed) return null
-  // Papar hanya bila ada prompt (Android/desktop) atau iOS (hint manual).
-  if (!prompt && !isIOS) return null
+  function close() {
+    setDismissed(true)
+    try { localStorage.setItem(DISMISS_KEY, '1') } catch { /* abaikan */ }
+  }
 
   async function install() {
     if (!prompt) return
     prompt.prompt()
     try { await prompt.userChoice } catch { /* abaikan */ }
     setPrompt(null)
+    close()
   }
+
+  if (installed || dismissed) return null
 
   return (
     <div className="fixed bottom-4 inset-x-4 z-50 md:left-auto md:right-4 md:w-80">
       <div className="bg-gray-900 text-white rounded-2xl shadow-lg p-4 flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold">Pasang App Admin</p>
-          {isIOS ? (
-            <p className="text-[12px] text-gray-300 leading-relaxed mt-1 flex items-center gap-1">
-              Tekan <Share className="h-3.5 w-3.5 inline" /> Share → &ldquo;Add to Home Screen&rdquo;
-            </p>
-          ) : (
+
+          {prompt ? (
+            /* Android/desktop Chrome — prompt native tersedia */
             <>
               <p className="text-[12px] text-gray-300 leading-relaxed mt-1">
                 Buka admin terus dari skrin utama telefon, macam app.
@@ -93,9 +75,21 @@ export function AdminPwa() {
                 <Download className="h-3.5 w-3.5" /> Pasang
               </button>
             </>
+          ) : isIOS ? (
+            /* iPhone Safari — mesti manual via Share */
+            <p className="text-[12px] text-gray-300 leading-relaxed mt-1">
+              Tekan <Share className="h-3.5 w-3.5 inline mx-0.5" /> (Share) di bar bawah Safari →
+              skrol → <b className="text-white">Add to Home Screen</b>.
+            </p>
+          ) : (
+            /* Android tanpa prompt (heuristik/dah pernah) — panduan menu */
+            <p className="text-[12px] text-gray-300 leading-relaxed mt-1">
+              Tekan menu <MoreVertical className="h-3.5 w-3.5 inline" /> pelayar →
+              <b className="text-white"> Add to Home screen</b> / <b className="text-white">Install app</b>.
+            </p>
           )}
         </div>
-        <button onClick={() => setDismissed(true)} className="text-gray-400 hover:text-white shrink-0" aria-label="Tutup">
+        <button onClick={close} className="text-gray-400 hover:text-white shrink-0" aria-label="Tutup">
           <X className="h-4 w-4" />
         </button>
       </div>
