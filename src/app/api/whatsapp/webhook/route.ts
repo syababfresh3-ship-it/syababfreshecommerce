@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendCapiLeadWhatsApp } from "@/lib/meta-capi";
+import { sendAdminPush } from "@/lib/push";
 import { maybeAiReply } from "@/lib/ai/wa-agent";
 import { downloadWaMedia } from "@/lib/whatsapp-cloud";
 
@@ -310,6 +311,22 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
     .maybeSingle();
   if (!lead) {
     await sb.from("crm_leads").insert({ contact_id: contactId, stage: "baru", source: "inbound" });
+  }
+
+  // 5b. Push ke admin — mesej inbox baru masuk (best-effort, gagal senyap).
+  //     Buka terus ke inbox. Tag "wa-inbox" supaya noti berturut ganti, bukan
+  //     bertimbun. Guna nama customer + petikan ringkas.
+  try {
+    const who = name || waId;
+    const snippet = (bodyText ?? `[${type}]`).slice(0, 80);
+    await sendAdminPush({
+      title: `Mesej WhatsApp: ${who}`,
+      body: snippet,
+      url: "/admin/crm/inbox",
+      tag: "wa-inbox",
+    });
+  } catch (e) {
+    console.error("[wa push] sendAdminPush gagal:", e);
   }
 
   // 6. AI chatbot (F2) — best-effort, di-await supaya selesai sebelum 200 (serverless).
