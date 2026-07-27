@@ -7,11 +7,11 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 470
-- **Level:** 2 — Membina *(30 mata lagi ke Level 3)*
-- **Streak:** 2 hari berturut-turut 🔥
-- **Pencapaian dibuka:** 10 / 15
-- **Kemaskini terakhir:** 22 Julai 2026
+- **Mata:** 540
+- **Level:** 3 — Naik Carta 🚀 *(naik dari Lv2 hari ini)*
+- **Streak:** 1 hari *(hari commit sebenar: 21, 23, 25, 27 Jul — berselang, jadi streak berturut tak terpakai; rekod jujur)*
+- **Pencapaian dibuka:** 12 / 15
+- **Kemaskini terakhir:** 27 Julai 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
 
@@ -74,6 +74,8 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [x] **FAQ + FAQPage schema pada katalog** (soalan pembeli: "berapa lama sampai", "kawasan hantar") (+40) ✔ 21 Jul — 6 soalan, dipapar + schema
 - [x] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80) ✔ 21 Jul — `/buah-online`, 6 pautan kategori + 6 panduan
 - [x] **Pautan dua hala kluster buah-online** — artikel & indeks panduan → pillar page (+40) ✔ 22 Jul — 4 artikel (anchor variasi: beli buah online / pesan buah segar online / buah import online / panduan lengkap beli buah online) + kad di /panduan
+- [x] **FAQ + FAQPage schema pada pillar /buah-online** (+40) ✔ 27 Jul — 5 soalan (tempat terbaik beli buah online, tempoh sampai, jaminan rosak, campur order, musim ceri) dipapar + schema
+- [x] **Varian kata kunci Klang Valley** dalam kandungan penghantaran (+30) ✔ 27 Jul — "Lembah Klang (Klang Valley)" di faq-penghantaran, /buah-online body + FAQ
 
 ## 🔍 RANKING (ukur via Google Search Console)
 - [ ] 🌱 **5 terma long-tail dapat impressions** dalam GSC (dah diindeks & muncul) (+50)
@@ -104,6 +106,8 @@ Menang bawah dulu, naik ke atas:
 | 21 Jul 2026 | 2 artikel panduan lagi (anggur import · cara simpan buah) — 8 artikel | +60 | 1 |
 | 22 Jul 2026 | Core Web Vitals diaudit (homepage LCP 1.7s · /products 2.1s) — lulus | +50 | 2 |
 | 22 Jul 2026 | Pautan dua hala kluster buah-online (4 artikel + indeks → pillar) | +40 | 2 |
+| 23 Jul 2026 | Footer 4-lajur (nama syarikat + SSM) · halaman refund & privasi · email kontak — E-E-A-T/trust | +0 | — |
+| 27 Jul 2026 | FAQ + FAQPage pillar /buah-online (+40) · varian Klang Valley (+30) — **naik Level 3** | +70 | 1 |
 
 ---
 
