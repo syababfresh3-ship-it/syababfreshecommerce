@@ -14,6 +14,8 @@ SyababFresh is an online fresh fruit store in Malaysia, known for seasonal Harum
 
 ## Halaman penting / Key pages
 
+- [Beli buah online — panduan & katalog](https://shop.syababfresh.my/buah-online): Panduan membeli buah online di Malaysia (apa perlu diperiksa sebelum order, cara buah dihantar) + jalan masuk ke semua kategori
+- [Panduan buah](https://shop.syababfresh.my/panduan): 8 artikel — cara simpan ceri, jenis kurma Malaysia, panduan ceri Turki & anggur import, FAQ penghantaran, dan lain-lain
 - [Semua produk](https://shop.syababfresh.my/products): Senarai penuh buah yang sedang dijual dengan harga semasa
 - [Info & penghantaran](https://shop.syababfresh.my/info): Maklumat kedai, kawasan & kos penghantaran
 - [Terma](https://shop.syababfresh.my/terma): Terma pembelian dan polisi refund

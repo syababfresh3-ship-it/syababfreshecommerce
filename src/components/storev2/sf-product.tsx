@@ -11,7 +11,27 @@ import { createClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/lib/stores/cart";
 import { ProductReviews } from "@/app/products/[slug]/reviews";
 import { SfWaitlist } from "@/components/storev2/sf-waitlist";
+import { ARTIKEL } from "@/app/panduan/artikel";
 import type { Product, ProductVariant } from "@/types";
+
+// Pautan kluster: padan produk (nama + kategori) → artikel panduan berkaitan.
+// Kuatkan pautan dalaman dari 94 page produk ke artikel & pillar /buah-online.
+// Guna tajuk sebenar dari ARTIKEL supaya tak mati bila artikel berubah.
+const GUIDE_MAP: { re: RegExp; slugs: string[] }[] = [
+  { re: /ceri|cherry/i, slugs: ["cara-simpan-ceri", "panduan-ceri-turki"] },
+  { re: /kurma|ajwa|safawi|mariami|medjo?ul|sukkari/i, slugs: ["jenis-kurma-malaysia", "panduan-kurma-ajwa"] },
+  { re: /anggur|grape|muscat/i, slugs: ["panduan-anggur-import"] },
+  { re: /harumanis|mangga|mango/i, slugs: ["panduan-harumanis"] },
+];
+function relatedGuides(name: string, catName?: string): { slug: string; title: string }[] {
+  const hay = `${name} ${catName ?? ""}`;
+  let slugs = GUIDE_MAP.find((g) => g.re.test(hay))?.slugs ?? ["cara-simpan-buah-peti-sejuk"];
+  slugs = slugs.slice(0, 2);
+  return slugs
+    .map((s) => ARTIKEL.find((a) => a.slug === s))
+    .filter((a): a is (typeof ARTIKEL)[number] => !!a)
+    .map((a) => ({ slug: a.slug, title: a.title }));
+}
 
 type DetailProduct = Product & {
   categories?: { name: string; slug: string } | null;
@@ -295,6 +315,23 @@ export function SfProduct({
               </div>
             </div>
           )}
+
+          {/* Panduan berkaitan — pautan kluster ke artikel + pillar buah-online */}
+          <div className="mt-6 border-t border-gray-100 pt-5">
+            <div className="text-[14px] font-extrabold text-gray-900 mb-2.5">Panduan berkaitan</div>
+            <div className="space-y-2">
+              {relatedGuides(cleanName, catName).map((g) => (
+                <Link key={g.slug} href={`/panduan/${g.slug}`} className="flex items-center gap-2 text-[13px] text-gray-600 hover:text-gray-900">
+                  <Leaf className="h-3.5 w-3.5 text-[#3B7A3B] shrink-0" />
+                  <span className="truncate">{g.title}</span>
+                </Link>
+              ))}
+              <Link href="/buah-online" className="flex items-center gap-2 text-[13px] font-semibold text-[#E11D2A] hover:underline">
+                <Leaf className="h-3.5 w-3.5 shrink-0" />
+                Panduan lengkap beli buah online
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
