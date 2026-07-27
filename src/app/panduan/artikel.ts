@@ -207,7 +207,7 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Kawasan penghantaran',
         body: [
-          'SyababFresh menghantar ke seluruh Semenanjung Malaysia. Untuk Lembah Klang, penghantaran adalah dalam masa 24 jam selepas pesanan disahkan (rider/kurier hari sama). Untuk negeri-negeri lain, 1–3 hari bekerja melalui kurier rantaian sejuk.',
+          'SyababFresh menghantar ke seluruh Semenanjung Malaysia. Untuk Lembah Klang (Klang Valley) — Kuala Lumpur, Selangor dan Putrajaya — penghantaran adalah dalam masa 24 jam selepas pesanan disahkan (rider/kurier hari sama). Untuk negeri-negeri lain, 1–3 hari bekerja melalui kurier rantaian sejuk.',
         ],
       },
       {
