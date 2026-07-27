@@ -11,10 +11,36 @@ import Link from 'next/link'
 import { ChevronRight, Snowflake, ShieldCheck, Truck, BookOpen } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SfShell } from '@/components/storev2/sf-shell'
-import { JsonLd, breadcrumbSchema } from '@/components/seo/json-ld'
+import { JsonLd, breadcrumbSchema, faqPageSchema } from '@/components/seo/json-ld'
 import { ARTIKEL } from '../panduan/artikel'
 
 export const revalidate = 300
+
+// Soalan lazim — jawab soalan yang orang betul-betul taip di Google tentang
+// beli buah online. Dipapar sebagai kandungan + dihantar sebagai FAQPage schema
+// (peluang rich result / jawapan AI pada terma sasaran).
+const FAQ: { q: string; a: string }[] = [
+  {
+    q: 'Mana tempat terbaik beli buah online di Malaysia?',
+    a: 'Kedai buah online yang baik mempunyai tiga perkara: rantaian sejuk (buah dibungkus dengan pek ais supaya tak rosak dalam perjalanan), jaminan ganti atau bayaran balik jika buah sampai rosak, dan maklumat gred/saiz yang jelas pada setiap produk supaya anda tahu apa yang dibeli. SyababFresh menyediakan ketiga-tiganya, dengan penghantaran cold-chain ke seluruh Semenanjung Malaysia.',
+  },
+  {
+    q: 'Berapa lama buah sampai kalau order online?',
+    a: 'Untuk Lembah Klang (Klang Valley) — Kuala Lumpur, Selangor dan Putrajaya — buah segar online sampai dalam masa 24 jam selepas pesanan disahkan. Untuk negeri lain di Semenanjung Malaysia, 1 hingga 3 hari bekerja melalui kurier rantaian sejuk.',
+  },
+  {
+    q: 'Buah online selamat ke? Macam mana kalau sampai rosak?',
+    a: 'Setiap pesanan dilindungi jaminan kesegaran. Jika buah sampai dalam keadaan rosak, ambil gambar dan hubungi kami dalam masa 24 jam — kami akan hantar ganti atau pulangkan wang sepenuhnya. Buah sensitif seperti ceri dan anggur dibungkus dalam cooler box dengan pek ais untuk kekalkan suhu sepanjang perjalanan.',
+  },
+  {
+    q: 'Boleh beli kurma dan buah import online sekali dalam satu order?',
+    a: 'Boleh. Anda boleh campur buah import, buah tempatan, kurma, dan buah kering dalam satu pesanan yang sama. Kos penghantaran dikira sekali mengikut zon poskod dan berat keseluruhan.',
+  },
+  {
+    q: 'Bila musim terbaik beli ceri Turki online?',
+    a: 'Ceri Turki bermusim, biasanya sekitar pertengahan tahun apabila kiriman segar masuk. Kerana ia bermusim, stok berubah mengikut kiriman — tekan butang "Bagitahu bila ada" pada produk yang habis stok untuk dimaklumkan sebaik ia kembali.',
+  },
+]
 
 export const metadata: Metadata = {
   title: 'Beli Buah Online Malaysia — Panduan & Katalog',
@@ -68,6 +94,7 @@ export default async function BuahOnlinePage() {
           { name: 'Beli Buah Online', path: '/buah-online' },
         ])}
       />
+      <JsonLd data={faqPageSchema(FAQ)} />
 
       <div className="px-4 pt-4 pb-10 max-w-2xl mx-auto">
         <h1 className="text-[20px] font-extrabold text-gray-900 leading-snug">
@@ -120,8 +147,8 @@ export default async function BuahOnlinePage() {
             <div className="flex items-start gap-3 px-4 py-3">
               <Truck className="h-[18px] w-[18px] text-gray-700 shrink-0 mt-0.5" />
               <p className="text-[13px] text-gray-600 leading-relaxed">
-                Lembah Klang dalam 24 jam selepas pesanan disahkan. Seluruh Semenanjung
-                Malaysia 1–3 hari bekerja melalui kurier rantaian sejuk.
+                Lembah Klang (Klang Valley) dalam 24 jam selepas pesanan disahkan. Seluruh
+                Semenanjung Malaysia 1–3 hari bekerja melalui kurier rantaian sejuk.
               </p>
             </div>
             <div className="flex items-start gap-3 px-4 py-3">
@@ -198,6 +225,22 @@ export default async function BuahOnlinePage() {
             yang tiada siapa boleh kawal. Kalau kiriman tidak menepati jangkaan anda,
             beritahu kami.
           </p>
+        </section>
+
+        {/* ── Soalan Lazim ── (dipapar + FAQPage schema) */}
+        <section className="mt-7">
+          <h2 className="text-[15px] font-extrabold text-gray-900 mb-3">Soalan Lazim Beli Buah Online</h2>
+          <div className="space-y-2">
+            {FAQ.map((f) => (
+              <details key={f.q} className="rounded-2xl border border-gray-100 bg-white px-4 py-3">
+                <summary className="text-[13px] font-bold text-gray-900 cursor-pointer list-none flex items-center justify-between gap-2">
+                  {f.q}
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                </summary>
+                <p className="text-[13px] text-gray-500 leading-relaxed mt-2">{f.a}</p>
+              </details>
+            ))}
+          </div>
         </section>
 
         <div className="mt-8 rounded-2xl bg-red-50 p-4 text-center">
