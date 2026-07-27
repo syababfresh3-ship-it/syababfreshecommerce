@@ -134,14 +134,21 @@ export async function POST(request: Request) {
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
+  // Zon inactive = kawasan memang tiada penghantaran → tolak. SEBELUM logik fee
+  // supaya berlaku walau order layak free delivery. (Poskod tiada dlm jadual =
+  // tidak dihalang.)
+  if (!isPickup && postcode && /^\d{5}$/.test(postcode)) {
+    const { data: z } = await supabase.from('delivery_zones').select('is_active').eq('postcode', postcode).maybeSingle()
+    if (z && z.is_active === false)
+      return NextResponse.json({ error: 'Penghantaran tidak tersedia ke kawasan ini' }, { status: 400 })
+  }
+
   if (isPickup) {
     deliveryFee = 0
   } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
-    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
-    if (zone && !zone.is_active)
-      return NextResponse.json({ error: 'Penghantaran tidak tersedia ke kawasan ini' }, { status: 400 })
+    const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()
     if (zone) {
       const pc = parseInt(postcode, 10)
       const isKlByPostcode = !isNaN(pc) &&
