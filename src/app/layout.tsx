@@ -3,6 +3,7 @@ import { Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
+import { Analytics } from "@vercel/analytics/next";
 import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
 import { getAppSettings } from "@/lib/app-settings";
 import { JsonLd, organizationSchema, websiteSchema, localBusinessSchema } from "@/components/seo/json-ld";
@@ -175,6 +176,9 @@ export default async function RootLayout({
 
         {/* Pixel tracking scripts */}
         <PixelScripts {...pixels} />
+
+        {/* Vercel Web Analytics — page view & pelawat (dashboard Vercel) */}
+        <Analytics />
 
         {/* PWA Install Banner */}
         <PWAInstallBanner />
