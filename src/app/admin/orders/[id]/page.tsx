@@ -27,18 +27,22 @@ async function getOrder(id: string) {
   return { ...order, profiles: profile ?? null, shipment: shipment ?? null, carriers: carriers ?? [] }
 }
 
-const statusLabel: Record<string, string> = {
-  pending:    'Pending',
-  confirmed:  'Confirmed',
-  preparing:  'Preparing',
-  delivering: 'Shipped',
-  delivered:  'Delivered',
-  cancelled:  'Cancelled',
-  refunded:   'Refunded',
+// Badge status — warna + label untuk pil status di header.
+const statusStyle: Record<string, { label: string; cls: string }> = {
+  pending:    { label: 'Pending',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  confirmed:  { label: 'Confirmed',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  preparing:  { label: 'Preparing',  cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  delivering: { label: 'Dihantar',   cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  delivered:  { label: 'Delivered',  cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  cancelled:  { label: 'Cancelled',  cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+  refunded:   { label: 'Refunded',   cls: 'bg-red-50 text-red-700 border-red-200' },
 }
 
 const paymentMethodLabel: Record<string, string> = {
-  fpx: 'FPX',
+  fpx: 'FPX Online Banking',
+  fpx_b2b: 'FPX Perniagaan',
+  card: 'Kad Kredit/Debit',
+  duitnow: 'DuitNow QR',
   ewallet: 'E-Wallet',
   cod: 'Cash On Delivery',
   bank_transfer: 'Pindahan Bank',
@@ -52,14 +56,25 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{order.order_number}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {new Date(order.created_at).toLocaleString('en-MY')}
-          </p>
+      {/* ── Header ── */}
+      <div className="mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">{order.order_number}</h1>
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${(statusStyle[order.status] ?? statusStyle.pending).cls}`}>
+                {(statusStyle[order.status] ?? { label: order.status }).label}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              {new Date(order.created_at).toLocaleString('en-MY')}
+            </p>
+          </div>
+          <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} deliveryMethod={order.delivery_method} />
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Baris aksi — gaya seragam, wrap kemas */}
+        <div className="flex flex-wrap items-center gap-2 mt-4">
           {(order.payment_status === 'paid' || (['cod', 'bank_transfer'].includes(order.payment_method) && order.status === 'delivered')) && (
             <ReceiptActions orderId={order.id} canSend={!!order.profiles?.phone} />
           )}
@@ -68,10 +83,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <RefundButton orderId={order.id} amount={order.total} />
           )}
           <Link href={`/admin/refunds/new?orderId=${order.id}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white text-red-700 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
             Refund Terperinci
           </Link>
-          <OrderStatusUpdater orderId={order.id} userId={order.user_id} currentStatus={order.status} deliveryMethod={order.delivery_method} />
         </div>
       </div>
 
@@ -128,7 +142,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
       {(order.delivery_address || order.delivery_slot || order.delivery_method === 'pickup') && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <h2 className="font-semibold text-gray-900">{order.delivery_method === 'pickup' ? 'Ambil Sendiri (Pickup)' : 'Pengsendan'}</h2>
+            <h2 className="font-semibold text-gray-900">{order.delivery_method === 'pickup' ? 'Ambil Sendiri (Pickup)' : 'Penghantaran'}</h2>
             {order.delivery_method === 'pickup' && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">PICKUP</span>
             )}
@@ -213,7 +227,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             <span>RM{Number(order.subtotal).toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-600">
-            <span>Pengsendan</span>
+            <span>Penghantaran</span>
             <span>{Number(order.delivery_fee) === 0 ? 'Percuma' : `RM${Number(order.delivery_fee).toFixed(2)}`}</span>
           </div>
           {Number(order.discount) > 0 && (

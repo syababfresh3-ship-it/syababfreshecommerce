@@ -19,12 +19,12 @@ export function InvoiceActions({ orderId, canEmail }: { orderId: string; canEmai
   return (
     <div className="inline-flex items-center gap-1.5">
       <a href={`/api/admin/orders/${orderId}/invoice`} target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
         <FileText className="h-4 w-4" /> Invois
       </a>
       {canEmail && (
         <button onClick={email} disabled={sending} title="Email invois ke customer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors">
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors">
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
         </button>
       )}

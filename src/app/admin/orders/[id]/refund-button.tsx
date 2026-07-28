@@ -32,7 +32,7 @@ export function RefundButton({ orderId, amount }: { orderId: string; amount: num
     <button
       onClick={handleRefund}
       disabled={loading}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+      className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
     >
       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
       {loading ? 'Memproses...' : 'Proses Refund'}

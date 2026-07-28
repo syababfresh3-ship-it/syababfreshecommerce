@@ -31,7 +31,7 @@ export function ReceiptActions({ orderId, canSend = true }: { orderId: string; c
         href={`/resit/${orderId}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-white border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 shadow-sm transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
       >
         <FileText className="h-3.5 w-3.5" />
         Resit
@@ -40,7 +40,7 @@ export function ReceiptActions({ orderId, canSend = true }: { orderId: string; c
         <button
           onClick={sendReceipt}
           disabled={sending}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-xl hover:bg-green-100 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
         >
           {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           Hantar WA Resit

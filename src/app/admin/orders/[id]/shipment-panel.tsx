@@ -63,7 +63,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       const err = await res.json().catch(() => ({}))
       toast.error(err.error ?? 'Failed save pengsendan')
     } else {
-      toast.success(shipment ? 'Pengsendan diupdate' : 'Pengsendan dibuat')
+      toast.success(shipment ? 'Penghantaran diupdate' : 'Penghantaran dibuat')
       setIsEditing(false)
       if (!shipment) {
         const newShipment = await res.json()
@@ -96,7 +96,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900 flex items-center gap-2">
           <Truck className="h-4 w-4 text-gray-400" />
-          Pengsendan
+          Penghantaran
         </h2>
         {shipment && !isEditing && (
           <button
@@ -178,7 +178,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
           {isLalamove ? (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Link Pengsendan Lalamove</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Link Penghantaran Lalamove</label>
               <input
                 value={directUrl}
                 onChange={e => setDirectUrl(e.target.value)}
@@ -201,7 +201,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
 
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Nota (selectan)</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Nota (pilihan)</label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -218,7 +218,7 @@ export function ShipmentPanel({ orderId, initialShipment, carriers }: ShipmentPa
               className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
-              {loading ? 'Menyimpan...' : (shipment ? 'Update' : 'Buat Pengsendan')}
+              {loading ? 'Menyimpan...' : (shipment ? 'Update' : 'Buat Penghantaran')}
             </button>
             {shipment && (
               <button
