@@ -13,12 +13,17 @@ import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
   Lock, ChevronRight, ChevronLeft, Pencil, Truck, XCircle, Store,
+  CreditCard, QrCode, Landmark,
 } from 'lucide-react'
+import { isChipMethod } from '@/lib/chip-methods'
 import { CartSync } from '@/components/store/cart-sync'
 import type { Address } from '@/types'
 
 const PAYMENT_ICONS: Record<string, React.ElementType> = {
   fpx:          Building2,
+  fpx_b2b:      Landmark,
+  card:         CreditCard,
+  duitnow:      QrCode,
   ewallet:      Smartphone,
   cod:          PackageCheck,
   bank_transfer:ArrowLeftRight,
@@ -474,7 +479,7 @@ export default function CheckoutPage() {
 
     // For FPX/e-wallet — points and promo handled in webhook AFTER payment confirmed.
     // Do NOT deduct here — if payment fails, points would be lost with no recourse.
-    if (form.payment_method === 'fpx' || form.payment_method === 'ewallet') {
+    if (isChipMethod(form.payment_method)) {
       const chipRes = await fetch('/api/checkout/chip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

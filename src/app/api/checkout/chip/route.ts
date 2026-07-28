@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { CHIP_WHITELIST } from '@/lib/chip-methods'
 
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   const [orderRes, profileRes] = await Promise.all([
     supabase
       .from('orders')
-      .select('id, order_number, total, delivery_fee, order_items(product_name, unit_price, quantity)')
+      .select('id, order_number, total, delivery_fee, payment_method, order_items(product_name, unit_price, quantity)')
       .eq('id', orderId)
       .eq('user_id', user.id)
       .single(),
@@ -65,6 +66,10 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Whitelist ikut kaedah yang customer pilih → halaman CHIP terus ke kaedah itu.
+  // Kaedah tanpa entry whitelist (cth ewallet) → tak dihantar (CHIP tunjuk semua).
+  const whitelist = CHIP_WHITELIST[order.payment_method as string]
+
   const body = {
     client: {
       email: user.email!,
@@ -75,6 +80,7 @@ export async function POST(req: NextRequest) {
       products,
       notes: order.order_number,
     },
+    ...(whitelist ? { payment_method_whitelist: whitelist } : {}),
     brand_id: process.env.CHIP_BRAND_ID!,
     reference: order.id,
     success_redirect: `${appUrl}/orders/${order.id}?new=1`,

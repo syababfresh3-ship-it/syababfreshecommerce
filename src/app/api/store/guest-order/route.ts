@@ -5,6 +5,7 @@ import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { upsertCustomer } from '@/lib/customers'
 import { rateLimit } from '@/lib/rate-limit'
 import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
+import { CHIP_WHITELIST, isChipMethod } from '@/lib/chip-methods'
 import { NextResponse } from 'next/server'
 
 // Guest checkout STOREFRONT — tanpa login. Disimpan dalam lp_guest_orders
@@ -12,7 +13,7 @@ import { NextResponse } from 'next/server'
 // CHIP, verify-payment, loyalty-match ikut telefon/email, refund terperinci, admin.
 // Member yang login guna jalur lain (/api/orders) — jalur ini TIDAK menyentuhnya.
 
-const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
+const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'fpx_b2b', 'card', 'duitnow', 'ewallet']
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 
 function getAppUrl() {
@@ -250,8 +251,8 @@ export async function POST(request: Request) {
     lastOrderAt: new Date().toISOString(),
   }).catch(() => {})
 
-  // ── FPX / e-wallet → CHIP payment gateway ─────────────────────────
-  if (payment_method === 'fpx' || payment_method === 'ewallet') {
+  // ── Online (FPX / kad / DuitNow / e-wallet) → CHIP payment gateway ──
+  if (isChipMethod(payment_method)) {
     if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) {
       return NextResponse.json({ error: 'Payment gateway tidak dikonfigurasi' }, { status: 503 })
     }
@@ -272,6 +273,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         client: { email: customerEmail, full_name: name.trim(), phone: phone.trim() },
         purchase: { currency: 'MYR', products, notes: order.order_number },
+        ...(CHIP_WHITELIST[payment_method] ? { payment_method_whitelist: CHIP_WHITELIST[payment_method] } : {}),
         brand_id: process.env.CHIP_BRAND_ID,
         reference: order.id,
         success_redirect: `${appUrl}/checkout/berjaya?pesanan=${order.order_number}`,

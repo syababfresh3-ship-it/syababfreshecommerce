@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
   if (notes && (typeof notes !== 'string' || notes.length > 500)) return NextResponse.json({ error: 'Nota terlalu panjang' }, { status: 400 })
   if (!payment_method || typeof payment_method !== 'string') return NextResponse.json({ error: 'Kaedah bayaran diperlukan' }, { status: 400 })
-  const VALID_PAYMENT_METHODS = ['fpx', 'ewallet', 'cod', 'bank_transfer']
+  const VALID_PAYMENT_METHODS = ['fpx', 'fpx_b2b', 'card', 'duitnow', 'ewallet', 'cod', 'bank_transfer']
   if (!VALID_PAYMENT_METHODS.includes(payment_method)) return NextResponse.json({ error: 'Kaedah bayaran tidak sah' }, { status: 400 })
 
   // Validate item structure
