@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { Phone, MessageCircle, Pencil, X, Check } from 'lucide-react'
+import { isChipMethod } from '@/lib/chip-methods'
 
 interface LpOrder {
   id: string
@@ -34,15 +35,6 @@ const STATUS_FLOW: Record<string, { next: string; label: string; color: string }
   delivering: { next: 'delivered', label: '✓ Delivered',   color: 'bg-green-600 text-white hover:bg-green-700' },
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  pending:    'bg-yellow-100 text-yellow-700',
-  confirmed:  'bg-blue-100 text-blue-700',
-  preparing:  'bg-purple-100 text-purple-700',
-  delivering: 'bg-orange-100 text-orange-700',
-  delivered:  'bg-green-100 text-green-700',
-  cancelled:  'bg-red-100 text-red-600',
-  refunded:   'bg-amber-100 text-amber-700',
-}
 
 const payLabel: Record<string, string> = { fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD', bank_transfer: 'Bank Transfer' }
 
@@ -146,7 +138,7 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
           const items: any[] = Array.isArray(lp.items) && lp.items.length > 0
             ? lp.items
             : [{ product_name: lp.product_name, variant_name: lp.variant_name, quantity: lp.quantity, unit_price: lp.unit_price }]
-          const isOnline = lp.payment_method === 'fpx' || lp.payment_method === 'ewallet'
+          const isOnline = isChipMethod(lp.payment_method)
           const isPaid = isOnline && lp.payment_status === 'paid'
           const nextAction = STATUS_FLOW[lp.status]
 
@@ -156,11 +148,10 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
               <div className="bg-rose-50 px-4 py-2 flex items-center justify-between border-b border-rose-100">
                 <span className="text-xs font-bold text-rose-700 truncate max-w-[60%]">{lp.landing_pages?.title ?? 'LP'}</span>
                 <div className="flex items-center gap-1.5">
+                  {/* Badge status dibuang — seksyen ni SEMUA pending (awaiting
+                      confirmation), jadi ia redundant & mengganggu. */}
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                     {isPaid ? '✓ Paid' : isOnline ? 'Belum Bayar' : payLabel[lp.payment_method] ?? lp.payment_method}
-                  </span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${STATUS_BADGE[lp.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                    {lp.status}
                   </span>
                 </div>
               </div>
