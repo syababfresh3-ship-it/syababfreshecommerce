@@ -65,8 +65,18 @@ export async function POST(request: Request) {
   const headerType = String(fd.get("headerType") || "none");
   const headerText = String(fd.get("headerText") || "").trim();
   const footerText = String(fd.get("footerText") || "").trim();
-  const buttonText = String(fd.get("buttonText") || "").trim();
-  const buttonUrl = String(fd.get("buttonUrl") || "").trim();
+  // Butang: array baharu { type, text, value }. Fallback ke buttonText/buttonUrl lama.
+  let buttonsInput: { type?: string; text?: string; value?: string }[] = [];
+  try {
+    buttonsInput = JSON.parse(String(fd.get("buttons") || "[]"));
+  } catch {
+    /* abaikan */
+  }
+  const legacyButtonText = String(fd.get("buttonText") || "").trim();
+  const legacyButtonUrl = String(fd.get("buttonUrl") || "").trim();
+  if (buttonsInput.length === 0 && legacyButtonText && legacyButtonUrl) {
+    buttonsInput = [{ type: "URL", text: legacyButtonText, value: legacyButtonUrl }];
+  }
   const headerImage = fd.get("headerImage") as File | null;
 
   if (!name) return NextResponse.json({ error: "Nama template diperlukan." }, { status: 400 });
@@ -103,8 +113,19 @@ export async function POST(request: Request) {
   components.push(body);
 
   if (footerText) components.push({ type: "FOOTER", text: footerText });
-  if (buttonText && buttonUrl) {
-    components.push({ type: "BUTTONS", buttons: [{ type: "URL", text: buttonText, url: buttonUrl }] });
+
+  // Butang — map ke format Meta. URL→url, PHONE_NUMBER→phone_number, QUICK_REPLY→teks sahaja.
+  const mappedButtons = buttonsInput
+    .map((b) => ({ type: String(b.type || "URL"), text: String(b.text || "").trim(), value: String(b.value || "").trim() }))
+    .filter((b) => b.text)
+    .map((b) => {
+      if (b.type === "PHONE_NUMBER") return { type: "PHONE_NUMBER", text: b.text, phone_number: b.value };
+      if (b.type === "QUICK_REPLY") return { type: "QUICK_REPLY", text: b.text };
+      return { type: "URL", text: b.text, url: b.value };
+    })
+    .filter((b) => b.type === "QUICK_REPLY" || ("url" in b ? b.url : b.phone_number)); // CTA wajib ada nilai
+  if (mappedButtons.length > 0) {
+    components.push({ type: "BUTTONS", buttons: mappedButtons.slice(0, 10) });
   }
 
   const res = await fetch(`${GRAPH}/${waba}/message_templates`, {
