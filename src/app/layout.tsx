@@ -3,6 +3,7 @@ import { Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Script from "next/script";
 import { PixelScripts } from "@/components/analytics/pixel-scripts";
+import { Clarity } from "@/components/analytics/clarity";
 import { Analytics } from "@vercel/analytics/next";
 import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
 import { getAppSettings } from "@/lib/app-settings";
@@ -179,6 +180,9 @@ export default async function RootLayout({
 
         {/* Vercel Web Analytics — page view & pelawat (dashboard Vercel) */}
         <Analytics />
+
+        {/* Microsoft Clarity — rakam sesi + heatmap (storefront sahaja, bukan admin) */}
+        <Clarity />
 
         {/* PWA Install Banner */}
         <PWAInstallBanner />
