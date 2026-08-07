@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ImportContacts } from "./import-contacts";
 
@@ -36,6 +36,9 @@ export function ContactsClient() {
   const [searchResults, setSearchResults] = useState<Contact[]>([]);
   const [searching, setSearching] = useState(false);
   const [filterTag, setFilterTag] = useState("");
+  const [tagOpen, setTagOpen] = useState(false);
+  const [tagQuery, setTagQuery] = useState("");
+  const tagBoxRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const PER_PAGE = 50;
@@ -48,6 +51,16 @@ export function ContactsClient() {
       .order("name")
       .then(({ data }: { data: { name: string }[] | null }) => setAllTags((data ?? []).map((t) => t.name)));
   }, [supabase]);
+
+  // Tutup dropdown tag bila klik di luar.
+  useEffect(() => {
+    if (!tagOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (tagBoxRef.current && !tagBoxRef.current.contains(e.target as Node)) setTagOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [tagOpen]);
 
   // Carian / tapis-tag hits DB — cari antara SEMUA contacts (bukan cuma page dimuat).
   // Penting sebab contacts upload (tak pernah mesej) tersusun bawah, di luar page awal.
@@ -155,38 +168,86 @@ export function ContactsClient() {
           placeholder="Cari nama / nombor…"
           className="border rounded-lg px-3 py-2 text-sm w-64"
         />
-        <button
-          onClick={() => {
-            setFilterTag("");
-            setPage(0);
-          }}
-          className={`text-xs rounded-full px-2.5 py-1 ${!filterTag ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
-        >
-          Semua
-        </button>
-        {allTags.map((t) => (
-          <span
-            key={t}
-            className={`inline-flex items-center text-xs rounded-full ${filterTag === t ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-600"}`}
+        {/* Dropdown tapis tag — carian di dalam, ganti bar chip yang panjang.
+            Butang ✗ tiap baris masih padam tag (deleteTag) macam sebelum ni. */}
+        <div ref={tagBoxRef} className="relative flex items-center">
+          <button
+            onClick={() => setTagOpen((o) => !o)}
+            className={`inline-flex items-center gap-1.5 text-sm rounded-lg border px-3 py-2 ${
+              filterTag ? "border-emerald-500 text-emerald-700 bg-emerald-50" : "text-gray-600"
+            }`}
           >
+            {filterTag || "Semua tag"}
+            <ChevronDown size={14} className="text-gray-400" />
+          </button>
+          {filterTag && (
             <button
               onClick={() => {
-                setFilterTag(filterTag === t ? "" : t);
+                setFilterTag("");
                 setPage(0);
               }}
-              className="pl-2.5 pr-1 py-1"
+              title="Buang tapisan"
+              className="ml-1 text-gray-400 hover:text-gray-700"
             >
-              {t}
+              <X size={14} strokeWidth={2.5} />
             </button>
-            <button
-              onClick={() => deleteTag(t)}
-              title={`Padam tag "${t}"`}
-              className={`pl-0.5 pr-2 py-1 ${filterTag === t ? "text-emerald-100 hover:text-white" : "text-gray-400 hover:text-gray-800"}`}
-            >
-              <X size={11} strokeWidth={2.5} />
-            </button>
-          </span>
-        ))}
+          )}
+          {tagOpen && (
+            <div className="absolute z-20 top-full left-0 mt-1 w-64 bg-white border rounded-lg shadow-lg">
+              <div className="p-2 border-b">
+                <input
+                  autoFocus
+                  value={tagQuery}
+                  onChange={(e) => setTagQuery(e.target.value)}
+                  placeholder="Cari tag…"
+                  className="w-full border rounded-md px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div className="max-h-64 overflow-y-auto py-1">
+                <button
+                  onClick={() => {
+                    setFilterTag("");
+                    setPage(0);
+                    setTagOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${
+                    !filterTag ? "text-emerald-600 font-medium" : "text-gray-600"
+                  }`}
+                >
+                  Semua tag
+                </button>
+                {allTags
+                  .filter((t) => t.toLowerCase().includes(tagQuery.toLowerCase()))
+                  .map((t) => (
+                    <div key={t} className="flex items-center">
+                      <button
+                        onClick={() => {
+                          setFilterTag(t);
+                          setPage(0);
+                          setTagOpen(false);
+                        }}
+                        className={`flex-1 text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${
+                          filterTag === t ? "text-emerald-600 font-medium" : "text-gray-700"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                      <button
+                        onClick={() => deleteTag(t)}
+                        title={`Padam tag "${t}"`}
+                        className="px-2 py-1.5 text-gray-300 hover:text-gray-700"
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ))}
+                {allTags.filter((t) => t.toLowerCase().includes(tagQuery.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-3 text-sm text-gray-400 text-center">Tiada tag.</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Senarai */}

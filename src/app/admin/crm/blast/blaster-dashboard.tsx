@@ -155,6 +155,7 @@ export function BlasterDashboard() {
     { label: "Read rate", value: stats ? pct(stats.messages_read, stats.messages_delivered) : "—" },
     { label: "Order dari blast", value: totalOrders > 0 ? String(totalOrders) : "—", hint: totalOrders > 0 ? `${pct(totalOrders, stats?.messages_delivered ?? 0)} conversion` : undefined },
     { label: "Revenue dari blast", value: totalRevenue > 0 ? `RM${totalRevenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
+    { label: "Total kos blast", value: totalCost > 0 ? `RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: stats && stats.messages_sent > 0 ? `${stats.messages_sent.toLocaleString()} mesej dihantar` : undefined },
     { label: "ROAS keseluruhan", value: overallRoas != null ? `${overallRoas.toFixed(2)}×` : "—", hint: totalCost > 0 ? `kos WA ~RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : undefined },
     { label: "CPP (kos/order)", value: overallCpp != null ? `RM${overallCpp.toFixed(2)}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
   ];
