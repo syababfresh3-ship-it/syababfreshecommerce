@@ -6,7 +6,7 @@ import { Plus, Trash2, Search, Check, MessageCircle, RefreshCw } from 'lucide-re
 
 interface Variant { id: string; name: string; price: number; is_active: boolean; sort_order: number }
 interface Product { id: string; name: string; slug: string; price: number; image_url: string | null; product_variants: Variant[] }
-interface OrderItem { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; qty: number; unit_price: number; price_edited?: boolean }
+interface OrderItem { product_id: string; variant_id: string | null; product_name: string; variant_name: string | null; qty: number; unit_price: number; price_edited?: boolean; custom?: boolean }
 
 const payOptions = [
   { value: 'bank_transfer', label: 'Bank Transfer' },
@@ -110,6 +110,15 @@ export default function QuickOrderPage() {
     setSearch('')
   }
 
+  // Item manual (reseller beli by carton) — bebas nama/harga/qty, tak masuk katalog DB.
+  // Cuma tersimpan dalam order.items JSONB. Server percaya nilai ni sebab admin-only.
+  function addManualItem() {
+    setItems(prev => [...prev, { product_id: '', variant_id: null, product_name: '', variant_name: null, qty: 1, unit_price: 0, custom: true }])
+  }
+  function setName(idx: number, name: string) {
+    setItems(prev => prev.map((item, i) => i === idx ? { ...item, product_name: name } : item))
+  }
+
   function removeItem(idx: number) { setItems(prev => prev.filter((_, i) => i !== idx)) }
   function setQty(idx: number, qty: number) {
     if (qty < 1) { removeItem(idx); return }
@@ -130,6 +139,7 @@ export default function QuickOrderPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (items.length === 0) { toast.error('Add at least 1 product'); return }
+    if (items.some(i => i.custom && !i.product_name.trim())) { toast.error('Isi nama untuk setiap item manual'); return }
     if (!isPickup && !/^\d{5}$/.test(form.postcode.trim())) { toast.error('Poskod diperlukan (5 digit)'); return }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Email yang sah diperlukan'); return }
     setSubmitting(true)
@@ -142,7 +152,9 @@ export default function QuickOrderPage() {
           discount: discountNum,
           delivery_method: deliveryMethod,
           pickup_date: isPickup ? (pickupDate || null) : null,
-          items: items.map(i => ({ product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty, ...(i.price_edited ? { unit_price: i.unit_price } : {}) })),
+          items: items.map(i => i.custom
+            ? { custom: true, product_name: i.product_name, quantity: i.qty, unit_price: i.unit_price }
+            : { product_id: i.product_id, variant_id: i.variant_id, quantity: i.qty, ...(i.price_edited ? { unit_price: i.unit_price } : {}) }),
           source: form.staff_name.trim() ? `whatsapp-${form.staff_name.trim()}` : 'whatsapp',
           reseller_id: resellerId || undefined,
           delivery_fee: (deliveryTouched || resellerId) ? deliveryNum : undefined,
@@ -310,10 +322,19 @@ export default function QuickOrderPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-gray-700">Products</p>
-            <button type="button" onClick={() => setShowPicker(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800">
-              <Plus className="h-3.5 w-3.5" /> Add Product
-            </button>
+            <div className="flex items-center gap-2">
+              {resellerId && (
+                <button type="button" onClick={addManualItem}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-violet-300 text-violet-700 bg-violet-50 rounded-xl text-xs font-bold hover:bg-violet-100"
+                  title="Item bebas untuk reseller (beli by carton) — tak masuk katalog">
+                  <Plus className="h-3.5 w-3.5" /> Item manual
+                </button>
+              )}
+              <button type="button" onClick={() => setShowPicker(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800">
+                <Plus className="h-3.5 w-3.5" /> Add Product
+              </button>
+            </div>
           </div>
 
           {items.length === 0 ? (
@@ -325,8 +346,19 @@ export default function QuickOrderPage() {
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{item.product_name}</p>
-                    {item.variant_name && <p className="text-xs text-gray-400">{item.variant_name}</p>}
+                    {item.custom ? (
+                      <input
+                        value={item.product_name}
+                        onChange={e => setName(idx, e.target.value)}
+                        placeholder="Nama item (cth: Carton Ajwa Jumbo 5kg)"
+                        className="w-full text-sm font-semibold text-gray-900 bg-white border border-violet-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      />
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.product_name}</p>
+                        {item.variant_name && <p className="text-xs text-gray-400">{item.variant_name}</p>}
+                      </>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <button type="button" onClick={() => setQty(idx, item.qty - 1)} className="w-7 h-7 rounded-lg border border-gray-200 bg-white text-sm font-bold flex items-center justify-center hover:bg-gray-100">−</button>

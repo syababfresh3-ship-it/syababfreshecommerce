@@ -61,6 +61,17 @@ export async function POST(request: Request) {
 
   for (const item of items) {
     const override = priceOverride(item)
+    // Item manual (reseller beli by carton) — bebas nama/harga, tiada produk katalog.
+    // Selamat percaya sebab endpoint admin-only (requireAdmin), sama dgn override harga.
+    if (item.custom) {
+      const nm = String(item.product_name ?? '').trim()
+      if (!nm) return NextResponse.json({ error: 'Nama item manual diperlukan' }, { status: 400 })
+      const qty = Math.max(1, Math.floor(Number(item.quantity) || 1))
+      const unitPrice = override ?? 0
+      subtotal += unitPrice * qty
+      validatedItems.push({ product_id: null, variant_id: null, product_name: nm, variant_name: null, quantity: qty, unit_price: unitPrice })
+      continue
+    }
     if (item.variant_id) {
       const variant = variantMap.get(item.variant_id)
       if (!variant || !variant.is_active) return NextResponse.json({ error: `Variant not available` }, { status: 400 })
