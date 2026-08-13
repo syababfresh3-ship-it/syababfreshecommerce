@@ -166,11 +166,11 @@ export function BlasterDashboard() {
     { label: "Read rate", value: stats ? pct(stats.messages_read, stats.messages_delivered) : "—" },
     { label: "Order dari blast", value: totalOrders > 0 ? String(totalOrders) : "—", hint: totalOrders > 0 ? `${pct(totalOrders, stats?.messages_delivered ?? 0)} conversion` : undefined },
     { label: "Revenue dari blast", value: totalRevenue > 0 ? `RM${totalRevenue.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
-    { label: "Total kos blast", value: totalCost > 0 ? `RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: stats && stats.messages_sent > 0 ? `${stats.messages_sent.toLocaleString()} mesej dihantar (anggaran)` : "anggaran" },
+    { label: "Total kos blast", value: totalCost > 0 ? `RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : "—", hint: stats && stats.messages_sent > 0 ? `${stats.messages_sent.toLocaleString()} mesej · anggaran (termasuk SST 8%)` : "anggaran (termasuk SST 8%)" },
     ...(metaCost ? [{
       label: `Kos blast sebenar · Meta ${metaCost.days}h`,
       value: `RM${metaCost.marketing.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}`,
-      hint: `+ utility RM${metaCost.utility.toLocaleString("ms-MY", { maximumFractionDigits: 0 })} = RM${metaCost.total.toLocaleString("ms-MY", { maximumFractionDigits: 0 })} jumlah WA`,
+      hint: `+ utility RM${metaCost.utility.toLocaleString("ms-MY", { maximumFractionDigits: 0 })} = RM${metaCost.total.toLocaleString("ms-MY", { maximumFractionDigits: 0 })} jumlah WA · termasuk SST 8%`,
     }] : []),
     { label: "ROAS keseluruhan", value: overallRoas != null ? `${overallRoas.toFixed(2)}×` : "—", hint: totalCost > 0 ? `kos WA ~RM${totalCost.toLocaleString("ms-MY", { maximumFractionDigits: 0 })}` : undefined },
     { label: "CPP (kos/order)", value: overallCpp != null ? `RM${overallCpp.toFixed(2)}` : "—", hint: totalOrders > 0 ? `${totalOrders} order` : undefined },
