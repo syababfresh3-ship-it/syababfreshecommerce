@@ -326,7 +326,7 @@ export default async function PnlPage({
 
       <p className="text-[11px] text-gray-400">
         Yuran gateway & kos kurier adalah anggaran. Partial refund tidak ditolak (limitasi semasa). TikTok tidak termasuk — channel website sahaja.
-        {' '}Kos WhatsApp = kos SEBENAR dari Meta (blast + utility notif) untuk julat ini, meliputi semua channel (Meta tak pecah ikut channel).
+        {' '}Kos WhatsApp = kos SEBENAR dari Meta (blast + utility notif, termasuk SST 8%) untuk julat ini, meliputi semua channel (Meta tak pecah ikut channel).
         {waMetaError && <span className="text-amber-600"> Kos WhatsApp gagal dimuat (julat &gt; 90 hari atau token) — dipapar RM0.</span>}
       </p>
     </div>

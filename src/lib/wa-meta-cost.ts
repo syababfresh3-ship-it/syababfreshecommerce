@@ -8,6 +8,10 @@
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
+// Meta cas SST 8% (Malaysia) atas kos mesej. `pricing_analytics` pulangkan kos
+// SEBELUM cukai — darab 1.08 untuk dapat kos sebenar yang diinvois.
+const SST = 0.08;
+
 export interface MetaWaCost {
   currency: string;
   start: number; // epoch saat
@@ -55,5 +59,17 @@ export async function fetchMetaWaCost(startSec: number, endSec: number): Promise
       }
     }
   }
-  return { currency: "MYR", start: startSec, end: endSec, ...agg };
+  // Tambah SST 8% pada semua kos (volume kekal).
+  const f = 1 + SST;
+  return {
+    currency: "MYR",
+    start: startSec,
+    end: endSec,
+    total: agg.total * f,
+    marketing: agg.marketing * f,
+    utility: agg.utility * f,
+    service: agg.service * f,
+    authentication: agg.authentication * f,
+    volume: agg.volume,
+  };
 }
