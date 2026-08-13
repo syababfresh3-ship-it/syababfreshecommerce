@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import {
   parseSettings, costLookup, computeOrderPnl, fmtRM, type VariantCost,
 } from '@/lib/pricing/costing'
+import { fetchMetaWaCost } from '@/lib/wa-meta-cost'
 import { OperatingCostsPanel } from './operating-costs-form'
 
 export const dynamic = 'force-dynamic'
@@ -155,8 +156,23 @@ export default async function PnlPage({
   }
 
   const kosOperasi = opsCosts.reduce((s, c) => s + (Number(c.amaun) || 0), 0)
+
+  // Kos WhatsApp SEBENAR dari Meta untuk julat tarikh yang sama (marketing blast +
+  // utility notif order). Meta had ~90 hari; kalau julat terlalu besar atau token
+  // gagal → 0 + nota, supaya P&L tetap render. Nota: kos WA meliputi SEMUA channel
+  // (bukan website sahaja) — Meta tak pecah ikut channel.
+  let waMetaCost = 0
+  let waMetaError = false
+  try {
+    const startSec = Math.floor(new Date(fromIso).getTime() / 1000)
+    const endSec = Math.floor(new Date(toIso).getTime() / 1000)
+    waMetaCost = (await fetchMetaWaCost(startSec, endSec)).total
+  } catch {
+    waMetaError = true
+  }
+
   const untungKasar = revenue - cogs
-  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketing - kosOperasi
+  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketing - kosOperasi - waMetaCost
   const marginBersih = revenue > 0 ? (untungBersih / revenue) * 100 : 0
   const totalOrder = orders.length + lpOrders.length
 
@@ -172,6 +188,7 @@ export default async function PnlPage({
     { label: 'Komisen Team Sale', value: salesTeam },
     { label: 'Marketing (peruntukan)', value: marketing },
     { label: 'Kos Operasi (trip/pekerja/dll)', value: kosOperasi },
+    { label: 'Kos WhatsApp (sebenar Meta)', value: waMetaCost },
   ]
 
   const pct = (n: number) => (revenue > 0 ? `${((n / revenue) * 100).toFixed(1)}%` : '—')
@@ -309,6 +326,8 @@ export default async function PnlPage({
 
       <p className="text-[11px] text-gray-400">
         Yuran gateway & kos kurier adalah anggaran. Partial refund tidak ditolak (limitasi semasa). TikTok tidak termasuk — channel website sahaja.
+        {' '}Kos WhatsApp = kos SEBENAR dari Meta (blast + utility notif) untuk julat ini, meliputi semua channel (Meta tak pecah ikut channel).
+        {waMetaError && <span className="text-amber-600"> Kos WhatsApp gagal dimuat (julat &gt; 90 hari atau token) — dipapar RM0.</span>}
       </p>
     </div>
   )
