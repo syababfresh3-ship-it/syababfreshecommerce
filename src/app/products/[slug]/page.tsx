@@ -1,5 +1,6 @@
 // Redesign v2 — Produk detail. Hero + pemilih saiz + benefit + sticky add (lihat SfProduct).
 import type { Metadata } from 'next'
+import { attachReviewerNames } from '@/lib/reviews'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SfProduct } from '@/components/storev2/sf-product'
@@ -60,10 +61,12 @@ export default async function ProductDetailPage({
   const supabase = await createClient()
 
   // Ulasan sebenar + produk berkaitan + stok produk + kelayakan ulasan — selari.
-  const [reviewsRes, relatedRes, stockRes, { data: { user } }] = await Promise.all([
+  // Nota: embed profiles(full_name) TAK boleh (user_id → auth.users, bukan profiles);
+  // nama disambung selepas ini oleh attachReviewerNames().
+  const [reviewsRaw, relatedRes, stockRes, { data: { user } }] = await Promise.all([
     supabase
       .from('product_reviews')
-      .select('id, rating, comment, created_at, profiles(full_name)')
+      .select('id, user_id, rating, comment, created_at')
       .eq('product_id', product.id)
       .order('created_at', { ascending: false })
       .limit(30),
@@ -81,6 +84,8 @@ export default async function ProductDetailPage({
     supabase.from('product_stock').select('available_stock').eq('product_id', product.id).maybeSingle(),
     supabase.auth.getUser(),
   ])
+
+  const reviewsRes = { data: await attachReviewerNames(reviewsRaw.data ?? []) }
 
   // Layak tulis ulasan: pernah terima (delivered) order yang ada produk ni,
   // dan belum pernah ulas. Guest → tak layak (perlu akaun).

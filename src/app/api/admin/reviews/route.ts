@@ -8,18 +8,20 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/require-admin";
+import { attachReviewerNames } from "@/lib/reviews";
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin();
   if (forbidden) return forbidden;
 
+  // Embed profiles(full_name) gagal (user_id → auth.users) — nama disambung berasingan.
   const { data } = await supabase!
     .from("product_reviews")
-    .select("id, rating, comment, created_at, products(name, slug, image_url), profiles(full_name)")
+    .select("id, user_id, rating, comment, created_at, products(name, slug, image_url)")
     .order("created_at", { ascending: false })
     .limit(300);
 
-  return NextResponse.json({ reviews: data ?? [] });
+  return NextResponse.json({ reviews: await attachReviewerNames(data ?? []) });
 }
 
 export async function DELETE(req: NextRequest) {
