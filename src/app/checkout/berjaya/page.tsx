@@ -3,6 +3,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { CheckCircle2, FileText, Gift } from 'lucide-react'
 import { LpPaymentVerifier } from '../../lp/[slug]/berjaya/lp-payment-verifier'
+import { PurchaseTracker } from '@/components/analytics/purchase-tracker'
+import { PendingCartClear } from '@/components/store/pending-cart-clear'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Pesanan Berjaya — SyababFresh' }
@@ -20,7 +22,8 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
     .single()
     .then(r => r.data) : null
 
-  const items: any[] = Array.isArray(order?.items) && order.items.length > 0
+  type LineItem = { product_name?: string | null; variant_name?: string | null; quantity: number; unit_price: number | string }
+  const items: LineItem[] = Array.isArray(order?.items) && order.items.length > 0
     ? order.items
     : order ? [{ product_name: order.product_name, variant_name: order.variant_name, quantity: order.quantity, unit_price: order.unit_price }]
     : []
@@ -31,6 +34,24 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
     <div className="min-h-screen bg-gray-50">
       {/* Sahkan bayaran FPX terus dengan CHIP jika webhook belum sampai */}
       {order && order.status === 'pending' && isOnline && <LpPaymentVerifier orderId={order.id} />}
+
+      {/* Fix 2: kosongkan troli HANYA bila penanda (ditulis checkout sebelum redirect
+          gateway) sepadan dengan order ini — bayaran gagal = troli kekal. */}
+      {order && <PendingCartClear orderKey={String(order.order_number)} />}
+
+      {/* Fix 4: pixel Purchase untuk order tetamu — props sama seperti /orders/[id]
+          (isNew && !bank_transfer); dedupe ikut order id dalam PurchaseTracker. */}
+      {order && order.payment_method !== 'bank_transfer' && (
+        <PurchaseTracker
+          orderId={order.id}
+          total={Number(order.total)}
+          items={items.map((i) => ({
+            product_name: String(i.product_name ?? ''),
+            unit_price: Number(i.unit_price),
+            quantity: Number(i.quantity),
+          }))}
+        />
+      )}
 
       <header className="bg-white border-b border-gray-100 px-5 py-3.5 flex items-center justify-between max-w-md mx-auto">
         <Link href="/" className="font-black text-lg text-brand-red-600">SyababFresh</Link>
@@ -67,7 +88,7 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
                     <span>No. Telefon</span><span className="font-bold text-gray-900">{order.phone}</span>
                   </div>
                   <div className="border-t border-brand-red-200 pt-2.5 mt-1">
-                    {items.map((item: any, i: number) => (
+                    {items.map((item, i) => (
                       <div key={i} className={`flex justify-between text-[13px] ${i < items.length - 1 ? 'mb-1.5' : ''}`}>
                         <span className="text-gray-700">{item.product_name}{item.variant_name ? ` · ${item.variant_name}` : ''} × {item.quantity}</span>
                         <span className="font-bold text-gray-900">RM{(Number(item.unit_price) * item.quantity).toFixed(2)}</span>

@@ -11,8 +11,13 @@ import { ReorderButton } from './reorder-button'
 import { CancelButton } from './cancel-button'
 import { BankTransferInfo } from './bank-transfer-info'
 import { PurchaseTracker } from '@/components/analytics/purchase-tracker'
+import { PendingCartClear } from '@/components/store/pending-cart-clear'
 import { PaymentVerifier } from './payment-verifier'
 import { PushSubscribeButton } from '@/components/store/push-subscribe'
+
+// Bentuk baris order_items — client Supabase tak bertaip (`order` adalah any),
+// jadi taip di sini supaya callback map tak perlu `any` eksplisit.
+type OrderItemRow = { id: string; product_name: string; product_image?: string | null; unit_price: number | string; quantity: number; subtotal: number | string }
 
 // success page optimization: timeline step — used in returning (non-success) view only
 function TimelineItem({
@@ -23,7 +28,7 @@ function TimelineItem({
   color,
   last = false,
 }: {
-  icon: any
+  icon: React.ElementType
   label: string
   time?: string | null
   done: boolean
@@ -61,7 +66,7 @@ function TimelineItem({
   )
 }
 
-const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
+const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   pending:    { label: 'Menunggu Pengesahan', icon: Clock,         color: 'text-yellow-500' },
   confirmed:  { label: 'Pesanan Disahkan',    icon: CheckCircle2,  color: 'text-blue-500'   },
   preparing:  { label: 'Sedang Disediakan',   icon: Package,       color: 'text-purple-500' },
@@ -71,7 +76,7 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
 }
 
 // Untuk order ambil sendiri (pickup) — status 'delivering' bermaksud sedia diambil
-const pickupStatusConfig: Record<string, { label: string; icon: any; color: string }> = {
+const pickupStatusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   delivering: { label: 'Sedia Diambil',  icon: Package,      color: 'text-orange-500' },
   delivered:  { label: 'Telah Diambil',  icon: CheckCircle2, color: 'text-green-500'  },
 }
@@ -154,11 +159,16 @@ export default async function OrderDetailPage({
             ══════════════════════════════════════════════════════ */}
         {isFpxPending && <PaymentVerifier orderId={order.id} />}
 
+        {/* Fix 2: troli dikosongkan di sini (selepas bayaran gateway berjaya) bila
+            penanda dari checkout sepadan; COD/bank dah dikosongkan terus di checkout.
+            Tanpa penanda = tiada kesan. */}
+        <PendingCartClear orderKey={order.id} />
+
         {isNew && !isBankTransfer && (
           <PurchaseTracker
             orderId={order.id}
             total={Number(order.total)}
-            items={(order.order_items ?? []).map((i: any) => ({
+            items={(order.order_items ?? []).map((i: OrderItemRow) => ({
               product_name: i.product_name,
               unit_price: Number(i.unit_price),
               quantity: i.quantity,
@@ -363,7 +373,7 @@ export default async function OrderDetailPage({
                 <h2 className="text-sm font-bold text-gray-900">Item Pesanan</h2>
               </div>
               <div className="divide-y divide-gray-50/80">
-                {order.order_items?.map((item: any) => (
+                {order.order_items?.map((item: OrderItemRow) => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden">
                       {item.product_image ? (
@@ -512,7 +522,7 @@ export default async function OrderDetailPage({
             </div>
 
             {/* Tracking info — shown when tracking number or delivery link is available */}
-            {((order as any).shipment?.tracking_number || (order as any).shipment?.tracking_url) && (
+            {(order.shipment?.tracking_number || order.shipment?.tracking_url) && (
               <div className={card}>
                 <div className="px-4 pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -523,31 +533,31 @@ export default async function OrderDetailPage({
                     <div className="flex justify-between">
                       <dt className="text-gray-400">Kurier</dt>
                       <dd className="font-semibold text-gray-700">
-                        {(order as any).shipment.shipping_carriers?.name ?? '—'}
+                        {order.shipment.shipping_carriers?.name ?? '—'}
                       </dd>
                     </div>
-                    {(order as any).shipment.tracking_number && (
+                    {order.shipment.tracking_number && (
                       <div className="flex justify-between items-center">
                         <dt className="text-gray-400">No. Tracking</dt>
                         <dd className="font-mono text-xs font-bold text-gray-900">
-                          {(order as any).shipment.tracking_number}
+                          {order.shipment.tracking_number}
                         </dd>
                       </div>
                     )}
-                    {(order as any).shipment.estimated_delivery && (
+                    {order.shipment.estimated_delivery && (
                       <div className="flex justify-between">
                         <dt className="text-gray-400">Anggaran Tiba</dt>
                         <dd className="text-gray-700">
-                          {new Date((order as any).shipment.estimated_delivery).toLocaleDateString('ms-MY', {
+                          {new Date(order.shipment.estimated_delivery).toLocaleDateString('ms-MY', {
                             day: 'numeric', month: 'long', year: 'numeric',
                           })}
                         </dd>
                       </div>
                     )}
                   </dl>
-                  {(order as any).shipment.tracking_url && (
+                  {order.shipment.tracking_url && (
                     <a
-                      href={(order as any).shipment.tracking_url}
+                      href={order.shipment.tracking_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 bg-orange-50 text-orange-700 font-semibold text-sm rounded-xl border border-orange-100 hover:bg-orange-100 transition-colors"
@@ -566,7 +576,7 @@ export default async function OrderDetailPage({
                 <h2 className="text-sm font-bold text-gray-900">Item Pesanan</h2>
               </div>
               <div className="divide-y divide-gray-50/80">
-                {order.order_items?.map((item: any) => (
+                {order.order_items?.map((item: OrderItemRow) => (
                   <div key={item.id} className="flex justify-between items-center px-4 py-3">
                     <span className="text-sm text-gray-600 flex-1 pr-3">
                       {item.product_name}

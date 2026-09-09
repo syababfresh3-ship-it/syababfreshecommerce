@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, ShoppingBag, ShoppingCart, Package, User, Bell } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
+import { SfWhatsappFab } from "./sf-whatsapp-fab";
 
 const NAV = [
   { href: "/", label: "Utama", icon: Home },
@@ -126,6 +127,9 @@ export function SfShell({ children }: { children: React.ReactNode }) {
 
       {/* Ruang bawah untuk elak footer terlindung bottom-nav mobile */}
       <div className="h-16 lg:hidden" aria-hidden />
+
+      {/* Fix 7: butang WhatsApp terapung — di /cart naik atas bar "Ke Pembayaran" */}
+      <SfWhatsappFab offset={pathname.startsWith("/cart") ? "cart" : "nav"} />
 
       {/* ===== Bottom nav (mobile sahaja) ===== */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-200">

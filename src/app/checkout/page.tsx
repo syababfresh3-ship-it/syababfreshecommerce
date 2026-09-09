@@ -1,19 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
 import { freeDeliveryActive } from '@/lib/shipping'
+import { calcDeliveryFee } from '@/lib/delivery-fee'
 import { HoneypotField } from '@/components/honeypot-field'
+import { markPendingCartClear } from '@/components/store/pending-cart-clear'
+import { SfWhatsappFab } from '@/components/storev2/sf-whatsapp-fab'
 import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
   Lock, ChevronRight, ChevronLeft, Pencil, Truck, XCircle, Store,
-  CreditCard, QrCode, Landmark,
+  CreditCard, QrCode, Landmark, AlertTriangle, X,
 } from 'lucide-react'
 import { isChipMethod } from '@/lib/chip-methods'
 import { CartSync } from '@/components/store/cart-sync'
@@ -27,6 +30,12 @@ const PAYMENT_ICONS: Record<string, React.ElementType> = {
   ewallet:      Smartphone,
   cod:          PackageCheck,
   bank_transfer:ArrowLeftRight,
+}
+
+// Baris promo_codes (voucher peribadi member) — client Supabase tak bertaip.
+type VoucherRow = {
+  id: string; code: string; type: 'percentage' | 'fixed'; value: number | string
+  min_order: number | string; max_uses: number | null; uses_count: number; expires_at: string | null
 }
 
 interface SlotConfig {
@@ -60,6 +69,37 @@ const DEFAULT_SLOTS: SlotConfig[] = [
   { id: 'tomorrow-16', day: 'tomorrow', start: 16, end: 20, label: '4pm – 8pm',   lead_hours: 0, active: true },
 ]
 
+// Fix 3: gateway hantar balik ke /checkout?failed=1 (member — api/checkout/chip)
+// atau /checkout?bayar=gagal (tetamu — api/store/guest-order) bila bayaran
+// gagal/dibatal. Bersama Fix 2, troli masih ada — beritahu pelanggan dengan jelas.
+// Pemanggil bungkus dalam <Suspense> (useSearchParams perlu sempadan Suspense
+// pada page yang di-prerender).
+function PaymentFailedBanner() {
+  const sp = useSearchParams()
+  const failed = sp.get('failed') === '1' || sp.get('bayar') === 'gagal'
+  const [dismissed, setDismissed] = useState(false)
+  if (!failed || dismissed) return null
+  return (
+    <div role="alert" className="max-w-2xl mx-auto px-4 pt-4">
+      <div className="flex items-start gap-3 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
+        <AlertTriangle className="h-5 w-5 text-gray-700 shrink-0 mt-0.5" />
+        <p className="flex-1 text-[13px] text-gray-800 leading-snug">
+          <span className="font-bold">Bayaran tidak berjaya atau dibatalkan.</span>{' '}
+          Troli anda masih ada — cuba lagi atau pilih kaedah bayaran lain.
+        </p>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          aria-label="Tutup"
+          className="h-8 w-8 -mr-1 -mt-1 grid place-items-center rounded-lg text-gray-500 hover:bg-gray-100"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, getTotal, clearCart } = useCartStore()
@@ -73,7 +113,8 @@ export default function CheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
-  const deliveryFee = isPickup ? 0 : (subtotal >= freeDeliveryMin ? 0 : zoneBaseFee)
+  // Fix 5: kiraan dikongsi dengan Troli (lib/delivery-fee) — troli & checkout papar nilai sama.
+  const deliveryFee = calcDeliveryFee({ subtotal, baseFee: zoneBaseFee, freeMin: freeDeliveryMin, isPickup })
 
   const slots = buildDeliverySlots(slotConfigs)
   const [loading, setLoading] = useState(false)
@@ -165,11 +206,12 @@ export default function CheckoutPage() {
         }
       })
 
-    ;(supabase.auth.getUser() as Promise<any>).then(({ data }) => {
+    ;supabase.auth.getUser().then(({ data }: { data: { user: { id: string; email?: string | null } | null } | null }) => {
       const user = data?.user
       if (!user) return
       setLoggedIn(true)
-      if (user.email) setForm(prev => ({ ...prev, email: prev.email || user.email }))
+      const userEmail = user.email
+      if (userEmail) setForm(prev => ({ ...prev, email: prev.email || userEmail }))
       // Voucher peribadi member (user_id-scoped, cth Welcome RM5) — ambil yang terbaik
       // & masih sah, untuk auto-guna di checkout.
       supabase
@@ -177,7 +219,7 @@ export default function CheckoutPage() {
         .select('id, code, type, value, min_order, max_uses, uses_count, expires_at')
         .eq('user_id', user.id)
         .eq('active', true)
-        .then(({ data }: { data: any[] | null }) => {
+        .then(({ data }: { data: VoucherRow[] | null }) => {
           const now = Date.now()
           const best = (data ?? [])
             .filter((v) => (v.max_uses === null || v.uses_count < v.max_uses) && (!v.expires_at || new Date(v.expires_at).getTime() > now))
@@ -201,12 +243,15 @@ export default function CheckoutPage() {
         }
         if (profileRes.data) {
           setUserPoints(profileRes.data.total_points ?? 0)
-          setUserMultiplier((profileRes.data.loyalty_tiers as any)?.multiplier ?? 1)
-          // Pre-fill name & phone from profile if available
+          setUserMultiplier((profileRes.data.loyalty_tiers as { multiplier?: number | null } | null)?.multiplier ?? 1)
+          // Pre-fill name & phone from profile if available.
+          // Fix 6: fallback ke alamat lalai (recipient_name / recipient_phone) bila profil kosong.
+          const prof = profileRes.data as { full_name?: string | null; phone?: string | null }
+          const defAddr = (data ?? []).find((a: Address) => a.is_default) ?? data?.[0]
           setForm(prev => ({
             ...prev,
-            recipient_name: prev.recipient_name || (profileRes.data as any).full_name || '',
-            phone: prev.phone || (profileRes.data as any).phone || '',
+            recipient_name: prev.recipient_name || prof.full_name || defAddr?.recipient_name || '',
+            phone: prev.phone || prof.phone || defAddr?.recipient_phone || '',
           }))
         }
       })
@@ -267,7 +312,9 @@ export default function CheckoutPage() {
         ...prev,
         full_address: buildAddressString(addr),
         recipient_name: prev.recipient_name || addr.recipient_name || '',
-        phone: prev.phone || (addr as any).phone || '',
+        // Fix 6: lajur sebenar ialah recipient_phone (types/Address, profile/addresses.tsx);
+        // `phone` dikekalkan sebagai fallback untuk rekod lama jika ada.
+        phone: prev.phone || addr.recipient_phone || (addr as { phone?: string | null }).phone || '',
       }))
       setEditingAddress(false)
       if (addr.postcode) checkPostcode(addr.postcode)
@@ -353,9 +400,15 @@ export default function CheckoutPage() {
 
   if (items.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F4F6F5] flex flex-col items-center justify-center text-center px-4">
-        <p className="text-gray-400 mb-4">Troli kosong</p>
-        <Link href="/products" className="text-[#E11D2A] font-bold">Kembali beli-belah</Link>
+      <div className="min-h-screen bg-[#F4F6F5] flex flex-col">
+        <Suspense fallback={null}>
+          <PaymentFailedBanner />
+        </Suspense>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <p className="text-gray-400 mb-4">Troli kosong</p>
+          <Link href="/products" className="text-[#E11D2A] font-bold">Kembali beli-belah</Link>
+        </div>
+        <SfWhatsappFab offset="nav" />
       </div>
     )
   }
@@ -426,8 +479,16 @@ export default function CheckoutPage() {
         return
       }
       const data = await guestRes.json()
+      if (data.checkoutUrl) {
+        // Fix 2: JANGAN kosongkan troli sebelum bayaran — tanda dulu; troli dikosongkan
+        // di /checkout/berjaya bila order ini dipapar (PendingCartClear). Bayaran gagal →
+        // gateway hantar balik ke /checkout?bayar=gagal dengan troli masih ada.
+        markPendingCartClear(String(data.order_number))
+        window.location.href = data.checkoutUrl
+        return
+      }
+      // COD / pindahan bank — order dah muktamad tanpa langkah bayaran luar.
       clearCart()
-      if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
       router.push(`/checkout/berjaya?pesanan=${data.order_number}`)
       return
     }
@@ -493,7 +554,9 @@ export default function CheckoutPage() {
       }
 
       const { checkoutUrl } = await chipRes.json()
-      clearCart()
+      // Fix 2: troli dikosongkan di /orders/[id]?new=1 selepas bayaran berjaya
+      // (PendingCartClear), bukan sebelum redirect ke gateway.
+      markPendingCartClear(order.id)
       window.location.href = checkoutUrl
       return
     }
@@ -533,6 +596,9 @@ export default function CheckoutPage() {
         </Link>
         <span className="text-[16px] font-extrabold text-gray-900">Pembayaran</span>
       </div>
+      <Suspense fallback={null}>
+        <PaymentFailedBanner />
+      </Suspense>
       <form id="checkout-form" onSubmit={handleSubmit} className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
         <HoneypotField value={website} onChange={setWebsite} />
 
@@ -697,8 +763,8 @@ export default function CheckoutPage() {
                       {selectedAddr.recipient_name && (
                         <span className="text-[11px] text-gray-500 font-medium">{selectedAddr.recipient_name}</span>
                       )}
-                      {(selectedAddr as any).phone && (
-                        <span className="text-[11px] text-gray-400">· {(selectedAddr as any).phone}</span>
+                      {(selectedAddr.recipient_phone || (selectedAddr as { phone?: string | null }).phone) && (
+                        <span className="text-[11px] text-gray-400">· {selectedAddr.recipient_phone || (selectedAddr as { phone?: string | null }).phone}</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-800 leading-snug">{selectedAddr.full_address}</p>
@@ -1183,6 +1249,9 @@ export default function CheckoutPage() {
         </button>
         </div>
       </div>
+
+      {/* Fix 7: pintu WhatsApp — di atas bar CTA "Bayar Sekarang" */}
+      <SfWhatsappFab offset="checkout" />
     </div>
   )
 }

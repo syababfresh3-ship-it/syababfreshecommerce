@@ -2,7 +2,7 @@
 
 // Redesign v2 — Katalog (Zus-style): scroll berterusan melalui seksyen kategori +
 // rail jadi jump-nav + scroll-spy (highlight ikut posisi). Produk dalam grid 2-kolum.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Megaphone, PackageOpen,
   Flame, Globe, Leaf, Star, Crown, Snowflake, Cherry, GlassWater, Grape, Cookie, Citrus, ShoppingBasket, Apple, ChevronDown,
@@ -43,6 +43,8 @@ type Section = { key: string; name: string; icon: IconCmp; products: CatProduct[
 export function SfCatalog({
   categories,
   products,
+  initialCategory,
+  initialSearch,
   announcement,
 }: {
   categories: Cat[];
@@ -51,7 +53,15 @@ export function SfCatalog({
   initialSearch?: string;
   announcement?: string;
 }) {
-  const [search, setSearch] = useState("");
+  // Fix 1: deep link /products?q=<teks> — seed dari prop, dan selaraskan bila prop
+  // berubah (navigasi ke URL lain). Corak "adjust state on prop change" (bukan effect)
+  // supaya tiada kelipan nilai lama sebelum nilai baharu.
+  const [search, setSearch] = useState(initialSearch ?? "");
+  const [prevInitialSearch, setPrevInitialSearch] = useState(initialSearch);
+  if (initialSearch !== prevInitialSearch) {
+    setPrevInitialSearch(initialSearch);
+    setSearch(initialSearch ?? "");
+  }
 
   // Rail order (induk → anak, ikut sort_order) + Kurma di hujung.
   const { cats, kurmaIds } = useMemo(() => {
@@ -121,11 +131,56 @@ export function SfCatalog({
     return () => obs.disconnect();
   }, [sections, search]);
 
+  // Fix 1: URL boleh dikongsi — /products?category=<slug>&q=<teks> dikemas kini
+  // dengan replaceState (tiada navigasi penuh). "Paling Laku" bukan slug sebenar → tiada param.
+  const syncUrl = useCallback((next: { category?: string | null; q?: string }) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if ("category" in next) {
+      if (next.category && next.category !== PALING_LAKU) params.set("category", next.category);
+      else params.delete("category");
+    }
+    if ("q" in next) {
+      const q = (next.q ?? "").trim();
+      if (q) params.set("q", q); else params.delete("q");
+    }
+    const qs = params.toString();
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
+  }, []);
+
   function jump(key: string) {
     const go = () => sectionEls.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
     setActive(key);
+    syncUrl({ category: key, q: "" });
     if (search.trim()) { setSearch(""); requestAnimationFrame(go); } else { go(); }
   }
+
+  // Fix 1: deep link kategori — /products?category=<slug> lompat terus ke seksyen itu
+  // selepas mount (dan bila prop berubah). Slug kurma-* dipetakan ke kumpulan "Kurma".
+  // Kalau ada ?q=, mod carian diutamakan (seksyen tersembunyi) — tak perlu lompat.
+  // URL TIDAK ditulis semula di sini supaya pautan asal pengguna kekal.
+  const jumpedFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!initialCategory || jumpedFor.current === initialCategory) return;
+    if ((initialSearch ?? "").trim()) return;
+    const cat = categories.find((c) => c.slug === initialCategory);
+    const key = initialCategory === KURMA_GROUP || (cat && isKurma(cat)) ? KURMA_GROUP : initialCategory;
+    if (!sections.some((s) => s.key === key)) return;
+    jumpedFor.current = initialCategory;
+    // Dalam rAF: DOM dah dilukis, dan setState dalam callback (bukan badan effect)
+    // tak mencetuskan render bertingkat.
+    requestAnimationFrame(() => {
+      setActive(key);
+      sectionEls.current[key]?.scrollIntoView({ block: "start" });
+    });
+  }, [initialCategory, initialSearch, sections, categories]);
+
+  // Fix 1: carian → ?q= (debounce ringan supaya tak replaceState setiap ketukan).
+  useEffect(() => {
+    const t = setTimeout(() => syncUrl({ q: search }), 300);
+    return () => clearTimeout(t);
+  }, [search, syncUrl]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)]">

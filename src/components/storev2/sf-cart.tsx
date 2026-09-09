@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
 import { createClient } from "@/lib/supabase/client";
+import { calcDeliveryFee } from "@/lib/delivery-fee";
+import { freeDeliveryActive } from "@/lib/shipping";
 
 type Mode = "pickup" | "delivery";
 type PcRes = { covered: boolean; fee?: number; area?: string; city?: string; error?: string };
@@ -24,6 +26,16 @@ export function SfCart() {
   const [pc, setPc] = useState("");
   const [pcRes, setPcRes] = useState<PcRes | null>(null);
   const [pcBusy, setPcBusy] = useState(false);
+
+  // Fix 5: had penghantaran percuma — sumber SAMA dengan Checkout (/api/settings/delivery)
+  // supaya jumlah troli = jumlah checkout. Sentinel FREE_DELIVERY_OFF = percuma dimatikan.
+  const [freeMin, setFreeMin] = useState(80);
+  useEffect(() => {
+    fetch("/api/settings/delivery")
+      .then((r) => r.json())
+      .then((d) => { if (d?.free_delivery_min != null) setFreeMin(Number(d.free_delivery_min)); })
+      .catch(() => {});
+  }, []);
 
   // Syabab Points
   const [points, setPoints] = useState<number | null>(null);
@@ -106,7 +118,11 @@ export function SfCart() {
   const pcChecked = !!pcRes && !pcRes.error;
   const isKV = pcRes?.covered === true;
   const outsideKV = pcChecked && !isKV;
-  const deliveryFee = mode === "pickup" ? 0 : isKV ? Number(pcRes?.fee ?? 0) : 0;
+  // Fix 5: kiraan SAMA dengan Checkout (lib/delivery-fee) — termasuk peraturan percuma.
+  const deliveryFee = isKV
+    ? calcDeliveryFee({ subtotal, baseFee: Number(pcRes?.fee ?? 0), freeMin, isPickup: mode === "pickup" })
+    : 0;
+  const freeApplied = mode === "delivery" && isKV && deliveryFee === 0;
   const grandTotal = subtotal + deliveryFee;
 
   // Gate: pickup bebas; delivery perlu poskod disahkan
@@ -159,7 +175,7 @@ export function SfCart() {
             {pcRes?.error && <p className="text-[12px] text-red-500 font-semibold mt-2">{pcRes.error}</p>}
             {isKV && (
               <p className="text-[12px] text-emerald-700 font-semibold mt-2">
-                ✓ {pcRes?.area}{pcRes?.city ? `, ${pcRes.city}` : ""} — Lembah Klang · kos RM{Number(pcRes?.fee ?? 0).toFixed(2)}
+                ✓ {pcRes?.area}{pcRes?.city ? `, ${pcRes.city}` : ""} — Lembah Klang · {freeApplied ? "penghantaran PERCUMA" : `kos RM${deliveryFee.toFixed(2)}`}
               </p>
             )}
             {outsideKV && (
@@ -300,7 +316,7 @@ export function SfCart() {
             <span className="text-gray-500">Penghantaran</span>
             <span className="font-bold text-gray-900">
               {mode === "pickup" ? "PERCUMA"
-                : isKV ? `RM${deliveryFee.toFixed(2)}`
+                : isKV ? (freeApplied ? "PERCUMA" : `RM${deliveryFee.toFixed(2)}`)
                 : outsideKV ? "Ikut berat"
                 : "—"}
             </span>
@@ -312,6 +328,9 @@ export function SfCart() {
             </span>
           </div>
           {outsideKV && <p className="text-[10.5px] text-gray-400">+ kos kurier sejuk ikut berat (disahkan semasa checkout)</p>}
+          {mode === "delivery" && isKV && freeDeliveryActive(freeMin) && subtotal < freeMin && (
+            <p className="text-[10.5px] text-gray-400">Tambah RM{(freeMin - subtotal).toFixed(2)} lagi untuk penghantaran percuma</p>
+          )}
         </div>
 
         {/* Jaminan */}
