@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+import { CouponCodesTable } from './coupon-codes-table'
 
 const fmtDate = (s: string) =>
   new Date(s).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: '2-digit' })
@@ -109,26 +110,8 @@ export default async function PromoUsagePage() {
 
       {/* Ringkasan per kod */}
       <section>
-        <h2 className="font-semibold text-gray-800 mb-2">🎟️ Kupon — ikut kod</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs">
-              <tr><th className="text-left px-4 py-2">Kod</th><th className="text-left px-4 py-2">Nilai</th><th className="text-right px-4 py-2">Kali diguna</th><th className="text-left px-4 py-2">Had</th><th className="text-left px-4 py-2">Status</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {codes.map((c: Row) => (
-                <tr key={c.code}>
-                  <td className="px-4 py-2 font-mono font-semibold text-gray-800">{c.code}</td>
-                  <td className="px-4 py-2 text-gray-600">{c.type === 'percentage' ? `${c.value}%` : `RM${c.value}`}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-gray-900">{c.uses_count}</td>
-                  <td className="px-4 py-2 text-gray-400">{c.max_uses ?? '∞'}</td>
-                  <td className="px-4 py-2">{c.active ? <span className="text-emerald-600 text-xs">Aktif</span> : <span className="text-gray-400 text-xs">Off</span>}</td>
-                </tr>
-              ))}
-              {codes.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-400">Tiada kod promo.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="font-semibold text-gray-800 mb-2">🎟️ Kupon — ikut kod ({codes.length})</h2>
+        <CouponCodesTable codes={codes} />
       </section>
 
       {/* Order guna kupon */}
