@@ -8,6 +8,10 @@ import { OrdersTableClient } from './orders-table-client'
 import { Download, Zap, Package, Truck, Tag } from 'lucide-react'
 import { LpOrdersSection } from './lp-orders-section'
 import type { Order } from '@/types'
+import {
+  resolveBounds, resolveSource, isPaidOrOffline, isTeamManagedSrc, classifyLpSource,
+  matchesSearch, matchesPay, buildOrderFilterQuery, type Bounds,
+} from '@/lib/admin-order-filters'
 
 type OrderWithProfile = Order & { profiles: { full_name: string; phone: string } | null }
 
@@ -34,30 +38,8 @@ function urgency(order: OrderWithProfile): number {
 }
 
 
-function dateRange(preset?: string): { gte?: string; lt?: string } {
-  if (!preset) return {}
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (preset === 'hari-ini') {
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
-    return { gte: today.toISOString(), lt: tomorrow.toISOString() }
-  }
-  if (preset === 'semalam') {
-    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1)
-    return { gte: yesterday.toISOString(), lt: today.toISOString() }
-  }
-  if (preset === '7-hari') {
-    const week = new Date(today); week.setDate(today.getDate() - 6)
-    return { gte: week.toISOString() }
-  }
-  if (preset === 'bulan-ini') {
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    return { gte: monthStart.toISOString() }
-  }
-  return {}
-}
-
-type Bounds = { gte?: string; lt?: string; lte?: string }
+// Penapis (tarikh/bounds, sumber, visibility, carian, bayaran) DIKONGSI dengan
+// /api/admin/export-orders — lihat lib/admin-order-filters supaya CSV = paparan.
 
 async function getOrders(status: string | undefined, q: string | undefined, bounds: Bounds) {
   const supabase = createAdminClient()
@@ -100,11 +82,8 @@ async function getOrders(status: string | undefined, q: string | undefined, boun
   }))
 
   if (q) {
-    const lower = q.toLowerCase()
     enriched = enriched.filter((o) =>
-      o.order_number?.toLowerCase().includes(lower) ||
-      o.profiles?.full_name?.toLowerCase().includes(lower) ||
-      o.profiles?.phone?.includes(q)
+      matchesSearch(q, { orderNumber: o.order_number, name: o.profiles?.full_name, phone: o.profiles?.phone })
     )
   }
 
@@ -190,18 +169,14 @@ export default async function AdminOrdersPage({
   const { status, q, date, lp, from, to, pay, staff } = await searchParams
 
   // Tarikh: julat custom (from/to, MYT) mengatasi preset. 'to' inklusif (lte 23:59:59).
-  const bounds: Bounds = (from || to)
-    ? {
-        ...(from ? { gte: `${from}T00:00:00+08:00` } : {}),
-        ...(to ? { lte: `${to}T23:59:59+08:00` } : {}),
-      }
-    : dateRange(date)
+  const bounds: Bounds = resolveBounds({ date, from, to })
 
   // Sumber: 'storefront' = kedai sahaja; UUID = LP tertentu sahaja (kedai tiada attribution); else dua-dua.
-  const manualOnly = lp === 'manual'
-  const storefrontOnly = lp === 'storefront'
-  const lpPageId = lp && lp !== 'storefront' && lp !== 'manual' ? lp : undefined
+  const { manualOnly, storefrontOnly, lpPageId } = resolveSource(lp)
   const lpSpecific = !!lpPageId
+
+  // Export CSV ikut tapisan semasa — query string sama, route guna helper sama.
+  const exportHref = `/api/admin/export-orders${buildOrderFilterQuery({ status, q, date, lp, from, to, pay, staff })}`
 
   const [orders, counts, lpRows, landingPages] = await Promise.all([
     lpSpecific ? Promise.resolve([] as Awaited<ReturnType<typeof getOrders>>) : getOrders(status, q, bounds),
@@ -210,11 +185,8 @@ export default async function AdminOrdersPage({
     getLandingPages(),
   ])
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
-  // never paid. COD/bank orders always show (no online payment to wait for).
-  // 'refunded' = dah dibayar dahulu kemudian dipulangkan → kekal papar (admin rujuk
-  // balik). Polisi sama untuk storefront & LP.
-  const isPaidOrOffline = (o: any) =>
-    ['fpx', 'ewallet'].includes(o.payment_method) ? ['paid', 'refunded'].includes(o.payment_status) : true
+  // never paid. COD/bank orders always show. 'refunded' kekal papar.
+  // (isPaidOrOffline dikongsi dengan export — lib/admin-order-filters.)
   // Tab "Pending" ditekan secara eksplisit → tunjuk SEMUA pending (termasuk online
   // belum-bayar yang biasanya disorok dari senarai utama). Tab lain / All kekal sorok.
   const showAllPending = status === 'pending'
@@ -223,32 +195,23 @@ export default async function AdminOrdersPage({
   let allLpOrders = lpRows.filter(isVisible)
   // Search filter — match order number, customer name, or phone
   if (q) {
-    const lower = q.toLowerCase()
-    allLpOrders = allLpOrders.filter((o: any) =>
-      o.order_number?.toLowerCase().includes(lower) ||
-      o.name?.toLowerCase().includes(lower) ||
-      o.phone?.includes(q)
+    allLpOrders = allLpOrders.filter((o) =>
+      matchesSearch(q, { orderNumber: o.order_number, name: o.name, phone: o.phone })
     )
   }
   // "Awaiting Confirmation" hanya untuk order LP organik (customer order sendiri dari
   // LP / iklan). Order dari Quick Order (source 'whatsapp'*) atau Inbox WA / CRM
   // (source 'crm'/'manual') diuruskan team sale sendiri — COD sudah disahkan dengan
   // customer — jadi JANGAN muncul di sini (kekal boleh dilihat via tab Pending).
-  const isTeamManagedSrc = (s: any) =>
-    typeof s === 'string' && (s.startsWith('whatsapp') || s === 'crm' || s === 'manual')
   const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending' && !isTeamManagedSrc(o.source))
 
   // Transform LP orders to match Order shape for the table.
   // Order Quick Order (source='whatsapp'/'manual') = order MANUAL, bukan LP sebenar →
   // badge 'Manual' + jangan tunjuk tajuk LP (kekal _isLp untuk routing/PATCH endpoint LP).
   const lpAsOrders = allLpOrders.map((lp: any) => {
-    // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>' → guna startsWith
-    const isReseller = lp.source === 'reseller'
-    const isStoreGuest = lp.source === 'store-guest'
-    const isManual = !isReseller && !isStoreGuest && typeof lp.source === 'string' && (lp.source.startsWith('whatsapp') || lp.source === 'manual')
-    // Nama staf disimpan dalam source sbg 'whatsapp-<nama>' (Quick Order)
-    const staffName = isManual && typeof lp.source === 'string' && lp.source.startsWith('whatsapp-')
-      ? lp.source.slice('whatsapp-'.length) : null
+    // Quick Order hantar source 'whatsapp' atau 'whatsapp-<staff>'; nama staf dalam
+    // source sbg 'whatsapp-<nama>' — classifyLpSource dikongsi dengan export CSV.
+    const { isReseller, isStoreGuest, isManual, staffName } = classifyLpSource(lp.source)
     return ({
     id: lp.id,
     order_number: lp.order_number,
@@ -298,11 +261,7 @@ export default async function AdminOrdersPage({
 
   // Tapisan pembayaran (pay=unpaid|paid). Online belum-bayar dah disorok di atas,
   // jadi 'unpaid' di sini = COD/bank transfer yang belum dikutip.
-  const allOrders = pay === 'unpaid'
-    ? mergedOrders.filter((o: any) => o.payment_status === 'unpaid')
-    : pay === 'paid'
-    ? mergedOrders.filter((o: any) => o.payment_status === 'paid')
-    : mergedOrders
+  const allOrders = pay ? mergedOrders.filter((o) => matchesPay(pay, o.payment_status)) : mergedOrders
 
   // Ringkasan header (ikut tapisan semasa)
   const totalRm = allOrders.reduce((s, o) => s + Number((o as any).total || 0), 0)
@@ -340,7 +299,7 @@ export default async function AdminOrdersPage({
           </p>
         </div>
         <a
-          href="/api/admin/export-orders"
+          href={exportHref}
           download
           className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 px-3.5 py-2 rounded-xl hover:bg-gray-50 shadow-sm transition-colors"
         >

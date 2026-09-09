@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient as createClient } from '@/lib/supabase/admin'
+import { fetchAll } from '@/lib/supabase/fetch-all'
+import type { Profile } from '@/types'
 import { CustomersClient } from './customers-client'
 import { getSegment, getChannel } from './segment-utils'
 
@@ -13,25 +15,39 @@ function normalizePhone(phone: string): string {
 async function getCustomers() {
   const supabase = createClient()
 
-  const [profilesRes, ordersRes, lpOrdersRes] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('*, loyalty_tiers(name)')
-      .eq('is_admin', false)
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('orders')
-      .select('user_id, created_at, total, status')
-      .in('status', ['confirmed', 'preparing', 'delivering', 'delivered']),
-    supabase
-      .from('lp_guest_orders')
-      .select('phone, total, status, created_at')
-      .in('status', ['pending', 'confirmed']),
+  // fetchAll: PostgREST cap 1000 baris/permintaan — dulu select tanpa .range()
+  // diam-diam terpotong (order_count/lp_spend salah bila >1000 order/profil).
+  // Susunan & bentuk hasil kekal sama.
+  type ProfileRow = Profile & { loyalty_tiers: { name: string } | null }
+  type OrderRow = { user_id: string; created_at: string; total: number | null; status: string }
+  type LpRow = { phone: string | null; total: number | null; status: string; created_at: string }
+  const [profiles, orders, lpOrders] = await Promise.all([
+    fetchAll<ProfileRow>((f, t) =>
+      supabase
+        .from('profiles')
+        .select('*, loyalty_tiers(name)')
+        .eq('is_admin', false)
+        .order('created_at', { ascending: false })
+        .order('id')
+        .range(f, t),
+      'admin/customers:profiles'),
+    fetchAll<OrderRow>((f, t) =>
+      supabase
+        .from('orders')
+        .select('user_id, created_at, total, status')
+        .in('status', ['confirmed', 'preparing', 'delivering', 'delivered'])
+        .order('id')
+        .range(f, t),
+      'admin/customers:orders'),
+    fetchAll<LpRow>((f, t) =>
+      supabase
+        .from('lp_guest_orders')
+        .select('phone, total, status, created_at')
+        .in('status', ['pending', 'confirmed'])
+        .order('id')
+        .range(f, t),
+      'admin/customers:lp'),
   ])
-
-  const profiles = profilesRes.data ?? []
-  const orders = ordersRes.data ?? []
-  const lpOrders = lpOrdersRes.data ?? []
 
   // Build per-user: lastOrderAt + orderCount + totalSpentStore
   const orderMap = new Map<string, { lastOrderAt: string; orderCount: number; totalSpent: number }>()

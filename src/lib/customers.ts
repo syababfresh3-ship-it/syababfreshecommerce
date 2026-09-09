@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
+import { fetchAll } from '@/lib/supabase/fetch-all'
 
 // Master-customer upsert (CRM). Dipanggil dari setiap titik tulis yang cipta
 // kenalan/order (order LP, lead, order storefront). Padan ikut phone_norm:
@@ -105,10 +106,15 @@ export async function refreshCustomerAggregates(): Promise<{
   const seen = (p: Person, t: string | null | undefined) => { if (t && (!p.first_seen_at || new Date(t) < new Date(p.first_seen_at))) p.first_seen_at = t }
   const ordered = (p: Person, t: string | null | undefined) => { if (t && (!p.last_order_at || new Date(t) > new Date(p.last_order_at))) p.last_order_at = t }
 
+  // Semua select di bawah guna fetchAll — PostgREST cap 1000 baris/permintaan;
+  // dulu select tanpa .range() diam-diam terpotong → agregat salah bila >1000 baris.
   // profiles (registered)
-  const { data: profiles } = await supabase.from('profiles').select('id, full_name, phone, email, created_at').eq('is_admin', false)
+  type ProfileRow = { id: string; full_name: string | null; phone: string | null; email: string | null; created_at: string }
+  const profiles = await fetchAll<ProfileRow>((f, t) =>
+    supabase.from('profiles').select('id, full_name, phone, email, created_at').eq('is_admin', false).order('id').range(f, t),
+    'customers:profiles')
   const profileById = new Map<string, { phone: string | null }>()
-  for (const pr of profiles ?? []) {
+  for (const pr of profiles) {
     profileById.set(pr.id, { phone: pr.phone })
     const p = touch(pr.phone); if (!p) continue
     p.sources.add('store'); p.user_id = pr.id
@@ -123,8 +129,11 @@ export async function refreshCustomerAggregates(): Promise<{
     (['fpx', 'ewallet'].includes(o.payment_method ?? '') ? o.payment_status === 'paid' : true)
 
   // storefront orders → key ikut telefon profil
-  const { data: orders } = await supabase.from('orders').select('user_id, total, status, payment_method, payment_status, created_at')
-  for (const o of orders ?? []) {
+  type OrderRow = { user_id: string; total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string }
+  const orders = await fetchAll<OrderRow>((f, t) =>
+    supabase.from('orders').select('user_id, total, status, payment_method, payment_status, created_at').order('id').range(f, t),
+    'customers:orders')
+  for (const o of orders) {
     const pr = profileById.get(o.user_id); if (!pr?.phone) continue
     const p = touch(pr.phone); if (!p) continue
     p.sources.add('store'); seen(p, o.created_at)
@@ -132,8 +141,14 @@ export async function refreshCustomerAggregates(): Promise<{
   }
 
   // LP guest orders
-  const { data: lp } = await supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at')
-  for (const o of lp ?? []) {
+  type LpRow = {
+    phone: string | null; name: string | null; email: string | null; address: string | null; postcode: string | null
+    total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string
+  }
+  const lp = await fetchAll<LpRow>((f, t) =>
+    supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at').order('id').range(f, t),
+    'customers:lp')
+  for (const o of lp) {
     const p = touch(o.phone); if (!p) continue
     p.sources.add('lp')
     fill(p, 'name', o.name); fill(p, 'email', o.email); fill(p, 'address', o.address); fill(p, 'postcode', o.postcode)
@@ -142,8 +157,10 @@ export async function refreshCustomerAggregates(): Promise<{
   }
 
   // leads (belum beli)
-  const { data: leads } = await supabase.from('landing_page_leads').select('name, phone, created_at')
-  for (const l of leads ?? []) {
+  const leads = await fetchAll<{ name: string | null; phone: string | null; created_at: string }>((f, t) =>
+    supabase.from('landing_page_leads').select('name, phone, created_at').order('id').range(f, t),
+    'customers:leads')
+  for (const l of leads) {
     const p = touch(l.phone); if (!p) continue
     p.sources.add('lead'); fill(p, 'name', l.name); seen(p, l.created_at)
   }
@@ -153,8 +170,10 @@ export async function refreshCustomerAggregates(): Promise<{
   // Baris sedia ada → kemas AGREGAT sahaja (jangan tindih name/email/address yang
   // mungkin admin dah betulkan, dan jangan sentuh tags/is_reseller/consent).
   // Baris baharu (telefon tiada lagi) → insert penuh.
-  const { data: existing } = await supabase.from('customers').select('id, phone_norm, sources')
-  const existingByPhone = new Map((existing ?? []).map(r => [r.phone_norm as string, r as { id: string; sources: string[] }]))
+  const existing = await fetchAll<{ id: string; phone_norm: string; sources: string[] | null }>((f, t) =>
+    supabase.from('customers').select('id, phone_norm, sources').order('id').range(f, t),
+    'customers:existing')
+  const existingByPhone = new Map(existing.map(r => [r.phone_norm, r]))
 
   const now = new Date().toISOString()
   let written = 0, failed = 0

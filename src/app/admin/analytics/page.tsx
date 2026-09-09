@@ -3,6 +3,7 @@ import { createAdminClient as createClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { TrendingUp, ShoppingBag, Users, Package, ImageOff, BarChart3, Repeat, Receipt, CalendarRange } from 'lucide-react'
 import { normalizePhone } from '@/lib/phone'
+import { fetchAll } from '@/lib/supabase/fetch-all'
 
 // Julat pilihan: ?range=7 | 30 | 90 (hari). Default 7 (perangai asal).
 const RANGES = [
@@ -11,19 +12,7 @@ const RANGES = [
   { days: 90, label: '90 hari' },
 ] as const
 
-// Supabase cap 1000 baris/query — paginate (corak sama blast-audience).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function fetchAll<T>(build: (from: number, to: number) => any): Promise<T[]> {
-  const out: T[] = []
-  const CHUNK = 1000
-  for (let from = 0; ; from += CHUNK) {
-    const { data, error } = await build(from, from + CHUNK - 1)
-    if (error || !data || data.length === 0) break
-    out.push(...(data as T[]))
-    if (data.length < CHUNK) break
-  }
-  return out
-}
+// Supabase cap 1000 baris/query — fetchAll (lib/supabase/fetch-all) paginate .range().
 
 async function getAnalytics(rangeDays: number) {
   const supabase = createClient()

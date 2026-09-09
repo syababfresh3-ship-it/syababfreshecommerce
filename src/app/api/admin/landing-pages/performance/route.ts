@@ -1,23 +1,32 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { fetchAll } from '@/lib/supabase/fetch-all'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
 
-  const [pagesRes, ordersRes, leadsRes] = await Promise.all([
+  // fetchAll: PostgREST cap 1000 baris/permintaan — dulu lp_guest_orders/leads tanpa
+  // .range() diam-diam terpotong → revenue/conversion LP terkurang. Bentuk hasil kekal.
+  type LpOrderRow = { page_id: string; total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string }
+  type LeadRow = { page_id: string; created_at: string }
+  const [pagesRes, orders, leads] = await Promise.all([
     supabase!.from('landing_pages')
       .select('id, title, slug, is_active, view_count, created_at')
       .order('created_at', { ascending: false }),
-    supabase!.from('lp_guest_orders')
-      .select('page_id, total, status, payment_method, payment_status, created_at'),
-    supabase!.from('landing_page_leads')
-      .select('page_id, created_at'),
+    fetchAll<LpOrderRow>((f, t) =>
+      supabase!.from('lp_guest_orders')
+        .select('page_id, total, status, payment_method, payment_status, created_at')
+        .order('id').range(f, t),
+      'lp-performance:orders'),
+    fetchAll<LeadRow>((f, t) =>
+      supabase!.from('landing_page_leads')
+        .select('page_id, created_at')
+        .order('id').range(f, t),
+      'lp-performance:leads'),
   ])
 
   const pages = pagesRes.data ?? []
-  const orders = ordersRes.data ?? []
-  const leads = leadsRes.data ?? []
 
   // Aggregate per page
   const result = pages.map(page => {

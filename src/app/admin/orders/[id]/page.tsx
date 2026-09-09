@@ -8,6 +8,7 @@ import { RefundButton } from './refund-button'
 import { ShipmentPanel } from './shipment-panel'
 import { ReceiptActions } from '../receipt-actions'
 import { InvoiceActions } from './invoice-actions'
+import { DeliveryAddressEdit } from './delivery-address-edit'
 
 async function getOrder(id: string) {
   const supabase = createClient()
@@ -138,29 +139,17 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {/* Delivery Address + Slot / Pickup */}
-      {(order.delivery_address || order.delivery_slot || order.delivery_method === 'pickup') && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <h2 className="font-semibold text-gray-900">{order.delivery_method === 'pickup' ? 'Ambil Sendiri (Pickup)' : 'Penghantaran'}</h2>
-            {order.delivery_method === 'pickup' && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">PICKUP</span>
-            )}
-          </div>
-          {order.delivery_method === 'pickup' && order.pickup_date && (
-            <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">📅 Tarikh ambil: {new Date(order.pickup_date).toLocaleDateString('en-MY')}</p>
-          )}
-          {order.delivery_slot && (
-            <p className="text-sm text-brand-fresh-700 font-semibold mb-1.5">🕐 {order.delivery_slot}</p>
-          )}
-          {order.delivery_address && (
-            <p className="text-sm text-gray-700 whitespace-pre-line">{order.delivery_address}</p>
-          )}
-          {order.postcode && (
-            <p className="text-sm text-gray-500 mt-1">Poskod: <span className="font-semibold text-gray-800">{order.postcode}</span></p>
-          )}
-        </div>
-      )}
+      {/* Delivery Address + Slot / Pickup — edit inline (alamat + poskod).
+          Sentiasa dipapar (dulu disorok bila tiada alamat) supaya alamat yang
+          hilang boleh ditambah admin. */}
+      <DeliveryAddressEdit
+        orderId={order.id}
+        deliveryAddress={order.delivery_address ?? null}
+        postcode={order.postcode ?? null}
+        deliveryMethod={order.delivery_method ?? null}
+        deliverySlot={order.delivery_slot ?? null}
+        pickupDate={order.pickup_date ?? null}
+      />
 
       {/* Shipment panel */}
       <ShipmentPanel
