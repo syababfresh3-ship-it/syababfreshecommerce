@@ -1,7 +1,7 @@
 # Inventori Cron — semua automation berjadual
 
-9 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
-7 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
+10 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
+8 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
 satu-satunya rekod). Setiap cron stamp `cron_heartbeats` (109) bila siap;
 dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 
@@ -17,6 +17,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | payment-reminder | `/api/cron/payment-reminder` | Email order FPX belum bayar 1-24j | tiap ~2 jam | cron-job.org |
 | refresh-customers | `/api/cron/refresh-customers` | Kira semula agregat customer (spend/recency) | harian, lepas 01:00 | cron-job.org |
 | voucher-reminder | `/api/cron/voucher-reminder` | Email voucher peribadi luput ≤7 hari (sekali/voucher) | harian (~10:00) | cron-job.org |
+| daily-summary | `/api/cron/daily-summary` | Ringkasan semalam ke admin: jualan SF+LP, top produk, COD tertunggak, pending, stok rendah, batch luput, refund, cron senyap, ralat storefront (WA + push + email) | 08:30 harian (MYT) | cron-job.org |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 
@@ -34,3 +35,31 @@ di DB supaya alert tak salah bunyi:
 ```sql
 update cron_heartbeats set expected_minutes = 60 where job = 'auto-followup';
 ```
+
+## daily-summary — cara setup & uji
+
+Laporan dibina oleh `src/lib/daily-summary.ts` (fungsi tulen, boleh diuji);
+endpoint `src/app/api/cron/daily-summary/route.ts` hantar ke:
+
+- WhatsApp admin (`ADMIN_WHATSAPP`, via Murpati `sendWhatsApp`) — teks ≤1500 aksara
+- Push admin (`sendAdminPush`, tag `daily-summary`, buka `/admin`)
+- Email (`ADMIN_EMAIL` — **pilihan**; tak diset = skip senyap)
+
+Heartbeat `daily-summary` (expected 1440 min) di-seed oleh migration 124.
+
+**cron-job.org** (waktu Asia/Kuala_Lumpur):
+
+- URL: `https://shop.syababfresh.my/api/cron/daily-summary`
+- Method: GET · Jadual: 08:30 harian
+- Header: `Authorization: Bearer <CRON_SECRET>`
+
+**Uji tanpa hantar apa-apa** (`dry=1` = tak hantar WA/push/email, tak stamp heartbeat):
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3006/api/cron/daily-summary?dry=1" | jq .text -r
+```
+
+Pilihan `?date=YYYY-MM-DD` untuk laporan hari KL tertentu (default: semalam).
+Bahagian "Ralat semalam" datang dari `error_reports` (migration 124) — sebelum
+migration dijalankan ia dipapar "tidak tersedia", bukan gagal.

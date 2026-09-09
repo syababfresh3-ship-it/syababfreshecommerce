@@ -640,3 +640,20 @@ export async function sendReviewRequestEmail(params: {
     html,
   })
 }
+
+// ─── generic: email dalaman ke admin (ADMIN_EMAIL) ────────────────────────────
+// Untuk laporan sistem (cth ringkasan harian). Skip senyap bila ADMIN_EMAIL tak
+// diset — pulang false. `html` = badan sahaja; dibungkus layout() di sini.
+
+export async function sendAdminEmail(params: { subject: string; html: string }): Promise<boolean> {
+  const to = process.env.ADMIN_EMAIL?.trim()
+  if (!to) return false
+  return send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh Sistem',
+    to,
+    toName: 'Admin',
+    subject: params.subject,
+    html: layout(params.subject, params.html),
+  })
+}

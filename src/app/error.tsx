@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
+import { reportClientError } from '@/lib/report-client-error'
 
 export default function Error({
   error,
@@ -10,7 +12,9 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // error boundary — intentionally silent in production
+    // UI kekal senyap; ralat dilapor ke /api/error-report (fail-soft) supaya
+    // masuk error_reports (124) & ringkasan harian admin.
+    reportClientError(error)
   }, [error])
 
   return (
@@ -27,12 +31,12 @@ export default function Error({
         >
           Cuba Semula
         </button>
-        <a
+        <Link
           href="/"
           className="border border-gray-200 text-gray-700 font-semibold px-5 py-2.5 rounded-2xl text-sm hover:bg-gray-50 transition-colors"
         >
           Laman Utama
-        </a>
+        </Link>
       </div>
     </div>
   )
