@@ -25,6 +25,7 @@ export interface LpLiveConfig {
   buy_label: string
   autoplay: boolean            // auto main (senyap) — pelanggan tekan untuk buka suara
   wa_prefill: string           // teks awal butang "Tanya" (WhatsApp CS)
+  wa_number: string            // nombor WA butang Tanya, digit sahaja cth 601156816548 (kosong = CS lalai)
 }
 
 export const DEFAULT_LIVE_CONFIG: LpLiveConfig = {
@@ -43,6 +44,7 @@ export const DEFAULT_LIVE_CONFIG: LpLiveConfig = {
   buy_label: 'Beli Sekarang',
   autoplay: true,
   wa_prefill: '',
+  wa_number: '',
 }
 
 const SLUG_RE = /^[a-z0-9-]+$/
@@ -71,7 +73,15 @@ export function normalizeLiveConfig(input: unknown): LpLiveConfig {
     buy_label: str(o.buy_label, 30) || DEFAULT_LIVE_CONFIG.buy_label,
     autoplay: o.autoplay !== false,
     wa_prefill: str(o.wa_prefill, 200),
+    wa_number: normalizeWaNumber(o.wa_number),
   }
+}
+
+// "+60 11-5681 6548" / "0115681 6548" → "601156816548"; tak sah → ''
+export function normalizeWaNumber(v: unknown): string {
+  let d = (typeof v === 'string' ? v : '').replace(/\D/g, '')
+  if (d.startsWith('0')) d = '60' + d.slice(1)
+  return /^\d{10,15}$/.test(d) ? d : ''
 }
 
 // Mesej ralat (BM) atau null kalau sah. Dipanggil di API (POST/PATCH) dan borang admin.

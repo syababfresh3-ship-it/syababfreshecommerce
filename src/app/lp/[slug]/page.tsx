@@ -169,7 +169,7 @@ export default async function LandingPage({ params }: Props) {
           reviews={data.reviews}
           viewerComments={data.viewerComments}
           freeMin={freeMin}
-          waNumber={waNumber}
+          waNumber={data.live.wa_number || waNumber}
           storeLogo={appSettings.store_logo_url ?? ''}
         />
         {/* Checkout sedia ada (borang → FPX/e-wallet/COD); bar disembunyi, dibuka via event */}

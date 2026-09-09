@@ -203,9 +203,16 @@ export function LpLiveForm({ config, onChange }: Props) {
           </div>
         </div>
         <p className="text-[10px] text-gray-400">Komen penonton masuk ke <strong>Landing Pages &gt; Komen</strong> sebagai &quot;belum semak&quot;. Hanya yang anda luluskan muncul di page, berlabel &quot;Penonton&quot;. Admin dapat push bila ada komen baru.</p>
-        <div>
-          <label className={lbl}>Teks awal butang Tanya (WhatsApp CS)</label>
-          <input className={inp} value={config.wa_prefill} onChange={e => set('wa_prefill', e.target.value)} placeholder='Kosong = "Hai SyababFresh, saya ada soalan tentang <tajuk LP>"' />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={lbl}>Nombor WhatsApp butang Tanya</label>
+            <input className={inp} inputMode="tel" value={config.wa_number} onChange={e => set('wa_number', e.target.value.replace(/[^\d+ -]/g, ''))} placeholder="Kosong = nombor CS lalai" />
+            <p className="text-[10px] text-gray-400 mt-1">Cth 601156816548 atau 0115681 6548. Hanya page ini; page lain tak terjejas.</p>
+          </div>
+          <div>
+            <label className={lbl}>Teks awal butang Tanya</label>
+            <input className={inp} value={config.wa_prefill} onChange={e => set('wa_prefill', e.target.value)} placeholder='Kosong = "Hai SyababFresh, saya ada soalan tentang <tajuk LP>"' />
+          </div>
         </div>
         <p className="text-[10px] text-gray-400">Ulasan diambil dari jadual ulasan produk (nama dipendekkan, cth. &quot;Nurul A.&quot;, dengan bandar dan tanda pembeli disahkan). Tiada ulasan = tiada komen dipaparkan.</p>
       </div>
