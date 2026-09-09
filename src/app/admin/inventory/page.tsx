@@ -35,7 +35,9 @@ async function getData(batchPage: number, batchSearch?: string) {
   const [productsRes, batchesRes, stockRes] = await Promise.all([
     supabase.from('products').select('id, name, slug').eq('is_active', true).order('name'),
     batchQuery.range(from, to),
-    supabase.from('product_stock').select('*'),
+    // Audit §4: product_stock_all = batch + varian (migration 123); fallback view lama kalau belum jalan
+    supabase.from('product_stock_all').select('product_id, available_stock')
+      .then(r => r.error ? supabase.from('product_stock').select('product_id, available_stock') : r),
   ])
 
   const { data: expiringSoonData } = await supabase

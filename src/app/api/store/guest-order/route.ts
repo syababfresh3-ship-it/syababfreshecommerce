@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { deductLpOrderStock } from '@/lib/stock'
 import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
@@ -298,6 +299,9 @@ export async function POST(request: Request) {
   if (promoCodeId) {
     await supabase.rpc('increment_promo_uses', { promo_id: promoCodeId })
   }
+
+  // Audit §0.7: potong stok masa buat order (FPX/kad: masa bayaran disahkan)
+  await deductLpOrderStock(supabase, order.id)
 
   // Email pengesahan order (email wajib)
   sendOrderConfirmationEmail({

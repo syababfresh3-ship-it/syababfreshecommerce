@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { deductLpOrderStock } from '@/lib/stock'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
@@ -52,6 +53,10 @@ export async function confirmLpGuestOrder(
     })
     await supabase.rpc('increment_points', { uid: order.user_id, pts: -order.points_used })
   }
+
+  // Audit §0.7: potong stok bila bayaran LP disahkan (dulu tak pernah). Sekali sahaja
+  // (stock_deducted_at). Oversold → nota + WA/push admin, order tetap teruskan.
+  await deductLpOrderStock(supabase, orderId)
 
   // Loyalty points are earned on delivery (see landing-pages orders PATCH → 'delivered')
   const lpTitle = order.landing_pages?.title ?? 'SyababFresh'

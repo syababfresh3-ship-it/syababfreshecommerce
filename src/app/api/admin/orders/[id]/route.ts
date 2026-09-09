@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { reverseOrderLoyalty } from '@/lib/loyalty-reverse'
+import { restoreStorefrontOrderStock } from '@/lib/stock'
+import { canTransition, transitionError } from '@/lib/order-status'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -126,6 +128,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid payment_status' }, { status: 400 })
   }
 
+  // Audit §4: peraturan peralihan (cancelled → delivered, delivered → pending ditolak)
+  const { data: current } = await supabase.from('orders').select('status').eq('id', id).single()
+  if (status && !canTransition(current?.status, status)) {
+    return NextResponse.json({ error: transitionError(current?.status, status) }, { status: 409 })
+  }
+
   const now = new Date().toISOString()
   const update: Record<string, string | null> = {}
 
@@ -148,6 +156,13 @@ export async function PATCH(
   // shipping module so every 'delivered' path behaves identically. Idempotent.
   if (status === 'delivered') {
     await handleOrderDelivered(supabase, id)
+  }
+
+  // Audit §4: cancel oleh admin pulangkan stok (dulu hilang) + kembalikan mata ditebus
+  if (status === 'cancelled' && current?.status !== 'cancelled') {
+    await restoreStorefrontOrderStock(supabase, id)
+    const { data: o } = await supabase.from('orders').select('user_id, total, order_number').eq('id', id).single()
+    if (o?.user_id) await reverseOrderLoyalty(supabase, { id, ...o })
   }
 
   // On refund: reverse earned points + spend, give back redeemed points

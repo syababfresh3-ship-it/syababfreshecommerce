@@ -37,7 +37,9 @@ async function getStats() {
       .limit(5),
     supabase.from('orders').select('id', { count: 'exact', head: true })
       .eq('status', 'cancelled').eq('payment_status', 'paid'),
-    supabase.from('product_stock').select('product_id, available_stock').lt('available_stock', 5),
+    // Audit §4: product_stock_all = batch + varian (migration 123); fallback view lama kalau belum jalan
+    supabase.from('product_stock_all').select('product_id, available_stock').eq('is_active', true).lt('available_stock', 5)
+      .then(r => r.error ? supabase.from('product_stock').select('product_id, available_stock').lt('available_stock', 5) : r),
     supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString()),
     supabase.from('lp_guest_orders').select('total').eq('status', 'confirmed').gte('created_at', todayStart.toISOString()),
     supabase.from('lp_guest_orders').select('id', { count: 'exact', head: true }),

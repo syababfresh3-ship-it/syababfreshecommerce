@@ -2,6 +2,8 @@ import { requireAdmin } from '@/lib/supabase/require-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
 import { reverseLpLoyalty } from '@/lib/loyalty-reverse'
+import { restoreLpOrderStock } from '@/lib/stock'
+import { canTransition, transitionError } from '@/lib/order-status'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -45,9 +47,14 @@ export async function PATCH(request: Request) {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   // Status update
+  let prevStatus: string | null = null
   if (status !== undefined) {
     const VALID = ['pending', 'confirmed', 'preparing', 'delivering', 'delivered', 'cancelled', 'refunded']
     if (!VALID.includes(status)) return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    // Audit §4: peraturan peralihan status
+    const { data: cur } = await supabase!.from('lp_guest_orders').select('status').eq('id', id).single()
+    prevStatus = cur?.status ?? null
+    if (!canTransition(prevStatus, status)) return NextResponse.json({ error: transitionError(prevStatus, status) }, { status: 409 })
     update.status = status
     // Cap masa transisi penghantaran (dipakai cron auto-deliver)
     if (status === 'delivering') update.delivering_at = update.updated_at
@@ -110,6 +117,8 @@ export async function PATCH(request: Request) {
       if (status === 'delivered') await awardLpLoyalty(admin, lp).catch(() => {})
       else await reverseLpLoyalty(admin, lp).catch(() => {})
     }
+    // Audit §4/§0.7: cancel pulangkan stok yang dipotong (sekali sahaja, stock_restored_at)
+    if (status === 'cancelled' && prevStatus !== 'cancelled') await restoreLpOrderStock(admin, id)
   }
 
   return NextResponse.json({ ok: true })
