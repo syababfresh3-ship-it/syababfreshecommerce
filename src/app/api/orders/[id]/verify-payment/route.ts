@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CHIP_METHODS } from '@/lib/chip-methods'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendCapiPurchase } from '@/lib/meta-capi'
@@ -50,7 +51,7 @@ export async function POST(
   if (order.payment_status === 'paid') return NextResponse.json({ status: 'paid' })
 
   // Only verify FPX/online payment methods
-  if (!['fpx', 'ewallet', 'online'].includes(order.payment_method)) {
+  if (![...CHIP_METHODS, 'online'].includes(order.payment_method)) {
     return NextResponse.json({ status: order.payment_status })
   }
 

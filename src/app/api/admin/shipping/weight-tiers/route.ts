@@ -11,6 +11,7 @@ async function assertAdmin() {
 }
 
 export async function GET(req: Request) {
+  if (!await assertAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const carrier_id = new URL(req.url).searchParams.get('carrier_id')
   const admin = createAdminClient()
   let query = admin.from('shipping_weight_tiers').select('*').order('carrier_id').order('min_kg')

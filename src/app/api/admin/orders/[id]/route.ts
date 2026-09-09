@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdmin } from '@/lib/supabase/require-admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
@@ -6,6 +7,9 @@ import { reverseOrderLoyalty } from '@/lib/loyalty-reverse'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  // Audit §0.3: dulu tiada auth — sesiapa dengan UUID dapat alamat/telefon/email pelanggan
+  const { forbidden } = await requireAdmin()
+  if (forbidden) return forbidden
   const { id } = await params
   const supabase = createAdminClient()
   const { data, error } = await supabase

@@ -84,7 +84,22 @@ export async function POST(req: NextRequest) {
   const publicKeys = await getChipPublicKeys()
   const verified = !!(signature && publicKeys.some(k => verifySignature(rawBody, signature, k)))
 
-  // Audit log every callback (regardless of verification) for debugging / replay
+  if (publicKeys.length === 0) {
+    console.error('[chip-webhook] No CHIP public key available (set CHIP_PUBLIC_KEY or CHIP_SECRET_KEY)')
+    return NextResponse.json({ error: 'Payment gateway misconfigured' }, { status: 503 })
+  }
+  // Audit §0.10: dulu setiap POST (termasuk tanpa tandatangan) ditulis penuh ke webhook_logs —
+  // sesiapa boleh isi jadual tanpa had. Kini: tolak dulu, log ke konsol sahaja.
+  if (!signature) {
+    console.warn('[chip-webhook] ditolak: tiada tandatangan', { eventType, orderId })
+    return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+  }
+  if (!verified) {
+    console.warn('[chip-webhook] ditolak: tandatangan tidak sah', { eventType, orderId })
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+  }
+
+  // Audit log callback yang SAH sahaja (untuk debug / replay oleh cron reconcile Pass 2)
   await supabase.from('webhook_logs').insert({
     source: 'chip',
     event_type: eventType,
@@ -93,17 +108,6 @@ export async function POST(req: NextRequest) {
     verified,
     raw: body,
   }).then(({ error }) => { if (error) console.error('[chip-webhook] log insert error:', error.message) })
-
-  if (publicKeys.length === 0) {
-    console.error('[chip-webhook] No CHIP public key available (set CHIP_PUBLIC_KEY or CHIP_SECRET_KEY)')
-    return NextResponse.json({ error: 'Payment gateway misconfigured' }, { status: 503 })
-  }
-  if (!signature) {
-    return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-  }
-  if (!verified) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
 
   console.log('[chip-webhook] event:', eventType, 'reference:', orderId, 'status:', purchaseStatus)
 

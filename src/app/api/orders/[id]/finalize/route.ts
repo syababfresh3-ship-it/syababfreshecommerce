@@ -44,6 +44,22 @@ export async function POST(
     return NextResponse.json({ ok: true })
   }
 
+  // Audit §0.5: status kekal 'pending' selepas finalize (COD/bank transfer tunggu admin),
+  // jadi dulu panggilan berulang potong stok/mata berkali-kali. Tuntut sekali sahaja secara
+  // atomik: hanya request yang berjaya set finalized_at (dari null) yang teruskan.
+  const { data: claimed, error: claimError } = await supabase
+    .from('orders')
+    .update({ finalized_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .is('finalized_at', null)
+    .select('id')
+  if (claimError) {
+    // 42703 = lajur finalized_at belum wujud (migration 122 belum jalan) → kekalkan tingkah laku lama
+    if (claimError.code !== '42703') console.error('[finalize] claim gagal', claimError.message)
+  } else if (!claimed || claimed.length === 0) {
+    return NextResponse.json({ ok: true })
+  }
+
   // ── Deduct inventory ─────────────────────────────────────────────
   const items = order.order_items as any[]
   const deductResults = await Promise.all(

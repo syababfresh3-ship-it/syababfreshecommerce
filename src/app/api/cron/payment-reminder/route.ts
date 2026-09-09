@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CHIP_METHODS } from '@/lib/chip-methods'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPaymentReminderEmail } from '@/lib/zeptomail'
 import { stampHeartbeat } from '@/lib/cron-heartbeat'
+
+// Audit §0.6: dulu hanya ['fpx','ewallet'] — kad/DuitNow/FPX B2B (migration 116/117) terlepas
+const CHIP_METHOD_LIST = Array.from(CHIP_METHODS)
 
 // Abandoned-payment reminder. Dipanggil oleh scheduler luar (GitHub Actions tiap
 // ~30 min) sebab Vercel Hobby cron hanya sekali/hari. Cari order FPX/e-wallet
@@ -35,7 +39,7 @@ export async function GET(req: NextRequest) {
     .select('id, order_number, total, user_id, payment_method, payment_status, status, created_at, payment_reminder_sent_at')
     .eq('status', 'pending')
     .eq('payment_status', 'unpaid')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .is('payment_reminder_sent_at', null)
     .lte('created_at', upperBound)
     .gte('created_at', lowerBound)
@@ -56,7 +60,7 @@ export async function GET(req: NextRequest) {
     .select('id, order_number, total, name, email, payment_method, payment_status, status, created_at, payment_reminder_sent_at')
     .eq('status', 'pending')
     .eq('payment_status', 'unpaid')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .is('payment_reminder_sent_at', null)
     .lte('created_at', upperBound)
     .gte('created_at', lowerBound)

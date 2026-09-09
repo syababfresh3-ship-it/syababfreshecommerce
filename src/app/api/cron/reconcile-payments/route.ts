@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { CHIP_METHODS } from '@/lib/chip-methods'
 import { confirmLpGuestOrder, confirmStorefrontOrder } from '@/lib/order-confirm'
 import { stampHeartbeat } from '@/lib/cron-heartbeat'
+
+// Audit §0.6: dulu hanya ['fpx','ewallet'] — kad/DuitNow/FPX B2B (migration 116/117) terlepas
+const CHIP_METHOD_LIST = Array.from(CHIP_METHODS)
 
 export const runtime = 'nodejs'
 
@@ -58,7 +62,7 @@ export async function GET(req: Request) {
     .from('lp_guest_orders')
     .select('id, payment_ref')
     .eq('status', 'pending')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .not('payment_ref', 'is', null)
     .gte('created_at', windowStart)
     .lte('created_at', minAge)
@@ -81,7 +85,7 @@ export async function GET(req: Request) {
     .from('orders')
     .select('id, payment_ref')
     .eq('payment_status', 'unpaid')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .not('payment_ref', 'is', null)
     .gte('created_at', windowStart)
     .lte('created_at', minAge)
@@ -112,7 +116,7 @@ export async function GET(req: Request) {
     .select('id, payment_ref')
     .eq('status', 'cancelled')
     .neq('payment_status', 'paid')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .not('payment_ref', 'is', null)
     .gte('created_at', windowStart)
     .lte('created_at', minAge)
@@ -133,7 +137,7 @@ export async function GET(req: Request) {
     .select('id, payment_ref')
     .eq('status', 'cancelled')
     .neq('payment_status', 'paid')
-    .in('payment_method', ['fpx', 'ewallet'])
+    .in('payment_method', CHIP_METHOD_LIST)
     .not('payment_ref', 'is', null)
     .gte('created_at', windowStart)
     .lte('created_at', minAge)
