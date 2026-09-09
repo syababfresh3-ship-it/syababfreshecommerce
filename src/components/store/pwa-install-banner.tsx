@@ -21,6 +21,8 @@ export function PWAInstallBanner() {
 
   useEffect(() => {
     if (isAdmin) return
+    // Template LP "live" (penuh skrin) tanda <html data-lp-live="1"> — banner akan tutup butang Beli
+    if (document.documentElement.dataset.lpLive === '1') return
 
     // Already installed as standalone app — don't show
     if (window.matchMedia('(display-mode: standalone)').matches) return
@@ -45,6 +47,7 @@ export function PWAInstallBanner() {
     // Android/Chrome — listen for beforeinstallprompt
     const handler = (e: Event) => {
       e.preventDefault()
+      if (document.documentElement.dataset.lpLive === '1') return
       setDeferredPrompt(e)
       setPlatform('android')
       setVisible(true)

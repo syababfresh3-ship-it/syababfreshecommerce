@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLpCart } from '@/lib/stores/lp-cart'
 import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, Mail, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
@@ -8,12 +8,13 @@ import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 
-interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean }
+// hideBar: template Live guna butang sendiri; drawer dibuka melalui event 'lp-cart:open'
+interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean; hideBar?: boolean }
 type Step = 'form' | 'done'
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
-export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) {
+export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar = false }: Props) {
   const items = useLpCart(s => s.items)
   const removeItem = useLpCart(s => s.removeItem)
   const updateQty = useLpCart(s => s.updateQty)
@@ -45,6 +46,14 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
 
   useEffect(() => setMounted(true), [])
 
+  // Buka drawer dari luar (cth. LpLive selepas "Beli Sekarang"): window.dispatchEvent(new Event('lp-cart:open'))
+  const openRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    const h = () => openRef.current()
+    window.addEventListener('lp-cart:open', h)
+    return () => window.removeEventListener('lp-cart:open', h)
+  }, [])
+
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
@@ -68,6 +77,8 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
   useEffect(() => {
     if (open) fetchFee(form.postcode)
   }, [form.postcode, open, fetchFee])
+
+  openRef.current = openDrawer  // function declaration di bawah — hoisted
 
   if (!mounted || count() === 0) return null
 
@@ -165,6 +176,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
   return (
     <>
       {/* Floating cart bar */}
+      {!hideBar && (
       <div className="fixed bottom-4 left-4 right-4 z-40 max-w-2xl mx-auto">
         <button
           onClick={openDrawer}
@@ -188,6 +200,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false }: Props) 
           </div>
         </button>
       </div>
+      )}
 
       {/* Checkout drawer */}
       {open && (

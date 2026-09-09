@@ -12,6 +12,10 @@ import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
 import { LpCountdown } from './lp-countdown'
+import { LpVideo } from './lp-video'
+import { LpLive, type LiveReview, type LiveViewerComment } from './lp-live'
+import { normalizeLiveConfig, shortReviewerName } from '@/lib/lp-live'
+import { HUMAN_WA } from '@/lib/support/constants'
 import type { Metadata } from 'next'
 
 // ISR: cache LP setiap slug (trafik iklan tinggi → TTFB rendah = conversion lebih
@@ -25,15 +29,23 @@ const getLpData = (slug: string) =>
   unstable_cache(
     async () => {
       const supabase = createAdminClient()
+      // select('*') sengaja: lajur template/live_config datang dari migration 120 —
+      // kalau belum dijalankan, LP klasik mesti tetap jalan (template undefined → classic).
       const { data: page } = await supabase
         .from('landing_pages')
-        .select('title, html_content, meta_pixel_id, google_tag_id')
+        .select('*')
         .eq('slug', slug).eq('is_active', true).single()
       if (!page) return null
 
+      // Template 'live' (gaya TikTok, kandungan sebenar) — produk dari live_config, bukan placeholder
+      const live = page.template === 'live' ? normalizeLiveConfig(page.live_config) : null
+
       const productSlugs = [...new Set([
+        ...(live?.products ?? []),
         ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
         ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map((s: string) => s.trim())).flat(),
+        // {{video:URL|slug1,slug2|...}} — chip produk bawah video
+        ...[...page.html_content.matchAll(/\{\{video:[^}|]*\|([a-zA-Z0-9,\-\s]*)/g)].map(m => m[1].split(',').map((s: string) => s.trim()).filter(Boolean)).flat(),
       ])]
 
       const [productsRes, stockRes] = await Promise.all([
@@ -45,7 +57,51 @@ const getLpData = (slug: string) =>
           : Promise.resolve({ data: [] }),
       ])
 
-      return { page, products: productsRes.data ?? [], stock: stockRes.data ?? [] }
+      const products = productsRes.data ?? []
+
+      // Komen bergerak template live = ulasan pelanggan SEBENAR (product_reviews)
+      // Nota: product_reviews.user_id → auth.users (bukan profiles), jadi embed
+      // profiles(...) tak boleh; ambil nama secara berasingan. Nama dipendekkan
+      // di server ("Nurul A.") — nama penuh tak dihantar ke browser.
+      let reviews: LiveReview[] = []
+      if (live?.show_reviews) {
+        let q = supabase
+          .from('product_reviews')
+          .select('id, user_id, rating, comment, created_at, order_id')
+          .not('comment', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(40)
+        if (live.reviews_scope === 'products') q = q.in('product_id', products.map(p => p.id))
+        const { data: rows } = await q
+        const userIds = [...new Set((rows ?? []).map(r => r.user_id).filter(Boolean))]
+        const { data: profs } = userIds.length > 0
+          ? await supabase.from('profiles').select('id, full_name').in('id', userIds)
+          : { data: [] as { id: string; full_name: string | null }[] }
+        const nameById = new Map((profs ?? []).map(pr => [pr.id, pr.full_name]))
+        reviews = (rows ?? []).map(r => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          created_at: r.created_at,
+          reviewer: shortReviewerName(nameById.get(r.user_id)),
+          verified: !!r.order_id,
+        }))
+      }
+
+      // Komen penonton SEBENAR yang admin dah luluskan (migration 121). Tak throw kalau
+      // jadual belum wujud — supabase-js pulangkan error, bukan exception.
+      let viewerComments: LiveViewerComment[] = []
+      if (live) {
+        const { data } = await supabase
+          .from('lp_live_comments')
+          .select('id, name, message, created_at')
+          .eq('page_id', page.id).eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(30)
+        viewerComments = (data ?? []) as LiveViewerComment[]
+      }
+
+      return { page, live, products, stock: stockRes.data ?? [], reviews, viewerComments }
     },
     ['lp-data', slug],
     { revalidate: 60, tags: ['lp', `lp-${slug}`, 'products'] },
@@ -89,10 +145,43 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map(products.map(p => [p.slug, p]))
   const stockByProductId = new Map(stock.map(s => [s.product_id, s.available_stock]))
 
+  // "Hubungi Kami" → WhatsApp CS sebenar (dulu placeholder wa.me/60), prefill tajuk LP
+  const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || HUMAN_WA
+  const waHref = `https://wa.me/${waNumber}?text=${encodeURIComponent(`Hai SyababFresh, saya ada pertanyaan tentang "${page.title}"`)}`
+
+  // ── Template 'live': susun atur penuh skrin, tiada HTML/placeholder ──
+  if (data.live) {
+    const liveProducts = data.live.products
+      .map(s => productsBySlug.get(s))
+      .filter((p): p is NonNullable<typeof p> => !!p && p.is_active)
+    const liveStocks: Record<string, number | null> = {}
+    liveProducts.forEach(p => { liveStocks[p.id] = stockByProductId.get(p.id) ?? null })
+    return (
+      <>
+        <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
+        <LpTracker slug={slug} />
+        <LpLive
+          slug={slug}
+          title={page.title}
+          config={data.live}
+          products={liveProducts}
+          stocks={liveStocks}
+          reviews={data.reviews}
+          viewerComments={data.viewerComments}
+          freeMin={freeMin}
+          waNumber={waNumber}
+          storeLogo={appSettings.store_logo_url ?? ''}
+        />
+        {/* Checkout sedia ada (borang → FPX/e-wallet/COD); bar disembunyi, dibuka via event */}
+        <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} hideBar />
+      </>
+    )
+  }
+
   const htmlContent = normaliseHtml(page.html_content)
 
   // Split on all placeholders: product, checkout (single or multi), lead-form, countdown
-  const parts = htmlContent.split(/(\{\{(?:product|checkout):[a-zA-Z0-9,\-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\})/g)
+  const parts = htmlContent.split(/(\{\{(?:product|checkout):[a-zA-Z0-9,\-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
@@ -102,7 +191,7 @@ export default async function LandingPage({ params }: Props) {
       {/* Minimal header — no cart link (standalone LP) */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-lg font-black text-green-600 tracking-tight">SyababFresh</Link>
-        <a href="https://wa.me/60" className="text-sm font-semibold text-gray-500 hover:text-green-600">Hubungi Kami</a>
+        <a href={waHref} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-gray-500 hover:text-green-600">Hubungi Kami</a>
       </header>
 
       {/* Rendered HTML + injected product cards */}
@@ -134,6 +223,18 @@ export default async function LandingPage({ params }: Props) {
             const inner = part.slice(12, -2)
             const [endDatetime, title, expiredText] = inner.split('|')
             return <LpCountdown key={i} endDatetime={endDatetime} title={title ?? 'Tawaran tamat dalam:'} expiredText={expiredText ?? 'Tawaran telah tamat'} />
+          }
+
+          // {{video:URL|slug1,slug2|caption|sticky|autoplay}} — Video Jualan
+          // (tonton → tekan produk → LpCartBar "Bayar Sekarang")
+          if (part.startsWith('{{video:')) {
+            const [vUrl, vSlugs, vCaption, vSticky, vAutoplay] = part.slice(8, -2).split('|')
+            const vProducts = (vSlugs ?? '').split(',').map(s => s.trim()).filter(Boolean)
+              .map(s => productsBySlug.get(s))
+              .filter((p): p is NonNullable<typeof p> => !!p && p.is_active)
+            const vStocks: Record<string, number | null> = {}
+            vProducts.forEach(p => { vStocks[p.id] = stockByProductId.get(p.id) ?? null })
+            return <LpVideo key={i} url={vUrl} products={vProducts} stocks={vStocks} caption={vCaption || undefined} sticky={vSticky !== '0'} autoplay={vAutoplay === '1'} />
           }
 
           // {{checkout:slug}} or {{checkout:slug1,slug2,...}}

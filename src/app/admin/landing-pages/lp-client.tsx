@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown, Video } from 'lucide-react'
 import Image from 'next/image'
 import { LpSectionBuilder } from './lp-section-builder'
 import { type Section } from '@/lib/lp-sections'
+import { DEFAULT_LIVE_CONFIG, validateLiveConfig, type LpLiveConfig, type LpTemplate } from '@/lib/lp-live'
+import { LpLiveForm } from './lp-live-form'
+import { CommentsClient } from './comments/comments-client'
 import { DEFAULT_META_PIXEL_ID } from '@/lib/lp-defaults'
 
 interface LandingPage {
@@ -18,6 +21,7 @@ interface LandingPage {
   view_count: number
   meta_pixel_id?: string | null
   google_tag_id?: string | null
+  template?: LpTemplate
   landing_page_leads?: { count: number }[]
 }
 
@@ -75,7 +79,7 @@ function leadCount(page: LandingPage): number {
   return page.landing_page_leads?.[0]?.count ?? 0
 }
 
-type AdminTab = 'pages' | 'orders' | 'leads' | 'performance'
+type AdminTab = 'pages' | 'orders' | 'leads' | 'performance' | 'comments'
 
 interface LpPerf {
   id: string; title: string; slug: string; is_active: boolean; created_at: string
@@ -91,12 +95,23 @@ const STATUS_CONFIG = {
 
 export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [activeTab, setActiveTab] = useState<AdminTab>('pages')
+  // Tab Komen (penonton LP live): lencana belum semak + tapisan ikut satu page
+  const [pendingComments, setPendingComments] = useState(0)
+  const [commentsPageId, setCommentsPageId] = useState('')
+  useEffect(() => {
+    fetch('/api/admin/landing-pages/comments?status=pending')
+      .then(r => r.ok ? r.json() : { comments: [] })
+      .then(j => setPendingComments((j.comments ?? []).length))
+      .catch(() => {})
+  }, [])
   const [pages, setPages] = useState<LandingPage[]>(initial)
   const [editing, setEditing] = useState<LandingPage | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({
     title: '', slug: '', html_content: '', is_active: true,
     meta_pixel_id: '', google_tag_id: '',
+    template: 'classic' as LpTemplate,
+    live_config: DEFAULT_LIVE_CONFIG as LpLiveConfig,
   })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -123,6 +138,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   // Image upload
   const imgInputRef = useRef<HTMLInputElement>(null)
   const [uploadingImg, setUploadingImg] = useState(false)
+
+  // Video upload (section Video Jualan — {{video:URL|slug1,slug2}})
+  const vidInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingVid, setUploadingVid] = useState(false)
 
   // AI Generate
   const [showGenerate, setShowGenerate] = useState(false)
@@ -220,6 +239,25 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       toast.success('Gambar success dimuatnaik!')
     } finally {
       setUploadingImg(false)
+      e.target.value = ''
+    }
+  }
+
+  async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingVid(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/landing-pages/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Failed upload'); return }
+      // Slug produk kosong — isi selepas "|" (cth: |ajwa-medium,kurma-sukari)
+      insertAtCursor(`\n{{video:${data.url}||}}\n`)
+      toast.success('Video dimuat naik — tambah slug produk selepas "|" dalam placeholder')
+    } finally {
+      setUploadingVid(false)
       e.target.value = ''
     }
   }
@@ -405,7 +443,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '' })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', live_config: DEFAULT_LIVE_CONFIG })
     setSections([])
     setEditorMode('blocks')
     setEditing(null)
@@ -419,12 +457,19 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       is_active: page.is_active,
       meta_pixel_id: page.meta_pixel_id ?? '',
       google_tag_id: page.google_tag_id ?? '',
+      template: page.template === 'live' ? 'live' : 'classic',
+      live_config: DEFAULT_LIVE_CONFIG,
     })
     setSections([])
     setEditorMode('html')
     fetch(`/api/admin/landing-pages/${page.id}`)
       .then(r => r.json())
-      .then(d => setForm(f => ({ ...f, html_content: d.html_content ?? '' })))
+      .then(d => setForm(f => ({
+        ...f,
+        html_content: d.html_content ?? '',
+        template: d.template === 'live' ? 'live' : 'classic',
+        live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
+      })))
     setEditing(page)
     setCreating(false)
     setShowTracking(false)
@@ -450,6 +495,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   async function handleSave() {
     if (!form.title.trim()) { toast.error('Please masukkan title'); return }
     if (!form.slug.trim()) { toast.error('Please masukkan slug'); return }
+    if (form.template === 'live') {
+      const err = validateLiveConfig(form.live_config)
+      if (err) { toast.error(err); return }
+    }
 
     setSaving(true)
     try {
@@ -464,6 +513,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           ...form,
           meta_pixel_id: form.meta_pixel_id.trim() || null,
           google_tag_id: form.google_tag_id.trim() || null,
+          live_config: form.template === 'live' ? form.live_config : null,
         }),
       })
 
@@ -571,7 +621,29 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             <BarChart3 className="h-4 w-4" />
             Performance
           </button>
+          <button
+            onClick={() => { setCommentsPageId(''); switchTab('comments') }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === 'comments' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Komen
+            {pendingComments > 0 && (
+              <span className="bg-gray-900 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                {pendingComments}
+              </span>
+            )}
+          </button>
         </div>
+      )}
+
+      {/* ── Komen Tab (penonton LP live, perlu semakan sebelum papar) ── */}
+      {activeTab === 'comments' && !showForm && (
+        <CommentsClient
+          embedded
+          pageId={commentsPageId}
+          onClearPage={() => setCommentsPageId('')}
+          onPendingCount={setPendingComments}
+        />
       )}
 
       {/* ── Orders Tab ── */}
@@ -728,6 +800,22 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </div>
             </div>
 
+            {/* Jenis page: Biasa (HTML/blok) vs Live (gaya TikTok, kandungan sebenar) */}
+            <div>
+              <label className="text-xs font-bold text-gray-600 block mb-1">Jenis page</label>
+              <div className="inline-flex gap-1 bg-gray-100 p-1 rounded-xl">
+                {([['classic', 'Biasa'], ['live', 'Live-style (video penuh skrin)']] as [LpTemplate, string][]).map(([val, label]) => (
+                  <button key={val} type="button" onClick={() => setForm(f => ({ ...f, template: val }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.template === val ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {form.template === 'live' ? (
+              <LpLiveForm config={form.live_config} onChange={cfg => setForm(f => ({ ...f, live_config: cfg }))} />
+            ) : (
             <div>
               {/* Mode toggle */}
               <div className="flex items-center justify-between mb-2">
@@ -768,10 +856,15 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         <ImagePlus className="h-3.5 w-3.5" />{uploadingImg ? 'Uploading...' : 'Upload Gambar'}
                       </button>
                       <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      <button type="button" onClick={() => vidInputRef.current?.click()} disabled={uploadingVid} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 disabled:opacity-50 transition-colors">
+                        <Video className="h-3.5 w-3.5" />{uploadingVid ? 'Uploading...' : 'Upload Video'}
+                      </button>
+                      <input ref={vidInputRef} type="file" accept="video/mp4,video/webm" className="hidden" onChange={handleVideoUpload} />
                       <button type="button" onClick={openGenerate} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-100 transition-colors border border-violet-200">
                         <Sparkles className="h-3.5 w-3.5" />Jana dengan AI
                       </button>
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded">{'{{lead-form}}'}</code>
+                      <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Video Jualan: pelanggan tonton, tekan produk, bayar di page yang sama">{'{{video:URL|slug1,slug2}}'}</code>
                     </div>
                   </div>
                   <textarea
@@ -786,6 +879,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 </>
               )}
             </div>
+            )}
 
             {/* Product Picker Panel */}
             {showPicker && (
@@ -1354,7 +1448,12 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 truncate">{page.title}</p>
+                <p className="font-bold text-gray-900 truncate">
+                  {page.title}
+                  {page.template === 'live' && (
+                    <span className="ml-2 inline-flex items-center gap-1 align-middle text-[10px] font-bold uppercase tracking-wide bg-gray-900 text-white px-1.5 py-0.5 rounded"><Video className="h-3 w-3" />Live-style</span>
+                  )}
+                </p>
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                   <span className="text-xs font-mono text-gray-400">/lp/{page.slug}</span>
                   <button
@@ -1372,6 +1471,11 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       className="flex items-center gap-1 text-xs text-brand-fresh-600 font-semibold hover:underline"
                     >
                       <Users className="h-3 w-3" />{leadCount(page)} lead
+                    </button>
+                  )}
+                  {page.template === 'live' && (
+                    <button type="button" onClick={() => { setCommentsPageId(page.id); switchTab('comments') }} className="flex items-center gap-1 text-xs text-gray-600 font-semibold hover:underline">
+                      <MessageCircle className="h-3 w-3" />Komen
                     </button>
                   )}
                   {page.meta_pixel_id && (

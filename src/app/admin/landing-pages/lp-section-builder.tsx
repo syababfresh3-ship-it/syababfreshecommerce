@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronUp, ChevronDown, Trash2, Plus, GripVertical } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { toast } from 'sonner'
+import { ChevronUp, ChevronDown, Trash2, Plus, GripVertical, Upload } from 'lucide-react'
 import { SECTION_META, newSection, sectionsToHtml, type Section, type SectionType } from '@/lib/lp-sections'
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
   pickerProducts?: { id: string; name: string; slug: string }[]
 }
 
-const SECTION_TYPES: SectionType[] = ['hero', 'cta-button', 'text', 'benefits', 'product', 'testimonial', 'urgency', 'faq', 'stats', 'countdown', 'lead-form', 'image']
+const SECTION_TYPES: SectionType[] = ['hero', 'video', 'cta-button', 'text', 'benefits', 'product', 'testimonial', 'urgency', 'faq', 'stats', 'countdown', 'lead-form', 'image']
 
 function updateAndSync(sections: Section[], onChange: Props['onChange']) {
   onChange(sections, sectionsToHtml(sections))
@@ -77,7 +78,7 @@ export function LpSectionBuilder({ sections, onChange, pickerProducts = [] }: Pr
               <span className="text-base">{meta.icon}</span>
               <span className="flex-1 text-sm font-bold text-gray-800">{meta.label}</span>
               <span className="text-[11px] text-gray-400 font-mono truncate max-w-[120px]">
-                {section.data.headline || section.data.title || section.data.text || section.data.slug || section.data.quote || '—'}
+                {section.data.headline || section.data.title || section.data.text || section.data.slug || section.data.quote || section.data.url || '—'}
               </span>
               <div className="flex items-center gap-0.5 ml-1" onClick={e => e.stopPropagation()}>
                 <button onClick={() => moveUp(idx)} disabled={idx === 0} className="p-1 rounded hover:bg-gray-100 disabled:opacity-30">
@@ -320,6 +321,9 @@ function SectionFields({ section, updateData, pickerProducts }: {
         </>
       )
 
+    case 'video':
+      return <VideoFields d={d} u={u} pickerProducts={pickerProducts} inp={inp} lbl={lbl} />
+
     case 'countdown':
       return (
         <>
@@ -335,4 +339,110 @@ function SectionFields({ section, updateData, pickerProducts }: {
     default:
       return null
   }
+}
+
+// ── Video Jualan (gaya tap-to-buy) ────────────────────────────
+// Video di atas + chip produk di bawah; tekan chip → masuk pesanan →
+// bar "Bayar Sekarang" (FPX / e-wallet / COD) di page yang sama.
+function VideoFields({ d, u, pickerProducts, inp, lbl }: {
+  d: Record<string, string>
+  u: (key: string, val: string) => void
+  pickerProducts: { id: string; name: string; slug: string }[]
+  inp: string
+  lbl: string
+}) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const selected = (d.products || '').split(',').map(s => s.trim()).filter(Boolean)
+  function toggle(slug: string) {
+    const next = selected.includes(slug) ? selected.filter(s => s !== slug) : [...selected, slug]
+    u('products', next.join(','))
+  }
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/landing-pages/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { toast.error(data.error ?? 'Gagal upload'); return }
+      u('url', data.url)
+      toast.success('Video dimuat naik')
+    } finally {
+      setUploading(false)
+      e.target.value = ''
+    }
+  }
+
+  const shown = search.trim()
+    ? pickerProducts.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.slug.includes(search.toLowerCase()))
+    : pickerProducts
+
+  return (
+    <>
+      <div>
+        <label className={lbl}>URL video *</label>
+        <div className="flex gap-2">
+          <input className={inp} value={d.url || ''} onChange={e => u('url', e.target.value.trim())} placeholder="https://youtu.be/... / tiktok.com/@.../video/... / link .mp4" />
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors">
+            <Upload className="h-3.5 w-3.5" />{uploading ? 'Memuat naik...' : 'Upload MP4'}
+          </button>
+          <input ref={fileRef} type="file" accept="video/mp4,video/webm" className="hidden" onChange={upload} />
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1">YouTube (termasuk Shorts), TikTok (URL penuh dari Share &gt; Copy link), atau fail MP4/WebM max 50MB (mampat ke 720p).</p>
+      </div>
+
+      <div>
+        <label className={lbl}>Produk boleh tekan ({selected.length} dipilih)</label>
+        {pickerProducts.length > 0 ? (
+          <div className="border border-gray-200 rounded-xl bg-white overflow-hidden">
+            <input className="w-full px-3 py-2 text-sm border-b border-gray-100 focus:outline-none" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari produk..." />
+            <div className="max-h-44 overflow-y-auto">
+              {shown.map(p => {
+                const on = selected.includes(p.slug)
+                return (
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={on} onChange={() => toggle(p.slug)} className="accent-gray-800" />
+                    <span className="flex-1 truncate text-gray-800">{p.name}</span>
+                    <span className="text-[10px] text-gray-400 font-mono">{p.slug}</span>
+                  </label>
+                )
+              })}
+              {shown.length === 0 && <p className="px-3 py-3 text-xs text-gray-400">Tiada produk sepadan</p>}
+            </div>
+          </div>
+        ) : (
+          <input className={inp} value={d.products || ''} onChange={e => u('products', e.target.value.toLowerCase().replace(/[^a-z0-9,-]/g, ''))} placeholder="slug-1,slug-2,slug-3" />
+        )}
+        <p className="text-[10px] text-gray-400 mt-1">Susunan ikut urutan pilih. Produk dengan beberapa saiz akan minta pelanggan pilih saiz dulu.</p>
+      </div>
+
+      <div><label className={lbl}>Caption bawah video (pilihan)</label><input className={inp} value={d.caption || ''} onChange={e => u('caption', e.target.value)} placeholder="Tekan produk dalam video untuk order" /></div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={lbl}>Lekat di atas bila scroll (mobile)</label>
+          <select className={inp} value={d.sticky ?? '1'} onChange={e => u('sticky', e.target.value)}>
+            <option value="1">Ya (video kekal nampak)</option>
+            <option value="0">Tidak</option>
+          </select>
+        </div>
+        <div>
+          <label className={lbl}>Auto main (senyap)</label>
+          <select className={inp} value={d.autoplay ?? '0'} onChange={e => u('autoplay', e.target.value)}>
+            <option value="0">Tidak</option>
+            <option value="1">Ya</option>
+          </select>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-gray-400">Akan jana <code className="bg-gray-100 px-1 rounded">{`{{video:URL|${selected.join(',') || 'slug'}|...}}`}</code>. Pelanggan tonton, tekan produk, bayar terus di bar bawah page.</p>
+    </>
+  )
 }

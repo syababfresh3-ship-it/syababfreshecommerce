@@ -15,6 +15,7 @@ export type SectionType =
   | 'faq'
   | 'stats'
   | 'countdown'
+  | 'video'
 
 export interface Section {
   id: string
@@ -147,6 +148,17 @@ export const SECTION_META: Record<SectionType, { label: string; icon: string; de
       title: 'Tawaran tamat dalam:',
       end_datetime: '',
       expired_text: 'Tawaran telah tamat',
+    },
+  },
+  video: {
+    label: 'Video Jualan',
+    icon: '▶︎',
+    defaultData: {
+      url: '',
+      products: '',   // slug produk dipisah koma
+      caption: '',
+      sticky: '1',    // lekat di atas bila scroll (mobile)
+      autoplay: '0',  // auto main (senyap)
     },
   },
 }
@@ -317,6 +329,18 @@ function sectionCountdown(d: Record<string, string>): string {
   return `{{countdown:${d.end_datetime}|${d.title || 'Tawaran tamat dalam:'}|${d.expired_text || 'Tawaran telah tamat'}}}`
 }
 
+// Video Jualan (gaya tap-to-buy): {{video:URL|slug1,slug2|caption|sticky|autoplay}}
+// Dirender oleh LpVideo — pelanggan tonton, tekan produk, bayar di bar bawah.
+function sectionVideo(d: Record<string, string>): string {
+  const url = (d.url || '').trim().replace(/[|}\s]/g, '')
+  if (!url) return '<!-- Isi URL video -->'
+  const products = (d.products || '').split(',').map(s => s.trim().toLowerCase()).filter(s => /^[a-z0-9-]+$/.test(s)).join(',')
+  const caption = (d.caption || '').replace(/[|}]/g, '').trim()
+  const sticky = d.sticky === '0' ? '0' : '1'
+  const autoplay = d.autoplay === '1' ? '1' : '0'
+  return `{{video:${url}|${products}|${caption}|${sticky}|${autoplay}}}`
+}
+
 export function sectionsToHtml(sections: Section[]): string {
   return sections.map(s => {
     switch (s.type) {
@@ -332,6 +356,7 @@ export function sectionsToHtml(sections: Section[]): string {
       case 'faq':         return sectionFaq(s.data)
       case 'stats':       return sectionStats(s.data)
       case 'countdown':   return sectionCountdown(s.data)
+      case 'video':       return sectionVideo(s.data)
       default:            return ''
     }
   }).filter(Boolean).join('\n\n')
