@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Trash2, Loader2, GripVertical, Eye, EyeOff, Tag, Pencil, X, Check } from 'lucide-react'
+import { Plus, Trash2, Loader2, GripVertical, Eye, EyeOff, Tag, Pencil, X, Check, PanelLeft } from 'lucide-react'
 
 interface Category {
   id: string
@@ -13,7 +13,22 @@ interface Category {
   sort_order: number
   is_active: boolean
   parent_id: string | null
+  // Migration 125 — rail katalog. undefined = lajur belum wujud (migration belum jalan).
+  show_in_rail?: boolean
+  rail_order?: number
 }
+
+// Medan rail dalam borang. Simpan sebagai string supaya input kosong tak jadi NaN.
+type RailForm = { show_in_rail: boolean; rail_order: string }
+const railPayload = (f: RailForm) => ({ show_in_rail: f.show_in_rail, rail_order: Number.parseInt(f.rail_order, 10) || 0 })
+
+// Migration 125 belum dijalankan → PostgREST tak kenal lajur (PGRST204 / 42703).
+// Simpan tanpa medan rail supaya borang masih boleh guna; beritahu admin.
+function isRailColumnMissing(err: { code?: string; message?: string } | null) {
+  if (!err) return false
+  return err.code === 'PGRST204' || err.code === '42703' || /show_in_rail|rail_order/.test(err.message ?? '')
+}
+const RAIL_MIGRATION_HINT = 'Tetapan rail belum aktif — jalankan migration 125_categories_rail.sql'
 
 function autoSlug(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
@@ -24,8 +39,8 @@ export default function CategoriesPage() {
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '' })
-  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', parent_id: '' })
+  const [form, setForm] = useState({ name: '', slug: '', description: '', parent_id: '', show_in_rail: true, rail_order: '0' })
+  const [editForm, setEditForm] = useState({ name: '', slug: '', description: '', parent_id: '', show_in_rail: true, rail_order: '0' })
   const [dragId, setDragId] = useState<string | null>(null)
   const [savingOrder, setSavingOrder] = useState(false)
   const supabase = createClient()
@@ -41,19 +56,24 @@ export default function CategoriesPage() {
     e.preventDefault()
     if (!form.name.trim()) return
     setLoading(true)
-    const { error } = await supabase.from('categories').insert({
+    const base = {
       name: form.name.trim(),
       slug: form.slug || autoSlug(form.name),
       description: form.description || null,
       sort_order: categories.length,
       is_active: true,
       parent_id: form.parent_id || null,
-    })
+    }
+    let { error } = await supabase.from('categories').insert({ ...base, ...railPayload(form) })
+    if (isRailColumnMissing(error)) {
+      toast.info(RAIL_MIGRATION_HINT)
+      ;({ error } = await supabase.from('categories').insert(base))
+    }
     if (error) {
       toast.error(error.code === '23505' ? 'Slug sudah wujud' : 'Failed tambah')
     } else {
       toast.success('Category ditambah')
-      setForm({ name: '', slug: '', description: '', parent_id: '' })
+      setForm({ name: '', slug: '', description: '', parent_id: '', show_in_rail: true, rail_order: '0' })
       setShowForm(false)
       load()
     }
@@ -63,12 +83,17 @@ export default function CategoriesPage() {
   async function handleEdit(e: React.FormEvent, id: string) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.from('categories').update({
+    const base = {
       name: editForm.name.trim(),
       slug: editForm.slug || autoSlug(editForm.name),
       description: editForm.description || null,
       parent_id: editForm.parent_id || null,
-    }).eq('id', id)
+    }
+    let { error } = await supabase.from('categories').update({ ...base, ...railPayload(editForm) }).eq('id', id)
+    if (isRailColumnMissing(error)) {
+      toast.info(RAIL_MIGRATION_HINT)
+      ;({ error } = await supabase.from('categories').update(base).eq('id', id))
+    }
     if (error) toast.error('Failed update')
     else { toast.success('Diupdate'); setEditingId(null); load() }
     setLoading(false)
@@ -76,6 +101,13 @@ export default function CategoriesPage() {
 
   async function toggleActive(cat: Category) {
     await supabase.from('categories').update({ is_active: !cat.is_active }).eq('id', cat.id)
+    load()
+  }
+
+  // Papar/sorok chip rail katalog (produk kategori tersorok digabung ke induk / Lain-lain).
+  async function toggleRail(cat: Category) {
+    const { error } = await supabase.from('categories').update({ show_in_rail: !(cat.show_in_rail ?? true) }).eq('id', cat.id)
+    if (error) toast.error(isRailColumnMissing(error) ? RAIL_MIGRATION_HINT : 'Failed update rail')
     load()
   }
 
@@ -115,6 +147,8 @@ export default function CategoriesPage() {
 
   const parents = categories.filter(c => c.parent_id === null)
   const children = categories.filter(c => c.parent_id !== null)
+  // select('*') — kalau lajur show_in_rail tiada pada baris pertama, migration 125 belum jalan.
+  const railColumnsMissing = categories.length > 0 && categories[0].show_in_rail === undefined
 
   // For display: render parents first, then each parent's children indented
   const orderedForDisplay: Array<Category & { isParent: boolean }> = []
@@ -137,6 +171,7 @@ export default function CategoriesPage() {
           <p className="text-sm text-gray-400 mt-0.5">
             {parents.length} parent · {children.length} sub-category · seret untuk susun semula
             {savingOrder && <span className="ml-2 text-blue-500">Menyimpan urutan...</span>}
+            {railColumnsMissing && <span className="ml-2 text-gray-500">Migration 125 belum dijalankan — tetapan rail katalog tak aktif</span>}
           </p>
         </div>
         {!showForm && (
@@ -201,6 +236,31 @@ export default function CategoriesPage() {
                 </select>
                 <p className="text-[11px] text-gray-400 mt-1">
                   {form.parent_id ? `Akan jadi sub-category di bawah "${parents.find(p => p.id === form.parent_id)?.name}"` : 'Akan jadi category utama (Parent)'}
+                </p>
+              </div>
+              {/* Rail katalog (migration 125) */}
+              <div className="col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={form.show_in_rail}
+                    onChange={e => setForm(p => ({ ...p, show_in_rail: e.target.checked }))}
+                    className="h-4 w-4 accent-gray-800"
+                  />
+                  Papar dalam rail katalog
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  Urutan rail
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={form.rail_order}
+                    onChange={e => setForm(p => ({ ...p, rail_order: e.target.value }))}
+                    className="w-20 border border-gray-200 rounded-xl px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                  />
+                </label>
+                <p className="basis-full text-[11px] text-gray-400">
+                  Sorok = produk digabung ke kategori induk (kalau induk dipapar), jika tidak ke seksyen “Lain-lain”. Urutan kecil dulu; Kurma guna 100 supaya di hujung.
                 </p>
               </div>
             </div>
@@ -283,6 +343,28 @@ export default function CategoriesPage() {
                         ))}
                       </select>
                     </div>
+                    {/* Rail katalog (migration 125) */}
+                    <div className="col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2">
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={editForm.show_in_rail}
+                          onChange={e => setEditForm(p => ({ ...p, show_in_rail: e.target.checked }))}
+                          className="h-4 w-4 accent-gray-800"
+                        />
+                        Papar dalam rail katalog
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                        Urutan rail
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={editForm.rail_order}
+                          onChange={e => setEditForm(p => ({ ...p, rail_order: e.target.value }))}
+                          className="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                        />
+                      </label>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button type="button" onClick={() => setEditingId(null)}
@@ -324,8 +406,22 @@ export default function CategoriesPage() {
                       {cat.is_active ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                       {cat.is_active ? 'Active' : 'Sembunyi'}
                     </button>
+                    {cat.show_in_rail !== undefined && (
+                      <button
+                        onClick={() => toggleRail(cat)}
+                        title={cat.show_in_rail ? 'Dipapar dalam rail katalog — klik untuk sorok' : 'Disorok dari rail katalog — klik untuk papar'}
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-colors ${
+                          cat.show_in_rail
+                            ? 'bg-gray-800 text-white border-gray-800 hover:bg-gray-700'
+                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        <PanelLeft className="h-3 w-3" />
+                        Rail{cat.rail_order ? ` #${cat.rail_order}` : ''}
+                      </button>
+                    )}
                     <button
-                      onClick={() => { setEditingId(cat.id); setEditForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '' }) }}
+                      onClick={() => { setEditingId(cat.id); setEditForm({ name: cat.name, slug: cat.slug, description: cat.description ?? '', parent_id: cat.parent_id ?? '', show_in_rail: cat.show_in_rail ?? true, rail_order: String(cat.rail_order ?? 0) }) }}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     >
                       <Pencil className="h-3 w-3" /> Edit
