@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { reviewUrl } from '@/lib/review-token'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { awardOrderLoyalty } from '@/lib/loyalty-award'
@@ -168,8 +169,40 @@ async function sendReviewRequest(
       orderNumber,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: (items ?? []).map((i: any) => ({ name: i.product_name, slug: i.products?.slug ?? null })),
+      reviewUrl: reviewUrl('storefront', orderId),
     })
   } catch (err) {
     console.error('[order-delivered] review request email error:', err)
+  }
+}
+
+// Sprint 3D: jemput ulasan untuk order LP/tetamu (dulu tiada langsung). Perlu email
+// pada order (TikTok/Quick Order tanpa email → skip). Sekali per order
+// (lp_guest_orders.review_request_sent_at, migration 126; tahan-ralat kalau belum ada).
+export async function sendLpReviewRequest(supabase: SupabaseClient, lpOrderId: string) {
+  try {
+    const { data: claimed, error } = await supabase
+      .from('lp_guest_orders')
+      .update({ review_request_sent_at: new Date().toISOString() })
+      .eq('id', lpOrderId)
+      .is('review_request_sent_at', null)
+      .select('id, order_number, name, email, items')
+    if (error || !claimed || claimed.length === 0) return
+    const o = claimed[0]
+    if (!o.email) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = ((o.items as any[]) ?? []).filter(i => i?.product_id)
+    const ids = [...new Set(raw.map(i => i.product_id as string))]
+    const { data: prods } = ids.length ? await supabase.from('products').select('id, slug').in('id', ids) : { data: [] }
+    const slugById = new Map((prods ?? []).map(p => [p.id, p.slug]))
+    await sendReviewRequestEmail({
+      to: o.email,
+      customerName: o.name ?? 'Pelanggan',
+      orderNumber: o.order_number,
+      items: raw.map(i => ({ name: i.product_name ?? 'Produk', slug: slugById.get(i.product_id) ?? null })),
+      reviewUrl: reviewUrl('lp', lpOrderId),
+    })
+  } catch (err) {
+    console.error('[order-delivered] LP review request email error:', err)
   }
 }

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
 import { reverseLpLoyalty } from '@/lib/loyalty-reverse'
 import { restoreLpOrderStock } from '@/lib/stock'
+import { sendLpReviewRequest } from '@/lib/order-delivered'
 import { canTransition, transitionError } from '@/lib/order-status'
 import { NextResponse } from 'next/server'
 
@@ -114,7 +115,7 @@ export async function PATCH(request: Request) {
     if (lp) {
       // Delivered (payment received, incl. COD/bank) → award (user_id, atau match telefon).
       // Refunded/cancelled → reverse earned + redeemed (mata ditebus dipulang). Semua idempotent.
-      if (status === 'delivered') await awardLpLoyalty(admin, lp).catch(() => {})
+      if (status === 'delivered') { await awardLpLoyalty(admin, lp).catch(() => {}); await sendLpReviewRequest(admin, id).catch(() => {}) }
       else await reverseLpLoyalty(admin, lp).catch(() => {})
     }
     // Audit §4/§0.7: cancel pulangkan stok yang dipotong (sekali sahaja, stock_restored_at)

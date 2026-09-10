@@ -67,7 +67,7 @@ const getLpData = (slug: string) =>
       if (live?.show_reviews) {
         let q = supabase
           .from('product_reviews')
-          .select('id, user_id, rating, comment, created_at, order_id')
+          .select('id, user_id, guest_name, order_ref, rating, comment, created_at, order_id')
           .not('comment', 'is', null)
           .order('created_at', { ascending: false })
           .limit(40)
@@ -83,8 +83,8 @@ const getLpData = (slug: string) =>
           rating: r.rating,
           comment: r.comment,
           created_at: r.created_at,
-          reviewer: shortReviewerName(nameById.get(r.user_id)),
-          verified: !!r.order_id,
+          reviewer: shortReviewerName(nameById.get(r.user_id) ?? r.guest_name),
+          verified: !!r.order_id || !!r.order_ref,
         }))
       }
 

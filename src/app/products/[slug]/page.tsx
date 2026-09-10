@@ -71,7 +71,7 @@ export default async function ProductDetailPage({
   const [reviewsRaw, relatedRes, stockRes, { data: { user } }] = await Promise.all([
     supabase
       .from('product_reviews')
-      .select('id, user_id, rating, comment, created_at')
+      .select('id, user_id, guest_name, rating, comment, created_at')
       .eq('product_id', product.id)
       .order('created_at', { ascending: false })
       .limit(30),

@@ -604,8 +604,13 @@ export async function sendReviewRequestEmail(params: {
   customerName: string
   orderNumber: string
   items: { name: string; slug: string | null }[]
+  reviewUrl?: string   // pautan bertoken /ulasan?t=… (tanpa login) — Sprint 3D
 }) {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+  const cta = params.reviewUrl ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td align="center">
+      <a href="${params.reviewUrl}" style="display:inline-block;background:#111827;color:#ffffff;font-size:15px;font-weight:800;padding:14px 28px;border-radius:12px;text-decoration:none;">Beri ulasan — 1 minit, tanpa log masuk</a>
+    </td></tr></table>` : ''
   const rows = params.items.slice(0, 3).map((i) => `
     <tr><td style="padding:6px 0;">
       <a href="${base}${i.slug ? `/products/${i.slug}` : '/products'}" style="display:block;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;text-decoration:none;">
@@ -624,10 +629,11 @@ export async function sendReviewRequestEmail(params: {
       kami kekalkan kualiti.
     </p>
 
+    ${cta}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">${rows}</table>
 
     <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
-      Log masuk & tekan "Tulis Ulasan" di page produk. Terima kasih! 💚
+      ${params.reviewUrl ? 'Pautan ini sah 45 hari. Ulasan anda dipaparkan dengan tanda "Pembeli disahkan".' : 'Log masuk &amp; tekan "Tulis Ulasan" di page produk.'} Terima kasih!
     </p>
   `)
 

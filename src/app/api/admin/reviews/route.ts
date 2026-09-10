@@ -17,7 +17,7 @@ export async function GET() {
   // Embed profiles(full_name) gagal (user_id → auth.users) — nama disambung berasingan.
   const { data } = await supabase!
     .from("product_reviews")
-    .select("id, user_id, rating, comment, created_at, products(name, slug, image_url)")
+    .select("id, user_id, guest_name, rating, comment, created_at, products(name, slug, image_url)")
     .order("created_at", { ascending: false })
     .limit(300);
 

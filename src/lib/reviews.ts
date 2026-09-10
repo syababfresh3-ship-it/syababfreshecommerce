@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { shortReviewerName } from '@/lib/lp-live'
 
 // ============================================================
 // Nama penulis ulasan.
@@ -18,10 +19,10 @@ export interface ReviewWithName {
   profiles?: { full_name: string | null }
 }
 
-export async function attachReviewerNames<T extends { user_id: string }>(
+export async function attachReviewerNames<T extends { user_id: string | null; guest_name?: string | null }>(
   rows: T[],
 ): Promise<(Omit<T, 'user_id'> & { profiles: { full_name: string | null } })[]> {
-  const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))]
+  const userIds = [...new Set(rows.map(r => r.user_id).filter((v): v is string => !!v))]
   const nameById = new Map<string, string | null>()
   if (userIds.length > 0) {
     const { data } = await createAdminClient().from('profiles').select('id, full_name').in('id', userIds)
@@ -29,6 +30,8 @@ export async function attachReviewerNames<T extends { user_id: string }>(
   }
   return rows.map(r => {
     const { user_id, ...rest } = r
-    return { ...rest, profiles: { full_name: nameById.get(user_id) ?? null } }
+    // Tetamu (migration 126): nama dari order, dipendekkan ("Nurul A.") — tak dedah nama penuh
+    const name = (user_id ? nameById.get(user_id) : null) ?? (r.guest_name ? shortReviewerName(r.guest_name) : null)
+    return { ...rest, profiles: { full_name: name } }
   })
 }
