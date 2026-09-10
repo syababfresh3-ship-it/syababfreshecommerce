@@ -8,6 +8,7 @@ import { LpInlineCheckout } from './lp-inline-checkout'
 import { LpMultiCheckout } from './lp-multi-checkout'
 import { LpPixels } from './lp-pixels'
 import { LpTracker } from './lp-tracker'
+import { LpHtmlScripts } from './lp-html-scripts'
 import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
@@ -199,7 +200,7 @@ export default async function LandingPage({ params }: Props) {
         {parts.map((part: string, i: number) => {
           if (i % 2 === 0) {
             if (!part.trim()) return null
-            return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />
+            return <div key={i} data-lp-html dangerouslySetInnerHTML={{ __html: part }} />
           }
 
           if (part === '{{lead-form}}' || part.startsWith('{{lead-form:')) {
@@ -279,6 +280,8 @@ export default async function LandingPage({ params }: Props) {
           )
         })}
       </div>
+      {/* Jalankan <script> inline dalam html_content (React tak execute via innerHTML) */}
+      <LpHtmlScripts />
 
       <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
       <LpWaShare title={page.title} />
