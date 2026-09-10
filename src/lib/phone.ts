@@ -16,3 +16,14 @@ export function isValidPhone(phone: string | null | undefined): boolean {
   const p = normalizePhone(phone)
   return p.length >= 10 && p.length <= 13
 }
+
+// Pengesah telefon BIMBIT Malaysia untuk borang client (checkout) — lebih ketat
+// daripada isValidPhone: terima 01x-xxxxxxx / +601x / 601x, iaitu 9–11 digit
+// selepas "60" dan digit pertama selepas "60" mesti "1" (mobile; talian tetap
+// 03- bukan nombor WhatsApp). Selamat diimport oleh client (tiada import server).
+export function isValidMyMobile(phone: string | null | undefined): boolean {
+  const p = normalizePhone(phone)
+  if (!p.startsWith('601')) return false
+  const rest = p.slice(2)
+  return rest.length >= 9 && rest.length <= 11
+}

@@ -66,6 +66,28 @@ function TimelineItem({
   )
 }
 
+// Sprint 3E: notis menunggu kelulusan (COD/bank pertama) — monokrom, ikon line.
+function ApprovalNotice({ bankTransfer }: { bankTransfer: boolean }) {
+  return (
+    <div
+      role="status"
+      data-testid="approval-notice"
+      className="bg-white rounded-2xl border border-gray-300 shadow-[0_2px_14px_rgba(0,0,0,0.06)] px-4 py-4 flex items-start gap-3"
+    >
+      <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+        <Clock className="h-5 w-5 text-gray-800" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-gray-900">Menunggu kelulusan</p>
+        <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">
+          Pesanan {bankTransfer ? 'pindahan bank' : 'COD'} pertama anda menunggu kelulusan. Kami hubungi anda dalam 1 jam waktu bekerja.
+        </p>
+        <p className="text-[11px] text-gray-400 mt-1.5">Stok & penyediaan bermula selepas pesanan diluluskan.</p>
+      </div>
+    </div>
+  )
+}
+
 const statusConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   pending:    { label: 'Menunggu Pengesahan', icon: Clock,         color: 'text-yellow-500' },
   confirmed:  { label: 'Pesanan Disahkan',    icon: CheckCircle2,  color: 'text-blue-500'   },
@@ -117,7 +139,7 @@ export default async function OrderDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ new?: string }>
+  searchParams: Promise<{ new?: string; approval?: string }>
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams])
   const isNew = sp.new === '1'
@@ -125,6 +147,12 @@ export default async function OrderDetailPage({
   if (!result) notFound()
   if ('notAuthed' in result) redirect(`/login?redirect=/orders/${id}${isNew ? '?new=1' : ''}`)
   const order = result
+
+  // Sprint 3E: COD/pindahan bank PERTAMA perlu kelulusan admin — papar notis jelas,
+  // bukan teks "berjaya" generik. Dicetus oleh ?approval=1 (redirect dari checkout)
+  // ATAU baris needs_approval masih true (lawatan semula). Hilang bila admin
+  // luluskan (api/admin/orders/[id] set needs_approval=false + status berubah).
+  const awaitingApproval = order.status === 'pending' && (sp.approval === '1' || order.needs_approval === true)
 
   const isPickup = order.delivery_method === 'pickup'
   const config = (isPickup && pickupStatusConfig[order.status]) || statusConfig[order.status] || statusConfig.pending
@@ -181,7 +209,7 @@ export default async function OrderDetailPage({
             {/* ── 1. HERO ──────────────────────────────────────────
                 success page optimization: green gradient hero — emotionally reassuring
                 before any information is presented */}
-            <div className={`relative overflow-hidden rounded-3xl px-6 pt-10 pb-9 text-center bg-gradient-to-b ${isBankTransfer ? 'from-amber-400 to-amber-500' : 'from-brand-red-600 to-brand-red-600'}`}>
+            <div className={`relative overflow-hidden rounded-3xl px-6 pt-10 pb-9 text-center bg-gradient-to-b ${awaitingApproval ? 'from-gray-800 to-gray-900' : isBankTransfer ? 'from-amber-400 to-amber-500' : 'from-brand-red-600 to-brand-red-600'}`}>
 
               {/* Ambient decorative dots */}
               <div className="pointer-events-none absolute inset-0">
@@ -199,19 +227,25 @@ export default async function OrderDetailPage({
                 <div className="absolute inset-0 rounded-full bg-white/10 animate-ping" style={{ animationDuration: '2s' }} />
                 <div className="absolute inset-2 rounded-full bg-white/15" />
                 <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg">
-                  <CheckCircle2 className="h-9 w-9 text-brand-red-600" strokeWidth={2.5} />
+                  {awaitingApproval
+                    ? <Clock className="h-9 w-9 text-gray-800" strokeWidth={2.5} />
+                    : <CheckCircle2 className="h-9 w-9 text-brand-red-600" strokeWidth={2.5} />}
                 </div>
               </div>
 
               <h1 className="text-2xl font-black text-white tracking-tight mb-2">
-                {isBankTransfer ? 'Pesanan Dibuat!' : 'Pesanan Berjaya!'}
+                {awaitingApproval ? 'Pesanan Diterima' : isBankTransfer ? 'Pesanan Dibuat!' : 'Pesanan Berjaya!'}
               </h1>
 
               <p className="text-sm font-semibold text-white leading-snug max-w-[230px] mx-auto mb-1">
-                {isBankTransfer ? 'Sila buat pindahan bank sekarang ⬇️' : 'Order anda dah masuk dapur 🍓'}
+                {awaitingApproval
+                  ? `Pesanan ${isBankTransfer ? 'pindahan bank' : 'COD'} pertama anda menunggu kelulusan`
+                  : isBankTransfer ? 'Sila buat pindahan bank sekarang ⬇️' : 'Order anda dah masuk dapur 🍓'}
               </p>
               <p className="text-xs text-white/65 mb-5 leading-relaxed max-w-[220px] mx-auto">
-                {isBankTransfer ? 'Pesanan akan disahkan selepas bayaran diterima.' : 'Kami tengah siapkan buah fresh khas untuk anda.'}
+                {awaitingApproval
+                  ? 'Kami hubungi anda dalam 1 jam waktu bekerja.'
+                  : isBankTransfer ? 'Pesanan akan disahkan selepas bayaran diterima.' : 'Kami tengah siapkan buah fresh khas untuk anda.'}
               </p>
 
               {/* Order number chip */}
@@ -222,6 +256,9 @@ export default async function OrderDetailPage({
                 </span>
               </div>
             </div>
+
+            {/* Sprint 3E: notis menunggu kelulusan — terus di bawah hero */}
+            {awaitingApproval && <ApprovalNotice bankTransfer={isBankTransfer} />}
 
             {/* ── Jemputan notifikasi (halus, bukan popup paksa) ──────
                 Butang opt-in — customer klik sendiri untuk hidupkan. Kalau
@@ -249,8 +286,10 @@ export default async function OrderDetailPage({
                 <p className="text-4xl font-black text-gray-900 tabular-nums leading-none">
                   RM{Number(order.total).toFixed(2)}
                 </p>
-                <p className={`text-[11px] font-medium mt-2 flex items-center gap-1 ${isBankTransfer ? 'text-amber-600' : 'text-brand-red-600'}`}>
-                  {isBankTransfer ? '⏳ Menunggu pengesahan bayaran' : '📦 Sedang disiapkan sekarang di dapur kami'}
+                <p className={`text-[11px] font-medium mt-2 flex items-center gap-1 ${awaitingApproval ? 'text-gray-600' : isBankTransfer ? 'text-amber-600' : 'text-brand-red-600'}`}>
+                  {awaitingApproval
+                    ? 'Menunggu kelulusan — penyediaan bermula selepas diluluskan'
+                    : isBankTransfer ? '⏳ Menunggu pengesahan bayaran' : '📦 Sedang disiapkan sekarang di dapur kami'}
                 </p>
               </div>
 
@@ -318,7 +357,7 @@ export default async function OrderDetailPage({
                     green), future (gray). Creates a sense of movement, not a static checklist. */}
                 <div className="flex items-start">
                   {[
-                    { label: 'Pesanan\nDisahkan',  icon: CheckCircle2, state: 'active' as const, sub: 'Dalam masa 15 min'  },
+                    { label: 'Pesanan\nDisahkan',  icon: CheckCircle2, state: 'active' as const, sub: awaitingApproval ? 'Selepas kelulusan' : 'Dalam masa 15 min' },
                     { label: 'Sedang\nDisediakan', icon: Package,      state: 'next'   as const, sub: 'Buah dipilih segar' },
                     { label: 'Akan\nDihantar',     icon: Truck,        state: 'future' as const, sub: 'Mengikut slot anda' },
                   ].map((step, i, arr) => (
@@ -493,6 +532,9 @@ export default async function OrderDetailPage({
               <h1 className="text-base font-bold text-gray-900">{config.label}</h1>
               <p className="text-xs text-gray-400 mt-1 font-mono">{order.order_number}</p>
             </div>
+
+            {/* Sprint 3E: masih menunggu kelulusan (needs_approval + pending) pada lawatan semula */}
+            {awaitingApproval && <ApprovalNotice bankTransfer={isBankTransfer} />}
 
             {/* Full status timeline */}
             <div className={card}>

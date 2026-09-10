@@ -8,6 +8,10 @@ import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { calcDeliveryFee } from '@/lib/delivery-fee'
+import {
+  MALAYSIA_STATES, validateCheckoutForm, firstErrorField, buildManualAddress,
+  type CheckoutErrors, type CheckoutField,
+} from '@/lib/address-form'
 import { HoneypotField } from '@/components/honeypot-field'
 import { markPendingCartClear } from '@/components/store/pending-cart-clear'
 import { SfWhatsappFab } from '@/components/storev2/sf-whatsapp-fab'
@@ -16,7 +20,7 @@ import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
   Lock, ChevronRight, ChevronLeft, Pencil, Truck, XCircle, Store,
-  CreditCard, QrCode, Landmark, AlertTriangle, X,
+  CreditCard, QrCode, Landmark, AlertTriangle, X, AlertCircle,
 } from 'lucide-react'
 import { isChipMethod } from '@/lib/chip-methods'
 import { CartSync } from '@/components/store/cart-sync'
@@ -68,6 +72,17 @@ const DEFAULT_SLOTS: SlotConfig[] = [
   { id: 'tomorrow-12', day: 'tomorrow', start: 12, end: 16, label: '12pm – 4pm',  lead_hours: 0, active: true },
   { id: 'tomorrow-16', day: 'tomorrow', start: 16, end: 20, label: '4pm – 8pm',   lead_hours: 0, active: true },
 ]
+
+// Sprint 3E: ralat inline bawah medan (aria-describedby dari input yang sepadan).
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null
+  return (
+    <p id={id} role="alert" className="mt-1.5 flex items-start gap-1 text-[11.5px] font-semibold text-red-600">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+      <span>{message}</span>
+    </p>
+  )
+}
 
 // Fix 3: gateway hantar balik ke /checkout?failed=1 (member — api/checkout/chip)
 // atau /checkout?bayar=gagal (tetamu — api/store/guest-order) bila bayaran
@@ -151,6 +166,12 @@ export default function CheckoutPage() {
     email: '',
   })
   const [website, setWebsite] = useState('') // honeypot anti-bot (guest sahaja)
+  // Sprint 3E: bandar/negeri (autofill dari zon, boleh diedit), ralat inline,
+  // pilihan simpan alamat manual (member sahaja).
+  const [manualCity, setManualCity] = useState('')
+  const [manualState, setManualState] = useState('')
+  const [errors, setErrors] = useState<CheckoutErrors>({})
+  const [saveAddress, setSaveAddress] = useState(false)
 
   useEffect(() => {
     if (items.length > 0) trackInitiateCheckout(getTotal())
@@ -179,7 +200,7 @@ export default function CheckoutPage() {
     const savedPc = localStorage.getItem('sf_postcode')
     if (savedPc && /^\d{5}$/.test(savedPc)) {
       setManualPostcode(savedPc)
-      checkPostcode(savedPc)
+      checkPostcode(savedPc, { autofill: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -266,7 +287,9 @@ export default function CheckoutPage() {
     return parts.join('\n')
   }
 
-  async function checkPostcode(postcode: string) {
+  // Sprint 3E: `autofill` — isi bandar/negeri borang manual dari zon (API pulangkan
+  // city/state). Alamat tersimpan tidak perlu (sudah ada bandar/negeri sendiri).
+  async function checkPostcode(postcode: string, opts: { autofill?: boolean } = {}) {
     if (!postcode || !/^\d{5}$/.test(postcode)) {
       setPostcodeValid(null)
       setPostcodeArea('')
@@ -279,6 +302,10 @@ export default function CheckoutPage() {
     setPostcodeValid(data.covered)
     setPostcodeArea(data.covered ? `${data.area}, ${data.city}` : '')
     if (data.fee !== undefined) setZoneBaseFee(data.fee)
+    if (opts.autofill) {
+      if (typeof data.city === 'string' && data.city) setManualCity(data.city)
+      if (typeof data.state === 'string' && data.state) setManualState(data.state)
+    }
 
     // Luar Klang Valley — semak jika ada item local-only dalam cart
     if (!data.covered && items.length > 0) {
@@ -304,6 +331,8 @@ export default function CheckoutPage() {
     if (id === '__manual__') {
       setForm((prev) => ({ ...prev, full_address: '' }))
       setManualPostcode('')
+      setManualCity('')
+      setManualState('')
       return
     }
     const addr = savedAddresses.find((a) => a.id === id)
@@ -323,6 +352,28 @@ export default function CheckoutPage() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    clearError(e.target.name as CheckoutField)
+  }
+
+  // Sprint 3E: buang ralat medan sebaik pengguna mula membetulkannya.
+  function clearError(field: CheckoutField) {
+    setErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
+  }
+
+  // Sprint 3E: scroll + fokus ke medan ralat pertama. Fallback ke anchor seksyen
+  // (cth. alamat tersimpan tanpa poskod — tiada input poskod dipaparkan).
+  function scrollToField(field: CheckoutField) {
+    if (typeof document === 'undefined') return
+    const el = document.querySelector<HTMLElement>(`[name="${field}"]`)
+      ?? document.querySelector<HTMLElement>(`[data-field-anchor="${field}"]`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.focus({ preventScroll: true })
+  }
+
+  // Kelas input — sempadan ralat bila medan tidak sah.
+  function fieldCls(field: CheckoutField, base = 'w-full border rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2') {
+    return `${base} ${errors[field] ? 'border-red-400 focus:ring-red-300' : 'border-gray-200 focus:ring-[#EC5460]'}`
   }
 
   async function handleApplyPromo() {
@@ -415,41 +466,36 @@ export default function CheckoutPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.recipient_name.trim()) { toast.error('Sila masukkan nama penerima'); return }
-    if (!form.phone.trim()) { toast.error('Sila masukkan nombor telefon penerima'); return }
-    // Email wajib untuk SEMUA (tracking pesanan dihantar via email — WA sering ban)
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Sila masukkan email yang sah untuk tracking pesanan'); return }
-
-    if (isPickup) {
-      if (!pickupDate) { toast.error('Sila pilih tarikh untuk ambil sendiri'); return }
-    } else {
-      if (!form.full_address.trim()) { toast.error('Sila masukkan alamat penghantaran'); return }
-      // Poskod 5-digit WAJIB — tanpa poskod, courier tak boleh dipilih & order tak boleh dihantar
-      const pc = selectedAddressId !== '__manual__'
-        ? (savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode)
-        : manualPostcode
-      if (!/^\d{5}$/.test((pc ?? '').trim())) { toast.error('Sila masukkan poskod 5 digit yang sah'); return }
-      if (localOnlyItems.length > 0) {
-        toast.error(`Item berikut hanya boleh dihantar dalam Klang Valley: ${localOnlyItems.join(', ')}`)
-        return
-      }
-    }
+    // Sprint 3E: pengesahan INLINE (lib/address-form) — ralat bawah medan, aria-invalid,
+    // scroll+fokus ke ralat pertama. Toast dikekalkan untuk ralat SERVER sahaja.
+    // Peraturan sama seperti sebelum (nama, telefon MY, email wajib, tarikh pickup,
+    // alamat, poskod 5 digit, item Klang Valley sahaja).
+    const isManual = savedAddresses.length === 0 || selectedAddressId === '__manual__'
+    // Prices recalculated from DB, promo validated server-side
+    const postcode = !isManual
+      ? (savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode)
+      : manualPostcode
+    // Alamat yang dihantar ke server (satu rentetan — bentuk request tak berubah):
+    // manual → jalan + "poskod, bandar, negeri" (sama bentuk alamat tersimpan).
+    const addressToSend = isManual
+      ? buildManualAddress({ street: form.full_address, postcode, city: manualCity, state: manualState })
+      : form.full_address
+    const fieldErrors = validateCheckoutForm({
+      recipient_name: form.recipient_name, phone: form.phone, email: form.email,
+      isPickup, pickup_date: pickupDate,
+      full_address: addressToSend, postcode: postcode ?? '', localOnlyItems,
+    })
+    setErrors(fieldErrors)
+    const firstBad = firstErrorField(fieldErrors)
+    if (firstBad) { scrollToField(firstBad); return }
 
     setLoading(true)
     const supabase = createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Prices recalculated from DB, promo validated server-side
-    const postcode = selectedAddressId !== '__manual__'
-      ? savedAddresses.find(a => a.id === selectedAddressId)?.postcode ?? manualPostcode
-      : manualPostcode
-
     // ── GUEST CHECKOUT (tanpa login) → infra guest LP (lp_guest_orders) ──
     if (!user) {
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) {
-        toast.error('Sila masukkan email yang sah'); setLoading(false); return
-      }
       const guestRes = await fetch('/api/store/guest-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,7 +508,7 @@ export default function CheckoutPage() {
           name: form.recipient_name.trim(),
           phone: form.phone.trim(),
           email: form.email.trim(),
-          address: isPickup ? null : form.full_address,
+          address: isPickup ? null : addressToSend,
           postcode: isPickup ? null : (postcode || null),
           payment_method: form.payment_method,
           delivery_method: deliveryMethod,
@@ -506,7 +552,7 @@ export default function CheckoutPage() {
         payment_method: form.payment_method,
         delivery_address: isPickup
           ? `${form.recipient_name} | ${form.phone}\nAmbil Sendiri — ${STORE.name}, Bangi`
-          : `${form.recipient_name} | ${form.phone}\n${form.full_address}`,
+          : `${form.recipient_name} | ${form.phone}\n${addressToSend}`,
         delivery_slot: isPickup ? null : (isNationwide ? null : (slots.find(s => s.value === form.delivery_slot)?.label ?? null)),
         delivery_method: deliveryMethod,
         pickup_date: isPickup ? pickupDate : null,
@@ -521,6 +567,24 @@ export default function CheckoutPage() {
       toast.error(err.error ?? 'Gagal buat pesanan. Cuba lagi.')
       setLoading(false)
       return
+    }
+
+    // Sprint 3E: "Simpan alamat ini untuk lain kali" — insert SAMA seperti
+    // profile/addresses.tsx (client Supabase + RLS). Best-effort: gagal simpan
+    // tidak menghalang pesanan yang sudah berjaya dibuat.
+    if (saveAddress && isManual && !isPickup) {
+      const { error: addrErr } = await supabase.from('addresses').insert({
+        user_id: user.id,
+        label: 'Rumah',
+        recipient_name: form.recipient_name.trim() || null,
+        recipient_phone: form.phone.trim() || null,
+        full_address: form.full_address.trim(),
+        city: manualCity.trim() || null,
+        postcode: postcode || null,
+        state: manualState.trim() || null,
+        is_default: savedAddresses.length === 0,
+      })
+      if (addrErr) console.warn('[checkout] simpan alamat gagal:', addrErr.message)
     }
 
     const { orderId, pointsUsed: serverPointsUsed, multiplier: serverMultiplier, total: serverTotal, needsApproval } = await orderRes.json()
@@ -599,7 +663,8 @@ export default function CheckoutPage() {
       <Suspense fallback={null}>
         <PaymentFailedBanner />
       </Suspense>
-      <form id="checkout-form" onSubmit={handleSubmit} className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
+      {/* Sprint 3E: noValidate — pengesahan inline kami ganti gelembung pelayar */}
+      <form id="checkout-form" onSubmit={handleSubmit} noValidate className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
         <HoneypotField value={website} onChange={setWebsite} />
 
         {/* ── 0. RECIPIENT INFO ────────────────────────────── */}
@@ -617,8 +682,12 @@ export default function CheckoutPage() {
                 onChange={handleChange}
                 required
                 placeholder="Ahmad bin Ali"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                autoComplete="name"
+                aria-invalid={!!errors.recipient_name}
+                aria-describedby={errors.recipient_name ? 'err-recipient_name' : undefined}
+                className={fieldCls('recipient_name')}
               />
+              <FieldError id="err-recipient_name" message={errors.recipient_name} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -632,8 +701,12 @@ export default function CheckoutPage() {
                 required
                 placeholder="0123456789"
                 inputMode="tel"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                autoComplete="tel"
+                aria-invalid={!!errors.phone}
+                aria-describedby={errors.phone ? 'err-phone' : undefined}
+                className={fieldCls('phone')}
               />
+              <FieldError id="err-phone" message={errors.phone} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -648,8 +721,11 @@ export default function CheckoutPage() {
                 placeholder="email@contoh.com"
                 autoComplete="email"
                 inputMode="email"
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'err-email' : undefined}
+                className={fieldCls('email')}
               />
+              <FieldError id="err-email" message={errors.email} />
               <p className="text-[11px] text-gray-400 mt-1">Wajib — resit & <span className="font-semibold text-gray-500">tracking pesanan</span> dihantar ke email ini.</p>
             </div>
             {!loggedIn && (
@@ -721,11 +797,15 @@ export default function CheckoutPage() {
                 </label>
                 <input
                   type="date"
+                  name="pickup_date"
                   value={pickupDate}
                   min={pickupMinDate}
-                  onChange={(e) => setPickupDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                  onChange={(e) => { setPickupDate(e.target.value); clearError('pickup_date') }}
+                  aria-invalid={!!errors.pickup_date}
+                  aria-describedby={errors.pickup_date ? 'err-pickup_date' : undefined}
+                  className={fieldCls('pickup_date')}
                 />
+                <FieldError id="err-pickup_date" message={errors.pickup_date} />
                 <p className="text-[11px] text-gray-400 mt-1.5">Kami akan WhatsApp anda bila pesanan sedia diambil di kedai.</p>
               </div>
             </div>
@@ -735,7 +815,8 @@ export default function CheckoutPage() {
         {/* ── 1. DELIVERY ADDRESS ──────────────────────────── */}
         {/* payment step UI: show clean selected address card by default, expand to edit */}
         {!isPickup && (<>
-        <div className={card}>
+        {/* Sprint 3E: anchor scroll-ke-ralat bila input poskod tiada (alamat tersimpan) */}
+        <div className={`${card} outline-none`} data-field-anchor="postcode" tabIndex={-1}>
           <div className="flex items-center justify-between px-4 pt-4 pb-3">
             <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Alamat Penghantaran</p>
             {savedAddresses.length > 0 && (
@@ -829,21 +910,29 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Manual address textarea + postcode check */}
+            {/* Manual address: jalan + poskod (Sprint 3E: autofill bandar/negeri dari zon,
+                ralat inline, pilihan simpan alamat untuk member) */}
             {(savedAddresses.length === 0 || selectedAddressId === '__manual__') && (
               <div className="mt-2 space-y-2">
-                <textarea
-                  name="full_address"
-                  value={form.full_address}
-                  onChange={handleChange}
-                  required
-                  rows={3}
-                  placeholder="No. rumah, jalan, kawasan, bandar..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
-                />
-                <div className="flex gap-2">
+                <div>
+                  <textarea
+                    name="full_address"
+                    value={form.full_address}
+                    onChange={handleChange}
+                    required
+                    rows={3}
+                    placeholder="No. rumah, jalan, taman/kawasan"
+                    autoComplete="street-address"
+                    aria-invalid={!!errors.full_address}
+                    aria-describedby={errors.full_address ? 'err-full_address' : undefined}
+                    className={fieldCls('full_address', 'w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2')}
+                  />
+                  <FieldError id="err-full_address" message={errors.full_address} />
+                </div>
+                <div>
                   <input
                     type="tel"
+                    name="postcode"
                     inputMode="numeric"
                     maxLength={5}
                     required
@@ -852,12 +941,64 @@ export default function CheckoutPage() {
                       const v = e.target.value.replace(/\D/g, '')
                       setManualPostcode(v)
                       setPostcodeValid(null)
-                      if (v.length === 5) checkPostcode(v)
+                      clearError('postcode')
+                      // Poskod sah (5 digit) → semak zon + autofill bandar/negeri
+                      if (v.length === 5) checkPostcode(v, { autofill: true })
                     }}
                     placeholder="Poskod (5 digit) — wajib"
-                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                    autoComplete="postal-code"
+                    aria-invalid={!!errors.postcode}
+                    aria-describedby={errors.postcode ? 'err-postcode' : undefined}
+                    className={fieldCls('postcode', 'w-full border rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2')}
                   />
+                  <FieldError id="err-postcode" message={errors.postcode} />
                 </div>
+                {/* Bandar & negeri — diisi automatik dari /api/delivery/check, boleh diedit.
+                    Dilampirkan ke rentetan alamat (server terima satu rentetan sahaja). */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label htmlFor="checkout-city" className="block text-[11px] font-medium text-gray-500 mb-1">Bandar</label>
+                    <input
+                      id="checkout-city"
+                      type="text"
+                      name="city"
+                      value={manualCity}
+                      onChange={(e) => setManualCity(e.target.value)}
+                      placeholder="Auto dari poskod"
+                      autoComplete="address-level2"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="checkout-state" className="block text-[11px] font-medium text-gray-500 mb-1">Negeri</label>
+                    <select
+                      id="checkout-state"
+                      name="state"
+                      value={manualState}
+                      onChange={(e) => setManualState(e.target.value)}
+                      autoComplete="address-level1"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#EC5460]"
+                    >
+                      <option value="">Auto dari poskod</option>
+                      {/* Nilai dari zon yang tiada dalam senarai standard — kekalkan supaya tak hilang */}
+                      {manualState && !(MALAYSIA_STATES as readonly string[]).includes(manualState) && (
+                        <option value={manualState}>{manualState}</option>
+                      )}
+                      {MALAYSIA_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+                {loggedIn && (
+                  <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveAddress}
+                      onChange={(e) => setSaveAddress(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 accent-gray-800"
+                    />
+                    <span className="text-xs font-medium text-gray-700">Simpan alamat ini untuk lain kali</span>
+                  </label>
+                )}
                 {postcodeValid === true && (
                   <p className="text-xs text-[#C81824] font-semibold flex items-center gap-1">
                     <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
@@ -919,6 +1060,10 @@ export default function CheckoutPage() {
               <p className="mt-2 text-xs text-[#C81824] font-semibold flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5" /> {postcodeArea} — Kami hantar ke sini!
               </p>
+            )}
+            {/* Sprint 3E: ralat poskod untuk alamat tersimpan (tiada input poskod dipaparkan) */}
+            {selectedAddressId && selectedAddressId !== '__manual__' && (
+              <FieldError id="err-postcode" message={errors.postcode} />
             )}
           </div>
         </div>
@@ -1226,6 +1371,14 @@ export default function CheckoutPage() {
             </div>
           )}
         </div>
+
+        {/* Sprint 3E: baris polisi — kecil, kelabu, di atas CTA bayar */}
+        <p className="text-[11px] text-gray-400 text-center leading-snug mb-2.5">
+          Dengan membayar, anda bersetuju dengan{' '}
+          <Link href="/terma" className="underline underline-offset-2 text-gray-500">Terma</Link>
+          {' '}&amp;{' '}
+          <Link href="/refund" className="underline underline-offset-2 text-gray-500">Polisi Refund</Link>
+        </p>
 
         {/* payment step UI: "Bayar Sekarang" — clear, final, safe */}
         <button

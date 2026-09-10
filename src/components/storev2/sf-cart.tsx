@@ -1,7 +1,9 @@
 "use client";
 
-// Redesign v2 — Troli (Seksyen J): toggle mod + kad semak poskod (mod Penghantaran) +
-// item rows (composite key produk+variant) + baris Syabab Points + pecahan kos + gate CTA.
+// Redesign v2 — Troli (Seksyen J): toggle mod + kad semak poskod (mod Penghantaran,
+// PILIHAN — nasihat sahaja, bukan gate) + item rows (composite key produk+variant) +
+// baris Syabab Points + pecahan kos + bar penghantaran percuma + CTA sentiasa aktif.
+// Sprint 3E: gate poskod dibuang — poskod tetap WAJIB & disahkan di Checkout/server.
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -11,7 +13,7 @@ import {
 import { useCartStore } from "@/lib/stores/cart";
 import { createClient } from "@/lib/supabase/client";
 import { calcDeliveryFee } from "@/lib/delivery-fee";
-import { freeDeliveryActive } from "@/lib/shipping";
+import { SfFreeDeliveryBar } from "@/components/storev2/sf-free-delivery-bar";
 
 type Mode = "pickup" | "delivery";
 type PcRes = { covered: boolean; fee?: number; area?: string; city?: string; error?: string };
@@ -124,9 +126,8 @@ export function SfCart() {
     : 0;
   const freeApplied = mode === "delivery" && isKV && deliveryFee === 0;
   const grandTotal = subtotal + deliveryFee;
-
-  // Gate: pickup bebas; delivery perlu poskod disahkan
-  const gateOpen = mode === "pickup" || pcChecked;
+  // Sprint 3E: tiada gate poskod — CTA sentiasa aktif bila troli ada item & stok OK.
+  // Semakan poskod kekal sebagai nasihat (papar kos bila dibuat).
 
   return (
     <>
@@ -149,12 +150,16 @@ export function SfCart() {
           ))}
         </div>
 
-        {/* #1 Kad semak poskod — mod Penghantaran, di ATAS senarai item */}
+        {/* #1 Kad semak poskod — mod Penghantaran, di ATAS senarai item.
+            Sprint 3E: PILIHAN (nasihat) — tidak lagi menghalang "Ke Pembayaran". */}
         {mode === "delivery" && (
-          <div className={`mb-4 rounded-2xl border p-4 ${isKV ? "border-emerald-200 bg-emerald-50/50" : outsideKV ? "border-amber-200 bg-amber-50/50" : "border-[#E11D2A]/30 bg-[#FDECEC]/50"}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="h-4 w-4 text-[#E11D2A]" />
-              <span className="text-[13px] font-bold text-gray-900">Semak kawasan penghantaran</span>
+          <div className={`mb-4 rounded-2xl border p-4 ${isKV ? "border-emerald-200 bg-emerald-50/50" : outsideKV ? "border-amber-200 bg-amber-50/50" : "border-gray-200 bg-white"}`}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin className="h-4 w-4 text-gray-700 shrink-0" />
+                <span className="text-[13px] font-bold text-gray-900">Semak kawasan & kos hantar</span>
+              </div>
+              <span className="text-[10.5px] font-semibold text-gray-400 shrink-0">Pilihan</span>
             </div>
             <div className="flex gap-2">
               <input
@@ -174,14 +179,18 @@ export function SfCart() {
             </div>
             {pcRes?.error && <p className="text-[12px] text-red-500 font-semibold mt-2">{pcRes.error}</p>}
             {isKV && (
-              <p className="text-[12px] text-emerald-700 font-semibold mt-2">
-                ✓ {pcRes?.area}{pcRes?.city ? `, ${pcRes.city}` : ""} — Lembah Klang · {freeApplied ? "penghantaran PERCUMA" : `kos RM${deliveryFee.toFixed(2)}`}
+              <p className="flex items-center gap-1 text-[12px] text-emerald-700 font-semibold mt-2">
+                <Check className="h-3.5 w-3.5 shrink-0" />
+                <span>{pcRes?.area}{pcRes?.city ? `, ${pcRes.city}` : ""} — Lembah Klang · {freeApplied ? "penghantaran PERCUMA" : `kos RM${deliveryFee.toFixed(2)}`}</span>
               </p>
             )}
             {outsideKV && (
               <p className="text-[12px] text-amber-700 font-semibold mt-2">
                 Luar Lembah Klang — kurier sejuk 1–3 hari, kos ikut berat (disahkan team)
               </p>
+            )}
+            {!pcChecked && !pcRes?.error && (
+              <p className="text-[11px] text-gray-400 mt-2">Tak pasti? Teruskan sahaja — poskod akan diminta semasa bayar.</p>
             )}
           </div>
         )}
@@ -318,7 +327,7 @@ export function SfCart() {
               {mode === "pickup" ? "PERCUMA"
                 : isKV ? (freeApplied ? "PERCUMA" : `RM${deliveryFee.toFixed(2)}`)
                 : outsideKV ? "Ikut berat"
-                : "—"}
+                : "Dikira semasa bayar"}
             </span>
           </div>
           <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
@@ -328,8 +337,13 @@ export function SfCart() {
             </span>
           </div>
           {outsideKV && <p className="text-[10.5px] text-gray-400">+ kos kurier sejuk ikut berat (disahkan semasa checkout)</p>}
-          {mode === "delivery" && isKV && freeDeliveryActive(freeMin) && subtotal < freeMin && (
-            <p className="text-[10.5px] text-gray-400">Tambah RM{(freeMin - subtotal).toFixed(2)} lagi untuk penghantaran percuma</p>
+          {mode === "delivery" && !pcChecked && (
+            <p className="text-[10.5px] text-gray-400">Kos penghantaran ikut poskod — disahkan semasa checkout</p>
+          )}
+          {/* Sprint 3E: bar kemajuan penghantaran percuma — sembunyi bila percuma
+              dimatikan atau had dicapai (komponen kendali sendiri). Mod Penghantaran sahaja. */}
+          {mode === "delivery" && (
+            <SfFreeDeliveryBar subtotal={subtotal} freeMin={freeMin} className="pt-1" />
           )}
         </div>
 
@@ -343,7 +357,7 @@ export function SfCart() {
         </div>
       </div>
 
-      {/* Sticky bar — gate ikut #3 */}
+      {/* Sticky bar — Sprint 3E: CTA sentiasa aktif (hanya isu stok yang menghalang) */}
       <div className="fixed bottom-16 lg:bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 px-4 pt-3 pb-3 lg:pb-4">
         <div className="mx-auto max-w-5xl flex items-center gap-3">
           <div className="min-w-0">
@@ -353,10 +367,6 @@ export function SfCart() {
           {hasStockIssue ? (
             <div className="flex-1 text-center bg-gray-100 text-gray-400 font-bold py-3.5 rounded-xl text-[14px]">
               Betulkan kuantiti dahulu
-            </div>
-          ) : !gateOpen ? (
-            <div className="flex-1 text-center bg-gray-100 text-gray-400 font-bold py-3.5 rounded-xl text-[13px] leading-tight">
-              Semak poskod dahulu
             </div>
           ) : (
             <Link
