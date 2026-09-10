@@ -1,13 +1,20 @@
-// Redesign v2 — Home (storefront). Ikut design: greeting → stat pills →
-// semak poskod → promo carousel → Pesanan Terakhir. TIADA grid produk di sini
-// (produk semua di Katalog).
+// Redesign v2 — Home (storefront). Susunan: greeting → chip kategori →
+// rail "Paling Laku" → rail "Baru Masuk" → stat pills → promo carousel →
+// trust strip → Pesanan Terakhir → Panduan.
+//
+// Sprint 3A "home yang menjual": produk, harga & kategori kini kelihatan
+// atas lipatan (dulu tiada produk langsung di home — semua di Katalog).
+// Rail/chip hanya muncul bila ≥ 3 item; data dari lib/merchandising (cache 10 min).
 import Link from 'next/link'
 import { Truck, PackageCheck, ShieldCheck, BookOpen } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getBestsellers, getNewArrivals, getCategoryChips } from '@/lib/merchandising'
 import { ARTIKEL } from './panduan/artikel'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { SfPromo, type SfBanner } from '@/components/storev2/sf-promo'
 import { SfHomePersonal } from '@/components/storev2/sf-home-personal'
+import { SfHomeChips } from '@/components/storev2/sf-home-chips'
+import { SfHomeRail } from '@/components/storev2/sf-home-rail'
 
 export const revalidate = 300
 
@@ -22,7 +29,12 @@ async function getBanners(): Promise<SfBanner[]> {
 }
 
 export default async function HomePage() {
-  const banners = await getBanners()
+  const [banners, chips, bestsellers, newArrivals] = await Promise.all([
+    getBanners(),
+    getCategoryChips(),
+    getBestsellers(8),
+    getNewArrivals(8),
+  ])
   return (
     <SfShell>
       <div className="px-4 pt-4 space-y-5">
@@ -34,6 +46,23 @@ export default async function HomePage() {
             Buah segar online — ceri import, kurma, mangga &amp; buah bermusim, dihantar sejuk ke seluruh Semenanjung Malaysia
           </h1>
         </div>
+
+        {/* Chip kategori — pautan ke /kategori/<slug> (page SEO sebenar) */}
+        <SfHomeChips chips={chips} />
+
+        {/* Rail produk — kad sama dengan Katalog (harga sebenar, add-to-cart) */}
+        <SfHomeRail
+          title="Paling Laku"
+          subtitle="Paling banyak dibeli 30 hari ini"
+          href="/products"
+          products={bestsellers}
+        />
+        <SfHomeRail
+          title="Baru Masuk"
+          subtitle="Stok terbaru tiba"
+          href="/products"
+          products={newArrivals}
+        />
 
         {/* Pill Kad Setia/Points + Pesanan Terakhir — data SEBENAR user (client,
             page kekal cache); promo + trust strip diselit antara (susunan asal) */}

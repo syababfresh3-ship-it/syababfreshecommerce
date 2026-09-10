@@ -29,15 +29,25 @@ export function SfPromo({ banners }: { banners: SfBanner[] }) {
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
   }
 
-  const cls = "snap-center shrink-0 w-full aspect-[1163/1355] rounded-2xl overflow-hidden bg-[#FDECEC] active:scale-[0.99] transition";
+  // Landskap 16:9 (dulu potret 1163/1355 yang makan satu skrin mobile penuh).
+  // Imej potret sedia ada akan dipotong (object-cover) — upload banner landskap.
+  const cls = "snap-center shrink-0 w-full aspect-video rounded-2xl overflow-hidden bg-[#FDECEC] active:scale-[0.99] transition";
 
   return (
     <div className="space-y-2.5">
       <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory">
-        {banners.map((b) => {
+        {banners.map((b, i) => {
           const inner = b.image_url ? (
+            // Banner pertama = LCP calon: eager + fetchpriority high; selebihnya lazy.
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.image_url} alt={b.title} className="h-full w-full object-cover" />
+            <img
+              src={b.image_url}
+              alt={b.title}
+              className="h-full w-full object-cover"
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchPriority={i === 0 ? "high" : "auto"}
+              decoding={i === 0 ? "sync" : "async"}
+            />
           ) : (
             <div className="h-full w-full p-5 flex flex-col justify-end text-white" style={{ background: "linear-gradient(135deg,#E11D2A,#A01018)" }}>
               <p className="text-[22px] font-extrabold leading-tight">{b.title}</p>
