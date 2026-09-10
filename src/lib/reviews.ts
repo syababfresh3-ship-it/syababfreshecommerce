@@ -21,7 +21,7 @@ export interface ReviewWithName {
 
 export async function attachReviewerNames<T extends { user_id: string | null; guest_name?: string | null }>(
   rows: T[],
-): Promise<(Omit<T, 'user_id'> & { profiles: { full_name: string | null } })[]> {
+): Promise<(Omit<T, 'user_id' | 'guest_name'> & { profiles: { full_name: string | null } })[]> {
   const userIds = [...new Set(rows.map(r => r.user_id).filter((v): v is string => !!v))]
   const nameById = new Map<string, string | null>()
   if (userIds.length > 0) {
@@ -29,9 +29,10 @@ export async function attachReviewerNames<T extends { user_id: string | null; gu
     for (const p of data ?? []) nameById.set(p.id, p.full_name)
   }
   return rows.map(r => {
-    const { user_id, ...rest } = r
+    // guest_name dibuang dari output — nama penuh tetamu tak boleh sampai ke browser (payload RSC)
+    const { user_id, guest_name, ...rest } = r
     // Tetamu (migration 126): nama dari order, dipendekkan ("Nurul A.") — tak dedah nama penuh
-    const name = (user_id ? nameById.get(user_id) : null) ?? (r.guest_name ? shortReviewerName(r.guest_name) : null)
+    const name = (user_id ? nameById.get(user_id) : null) ?? (guest_name ? shortReviewerName(guest_name) : null)
     return { ...rest, profiles: { full_name: name } }
   })
 }
