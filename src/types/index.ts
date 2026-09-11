@@ -56,6 +56,17 @@ export interface Product {
   available_stock?: number
 }
 
+// Galeri gambar tambahan produk (product_images, migration 127). `products.image_url`
+// kekal gambar utama; baris ini dipapar selepasnya di halaman produk ikut sort_order.
+export interface ProductImage {
+  id: string
+  product_id: string
+  url: string
+  alt: string | null
+  sort_order: number
+  created_at: string
+}
+
 export interface InventoryBatch {
   id: string
   product_id: string

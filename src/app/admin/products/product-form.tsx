@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import { ImageUploader } from '@/components/admin/image-uploader'
 import type { Category, Product } from '@/types'
 
@@ -11,16 +12,47 @@ interface ProductFormProps {
   product?: Product
 }
 
+// Galeri (product_images, migration 127) — gambar tambahan selepas gambar utama.
+// Disimpan berasingan melalui PUT /api/admin/products/[id]/images selepas product disimpan.
+const GALLERY_MAX = 12
+type GalleryItem = { key: string; url: string; alt: string }
+const galleryKey = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
 export function ProductForm({ categories, product }: ProductFormProps) {
   const router = useRouter()
   const isEdit = !!product
 
   const [loading, setLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null)
-  const [extraImages, setExtraImages] = useState<(string | null)[]>(
-    // fill up to 2 slots from existing images[]
-    [product?.images?.[0] ?? null, product?.images?.[1] ?? null]
+  // Mula dari array lama (tiada flash); digantikan dengan baris product_images bila dimuat.
+  const [gallery, setGallery] = useState<GalleryItem[]>(
+    (product?.images ?? []).filter((u) => u && u !== product?.image_url).map((url) => ({ key: galleryKey(), url, alt: '' }))
   )
+  const [galleryLegacy, setGalleryLegacy] = useState(false)
+
+  useEffect(() => {
+    if (!product?.id) return
+    let alive = true
+    fetch(`/api/admin/products/${product.id}/images`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { images?: { url: string; alt: string | null }[]; legacy?: boolean } | null) => {
+        if (!alive || !d?.images) return
+        setGallery(d.images.map((im) => ({ key: galleryKey(), url: im.url, alt: im.alt ?? '' })))
+        setGalleryLegacy(!!d.legacy)
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [product?.id])
+
+  function moveGallery(i: number, dir: -1 | 1) {
+    setGallery((prev) => {
+      const j = i + dir
+      if (j < 0 || j >= prev.length) return prev
+      const next = [...prev]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  }
   const [form, setForm] = useState({
     name: product?.name ?? '',
     slug: product?.slug ?? '',
@@ -82,8 +114,9 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       unit: form.unit,
       weight_grams: form.weight_kg ? Math.round(parseFloat(form.weight_kg) * 1000) : null,
       category_id: form.category_id || null,
-      image_url: imageUrl,
-      images: extraImages.filter(Boolean) as string[],
+      // Gambar utama kosong → gambar galeri pertama jadi utama (kad katalog perlu satu)
+      image_url: imageUrl ?? gallery[0]?.url ?? null,
+      images: gallery.map((g) => g.url), // cermin array lama (pembaca lama)
       is_active: form.is_active,
       is_featured: form.is_featured,
       show_in_storefront: form.show_in_storefront,
@@ -99,12 +132,30 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       toast.error(err.error ?? 'Failed save product')
-    } else {
-      toast.success(isEdit ? 'Product diupdate' : 'Product ditambah')
-      router.push('/admin/products')
-      router.refresh()
+      setLoading(false)
+      return
     }
 
+    // Galeri disimpan berasingan (product_images) selepas product ada id.
+    const saved = await res.json().catch(() => ({}))
+    const productId: string | undefined = isEdit ? product.id : saved?.id
+    if (productId) {
+      const gRes = await fetch(`/api/admin/products/${productId}/images`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: gallery.map((g) => ({ url: g.url, alt: g.alt.trim() || null })) }),
+      })
+      if (!gRes.ok) {
+        toast.error('Product disimpan, tapi galeri gagal disimpan')
+      } else {
+        const g = await gRes.json().catch(() => ({}))
+        if (g?.legacy) toast.message('Galeri disimpan dalam mod lama — jalankan migration 127 untuk susunan & alt text')
+      }
+    }
+
+    toast.success(isEdit ? 'Product diupdate' : 'Product ditambah')
+    router.push('/admin/products')
+    router.refresh()
     setLoading(false)
   }
 
@@ -127,34 +178,88 @@ export function ProductForm({ categories, product }: ProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
 
-      {/* Gambar Product */}
+      {/* Gambar Product — utama + galeri (product_images) */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-semibold text-gray-900">Gambar Product</h2>
-          <span className="text-xs text-gray-400">Sehingga 3 gambar · 800×800px</span>
+          <span className="text-xs text-gray-400">Utama + sehingga {GALLERY_MAX} galeri · auto WebP 1600px</span>
         </div>
-        <p className="text-xs text-gray-400 mb-4">Gambar 1 dipaparkan di kad product. All gambar boleh dilihat di halaman detail.</p>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <p className="text-xs font-semibold text-gray-600 mb-1.5">Gambar 1 <span className="text-brand-fresh-500">(Utama)</span></p>
-            <ImageUploader
-              currentUrl={imageUrl}
-              onUpload={(url) => setImageUrl(url)}
-              onRemove={() => setImageUrl(null)}
-              aspectRatio="aspect-square"
-            />
-          </div>
-          {[0, 1].map((i) => (
-            <div key={i}>
-              <p className="text-xs font-semibold text-gray-600 mb-1.5">Gambar {i + 2}</p>
+        <p className="text-xs text-gray-400 mb-4">
+          Gambar utama dipaparkan di kad product & pautan kongsi. Galeri dipaparkan selepasnya di halaman product — susun ikut urutan.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-5">
+          <ImageUploader
+            label="Gambar utama"
+            currentUrl={imageUrl}
+            onUpload={(url) => setImageUrl(url)}
+            onRemove={() => setImageUrl(null)}
+            aspectRatio="aspect-square"
+          />
+
+          <div className="min-w-0">
+            <p className="block text-sm font-medium text-gray-700 mb-2">Galeri ({gallery.length}/{GALLERY_MAX})</p>
+            {galleryLegacy && (
+              <p className="text-[11px] text-gray-500 mb-2">Migration 127 belum dijalankan — susunan & alt text belum disimpan.</p>
+            )}
+            {gallery.length > 0 && (
+              <ul className="space-y-2 mb-3">
+                {gallery.map((g, i) => (
+                  <li key={g.key} className="flex items-center gap-2.5 border border-gray-200 rounded-lg p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={g.url} alt={g.alt || `Gambar galeri ${i + 1}`} className="h-14 w-14 shrink-0 rounded-md object-cover bg-gray-50" />
+                    <input
+                      value={g.alt}
+                      onChange={(e) => setGallery((prev) => prev.map((x) => (x.key === g.key ? { ...x, alt: e.target.value } : x)))}
+                      maxLength={200}
+                      placeholder="Alt text (pilihan) — cth: Ceri Turki dalam kotak 1kg"
+                      aria-label={`Alt text gambar ${i + 1}`}
+                      className="min-w-0 flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-800"
+                    />
+                    <div className="flex items-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveGallery(i, -1)}
+                        disabled={i === 0}
+                        aria-label="Naik"
+                        className="h-8 w-8 grid place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveGallery(i, 1)}
+                        disabled={i === gallery.length - 1}
+                        aria-label="Turun"
+                        className="h-8 w-8 grid place-items-center rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGallery((prev) => prev.filter((x) => x.key !== g.key))}
+                        aria-label="Buang gambar"
+                        className="h-8 w-8 grid place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {gallery.length < GALLERY_MAX ? (
               <ImageUploader
-                currentUrl={extraImages[i]}
-                onUpload={(url) => setExtraImages(prev => { const next = [...prev]; next[i] = url; return next })}
-                onRemove={() => setExtraImages(prev => { const next = [...prev]; next[i] = null; return next })}
-                aspectRatio="aspect-square"
+                key={`gallery-add-${gallery.length}`}
+                label={gallery.length === 0 ? 'Tambah gambar galeri' : 'Tambah lagi'}
+                currentUrl={null}
+                onUpload={(url) => setGallery((prev) => (prev.length >= GALLERY_MAX ? prev : [...prev, { key: galleryKey(), url, alt: '' }]))}
+                onRemove={() => {}}
+                aspectRatio="aspect-[2/1]"
               />
-            </div>
-          ))}
+            ) : (
+              <p className="text-[11px] text-gray-400">Had {GALLERY_MAX} gambar galeri dicapai.</p>
+            )}
+          </div>
         </div>
       </div>
 

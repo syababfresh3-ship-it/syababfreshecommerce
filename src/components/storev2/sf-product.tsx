@@ -1,16 +1,23 @@
 "use client";
 
-// Redesign v2 — Produk detail (pushed screen): hero + pemilih variant + benefit + sticky add.
+// Redesign v2 — Produk detail (pushed screen): galeri + pemilih variant + benefit + sticky add.
 // Seksyen I: nama bersih (buang saiz), label dinamik (Saiz/Pakej), harga per-unit + jimat,
 // kuantiti berasingan dari variant, penunjuk stok.
+// Sprint 3C: galeri swipe (image_url + product_images), "{n} terjual dalam 30 hari"
+// (nombor sebenar, >= 5 sahaja), anggaran penghantaran ikut poskod, bar melekat
+// bertukar ke "Lihat Troli" selepas tambah, "Anda mungkin suka" = selalu dibeli bersama.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Heart, Star, Leaf, Truck, RotateCcw, Plus, Minus, Check } from "lucide-react";
+import {
+  ChevronLeft, Heart, Star, Leaf, Truck, RotateCcw, Plus, Minus, Check, TrendingUp, ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useCartStore } from "@/lib/stores/cart";
 import { ProductReviews } from "@/app/products/[slug]/reviews";
 import { SfWaitlist } from "@/components/storev2/sf-waitlist";
+import { SfProductGallery, type GalleryImage } from "@/components/storev2/sf-product-gallery";
+import { SfDeliveryEstimate } from "@/components/storev2/sf-delivery-estimate";
 import { ARTIKEL } from "@/app/panduan/artikel";
 import type { Product, ProductVariant } from "@/types";
 
@@ -64,12 +71,16 @@ export function SfProduct({
   canReview = false,
   related = [],
   productStock = null,
+  images,
+  unitsSold30d = 0,
 }: {
   product: DetailProduct;
   reviews?: ReviewRow[];
   canReview?: boolean;
   related?: RelatedProduct[];
   productStock?: number | null; // stok produk TANPA variant (view product_stock); null = tak dijejak
+  images?: GalleryImage[]; // galeri (image_url dahulu); tiada → guna image_url sahaja
+  unitsSold30d?: number; // unit terjual 30 hari (bukti sosial; papar bila >= 5)
 }) {
   const variants = (product.product_variants ?? [])
     .filter((v) => v.is_active !== false)
@@ -80,6 +91,13 @@ export function SfProduct({
   const [qty, setQty] = useState(1);
   const [liked, setLiked] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
+  // Bar melekat: selepas tambah → "Lihat Troli · RM{jumlah troli}" (kembali bila variant/kuantiti diubah)
+  const [added, setAdded] = useState(false);
+  const cartItems = useCartStore((s) => s.items);
+  const cartTotal = cartItems.reduce((t, it) => t + Number(it.variant?.price ?? it.product.price) * it.quantity, 0);
+  const cartCount = cartItems.reduce((n, it) => n + it.quantity, 0);
+  const pickVariant = (v: ProductVariant) => { setVariant(v); setAdded(false); };
+  const changeQty = (fn: (q: number) => number) => { setQty(fn); setAdded(false); };
 
   // Wishlist SEBENAR (table wishlists) — sebelum ni useState lokal je, hilang bila refresh.
   useEffect(() => {
@@ -141,8 +159,12 @@ export function SfProduct({
   function add() {
     if (soldOut) return;
     addItem(product, qty, variant);
+    setAdded(true);
     toast.success(`${qty}× ${cleanName}${variant ? ` (${variant.name})` : ""} ditambah ke troli`);
   }
+
+  const galleryImages: GalleryImage[] =
+    images ?? (product.image_url ? [{ url: product.image_url, alt: null }] : []);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -154,14 +176,8 @@ export function SfProduct({
       </div>
 
       <div className="flex-1 overflow-y-auto pb-28">
-        {/* Hero — kotak seragam (ikut design lama): object-cover, semua produk sama bentuk */}
-        <div className="relative mx-4 sm:mx-auto sm:max-w-md aspect-square rounded-2xl bg-gradient-to-b from-[#fdf8f2] to-[#f0e8dc] overflow-hidden">
-          {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image_url} alt={cleanName} className="absolute inset-0 h-full w-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 grid place-items-center text-7xl">🍎</div>
-          )}
+        {/* Hero — galeri swipe, kotak seragam (object-cover, semua produk sama bentuk) */}
+        <SfProductGallery images={galleryImages} name={cleanName}>
           {catName && (
             <span className="absolute top-3 left-3 bg-gray-900 text-white text-[10px] font-bold rounded-full px-2.5 py-1">{catName}</span>
           )}
@@ -172,7 +188,7 @@ export function SfProduct({
           >
             <Heart className={`h-5 w-5 ${liked ? "fill-[#E11D2A] text-[#E11D2A]" : "text-gray-400"}`} />
           </button>
-        </div>
+        </SfProductGallery>
 
         {/* Info */}
         <div className="px-4 pt-4 max-w-2xl mx-auto">
@@ -188,6 +204,13 @@ export function SfProduct({
               <span className="text-[12px] text-gray-400">({reviews.length} ulasan)</span>
             </div>
           ) : null}
+          {/* Bukti sosial — unit terjual SEBENAR 30 hari; < 5 → tak tunjuk (tiada nombor palsu) */}
+          {unitsSold30d >= 5 && (
+            <div className="flex items-center gap-1.5 mt-1 text-[12px] font-semibold text-gray-600" data-testid="units-sold">
+              <TrendingUp className="h-3.5 w-3.5 text-gray-700" aria-hidden />
+              <span>{unitsSold30d} terjual dalam 30 hari</span>
+            </div>
+          )}
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-[26px] font-extrabold text-[#E11D2A]">RM{Number(unitPrice).toFixed(2)}</span>
             {variant && <span className="text-[13px] text-gray-400 font-medium">/{variant.name}</span>}
@@ -231,7 +254,7 @@ export function SfProduct({
                   return (
                     <button
                       key={v.id}
-                      onClick={() => setVariant(v)}
+                      onClick={() => pickVariant(v)}
                       disabled={vSoldOut}
                       className={`rounded-xl border p-2.5 text-center transition ${
                         on ? "border-[#E11D2A] bg-[#FDECEC]" : "border-gray-200"
@@ -254,15 +277,18 @@ export function SfProduct({
           <div className="mt-4 flex items-center justify-between">
             <div className="text-[13px] font-bold text-gray-900">Kuantiti</div>
             <div className="flex items-center gap-2 bg-[#F4F6F5] rounded-full p-1">
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="h-8 w-8 grid place-items-center rounded-full bg-white text-gray-900" aria-label="Kurang">
+              <button onClick={() => changeQty((q) => Math.max(1, q - 1))} className="h-8 w-8 grid place-items-center rounded-full bg-white text-gray-900" aria-label="Kurang">
                 <Minus className="h-4 w-4" />
               </button>
               <span className="text-[15px] font-extrabold text-gray-900 w-6 text-center">{qty}</span>
-              <button onClick={() => setQty((q) => q + 1)} className="h-8 w-8 grid place-items-center rounded-full bg-white text-gray-900" aria-label="Tambah">
+              <button onClick={() => changeQty((q) => q + 1)} className="h-8 w-8 grid place-items-center rounded-full bg-white text-gray-900" aria-label="Tambah">
                 <Plus className="h-4 w-4" />
               </button>
             </div>
           </div>
+
+          {/* Anggaran penghantaran ikut poskod (nasihat; disahkan semula di Checkout) */}
+          <SfDeliveryEstimate subtotal={total} shippable={product.is_shippable !== false} productName={cleanName} />
 
           {/* Benefit chips */}
           <div className="grid grid-cols-3 gap-2 mt-4">
@@ -289,7 +315,7 @@ export function SfProduct({
             <ProductReviews productId={product.id} reviews={reviews} canReview={canReview} />
           </div>
 
-          {/* Produk berkaitan — kategori sama */}
+          {/* Produk berkaitan — selalu dibeli bersama (fallback: paling laku / kategori sama) */}
           {related.length > 0 && (
             <div className="mt-6 border-t border-gray-100 pt-5">
               <div className="text-[14px] font-extrabold text-gray-900 mb-2.5">Anda mungkin suka</div>
@@ -335,16 +361,36 @@ export function SfProduct({
         </div>
       </div>
 
-      {/* Sticky add bar — kuantiti dikawal di atas; bar ni fokus jumlah + tambah */}
+      {/* Sticky add bar — kuantiti dikawal di atas; bar ni fokus jumlah + tambah.
+          Selepas tambah: "Lihat Troli · RM{jumlah}" (page ni luar SfShell — tiada badge troli). */}
       <div className="fixed bottom-0 inset-x-0 z-30 bg-white border-t border-gray-200 px-4 py-3">
         <div className="max-w-2xl mx-auto">
-          <button
-            onClick={add}
-            disabled={soldOut}
-            className="w-full bg-[#E11D2A] text-white rounded-xl py-3.5 text-[15px] font-bold shadow-[0_6px_16px_rgba(225,29,42,0.32)] active:scale-[0.98] transition disabled:opacity-40 disabled:shadow-none"
-          >
-            {soldOut ? "Habis stok" : `Tambah ke Troli · RM${total.toFixed(2)}`}
-          </button>
+          {added && cartCount > 0 ? (
+            <div className="flex gap-2" data-testid="added-bar">
+              <button
+                type="button"
+                onClick={() => setAdded(false)}
+                className="flex-1 rounded-xl border border-gray-200 bg-white py-3.5 text-[14px] font-bold text-gray-900 active:scale-[0.98] transition"
+              >
+                Tambah lagi
+              </button>
+              <Link
+                href="/cart"
+                className="flex-[1.6] inline-flex items-center justify-center gap-2 bg-[#E11D2A] text-white rounded-xl py-3.5 text-[15px] font-bold shadow-[0_6px_16px_rgba(225,29,42,0.32)] active:scale-[0.98] transition"
+              >
+                <ShoppingBag className="h-4 w-4" aria-hidden />
+                Lihat Troli ({cartCount}) · RM{cartTotal.toFixed(2)}
+              </Link>
+            </div>
+          ) : (
+            <button
+              onClick={add}
+              disabled={soldOut}
+              className="w-full bg-[#E11D2A] text-white rounded-xl py-3.5 text-[15px] font-bold shadow-[0_6px_16px_rgba(225,29,42,0.32)] active:scale-[0.98] transition disabled:opacity-40 disabled:shadow-none"
+            >
+              {soldOut ? "Habis stok" : `Tambah ke Troli · RM${total.toFixed(2)}`}
+            </button>
+          )}
         </div>
       </div>
     </div>

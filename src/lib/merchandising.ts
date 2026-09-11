@@ -1,4 +1,5 @@
-// Merchandising untuk homepage — "Paling Laku", "Baru Masuk" & chip kategori.
+// Merchandising untuk homepage — "Paling Laku", "Baru Masuk" & chip kategori —
+// serta halaman produk: unit terjual (bukti sosial) & "selalu dibeli bersama".
 //
 // Server-only (guna service-role client). Semua fungsi di-cache 10 minit dengan
 // unstable_cache (tag `products`) supaya home tak bebankan DB — IO Supabase ketat.
@@ -297,6 +298,135 @@ export async function getCategoryChips(): Promise<CategoryChip[]> {
     return await cachedCategoryChips()
   } catch (e) {
     console.error('[merchandising] getCategoryChips gagal:', e)
+    return []
+  }
+}
+
+// ── Halaman produk (PDP) ───────────────────────────────────────
+
+// Cache Map sebagai entri [id, unit] — unstable_cache perlu nilai boleh-JSON.
+// Dikongsi SEMUA PDP (satu tarikan order 30 hari setiap 10 minit, bukan per produk).
+const cachedUnitsSoldEntries = unstable_cache(
+  async (): Promise<[string, number][]> => {
+    const sb = createAdminClient()
+    return [...(await fetchUnitsSold(sb)).entries()]
+  },
+  ['units-sold-30d'],
+  { revalidate: CACHE_SECONDS, tags: ['products'] },
+)
+
+/** Unit terjual 30 hari untuk satu produk (bukti sosial PDP — nombor sebenar). 0 jika tiada/gagal. */
+export async function getUnitsSold30d(productId: string): Promise<number> {
+  try {
+    const entries = await cachedUnitsSoldEntries()
+    return entries.find(([id]) => id === productId)?.[1] ?? 0
+  } catch (e) {
+    console.error('[merchandising] getUnitsSold30d gagal:', e)
+    return 0
+  }
+}
+
+const BOUGHT_TOGETHER_DAYS = 90
+const CO_ORDERS_MAX = 1000 // had order per sumber (order terbaru dahulu)
+
+type CoOrderRow = { id: string; all: { product_id: string | null }[] | null }
+type CoLpRow = { items: { product_id?: string | null }[] | null }
+
+// Berapa order (90 hari) yang mengandungi produk ini BERSAMA setiap produk lain.
+// Sumber: order_items (storefront — satu query, embed beralias `mine` tapis order
+// yang ada produk ini, `all` senarai penuh item order) + lp_guest_orders.items
+// (LP / CRM / Quick Order — jsonb `@>`). Order cancelled/refunded tak dikira.
+async function fetchCoOccurrence(sb: Sb, productId: string): Promise<Map<string, number>> {
+  const since = isoDaysAgo(BOUGHT_TOGETHER_DAYS)
+  const co = new Map<string, number>()
+  const bump = (ids: (string | null | undefined)[]) => {
+    for (const id of new Set(ids)) {
+      if (!id || id === productId) continue
+      co.set(id, (co.get(id) ?? 0) + 1)
+    }
+  }
+
+  const [{ data: orders, error: oErr }, { data: lp, error: lErr }] = await Promise.all([
+    sb
+      .from('orders')
+      .select('id, mine:order_items!inner(product_id), all:order_items(product_id)')
+      .eq('mine.product_id', productId)
+      .gte('created_at', since)
+      .not('status', 'in', '("cancelled","refunded")')
+      .order('created_at', { ascending: false })
+      .limit(CO_ORDERS_MAX),
+    sb
+      .from('lp_guest_orders')
+      .select('items')
+      .contains('items', JSON.stringify([{ product_id: productId }]))
+      .gte('created_at', since)
+      .not('status', 'in', '("cancelled","refunded")')
+      .order('created_at', { ascending: false })
+      .limit(CO_ORDERS_MAX),
+  ])
+  if (oErr) console.error('[merchandising] co-occurrence orders gagal:', oErr.message)
+  if (lErr) console.error('[merchandising] co-occurrence lp gagal:', lErr.message)
+
+  for (const o of (orders ?? []) as unknown as CoOrderRow[]) bump((o.all ?? []).map((it) => it.product_id))
+  for (const o of (lp ?? []) as unknown as CoLpRow[]) {
+    if (Array.isArray(o.items)) bump(o.items.map((it) => it.product_id))
+  }
+  return co
+}
+
+const cachedBoughtTogether = unstable_cache(
+  async (productId: string, categoryId: string | null, limit: number): Promise<MerchProduct[]> => {
+    const sb = createAdminClient()
+    const co = await fetchCoOccurrence(sb, productId)
+    const coIds = [...co.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, Math.max(limit * 4, 16))
+      .map(([id]) => id)
+    const picked = (await fetchInStockProducts(sb, coIds)).slice(0, limit)
+    if (picked.length >= limit || !categoryId) return picked
+
+    // Fallback / top-up: paling laku (30 hari) dalam kategori sama.
+    let units: Map<string, number>
+    try {
+      units = new Map(await cachedUnitsSoldEntries())
+    } catch {
+      units = await fetchUnitsSold(sb)
+    }
+    const { data: cat } = await sb
+      .from('products')
+      .select('id')
+      .eq('category_id', categoryId)
+      .eq('is_active', true)
+      .eq('show_in_storefront', true)
+      .neq('id', productId)
+      .limit(PAGE_SIZE)
+    const have = new Set(picked.map((p) => p.id))
+    const catIds = ((cat ?? []) as { id: string }[])
+      .map((r) => r.id)
+      .filter((id) => !have.has(id))
+      .sort((a, b) => (units.get(b) ?? 0) - (units.get(a) ?? 0))
+      .slice(0, Math.max(limit * 4, 16))
+    const extra = await fetchInStockProducts(sb, catIds)
+    return [...picked, ...extra].slice(0, limit)
+  },
+  ['pdp-bought-together'],
+  { revalidate: CACHE_SECONDS, tags: ['products'] },
+)
+
+/**
+ * Produk yang selalu dibeli bersama (co-occurrence order 90 hari: order_items +
+ * lp_guest_orders.items) — aktif, storefront, stok > 0. Kurang daripada `limit`
+ * → ditambah dengan paling laku kategori sama (`categoryId`). Cache 10 minit.
+ */
+export async function getBoughtTogether(
+  productId: string,
+  limit = 4,
+  categoryId: string | null = null,
+): Promise<MerchProduct[]> {
+  try {
+    return await cachedBoughtTogether(productId, categoryId, limit)
+  } catch (e) {
+    console.error('[merchandising] getBoughtTogether gagal:', e)
     return []
   }
 }
