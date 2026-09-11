@@ -46,7 +46,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   const [fetchingFee, setFetchingFee] = useState(false)
   const [postcodeBlocked, setPostcodeBlocked] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<{ order_number: string; total: number; payment_method: string } | null>(null)
+  const [result, setResult] = useState<{ order_number: string; total: number; payment_method: string; needs_approval?: boolean } | null>(null)
   // Penghantaran vs ambil sendiri (pickup)
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
@@ -80,11 +80,12 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   const total = Math.max(0, subtotal + fee - discount - ptsDiscount)
 
   useEffect(() => {
-    fetch('/api/lp/payment-methods').then(r => r.json()).then((ms: PaymentMethod[]) => {
+    // ?slug= — LP boleh ada senarai kaedah bayaran sendiri (migration 132)
+    fetch(`/api/lp/payment-methods?slug=${encodeURIComponent(slug)}`).then(r => r.json()).then((ms: PaymentMethod[]) => {
       setPaymentMethods(ms)
       if (ms.length > 0) setPaymentMethod(ms[0].id)
     }).catch(() => {})
-  }, [])
+  }, [slug])
 
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); setPostcodeBlocked(false); return }
@@ -160,7 +161,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
       const data = await res.json()
       if (!res.ok) { toast.error(data.error ?? 'Gagal buat pesanan'); return }
       if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
-      setResult({ order_number: data.order_number, total: data.total, payment_method: paymentMethod })
+      setResult({ order_number: data.order_number, total: data.total, payment_method: paymentMethod, needs_approval: !!data.needs_approval })
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally { setSubmitting(false) }
   }
@@ -202,7 +203,11 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
           <CheckCircle style={{ width: 32, height: 32, color: '#fff' }} />
         </div>
         <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, color: '#fff', marginBottom: 4 }}>Pesanan Diterima!</p>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Team kami akan hubungi anda untuk pengesahan bayaran</p>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+          {result.needs_approval
+            ? 'Pesanan COD anda sedang disemak. Team kami akan hubungi anda untuk sahkan sebelum barang dihantar.'
+            : 'Team kami akan hubungi anda untuk pengesahan bayaran'}
+        </p>
       </div>
       <div style={{ padding: '20px 20px 24px' }}>
         <div style={{ background: cv('--cherry-light', '#fef2f2'), borderRadius: 14, padding: 16, marginBottom: 16 }}>

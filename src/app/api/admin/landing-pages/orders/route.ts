@@ -4,6 +4,8 @@ import { awardLpLoyalty } from '@/lib/lp-loyalty'
 import { reverseLpLoyalty } from '@/lib/loyalty-reverse'
 import { restoreLpOrderStock } from '@/lib/stock'
 import { sendLpReviewRequest } from '@/lib/order-delivered'
+import { deductLpOrderStock } from '@/lib/stock'
+import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { canTransition, transitionError } from '@/lib/order-status'
 import { NextResponse } from 'next/server'
 
@@ -15,17 +17,25 @@ export async function GET(request: Request) {
   const pageId = url.searchParams.get('page_id')
   const status = url.searchParams.get('status')
 
-  let query = supabase!
-    .from('lp_guest_orders')
-    .select('id, order_number, name, phone, address, postcode, product_name, variant_name, quantity, unit_price, delivery_fee, total, payment_method, payment_status, status, notes, source, created_at, landing_pages(title, slug)')
-    .order('created_at', { ascending: false })
-    .limit(100)
+  const BASE = 'id, order_number, name, phone, address, postcode, product_name, variant_name, quantity, unit_price, delivery_fee, total, payment_method, payment_status, status, notes, source, created_at, landing_pages(title, slug)'
 
-  if (pageId) query = query.eq('page_id', pageId)
-  if (status) query = query.eq('status', status)
-  else query = query.not('status', 'in', '(delivered,cancelled,refunded)')
+  const run = (cols: string) => {
+    let q = supabase!
+      .from('lp_guest_orders')
+      .select(cols)
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (pageId) q = q.eq('page_id', pageId)
+    if (status) q = q.eq('status', status)
+    else q = q.not('status', 'in', '(delivered,cancelled,refunded)')
+    return q
+  }
 
-  const { data, error } = await query
+  // needs_approval hanya wujud selepas migration 132 — jatuh balik bila tiada.
+  let { data, error } = await run(`${BASE}, needs_approval`)
+  if (error && ['42703', 'PGRST204'].includes(error.code ?? '')) {
+    ;({ data, error } = await run(BASE))
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Hide unpaid online (FPX/e-wallet) orders — customer opened the payment page but
@@ -37,13 +47,82 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { supabase, forbidden } = await requireAdmin()
+  const { supabase, user, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
 
   const body = await request.json()
-  const { id, status, payment_status, name, phone, address, postcode, notes, courier_id, tracking_number, tracking_url, shipment_notes, delivery_fee } = body
+  const { id, action, status, payment_status, name, phone, address, postcode, notes, courier_id, tracking_number, tracking_url, shipment_notes, delivery_fee } = body
 
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  // ── Kelulusan COD dari LP (migration 132) ─────────────────────────
+  // Order COD masuk sebagai menunggu kelulusan: stok, mata, kiraan promo dan
+  // e-mel pengesahan semuanya DITANGGUH sampai di sini. Tolak = tiada apa yang
+  // perlu dipulangkan kerana tiada apa yang pernah ditolak.
+  if (action === 'approve' || action === 'reject') {
+    const { data: o, error: loadErr } = await supabase!
+      .from('lp_guest_orders')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (loadErr || !o) return NextResponse.json({ error: 'Pesanan tidak dijumpai' }, { status: 404 })
+    if (!o.needs_approval) return NextResponse.json({ error: 'Pesanan tidak memerlukan kelulusan' }, { status: 400 })
+
+    if (action === 'reject') {
+      const { error } = await supabase!.from('lp_guest_orders').update({
+        status: 'cancelled',
+        needs_approval: false,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: true, action: 'reject' })
+    }
+
+    // Lulus: potong stok dahulu — kalau tak cukup, beritahu admin tapi teruskan
+    // (sama dengan kelakuan kelulusan order ahli; admin hubungi pelanggan).
+    const stockResult = await deductLpOrderStock(supabase!, id)
+
+    if (o.promo_code_id) {
+      await supabase!.rpc('increment_promo_uses', { promo_id: o.promo_code_id })
+    }
+    if (Number(o.points_used) > 0 && o.user_id) {
+      await supabase!.from('loyalty_transactions').insert({
+        user_id: o.user_id, order_id: null, points: -Number(o.points_used), type: 'redeem',
+        description: `Redeem ${o.points_used} mata untuk LP ${o.order_number}`,
+      })
+      await supabase!.rpc('increment_points', { uid: o.user_id, pts: -Number(o.points_used) })
+    }
+
+    const { error } = await supabase!.from('lp_guest_orders').update({
+      status: 'confirmed',
+      needs_approval: false,
+      approved_at: new Date().toISOString(),
+      approved_by: user?.id ?? null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // E-mel pengesahan hanya sekarang — pelanggan tidak dapat pengesahan untuk
+    // order yang belum diluluskan.
+    if (o.email) {
+      const items = Array.isArray(o.items) && o.items.length > 0
+        ? (o.items as { product_name: string; quantity: number; unit_price: number; variant_name?: string | null }[])
+        : [{ product_name: o.product_name, quantity: o.quantity, unit_price: Number(o.unit_price), variant_name: o.variant_name }]
+      sendOrderConfirmationEmail({
+        to: o.email,
+        customerName: o.name,
+        orderNumber: o.order_number,
+        items: items.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
+        total: Number(o.total),
+        deliveryAddress: o.address,
+        deliverySlot: null,
+        paymentMethod: o.payment_method,
+        notes: o.notes ?? null,
+      }).catch(() => {})
+    }
+
+    return NextResponse.json({ ok: true, action: 'approve', stock: stockResult })
+  }
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 

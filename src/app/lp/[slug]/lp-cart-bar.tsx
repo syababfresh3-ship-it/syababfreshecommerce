@@ -30,7 +30,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null)
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [orderResult, setOrderResult] = useState<{ order_number: string; total: number } | null>(null)
+  const [orderResult, setOrderResult] = useState<{ order_number: string; total: number; needs_approval?: boolean } | null>(null)
   // Penghantaran vs ambil sendiri (pickup)
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
@@ -87,7 +87,8 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
     setOrderResult(null)
     setOpen(true)
     if (paymentMethods.length === 0) {
-      const res = await fetch('/api/lp/payment-methods')
+      // ?slug= — LP boleh ada senarai kaedah bayaran sendiri (migration 132)
+      const res = await fetch(`/api/lp/payment-methods?slug=${encodeURIComponent(slug)}`)
       const methods: PaymentMethod[] = await res.json()
       setPaymentMethods(methods)
       if (methods.length > 0 && !form.payment_method) {
@@ -388,7 +389,11 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>
                 <h2 className="text-xl font-black text-gray-900 mb-1">Pesanan Diterima!</h2>
-                <p className="text-sm text-gray-500 mb-6">Team kami akan hubungi anda untuk pengesahan.</p>
+                <p className="text-sm text-gray-500 mb-6">
+                  {orderResult?.needs_approval
+                    ? 'Pesanan COD anda sedang disemak. Team kami akan hubungi anda untuk sahkan sebelum barang dihantar.'
+                    : 'Team kami akan hubungi anda untuk pengesahan.'}
+                </p>
                 <div className="w-full bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm text-left mb-6">
                   <div className="flex justify-between">
                     <span className="text-gray-500">No. Pesanan</span>

@@ -8,10 +8,16 @@ import { rateLimit } from '@/lib/rate-limit'
 import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
+import { lpPaymentMethods, lpOrderNeedsApproval } from '@/lib/lp-payment'
 import { NextResponse } from 'next/server'
 
+// Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
+// disahkan selepas halaman dimuat (lib/lp-payment). Dulu hanya senarai ini yang
+// disemak, jadi POST terus boleh pilih COD walaupun ia dimatikan di admin.
 const VALID_PAYMENT = ['cod', 'bank_transfer', 'fpx', 'ewallet']
 const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
+// PostgREST bila kolum belum wujud (migration 132 belum dijalankan)
+const MISSING_COLUMN = new Set(['42703', 'PGRST204'])
 
 function getAppUrl() {
   const explicit = process.env.NEXT_PUBLIC_APP_URL
@@ -102,6 +108,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .eq('is_active', true)
     .single()
   if (!page) return NextResponse.json({ error: 'Halaman tidak dijumpai' }, { status: 404 })
+
+  // Kaedah bayaran mesti dibenarkan untuk LP INI (senarai khas LP, atau tetapan
+  // sejagat bila tiada). Menutup lubang POST terus — borang menyembunyikan pilihan
+  // yang dimatikan, tetapi dahulu pelayan tetap menerimanya.
+  const allowedMethods = await lpPaymentMethods(supabase, slug)
+  if (allowedMethods.length > 0 && !allowedMethods.some(m => m.id === payment_method)) {
+    return NextResponse.json({ error: 'Kaedah bayaran tidak tersedia untuk halaman ini' }, { status: 400 })
+  }
+  // COD dari LP → menunggu kelulusan admin (elak order palsu, migration 132).
+  const needsApproval = lpOrderNeedsApproval(payment_method)
 
   // Validate all products + get server-side prices
   const productIds = [...new Set((items as OrderItem[]).filter(i => !i.variant_id).map(i => i.product_id))]
@@ -242,9 +258,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // First item for backward compat columns (nullable now)
   const first = validatedItems[0]
 
-  const { data: order, error } = await supabase
-    .from('lp_guest_orders')
-    .insert({
+  const orderRow: Record<string, unknown> = {
       order_number: orderNumber,
       page_id: page.id,
       client_ip: ip,
@@ -272,11 +286,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       payment_method,
       source: source?.trim().slice(0, 100) || null,
       items: validatedItems,
-    })
+      ...(needsApproval ? { needs_approval: true } : {}),
+  }
+
+  const insertOrder = () => supabase
+    .from('lp_guest_orders')
+    .insert(orderRow)
     .select('id, order_number, total, delivery_fee')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  let { data: order, error } = await insertOrder()
+  // Migration 132 belum dijalankan → kolum needs_approval tiada. Ulang tanpa
+  // kolum itu dan teruskan seperti kelakuan lama (tiada pintu kelulusan).
+  let approvalPending = needsApproval
+  if (error && MISSING_COLUMN.has(error.code ?? '') && needsApproval) {
+    delete orderRow.needs_approval
+    approvalPending = false
+    ;({ data: order, error } = await insertOrder())
+  }
+
+  if (error || !order) return NextResponse.json({ error: error?.message ?? 'Gagal cipta pesanan' }, { status: 500 })
 
   // CRM master — daftar/segar kenalan ikut phone (best-effort, tak block order)
   upsertCustomer({
@@ -333,6 +362,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
 
     return NextResponse.json({ checkoutUrl: chipData.checkout_url, order_number: order.order_number })
+  }
+
+  // Menunggu kelulusan admin (COD dari LP): JANGAN potong stok, jangan naikkan
+  // kiraan promo, jangan tebus mata dan jangan hantar e-mel pengesahan. Semuanya
+  // dibuat dalam PATCH admin bila order diluluskan. Kalau ditolak, tiada apa yang
+  // perlu dipulangkan. Sama dengan pintu order pertama ahli storefront.
+  if (approvalPending) {
+    return NextResponse.json({
+      ok: true,
+      needs_approval: true,
+      order_number: order.order_number,
+      total: order.total,
+      delivery_fee: order.delivery_fee,
+      payment_method,
+    })
   }
 
   // COD / bank_transfer — promo uses naik sekarang (FPX dikira dalam webhook selepas bayar)
