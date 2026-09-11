@@ -1,6 +1,7 @@
 // P&L Website — untung rugi channel website dari order sebenar (paid) ikut julat tarikh.
 // Revenue − Kos Buah − Packaging − Kurier − Lain − Gateway − Kos Operasi = Untung Bersih.
 import Link from 'next/link'
+import { fetchAdSpend, computeRoas, type RoasOrder } from '@/lib/roas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   parseSettings, costLookup, computeOrderPnl, fmtRM, type VariantCost,
@@ -171,8 +172,17 @@ export default async function PnlPage({
     waMetaError = true
   }
 
+  // Sprint 3 ROAS: perbelanjaan iklan SEBENAR (ad_spend, migration 130) untuk julat ini.
+  // Bila ada baris, ia menggantikan "Marketing (peruntukan)" dalam untung bersih;
+  // kalau jadual belum wujud / kosong → peruntukan lama dikekalkan.
+  const adSpendRows = await fetchAdSpend(supabase, from, to)
+  const adSpendActual = adSpendRows.reduce((s, r) => s + r.amount, 0)
+  const useActualAds = adSpendActual > 0
+  const marketingUsed = useActualAds ? adSpendActual : marketing
+  const roasSummary = useActualAds ? computeRoas(adSpendRows, lpOrders as unknown as RoasOrder[]) : null
+
   const untungKasar = revenue - cogs
-  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketing - kosOperasi - waMetaCost
+  const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketingUsed - kosOperasi - waMetaCost
   const marginBersih = revenue > 0 ? (untungBersih / revenue) * 100 : 0
   const totalOrder = orders.length + lpOrders.length
 
@@ -186,7 +196,9 @@ export default async function PnlPage({
     { label: 'Lain-lain (per unit)', value: lain },
     { label: 'Yuran Gateway (anggaran)', value: gateway },
     { label: 'Komisen Team Sale', value: salesTeam },
-    { label: 'Marketing (peruntukan)', value: marketing },
+    useActualAds
+      ? { label: `Iklan (sebenar, ad_spend${roasSummary?.roas != null ? ` · ROAS ${roasSummary.roas.toFixed(2)}x` : ''})`, value: adSpendActual }
+      : { label: 'Marketing (peruntukan)', value: marketing },
     { label: 'Kos Operasi (trip/pekerja/dll)', value: kosOperasi },
     { label: 'Kos WhatsApp (sebenar Meta)', value: waMetaCost },
   ]

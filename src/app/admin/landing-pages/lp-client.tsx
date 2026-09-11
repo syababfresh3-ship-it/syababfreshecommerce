@@ -85,6 +85,7 @@ interface LpPerf {
   id: string; title: string; slug: string; is_active: boolean; created_at: string
   views: number; leads: number; orders: number; confirmed_orders: number
   revenue: number; revenue_paid: number; aov: number; order_rate: number; lead_rate: number
+  spend?: number; roas?: number | null
 }
 
 const STATUS_CONFIG = {
@@ -1351,6 +1352,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           { col: 'revenue', label: 'Revenue (Sah)' },
                           { col: 'revenue_paid', label: 'Dah Bayar' },
                           { col: 'aov', label: 'AOV' },
+                          { col: 'spend', label: 'Ad Spend' },
+                          { col: 'roas', label: 'ROAS' },
                         ] as { col: keyof LpPerf; label: string }[]).map(h => (
                           <th key={h.col}
                             className="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wide cursor-pointer hover:text-gray-900 select-none"

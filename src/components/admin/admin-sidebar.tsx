@@ -70,6 +70,7 @@ const sections = [
       { href: '/admin/referrals',      label: 'Referrals',    icon: Gift },
       { href: '/admin/affiliates',     label: 'Affiliate',  icon: DollarSign },
       { href: '/admin/marketing',      label: 'Ad Tracking', icon: Megaphone },
+      { href: '/admin/marketing/ads',  label: 'Ad Spend & ROAS', icon: TrendingUp },
       { href: '/admin/broadcast',       label: 'Broadcast WA',   icon: MessageSquare },
       { href: '/admin/landing-pages',  label: 'Landing Pages',  icon: Globe },
       { href: '/admin/media',          label: 'Media Library',  icon: Image },
