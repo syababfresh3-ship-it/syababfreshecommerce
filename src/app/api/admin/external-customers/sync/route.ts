@@ -3,7 +3,7 @@
 // Logik di lib/external-sync. ONE-WAY, additive. Tak sentuh /api/admin/tiktok-sync.
 // ============================================================
 export const runtime = "nodejs";
-export const maxDuration = 120;
+export const maxDuration = 300;  // ops/api/sync sendiri ambil ~40s (18MB, 38k pelanggan)
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +24,8 @@ export async function POST() {
   const { user, sb } = await auth();
   if (!user || !sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const r = await syncExternalCustomers(sb);
+  // Manual = mod PENUH (cron harian tokokan). Jalan keluar kalau ada baris terlepas.
+  const r = await syncExternalCustomers(sb, { full: true });
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status ?? 500 });
   return NextResponse.json(r);
 }

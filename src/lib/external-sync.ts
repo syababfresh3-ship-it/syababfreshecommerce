@@ -5,6 +5,8 @@
 // (manual, admin) & /api/cron/external-sync (auto, cron-job.org). One-way, additive.
 // ============================================================
 
+import { fetchAll } from "@/lib/supabase/fetch-all";
+
 const OPS_URL = process.env.OPS_APP_URL ?? "https://manage.syababfresh.my";
 const SYNC_SECRET = process.env.SYNC_SECRET ?? "";
 
@@ -23,7 +25,24 @@ function cleanPhone(raw: string): string {
   return d;
 }
 
-export async function syncExternalCustomers(sb: SB): Promise<{ ok: boolean; synced?: number; contacts?: number; total?: number; error?: string; status?: number }> {
+export interface SyncResult {
+  ok: boolean;
+  synced?: number;      // baris yang benar-benar dihantar ke DB
+  contacts?: number;
+  total?: number;       // jumlah pelanggan dari ops
+  unchanged?: number;   // dilangkau kerana tiada perubahan
+  ms?: number;
+  dry?: boolean;
+  full?: boolean;
+  error?: string;
+  status?: number;
+}
+
+// opts.full — abaikan pembandingan dan hantar SEMUA baris (pemulihan penuh).
+// Cron guna mod tokokan; butang sync manual di admin guna mod penuh supaya ada
+// jalan keluar kalau tag wa_contacts atau baris pernah terlepas.
+export async function syncExternalCustomers(sb: SB, opts: { dry?: boolean; full?: boolean } = {}): Promise<SyncResult> {
+  const t0 = Date.now();
   if (!SYNC_SECRET) return { ok: false, error: "SYNC_SECRET tidak diset.", status: 503 };
 
   let data: { customers?: OpsCustomer[] } | null = null;
@@ -64,23 +83,59 @@ export async function syncExternalCustomers(sb: SB): Promise<{ ok: boolean; sync
     }
   }
   const customers = [...merged.values()];
-  if (customers.length === 0) return { ok: true, synced: 0, contacts: 0, total: 0 };
+  if (customers.length === 0) return { ok: true, synced: 0, contacts: 0, total: 0, unchanged: 0, ms: Date.now() - t0 };
 
   const CHUNK = 500;
 
+  // ── Hantar yang BERUBAH sahaja ────────────────────────────────────────────
+  // Dulu semua ~38k baris dihantar setiap kali (78 panggilan RPC + 150 lagi untuk
+  // tag) — bersama fetch ops yang ambil ~40s, invocation tak pernah habis dan
+  // heartbeat tak pernah dicop. Agregat ops jarang berubah antara hari, jadi kita
+  // baca keadaan semasa dahulu dan langkau baris yang serupa.
+  type Existing = { phone: string; name: string | null; order_count: number; total_spend: number; last_order_at: string | null };
+  const existingRows = await fetchAll<Existing>(
+    (from, to) => sb.from("external_customers")
+      .select("phone, name, order_count, total_spend, last_order_at")
+      .eq("channel", "ops")
+      .order("phone")
+      .range(from, to),
+    "external-sync:existing",
+  );
+  const existing = new Map(existingRows.map((r) => [r.phone, r]));
+
+  const same = (a: Agg, b: Existing) =>
+    (a.name || null) === (b.name || null) &&
+    Number(a.order_count) === Number(b.order_count) &&
+    Math.abs(Number(a.total_spend) - Number(b.total_spend)) < 0.005 &&
+    new Date(a.last_order_at ?? 0).getTime() === new Date(b.last_order_at ?? 0).getTime();
+
+  const changed = opts.full ? customers : customers.filter((c) => {
+    const e = existing.get(c.phone);
+    return !e || !same(c, e);
+  });
+  const unchanged = customers.length - changed.length;
+
+  if (opts.dry) {
+    return { ok: true, dry: true, synced: 0, contacts: 0, total: customers.length, unchanged, full: !!opts.full, ms: Date.now() - t0 };
+  }
+  if (changed.length === 0) {
+    return { ok: true, synced: 0, contacts: 0, total: customers.length, unchanged, ms: Date.now() - t0 };
+  }
+
   // 1) external_customers — agregat PENUH, satu baris per phone (channel='ops').
   let synced = 0;
-  for (let i = 0; i < customers.length; i += CHUNK) {
-    const { data: n, error } = await sb.rpc("upsert_external_customers", { p_rows: customers.slice(i, i + CHUNK), p_channel: "ops" });
+  for (let i = 0; i < changed.length; i += CHUNK) {
+    const { data: n, error } = await sb.rpc("upsert_external_customers", { p_rows: changed.slice(i, i + CHUNK), p_channel: "ops" });
     if (error) return { ok: false, error: error.message, status: 500 };
     synced += Number(n ?? 0);
   }
 
   // 2) wa_contacts — tag 'tiktok' (ada order tiktok) / 'website'. Best-effort.
+  //    Hanya pelanggan yang berubah — tag untuk yang lain sudah dipasang run lepas.
   let contacts = 0;
   const tagSets: [string, { wa_id: string; name: string }[]][] = [
-    ["tiktok", customers.filter((c) => c.hasNum).map((c) => ({ wa_id: c.phone, name: c.name }))],
-    ["website", customers.filter((c) => c.hasAlpha).map((c) => ({ wa_id: c.phone, name: c.name }))],
+    ["tiktok", changed.filter((c) => c.hasNum).map((c) => ({ wa_id: c.phone, name: c.name }))],
+    ["website", changed.filter((c) => c.hasAlpha).map((c) => ({ wa_id: c.phone, name: c.name }))],
   ];
   try {
     for (const [tag, rows] of tagSets) {
@@ -91,5 +146,5 @@ export async function syncExternalCustomers(sb: SB): Promise<{ ok: boolean; sync
     }
   } catch { /* abaikan */ }
 
-  return { ok: true, synced, contacts, total: customers.length };
+  return { ok: true, synced, contacts, total: customers.length, unchanged, ms: Date.now() - t0 };
 }

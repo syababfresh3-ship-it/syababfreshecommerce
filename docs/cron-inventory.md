@@ -13,7 +13,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | blast-drain | `/api/cron/blast-drain` | Drain campaign WA Blast (ReplyLa) | tiap ~15 min | cron-job.org |
 | wa-outbox-drain | `/api/cron/wa-outbox-drain` | Drain queue WA outbox (12/tick) | tiap ~15 min | cron-job.org |
 | auto-deliver | `/api/cron/auto-deliver` | delivering→delivered lepas N hari + kredit loyalty/referral/affiliate | harian | cron-job.org |
-| external-sync | `/api/cron/external-sync` | Sync pembeli TikTok dari ops app → contacts | harian (03:00) | cron-job.org |
+| external-sync | `/api/cron/external-sync` | Sync pembeli TikTok dari ops app → contacts (balas 200 serta-merta, kerja sambung di `after()`; `?dry=1` untuk kiraan sahaja) | harian (03:00) | cron-job.org |
 | payment-reminder | `/api/cron/payment-reminder` | Email order FPX belum bayar 1-24j | tiap ~2 jam | cron-job.org |
 | refresh-customers | `/api/cron/refresh-customers` | Kira semula agregat customer (spend/recency) | harian, lepas 01:00 | cron-job.org |
 | voucher-reminder | `/api/cron/voucher-reminder` | Email voucher peribadi luput ≤7 hari (sekali/voucher) | harian (~10:00) | cron-job.org |
@@ -108,3 +108,33 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 
 Nota: `.env.local` menyambung ke DB + ZeptoMail **production** — jangan panggil
 tanpa `dry=1` di local melainkan memang mahu hantar email sebenar.
+
+## external-sync — kenapa ia pernah "senyap" (dibaiki 11 Sep 2026)
+
+`manage.syababfresh.my/api/sync` pulangkan **18 MB / ~38k pelanggan** dan ambil
+**~40 saat**. Had timeout cron-job.org ialah 30 saat, jadi job sentiasa dilapor
+gagal; invocation pula tak sempat habis kerana selepas fetch ia menghantar SEMUA
+38k baris (75+ panggilan RPC, plus ~150 lagi untuk tag wa_contacts). Akibatnya
+`stampHeartbeat` tak pernah dipanggil — dashboard tunjuk "CRON SENYAP" walaupun
+`last_error` kosong.
+
+Dua pembetulan:
+
+1. **Balas dahulu, kerja kemudian** — handler pulangkan `{ ok: true, started: true }`
+   serta-merta dan sambung kerja dalam `after()` (Next 16). cron-job.org tak lagi
+   timeout. Heartbeat dicop bila kerja betul-betul siap. `maxDuration` 300s.
+2. **Hantar yang berubah sahaja** — baca `external_customers` sedia ada dahulu,
+   banding, dan upsert baris yang berbeza sahaja. Dalam praktik ~20 baris sehari
+   berbanding 37k. Tag `wa_contacts` pun hanya untuk baris yang berubah.
+
+Uji tanpa menulis apa-apa:
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  'https://shop.syababfresh.my/api/cron/external-sync?dry=1'
+# {"ok":true,"dry":true,"total":37280,"unchanged":37263,"ms":20830}
+```
+
+Nota: `stampHeartbeat` tidak mengosongkan `last_error`, jadi ralat lama boleh
+kekal dalam baris walaupun job sudah sihat. Dashboard & ringkasan harian hanya
+baca `last_ok_at`, jadi ia tidak menjejaskan amaran.
