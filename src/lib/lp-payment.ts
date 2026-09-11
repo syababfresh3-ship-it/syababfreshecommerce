@@ -66,3 +66,18 @@ export async function lpPaymentMethods(sb: SB, slug: string | null): Promise<LpP
 export function lpOrderNeedsApproval(paymentMethod: string): boolean {
   return paymentMethod === 'cod';
 }
+
+// Bersihkan senarai kaedah bayaran dari borang admin: buang yang tidak wujud
+// dalam katalog, buang pendua, kekalkan susunan. Array kosong → null (ikut
+// tetapan sejagat). Dipakai oleh POST/PATCH /api/admin/landing-pages.
+export async function sanitizePaymentMethodIds(sb: SB, value: unknown): Promise<string[] | null> {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value)) return null;
+  const wanted = value.filter((v): v is string => typeof v === 'string' && !!v.trim()).map(v => v.trim());
+  if (wanted.length === 0) return null;
+  const { data } = await sb.from('payment_methods').select('id');
+  const known = new Set(((data ?? []) as { id: string }[]).map(r => r.id));
+  const out: string[] = [];
+  for (const id of wanted) if (known.has(id) && !out.includes(id)) out.push(id);
+  return out.length > 0 ? out : null;
+}

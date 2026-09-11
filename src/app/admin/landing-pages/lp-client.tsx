@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown, Video } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown, Video, CreditCard, ShieldCheck, AlertTriangle } from 'lucide-react'
 import Image from 'next/image'
+import { createClient } from '@/lib/supabase/client'
 import { LpSectionBuilder } from './lp-section-builder'
 import { type Section } from '@/lib/lp-sections'
 import { DEFAULT_LIVE_CONFIG, validateLiveConfig, type LpLiveConfig, type LpTemplate } from '@/lib/lp-live'
@@ -24,6 +25,16 @@ interface LandingPage {
   template?: LpTemplate
   landing_page_leads?: { count: number }[]
 }
+
+// Katalog kaedah bayaran sejagat (table payment_methods) — rujukan borang LP.
+interface PaymentMethodRow {
+  id: string
+  label: string
+  sublabel: string | null
+  is_active: boolean
+  sort_order: number
+}
+
 
 interface Lead {
   id: string
@@ -61,6 +72,8 @@ interface LpOrder {
   source?: string | null
   created_at: string
   landing_pages?: { title: string; slug: string } | null
+  // migration 132 — undefined bila migration belum dijalankan (anggap false)
+  needs_approval?: boolean
 }
 
 interface Framework { id: string; name: string; description: string }
@@ -113,10 +126,45 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     meta_pixel_id: '', google_tag_id: '',
     template: 'classic' as LpTemplate,
     live_config: DEFAULT_LIVE_CONFIG as LpLiveConfig,
+    // migration 132 — kosong = ikut tetapan global (payment_methods.is_active)
+    payment_methods: [] as string[],
   })
+  // Kaedah bayaran (migration 132)
+  const [pmMode, setPmMode] = useState<'global' | 'custom'>('global')   // senarai kosong tak dapat bezakan dua mod ini
+  const [pmCatalog, setPmCatalog] = useState<PaymentMethodRow[]>([])
+  const [pmOverrides, setPmOverrides] = useState<Record<string, string[]>>({}) // page id → senarai khas (lencana senarai)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [showTracking, setShowTracking] = useState(false)
+
+  // Katalog kaedah bayaran — dibaca terus dengan klien Supabase pelayar
+  // (payment_methods ada polisi baca awam), sekali sahaja bila borang dibuka.
+  const loadPmCatalog = useCallback(async () => {
+    if (pmCatalog.length > 0) return
+    const { data } = await createClient()
+      .from('payment_methods')
+      .select('id, label, sublabel, is_active, sort_order')
+      .order('sort_order')
+    setPmCatalog((data ?? []) as PaymentMethodRow[])
+  }, [pmCatalog.length])
+
+  // Senarai khas setiap LP untuk lencana pada senarai page.
+  // GET /api/admin/landing-pages tidak memulangkan lajur ini, jadi dibaca berasingan.
+  // Senyap kalau migration 132 belum dijalankan.
+  useEffect(() => {
+    async function loadOverrides() {
+      const { data, error } = await createClient()
+        .from('landing_pages')
+        .select('id, payment_methods')
+      if (error || !data) return
+      const map: Record<string, string[]> = {}
+      for (const row of data as { id: string; payment_methods: string[] | null }[]) {
+        if (Array.isArray(row.payment_methods) && row.payment_methods.length > 0) map[row.id] = row.payment_methods
+      }
+      setPmOverrides(map)
+    }
+    loadOverrides().catch(() => {})
+  }, [])
 
   // Leads drawer
   const [leadsPage, setLeadsPage] = useState<LandingPage | null>(null)
@@ -277,6 +325,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [ordersFetched, setOrdersFetched] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
+  // Kelulusan COD dari LP (migration 132) — pengesahan sebaris, bukan dialog pelayar
+  const [confirmApproval, setConfirmApproval] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
+  const [oversoldOrders, setOversoldOrders] = useState<Set<string>>(new Set()) // diluluskan tapi stok tak cukup
 
   // All-leads tab
   const [allLeads, setAllLeads] = useState<(Lead & { landing_pages?: { title: string; slug: string } | null })[]>([])
@@ -442,9 +493,41 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     }
   }
 
+  // Lulus / Tolak order COD dari LP (migration 132).
+  // Lulus = stok ditolak, mata & kiraan promo dikemas kini, e-mel pengesahan dihantar.
+  // Tolak = order dibatalkan (tiada apa yang perlu dipulangkan, kerana tiada apa yang ditolak).
+  async function decideApproval(id: string, action: 'approve' | 'reject') {
+    setUpdatingOrder(id)
+    try {
+      const res = await fetch('/api/admin/landing-pages/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(data.error ?? 'Failed update'); return }
+
+      setConfirmApproval(null)
+      if (action === 'reject') {
+        toast.success('Order ditolak & dibatalkan')
+      } else if (data.stock === 'oversold') {
+        setOversoldOrders(prev => new Set(prev).add(id))
+        toast.error('Diluluskan, tetapi stok tidak mencukupi — hubungi pelanggan')
+      } else {
+        toast.success('Order diluluskan — stok, mata & e-mel pengesahan dilepaskan')
+      }
+
+      await loadOrders()
+    } finally {
+      setUpdatingOrder(null)
+    }
+  }
+
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', live_config: DEFAULT_LIVE_CONFIG })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [] })
+    setPmMode('global')
+    loadPmCatalog()
     setSections([])
     setEditorMode('blocks')
     setEditing(null)
@@ -460,17 +543,25 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       google_tag_id: page.google_tag_id ?? '',
       template: page.template === 'live' ? 'live' : 'classic',
       live_config: DEFAULT_LIVE_CONFIG,
+      payment_methods: pmOverrides[page.id] ?? [],
     })
+    setPmMode((pmOverrides[page.id] ?? []).length > 0 ? 'custom' : 'global')
+    loadPmCatalog()
     setSections([])
     setEditorMode('html')
     fetch(`/api/admin/landing-pages/${page.id}`)
       .then(r => r.json())
-      .then(d => setForm(f => ({
-        ...f,
-        html_content: d.html_content ?? '',
-        template: d.template === 'live' ? 'live' : 'classic',
-        live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
-      })))
+      .then(d => {
+        const pm: string[] = Array.isArray(d.payment_methods) ? d.payment_methods : []
+        setForm(f => ({
+          ...f,
+          html_content: d.html_content ?? '',
+          template: d.template === 'live' ? 'live' : 'classic',
+          live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
+          payment_methods: pm,
+        }))
+        setPmMode(pm.length > 0 ? 'custom' : 'global')
+      })
     setEditing(page)
     setCreating(false)
     setShowTracking(false)
@@ -500,6 +591,11 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       const err = validateLiveConfig(form.live_config)
       if (err) { toast.error(err); return }
     }
+    // Senarai khas kosong = sama makna dengan "ikut global" — minta admin pilih, jangan senyap.
+    if (pmMode === 'custom' && form.payment_methods.length === 0) {
+      toast.error('Pilih sekurang-kurangnya satu kaedah bayaran, atau pilih "Ikut tetapan global"')
+      return
+    }
 
     setSaving(true)
     try {
@@ -507,11 +603,16 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       const url = isNew ? '/api/admin/landing-pages' : `/api/admin/landing-pages/${editing!.id}`
       const method = isNew ? 'POST' : 'PATCH'
 
+      // Senarai kaedah bayaran dihantar bersama borang — route mengesahkan id
+      // terhadap katalog payment_methods di pelayan (lib/lp-payment).
+      const pmList = pmMode === 'custom' ? form.payment_methods.filter(Boolean) : []
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          payment_methods: pmList.length > 0 ? pmList : null,
           meta_pixel_id: form.meta_pixel_id.trim() || null,
           google_tag_id: form.google_tag_id.trim() || null,
           live_config: form.template === 'live' ? form.live_config : null,
@@ -522,6 +623,16 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       if (!res.ok) { toast.error(data.error ?? 'Failed save'); return }
 
       toast.success(isNew ? 'Landing page success dibuat!' : 'Landing page diupdate!')
+
+      const savedId: string | undefined = isNew ? data?.id : editing!.id
+      if (savedId) {
+        setPmOverrides(prev => {
+          const next = { ...prev }
+          if (pmList.length > 0) next[savedId] = pmList
+          else delete next[savedId]
+          return next
+        })
+      }
 
       const listRes = await fetch('/api/admin/landing-pages')
       setPages(await listRes.json())
@@ -561,7 +672,11 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   const showForm = creating || !!editing
-  const filteredOrders = statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter)
+  // Order menunggu kelulusan (COD dari LP, migration 132) ialah barisan berasingan:
+  // sentiasa di atas, tidak bercampur dengan senarai biasa dan tidak ikut tapisan status.
+  const approvalOrders = orders.filter(o => o.needs_approval === true)
+  const filteredOrders = (statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter))
+    .filter(o => o.needs_approval !== true)
 
   return (
     <div className="p-6 space-y-6">
@@ -667,7 +782,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               >
                 {f.label}
                 {f.id !== 'all' && (
-                  <span className="ml-1.5 opacity-70">{orders.filter(o => o.status === f.id).length}</span>
+                  /* Tidak kira order menunggu kelulusan — ia ada barisannya sendiri di atas */
+                  <span className="ml-1.5 opacity-70">{orders.filter(o => o.status === f.id && o.needs_approval !== true).length}</span>
                 )}
               </button>
             ))}
@@ -676,9 +792,125 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             </button>
           </div>
 
+          {/* ── Menunggu kelulusan (COD dari LP, migration 132) ──────────
+              Barisan berasingan di ATAS senarai biasa. Tidak bercampur. */}
+          {approvalOrders.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-gray-500" />
+                  <p className="text-sm font-bold text-gray-900">Menunggu kelulusan</p>
+                  <span className="bg-gray-900 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                    {approvalOrders.length}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                  COD dari LP menunggu kelulusan; stok, mata dan e-mel pengesahan ditahan sehingga diluluskan.
+                </p>
+              </div>
+
+              <div className="divide-y divide-gray-100">
+                {approvalOrders.map(order => {
+                  const busy = updatingOrder === order.id
+                  const conf = confirmApproval?.id === order.id ? confirmApproval : null
+                  return (
+                    <div key={order.id} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-black font-mono text-sm text-gray-900">{order.order_number}</span>
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                              <Clock className="h-3 w-3" />
+                              Menunggu kelulusan
+                            </span>
+                            {order.landing_pages && (
+                              <span className="text-[11px] text-gray-400">
+                                {order.landing_pages.title} · /lp/{order.landing_pages.slug}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-bold text-gray-900 mt-1">{order.name}</p>
+                          <p className="text-xs text-gray-500">{order.phone}</p>
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">
+                            {order.address}{order.postcode ? `, ${order.postcode}` : ''}
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {order.product_name}{order.variant_name ? ` · ${order.variant_name}` : ''} × {order.quantity}
+                            {order.notes && <span className="text-gray-400"> · &quot;{order.notes}&quot;</span>}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-black text-gray-900">RM{Number(order.total).toFixed(2)}</p>
+                          <p className="text-[11px] text-gray-400">{order.payment_method === 'cod' ? 'COD' : order.payment_method}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {new Date(order.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end gap-2 flex-wrap">
+                        <a
+                          href={`https://wa.me/6${order.phone.replace(/^0/, '').replace(/\D/g, '')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors mr-auto"
+                          title="Contact via WA"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </a>
+
+                        {conf ? (
+                          <>
+                            <span className="text-xs text-gray-600">
+                              {conf.action === 'approve'
+                                ? 'Luluskan? Stok ditolak & e-mel pengesahan dihantar.'
+                                : 'Tolak? Order ini akan dibatalkan.'}
+                            </span>
+                            <button
+                              onClick={() => decideApproval(order.id, conf.action)}
+                              disabled={busy}
+                              className="px-2.5 py-1 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            >
+                              {busy ? 'Memproses...' : conf.action === 'approve' ? 'Ya, lulus' : 'Ya, tolak'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmApproval(null)}
+                              disabled={busy}
+                              className="px-2.5 py-1 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            >
+                              Batal
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setConfirmApproval({ id: order.id, action: 'approve' })}
+                              disabled={busy}
+                              className="flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              Lulus
+                            </button>
+                            <button
+                              onClick={() => setConfirmApproval({ id: order.id, action: 'reject' })}
+                              disabled={busy}
+                              className="flex items-center gap-1.5 px-3 py-1 border border-gray-300 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Tolak
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {ordersLoading && <p className="text-sm text-gray-400 text-center py-12">Loading...</p>}
 
-          {!ordersLoading && filteredOrders.length === 0 && (
+          {!ordersLoading && filteredOrders.length === 0 && approvalOrders.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-semibold">No orders</p>
@@ -701,6 +933,15 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         </span>
                         {order.landing_pages && (
                           <span className="text-[11px] text-gray-400">dari /lp/{order.landing_pages.slug}</span>
+                        )}
+                        {oversoldOrders.has(order.id) && (
+                          <span
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
+                            title="Diluluskan walaupun stok tidak mencukupi — hubungi pelanggan"
+                          >
+                            <AlertTriangle className="h-3 w-3" />
+                            Stok tak cukup
+                          </span>
                         )}
                       </div>
                       <p className="font-bold text-gray-900 mt-1">{order.name}</p>
@@ -1151,6 +1392,86 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               )}
             </div>
 
+            {/* ── Kaedah bayaran (migration 132) ───────────────────────────
+                Kosong = ikut payment_methods.is_active sejagat.
+                Ada isi = TEPAT senarai ini, mengatasi is_active. */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-gray-50">
+                <CreditCard className="h-4 w-4 text-gray-400" />
+                <span className="text-xs font-bold text-gray-600">Kaedah bayaran</span>
+              </div>
+              <div className="px-4 py-4 border-t border-gray-100 space-y-3">
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  Senarai khas mengatasi tetapan global — LP ini akan terima tepat kaedah yang dipilih di bawah, walaupun kaedah itu dimatikan di halaman Kaedah Pembayaran.
+                </p>
+
+                <div className="space-y-2">
+                  {([
+                    ['global', 'Ikut tetapan global'],
+                    ['custom', 'Tetapkan khas untuk LP ini'],
+                  ] as ['global' | 'custom', string][]).map(([val, label]) => (
+                    <label key={val} className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="lp-payment-mode"
+                        checked={pmMode === val}
+                        onChange={() => setPmMode(val)}
+                        className="w-4 h-4 accent-gray-800 cursor-pointer"
+                      />
+                      <span className={`text-sm ${pmMode === val ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {pmMode === 'custom' && (
+                  <div className="pt-1 space-y-1.5">
+                    {pmCatalog.length === 0 && (
+                      <p className="text-xs text-gray-400 py-2">Memuatkan kaedah bayaran...</p>
+                    )}
+                    {pmCatalog.map(m => {
+                      const checked = form.payment_methods.includes(m.id)
+                      return (
+                        <label
+                          key={m.id}
+                          className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
+                            checked ? 'border-gray-800 bg-gray-50' : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setForm(f => ({
+                              ...f,
+                              payment_methods: f.payment_methods.includes(m.id)
+                                ? f.payment_methods.filter(x => x !== m.id)
+                                : [...f.payment_methods, m.id],
+                            }))}
+                            className="w-4 h-4 mt-0.5 rounded accent-gray-800 cursor-pointer shrink-0"
+                          />
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-gray-900">{m.label}</span>
+                              <span className="text-[10px] font-mono text-gray-400">{m.id}</span>
+                              {!m.is_active && (
+                                <span className="text-[10px] text-gray-400 font-medium">dimatikan secara global</span>
+                              )}
+                            </span>
+                            {m.sublabel && <span className="block text-xs text-gray-400 mt-0.5">{m.sublabel}</span>}
+                          </span>
+                        </label>
+                      )
+                    })}
+                    {form.payment_methods.includes('cod') && (
+                      <p className="flex items-start gap-1.5 text-[11px] text-gray-500 pt-1">
+                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 mt-px text-gray-400" />
+                        COD dari LP ini masuk sebagai menunggu kelulusan admin — lulus di tab LP Orders sebelum stok, mata dan e-mel pengesahan dilepaskan.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div
@@ -1486,6 +1807,15 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   )}
                   {page.google_tag_id && (
                     <span className="text-[10px] bg-yellow-50 text-yellow-700 font-bold px-1.5 py-0.5 rounded">GADS</span>
+                  )}
+                  {(pmOverrides[page.id]?.length ?? 0) > 0 && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] bg-gray-100 text-gray-600 font-bold px-1.5 py-0.5 rounded border border-gray-200"
+                      title={`Kaedah bayaran khas: ${pmOverrides[page.id].join(', ')}`}
+                    >
+                      <CreditCard className="h-3 w-3" />
+                      Bayaran khas{pmOverrides[page.id].includes('cod') ? ' · COD' : ''}
+                    </span>
                   )}
                 </div>
               </div>

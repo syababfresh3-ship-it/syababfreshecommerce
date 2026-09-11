@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { sanitizePaymentMethodIds } from '@/lib/lp-payment'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
@@ -63,6 +64,12 @@ export async function POST(request: Request) {
     insertData.live_config = cfg
   } else if (live_config !== undefined) {
     insertData.live_config = live_config ? normalizeLiveConfig(live_config) : null
+  }
+
+  // Kaedah bayaran khas untuk LP ini (migration 132). Kosong/null = ikut tetapan
+  // sejagat. Id disahkan terhadap katalog payment_methods di pelayan.
+  if ('payment_methods' in body) {
+    insertData.payment_methods = await sanitizePaymentMethodIds(supabase!, body.payment_methods)
   }
 
   const { data, error } = await supabase!.from('landing_pages').insert(insertData).select().single()

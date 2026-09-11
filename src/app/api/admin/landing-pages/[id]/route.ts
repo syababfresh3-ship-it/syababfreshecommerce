@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { sanitizePaymentMethodIds } from '@/lib/lp-payment'
 import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
@@ -57,10 +58,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     update.live_config = body.live_config ? cfg : null
   }
 
+  // Kaedah bayaran khas untuk LP ini (migration 132). Kosong/null = ikut sejagat.
+  if ('payment_methods' in body) {
+    update.payment_methods = await sanitizePaymentMethodIds(supabase!, body.payment_methods)
+  }
+
   const { data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single()
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Slug sudah digunakan' }, { status: 409 })
-    if (error.code === '42703') return NextResponse.json({ error: 'Jalankan migration 120 (supabase/120_lp_live_template.sql) dulu' }, { status: 500 })
+    if (error.code === '42703' || error.code === 'PGRST204') return NextResponse.json({ error: 'Kolum belum wujud — jalankan migration 120 / 132 dulu' }, { status: 500 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   // Bust cache LP supaya edit terus nampak (cache 60s tak perlu ditunggu)
