@@ -7,6 +7,9 @@ import { upsertCustomer } from '@/lib/customers'
 import { rateLimit } from '@/lib/rate-limit'
 import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { CHIP_WHITELIST, isChipMethod } from '@/lib/chip-methods'
+import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
+import { evaluatePromo } from '@/lib/promo-rules'
+import { countGuestPromoUses } from '@/lib/promo-usage'
 import { NextResponse } from 'next/server'
 
 // Guest checkout STOREFRONT — tanpa login. Disimpan dalam lp_guest_orders
@@ -98,15 +101,24 @@ export async function POST(request: Request) {
 
   const [productsRes, variantsRes] = await Promise.all([
     productIds.length > 0
-      ? supabase.from('products').select('id, name, price, is_active, weight_grams').in('id', productIds)
+      ? supabase.from('products').select('id, name, price, is_active, weight_grams, category_id').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
   const productMap = new Map((productsRes.data ?? []).map(p => [p.id, p]))
   const variantMap = new Map((variantsRes.data ?? []).map(v => [v.id, v]))
+
+  // Kategori produk (termasuk induk variant) — untuk skop promo (Sprint 3H).
+  const categoryByProduct = new Map<string, string | null>()
+  for (const p of (productsRes.data ?? []) as unknown as Array<{ id: string; category_id?: string | null }>) {
+    categoryByProduct.set(p.id, p.category_id ?? null)
+  }
+  for (const v of (variantsRes.data ?? []) as unknown as Array<{ products?: { id: string; category_id?: string | null } | null }>) {
+    if (v.products?.id) categoryByProduct.set(v.products.id, v.products.category_id ?? null)
+  }
 
   let subtotal = 0
   const validatedItems: OrderItem[] = []
@@ -179,24 +191,34 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Validate promo server-side (guest — had global sahaja) ────────
+  // ── Validate promo server-side (peraturan dikongsi: lib/promo-rules) ──
+  // select('*') sengaja — kolum Sprint 3H mungkin belum wujud (migration 131).
   let promoCodeId: string | null = null
   let discount = 0
   if (promo_code && typeof promo_code === 'string') {
     const code = promo_code.trim().toUpperCase()
     const { data: promo } = await supabase
       .from('promo_codes')
-      .select('id, type, value, min_order, max_uses, uses_count, expires_at, active')
+      .select('*')
       .eq('code', code)
       .maybeSingle()
-    if (!promo || !promo.active) return NextResponse.json({ error: 'Kod promosi tidak sah atau tidak aktif' }, { status: 400 })
-    if (promo.expires_at && new Date(promo.expires_at) < new Date()) return NextResponse.json({ error: 'Kod promosi sudah tamat tempoh' }, { status: 400 })
-    if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) return NextResponse.json({ error: 'Kod promosi sudah mencapai had penggunaan' }, { status: 400 })
-    if (subtotal < Number(promo.min_order)) return NextResponse.json({ error: `Min. pesanan RM${Number(promo.min_order).toFixed(2)} untuk kod ini` }, { status: 400 })
-    discount = promo.type === 'percentage'
-      ? Math.min((subtotal * Number(promo.value)) / 100, subtotal)
-      : Math.min(Number(promo.value), subtotal)
-    promoCodeId = promo.id
+
+    // Had per pelanggan hanya dikira bila admin set — jalur lama tiada query tambahan.
+    const priorUses = promo && promo.per_user_limit != null
+      ? await countGuestPromoUses(supabase, promo.id, phone, userId)
+      : 0
+
+    const promoItems = validatedItems.map(i => ({
+      product_id: i.product_id,
+      category_id: categoryByProduct.get(i.product_id) ?? null,
+      line_total: Number(i.unit_price) * i.quantity,
+    }))
+
+    const verdict = evaluatePromo(promo, { subtotal, deliveryFee, items: promoItems, priorUses })
+    if (!verdict.ok) return NextResponse.json({ error: verdict.error }, { status: 400 })
+
+    discount = verdict.discount
+    promoCodeId = promo!.id
   }
 
   const total = Math.max(0, subtotal + deliveryFee - discount)
@@ -239,6 +261,11 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Sprint 3F: order masuk → tandakan sesi checkout terbengkalai (email/telefon ini,
+  // ≤ 7 hari) sebagai pulih supaya cron peringatan tak hantar. Best-effort (helper
+  // tak pernah throw) — tak pernah gagalkan order. Additive.
+  await markCheckoutSessionsRecovered(supabase, { email: customerEmail, phone: phone.trim(), orderRef: order.order_number })
 
   // CRM master — daftar/segar kenalan (best-effort)
   upsertCustomer({

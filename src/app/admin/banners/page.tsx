@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2, Loader2, Image, Eye, EyeOff, X, Pencil } from 'lucide-react'
+import { Plus, Trash2, Loader2, Image, Eye, EyeOff, X, Pencil, CalendarClock } from 'lucide-react'
 import { ImageUploader } from '@/components/admin/image-uploader'
 import NextImage from 'next/image'
 
@@ -10,6 +10,24 @@ interface Banner {
   id: string; title: string; subtitle: string | null
   link: string | null; link_label: string | null
   bg_class: string; image_url: string | null; is_active: boolean; sort_order: number
+  // Sprint 3H (migration 131) — mungkin belum wujud dalam DB.
+  starts_at?: string | null; ends_at?: string | null
+}
+
+// Status jadual: "Dijadual" (belum sampai masa) / "Tamat" (dah lepas).
+function scheduleStatus(b: Banner): { label: string; cls: string } | null {
+  const now = Date.now()
+  if (b.ends_at && new Date(b.ends_at).getTime() < now)
+    return { label: 'Tamat', cls: 'bg-gray-100 text-gray-500 border-gray-200' }
+  if (b.starts_at && new Date(b.starts_at).getTime() > now)
+    return { label: 'Dijadual', cls: 'bg-gray-800 text-white border-gray-800' }
+  return null
+}
+
+const emptyBannerForm = {
+  title: '', subtitle: '', link: '/products',
+  link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '',
+  starts_at: '', ends_at: '',
 }
 
 const bgOptions = [
@@ -42,10 +60,7 @@ export default function AdminBannersPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null)
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({
-    title: '', subtitle: '', link: '/products',
-    link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '',
-  })
+  const [form, setForm] = useState(emptyBannerForm)
 
   function openEdit(b: Banner) {
     setEditingBanner(b)
@@ -56,13 +71,15 @@ export default function AdminBannersPage() {
       link_label: b.link_label ?? 'Beli Sekarang',
       bg_class: b.bg_class,
       image_url: b.image_url ?? '',
+      starts_at: b.starts_at ? b.starts_at.slice(0, 16) : '',
+      ends_at: b.ends_at ? b.ends_at.slice(0, 16) : '',
     })
     setShowForm(false)
   }
 
   function closeEdit() {
     setEditingBanner(null)
-    setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '' })
+    setForm(emptyBannerForm)
   }
 
   async function load() {
@@ -71,6 +88,12 @@ export default function AdminBannersPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Ralat dari API — tunjuk mesej sebenar (cth "Jalankan migration 131 dulu").
+  async function toastApiError(res: Response, fallback: string) {
+    const msg = await res.json().then(d => d?.error).catch(() => null)
+    toast.error(typeof msg === 'string' && msg ? msg : fallback)
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -83,14 +106,18 @@ export default function AdminBannersPage() {
         link: form.link, link_label: form.link_label,
         bg_class: form.bg_class, image_url: form.image_url || null,
         sort_order: banners.length,
+        // Sprint 3H: hantar hanya bila diisi — banner biasa tetap boleh disimpan
+        // walaupun migration 131 belum dijalankan.
+        ...(form.starts_at ? { starts_at: form.starts_at } : {}),
+        ...(form.ends_at ? { ends_at: form.ends_at } : {}),
       }),
     })
     if (!res.ok) {
-      toast.error('Failed buat banner')
+      await toastApiError(res, 'Failed buat banner')
     } else {
       toast.success('Banner dicipta')
       setShowForm(false)
-      setForm({ title: '', subtitle: '', link: '/products', link_label: 'Beli Sekarang', bg_class: 'gradient-brand', image_url: '' })
+      setForm(emptyBannerForm)
       load()
     }
     setLoading(false)
@@ -107,10 +134,13 @@ export default function AdminBannersPage() {
         title: form.title, subtitle: form.subtitle || null,
         link: form.link, link_label: form.link_label,
         bg_class: form.bg_class, image_url: form.image_url || null,
+        // Kosongkan jadual = hantar null (hanya bila banner ini memang ada jadual).
+        ...(form.starts_at || editingBanner.starts_at ? { starts_at: form.starts_at || null } : {}),
+        ...(form.ends_at || editingBanner.ends_at ? { ends_at: form.ends_at || null } : {}),
       }),
     })
     if (!res.ok) {
-      toast.error('Failed update banner')
+      await toastApiError(res, 'Failed update banner')
     } else {
       toast.success('Banner diupdate')
       closeEdit()
@@ -190,6 +220,19 @@ export default function AdminBannersPage() {
               <div>
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Label Butang</label>
                 <input value={form.link_label} onChange={e => setForm(p => ({ ...p, link_label: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              {/* Sprint 3H — jadual paparan (pilihan) */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  <CalendarClock className="h-3 w-3 inline mr-1 -mt-0.5" />Mula Papar
+                </label>
+                <input type="datetime-local" value={form.starts_at} onChange={e => setForm(p => ({ ...p, starts_at: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Papar</label>
+                <input type="datetime-local" value={form.ends_at} onChange={e => setForm(p => ({ ...p, ends_at: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
             </div>
@@ -287,7 +330,21 @@ export default function AdminBannersPage() {
                   placeholder="Beli Sekarang"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
               </div>
+              {/* Sprint 3H — jadual paparan (pilihan) */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  <CalendarClock className="h-3 w-3 inline mr-1 -mt-0.5" />Mula Papar
+                </label>
+                <input type="datetime-local" value={form.starts_at} onChange={e => setForm(p => ({ ...p, starts_at: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Tamat Papar</label>
+                <input type="datetime-local" value={form.ends_at} onChange={e => setForm(p => ({ ...p, ends_at: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300" />
+              </div>
             </div>
+            <p className="text-[11px] text-gray-400">Jadual pilihan — kosong = papar terus selagi aktif.</p>
             {/* Color picker */}
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-2">Warna (jika tiada gambar)</label>
@@ -347,6 +404,7 @@ export default function AdminBannersPage() {
         <div className="space-y-3">
           {banners.map(b => {
             const opt = bgOptions.find(o => o.value === b.bg_class)
+            const sched = scheduleStatus(b)
             return (
               <div key={b.id} className={`bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden transition-all ${!b.is_active ? 'opacity-60' : ''}`}>
                 {/* Banner preview strip */}
@@ -375,6 +433,11 @@ export default function AdminBannersPage() {
                 {/* Actions row */}
                 <div className="flex items-center gap-3 px-4 py-2.5">
                   <span className="text-xs text-gray-400 flex-1 truncate">{b.link ?? '—'}</span>
+                  {sched && (
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg border shrink-0 ${sched.cls}`}>
+                      <CalendarClock className="h-3 w-3" /> {sched.label}
+                    </span>
+                  )}
                   <button onClick={() => toggleActive(b)}
                     className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
                       b.is_active

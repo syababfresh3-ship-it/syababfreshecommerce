@@ -18,13 +18,25 @@ import { SfHomeRail } from '@/components/storev2/sf-home-rail'
 
 export const revalidate = 300
 
+// Sprint 3H: banner boleh dijadual (banners.starts_at / ends_at, migration 131).
+// Kalau kolum itu belum wujud, PostgREST balas 42703 → fallback ke query lama
+// supaya home TIDAK pernah kosong sebelum migration dijalankan.
+// Nota: page ini revalidate 300s, jadi jadual berkuatkuasa dalam ~5 minit.
 async function getBanners(): Promise<SfBanner[]> {
   const sb = createAdminClient()
-  const { data } = await sb
-    .from('banners')
-    .select('id, image_url, title, subtitle, link, link_label, bg_class')
-    .eq('is_active', true)
-    .order('sort_order')
+  const cols = 'id, image_url, title, subtitle, link, link_label, bg_class'
+  const baseQuery = () =>
+    sb.from('banners').select(cols).eq('is_active', true).order('sort_order')
+
+  const nowIso = new Date().toISOString()
+  const { data, error } = await baseQuery()
+    .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+    .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+
+  if (error) {
+    const { data: legacy } = await baseQuery()
+    return (legacy ?? []) as SfBanner[]
+  }
   return (data ?? []) as SfBanner[]
 }
 

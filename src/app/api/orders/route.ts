@@ -5,6 +5,8 @@ import { getAppSettings } from '@/lib/app-settings'
 import { upsertCustomer } from '@/lib/customers'
 import { rateLimit } from '@/lib/rate-limit'
 import { safeClientIp, checkMemberOrderIpFlood, FLOOD_ERROR } from '@/lib/order-guard'
+import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
+import { evaluatePromo } from '@/lib/promo-rules'
 
 interface CartItem {
   product_id: string
@@ -78,15 +80,26 @@ export async function POST(request: Request) {
 
   const [productsRes, variantsRes] = await Promise.all([
     productIds.length > 0
-      ? supabase.from('products').select('id, name, price, image_url, is_active, weight_grams').in('id', productIds)
+      ? supabase.from('products').select('id, name, price, image_url, is_active, weight_grams, category_id').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, image_url, is_active)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, image_url, is_active, category_id)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
   const productMap = new Map((productsRes.data ?? []).map(p => [p.id, p]))
   const variantMap = new Map((variantsRes.data ?? []).map(v => [v.id, v]))
+
+  // Kategori setiap produk (termasuk produk induk bagi variant) — untuk skop
+  // promo (Sprint 3H). Tiada kesan pada harga/insert order_items.
+  const categoryByProduct = new Map<string, string | null>()
+  for (const p of (productsRes.data ?? []) as unknown as Array<{ id: string; category_id?: string | null }>) {
+    categoryByProduct.set(p.id, p.category_id ?? null)
+  }
+  for (const v of (variantsRes.data ?? []) as unknown as Array<{ products?: { id: string; category_id?: string | null } | null }>) {
+    if (v.products?.id) categoryByProduct.set(v.products.id, v.products.category_id ?? null)
+  }
+  const categoryOf = (productId: string) => categoryByProduct.get(productId) ?? null
 
   // Build order items with server-fetched prices
   const orderItemsPayload: Array<{
@@ -209,6 +222,9 @@ export async function POST(request: Request) {
   const multiplier = (profile?.loyalty_tiers as any)?.multiplier ?? 1
 
   // ── Validate promo code server-side ──────────────────────────────
+  // Peraturan dikongsi dengan client & route guest — lihat lib/promo-rules.
+  // select('*') sengaja: kolum Sprint 3H (starts_at/scope_*/per_user_limit)
+  // mungkin belum wujud sebelum migration 131 dijalankan.
   let appliedPromo: { id: string; code: string; type: string; value: number } | null = null
   let promoDiscount = 0
 
@@ -216,28 +232,38 @@ export async function POST(request: Request) {
     const code = promo_code.trim().toUpperCase()
     const { data: promo } = await supabase
       .from('promo_codes')
-      .select('id, code, type, value, min_order, max_uses, uses_count, expires_at, active')
+      .select('*')
       .eq('code', code)
       .maybeSingle()
 
-    if (!promo || !promo.active) return NextResponse.json({ error: 'Kod promosi tidak sah atau tidak aktif' }, { status: 400 })
-    if (promo.expires_at && new Date(promo.expires_at) < new Date()) return NextResponse.json({ error: 'Kod promosi sudah tamat tempoh' }, { status: 400 })
-    if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) return NextResponse.json({ error: 'Kod promosi sudah mencapai had penggunaan' }, { status: 400 })
-    if (subtotal < Number(promo.min_order)) return NextResponse.json({ error: `Min. pesanan RM${Number(promo.min_order).toFixed(2)} untuk kod ini` }, { status: 400 })
+    const { count: usedCount } = promo
+      ? await supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('promo_code_id', promo.id)
+          .neq('status', 'cancelled')
+      : { count: 0 }
 
-    const { count: usedCount } = await supabase
-      .from('orders')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('promo_code_id', promo.id)
-      .neq('status', 'cancelled')
+    const promoItems = orderItemsPayload.map(it => ({
+      product_id: it.product_id,
+      category_id: categoryOf(it.product_id),
+      line_total: it.subtotal,
+    }))
 
-    if ((usedCount ?? 0) > 0) return NextResponse.json({ error: 'Anda sudah menggunakan kod ini sebelum ini' }, { status: 400 })
+    const verdict = evaluatePromo(promo, {
+      subtotal, deliveryFee, items: promoItems, priorUses: usedCount ?? 0,
+    })
+    if (!verdict.ok) return NextResponse.json({ error: verdict.error }, { status: 400 })
 
-    appliedPromo = { id: promo.id, code: promo.code, type: promo.type, value: Number(promo.value) }
-    promoDiscount = promo.type === 'percentage'
-      ? Math.min((subtotal * Number(promo.value)) / 100, subtotal)
-      : Math.min(Number(promo.value), subtotal)
+    // Legacy: tanpa per_user_limit, member hanya boleh guna sekali (macam dulu).
+    // Disemak selepas peraturan am supaya susunan mesej kekal seperti sebelum ini.
+    if (promo!.per_user_limit == null && (usedCount ?? 0) > 0) {
+      return NextResponse.json({ error: 'Anda sudah menggunakan kod ini sebelum ini' }, { status: 400 })
+    }
+
+    appliedPromo = { id: promo!.id, code: promo!.code, type: promo!.type, value: Number(promo!.value) }
+    promoDiscount = verdict.discount
   }
 
   // ── Points ────────────────────────────────────────────────────────
@@ -324,6 +350,15 @@ export async function POST(request: Request) {
       lastOrderAt: new Date().toISOString(),
     }).catch(() => {})
   }
+
+  // Sprint 3F: order masuk → tandakan sesi checkout terbengkalai (email akaun ATAU
+  // telefon penerima, ≤ 7 hari) sebagai pulih supaya cron peringatan tak hantar.
+  // Best-effort (helper tak pernah throw) — tak pernah gagalkan order. Additive.
+  await markCheckoutSessionsRecovered(supabase, {
+    email: user.email ?? null,
+    phone: separatorIdx > 0 ? firstLine.substring(separatorIdx + 3).trim() : null,
+    orderRef: order.order_number && order.order_number !== 'TEMP' ? order.order_number : order.id,
+  })
 
   return NextResponse.json({
     orderId: order.id,

@@ -1,7 +1,7 @@
 # Inventori Cron — semua automation berjadual
 
-10 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
-8 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
+11 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
+9 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
 satu-satunya rekod). Setiap cron stamp `cron_heartbeats` (109) bila siap;
 dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 
@@ -18,6 +18,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | refresh-customers | `/api/cron/refresh-customers` | Kira semula agregat customer (spend/recency) | harian, lepas 01:00 | cron-job.org |
 | voucher-reminder | `/api/cron/voucher-reminder` | Email voucher peribadi luput ≤7 hari (sekali/voucher) | harian (~10:00) | cron-job.org |
 | daily-summary | `/api/cron/daily-summary` | Ringkasan semalam ke admin: jualan SF+LP, top produk, COD tertunggak, pending, stok rendah, batch luput, refund, cron senyap, ralat storefront (WA + push + email) | 08:30 harian (MYT) | cron-job.org |
+| abandoned-checkout | `/api/cron/abandoned-checkout` | Email pemulihan troli terbengkalai (Sprint 3F, EMAIL sahaja): email 1 selepas 1j, email 2 selepas 24j, sekali per peringkat, hormat nyah-langgan | tiap 30 min | cron-job.org |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 
@@ -63,3 +64,47 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 Pilihan `?date=YYYY-MM-DD` untuk laporan hari KL tertentu (default: semalam).
 Bahagian "Ralat semalam" datang dari `error_reports` (migration 124) — sebelum
 migration dijalankan ia dipapar "tidak tersedia", bukan gagal.
+
+## abandoned-checkout — cara setup & uji (Sprint 3F)
+
+Pemulihan troli terbengkalai **EMAIL SAHAJA** (keputusan pemilik: tiada WhatsApp).
+Cron push lama `abandoned-cart` (Vercel, 09:00) **tidak disentuh** — dua-dua boleh
+hidup serentak (push = member login sahaja; email = semua yang isi email di checkout).
+
+Aliran:
+
+1. `/checkout` tangkap email + snapshot troli → `checkout_sessions` (migration **128**,
+   `POST /api/store/checkout-session`, debounce 1.5s + sebelum order dicipta).
+2. Order masuk (`/api/orders`, `/api/store/guest-order`) → sesi ditanda `recovered_at`.
+3. Cron ini pilih sesi belum pulih, belum nyah-langgan, email tiada dalam
+   `email_suppressions`, tiada order email/telefon sama sejak sesi dicipta:
+   - **Email 1** "Troli anda masih menunggu" — `last_seen_at` 1–23 jam lalu
+   - **Email 2** "Masih berminat? Stok bergerak pantas" — 24–72 jam lalu, selepas email 1
+   Claim atomik (`update … where … is null`) sebelum hantar → tak double. Had 50/run.
+4. Pautan email: `/checkout?recover=<token>` (pulih troli, sah 7 hari) dan
+   `/api/store/checkout-session/unsubscribe?token=<token>` ("Tak mahu peringatan ini").
+
+Heartbeat `abandoned-checkout` (expected 30 min) di-seed oleh migration 128.
+
+**Prasyarat**: jalankan `supabase/128_checkout_sessions.sql` di Supabase SQL Editor.
+Sebelum itu semua endpoint di atas no-op senyap (cron balas `note: Migration 128 … belum dijalankan`).
+
+**cron-job.org** (waktu Asia/Kuala_Lumpur):
+
+- URL: `https://shop.syababfresh.my/api/cron/abandoned-checkout`
+- Method: GET · Jadual: **tiap 30 minit** (`*/30 * * * *`)
+- Header: `Authorization: Bearer <CRON_SECRET>`
+- Timeout: 30s (cukup — had 50 email/run)
+
+**Uji tanpa hantar apa-apa** (`dry=1` = senarai calon sahaja, tiada claim, tiada heartbeat):
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3006/api/cron/abandoned-checkout?dry=1" | jq .
+# abaikan tetingkap masa (diagnostik; dry sahaja):
+curl -s -H "Authorization: Bearer $CRON_SECRET" \
+  "http://localhost:3006/api/cron/abandoned-checkout?dry=1&force=1" | jq .
+```
+
+Nota: `.env.local` menyambung ke DB + ZeptoMail **production** — jangan panggil
+tanpa `dry=1` di local melainkan memang mahu hantar email sebenar.

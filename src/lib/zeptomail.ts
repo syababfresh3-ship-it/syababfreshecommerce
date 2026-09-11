@@ -663,3 +663,172 @@ export async function sendAdminEmail(params: { subject: string; html: string }):
     html: layout(params.subject, params.html),
   })
 }
+
+// ─── email 11 & 12: pemulihan troli terbengkalai (Sprint 3F, EMAIL sahaja) ────
+// Dihantar oleh /api/cron/abandoned-checkout (claim atomik, sekali per peringkat).
+// Tiada diskaun palsu, tiada desakan rekaan — maklumat jujur sahaja. Monokrom,
+// tanpa emoji. Pautan pemulihan /checkout?recover=<token> sah 7 hari.
+// NOTA: send() tidak menyokong header tersuai → header List-Unsubscribe TIDAK
+// ditambah; pautan nyah-langgan disertakan dalam badan email.
+
+type AbandonedItem = { name: string; quantity: number; unit_price: number; variant_name?: string | null }
+
+function abandonedFooter(unsubscribeUrl: string): string {
+  return `
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+      Pautan troli ini sah 7 hari. Harga &amp; stok mengikut semasa anda checkout.<br>
+      <a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">Tak mahu peringatan ini</a>
+    </p>`
+}
+
+function abandonedCta(recoverUrl: string): string {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 4px;"><tr><td align="center">
+      <a href="${recoverUrl}" style="display:inline-block;background:#111827;color:#ffffff;font-size:15px;font-weight:800;padding:14px 32px;border-radius:12px;text-decoration:none;">Teruskan bayar</a>
+    </td></tr></table>`
+}
+
+function abandonedTotal(subtotal: number): string {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;">
+      <tr>
+        <td style="font-size:14px;font-weight:700;color:#111827;padding-top:8px;">Jumlah item</td>
+        <td style="font-size:16px;font-weight:800;color:#111827;text-align:right;padding-top:8px;">RM${Number(subtotal).toFixed(2)}</td>
+      </tr>
+      <tr><td colspan="2" style="font-size:11px;color:#9ca3af;padding-top:2px;">Belum termasuk kos penghantaran (dikira di checkout ikut poskod).</td></tr>
+    </table>`
+}
+
+// Email 1 — 1 jam selepas aktiviti terakhir di checkout.
+export async function sendAbandonedCheckoutEmail1(params: {
+  to: string
+  customerName: string | null
+  items: AbandonedItem[]
+  subtotal: number
+  recoverUrl: string
+  unsubscribeUrl: string
+}): Promise<boolean> {
+  const name = (params.customerName ?? '').trim() || 'Pelanggan'
+  const html = layout('Troli anda masih menunggu', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(name)}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Troli anda masih menunggu</h1>
+
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Anda tinggalkan beberapa item di checkout SyababFresh. Kami simpan troli anda —
+      teruskan bila-bila masa dengan butang di bawah, tak perlu pilih semula.
+    </p>
+
+    <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Item dalam troli</p>
+    ${itemsTable(params.items)}
+    ${abandonedTotal(params.subtotal)}
+
+    ${abandonedCta(params.recoverUrl)}
+
+    <p style="margin:16px 0 0;font-size:13px;color:#6b7280;line-height:1.6;text-align:center;">
+      Ada soalan tentang produk atau penghantaran? Balas email ini atau WhatsApp kami.
+    </p>
+    ${abandonedFooter(params.unsubscribeUrl)}
+  `)
+  return send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: name,
+    subject: 'Troli anda masih menunggu — SyababFresh',
+    html,
+  })
+}
+
+// Email 2 — 24 jam selepas aktiviti terakhir (hanya jika email 1 dah dihantar).
+// stockNotes: stok SEBENAR semasa (hanya item ≤ 10 unit) — dipapar apa adanya.
+export async function sendAbandonedCheckoutEmail2(params: {
+  to: string
+  customerName: string | null
+  items: AbandonedItem[]
+  subtotal: number
+  recoverUrl: string
+  unsubscribeUrl: string
+  stockNotes?: { name: string; available: number }[]
+}): Promise<boolean> {
+  const name = (params.customerName ?? '').trim() || 'Pelanggan'
+  const notes = (params.stockNotes ?? []).slice(0, 10)
+  const stockBlock = notes.length ? `
+    <div style="margin:16px 0 0;padding:12px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">
+      <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Stok semasa</p>
+      ${notes.map((n) => `<p style="margin:0 0 4px;font-size:13px;color:#374151;">${esc(n.name)} — ${n.available <= 0 ? 'habis stok buat masa ini' : `baki ${n.available} unit`}</p>`).join('')}
+      <p style="margin:6px 0 0;font-size:11px;color:#9ca3af;">Dikira semasa email ini dihantar; boleh berubah.</p>
+    </div>` : ''
+
+  const html = layout('Masih berminat?', `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(name)}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">Masih berminat? Stok bergerak pantas</h1>
+
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Troli anda masih kami simpan. Buah segar kami masuk dan keluar mengikut stok
+      harian — kalau masih berminat, teruskan sebelum item habis. Ini peringatan
+      terakhir daripada kami untuk troli ini.
+    </p>
+
+    <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Item dalam troli</p>
+    ${itemsTable(params.items)}
+    ${abandonedTotal(params.subtotal)}
+    ${stockBlock}
+
+    <div style="height:12px;"></div>
+    ${abandonedCta(params.recoverUrl)}
+    ${abandonedFooter(params.unsubscribeUrl)}
+  `)
+  return send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: name,
+    subject: 'Masih berminat? Stok bergerak pantas — SyababFresh',
+    html,
+  })
+}
+
+// ─── email: notis restock (waitlist "Bagitahu bila ada") — Sprint 3 G ─────────
+// Dipanggil lib/waitlist-restock.ts untuk entri waitlist yang ada e-mel
+// (profiles/customers). `message` = teks BM yang SUDAH dirender per penerima
+// ({nama} diganti); baris baru → <br/>, URL → pautan. CTA "Beli sekarang" ke
+// productUrl ditambah automatik. Pulang true bila ZeptoMail terima.
+
+export async function sendRestockEmail(params: {
+  to: string
+  toName: string | null
+  productName: string
+  productUrl: string
+  imageUrl?: string | null
+  message: string
+}): Promise<boolean> {
+  const bodyHtml = esc(params.message)
+    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#16a34a;text-decoration:none;word-break:break-all;">$1</a>')
+    .replace(/\n/g, '<br/>')
+  const img = params.imageUrl
+    ? `<img src="${esc(params.imageUrl)}" alt="${esc(params.productName)}" width="100%" style="display:block;width:100%;max-width:456px;border-radius:12px;margin:0 0 16px;" />`
+    : ''
+  const subject = `${params.productName} dah ada stok semula`
+
+  const html = layout(subject, `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai <strong>${esc(params.toName ?? 'Pelanggan')}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:22px;font-weight:800;color:#111827;">${esc(params.productName)} dah ada stok semula</h1>
+    ${img}
+    <div style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 20px;">${bodyHtml}</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td align="center">
+      <a href="${esc(params.productUrl)}" style="display:inline-block;background:#111827;color:#ffffff;font-size:15px;font-weight:800;padding:14px 28px;border-radius:12px;text-decoration:none;">Beli sekarang</a>
+    </td></tr></table>
+    <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+      Anda terima e-mel ini kerana anda minta dimaklum bila produk ini ada semula. Stok terhad — pesanan ikut giliran.
+    </p>
+  `)
+
+  return send({
+    from: FROM_NOREPLY,
+    fromName: 'SyababFresh',
+    to: params.to,
+    toName: params.toName ?? 'Pelanggan',
+    subject,
+    html,
+  })
+}

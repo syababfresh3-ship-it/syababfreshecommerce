@@ -58,8 +58,10 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   const subtotal = displayPrice * qty
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
-  const discount = promoDiscount(appliedPromo, subtotal)
   const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  // Item untuk skop promo (Sprint 3H) — kod boleh dihadkan pada produk/kategori.
+  const promoItems = [{ product_id: product.id, category_id: product.category_id ?? null, line_total: subtotal }]
+  const discount = promoDiscount(appliedPromo, subtotal, fee, promoItems)
   const redeemable = Math.max(0, subtotal + fee - discount)
   const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
   const total = Math.max(0, subtotal + fee - discount - ptsDiscount)
@@ -91,7 +93,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
     const code = promoInput.trim()
     if (!code) return
     setPromoLoading(true)
-    const { promo, error } = await lookupPromo(code, subtotal)
+    const { promo, error } = await lookupPromo(code, subtotal, { deliveryFee: fee, items: promoItems })
     setPromoLoading(false)
     if (error || !promo) { toast.error(error ?? 'Kod tidak sah'); setAppliedPromo(null); return }
     setAppliedPromo(promo)
@@ -401,7 +403,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           <div style={{ marginBottom: 14 }}>
             {appliedPromo ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 12, padding: '10px 14px' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎟️ {appliedPromo.code} — diskaun RM{discount.toFixed(2)}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎟️ {appliedPromo.code} — {appliedPromo.freeShipping ? 'hantar percuma' : `diskaun RM${discount.toFixed(2)}`}</span>
                 <button type="button" onClick={() => { setAppliedPromo(null); setPromoInput('') }} style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>Buang</button>
               </div>
             ) : (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/stores/cart'
 import { createClient } from '@/lib/supabase/client'
@@ -8,19 +8,21 @@ import { toast } from 'sonner'
 import { trackInitiateCheckout } from '@/lib/tracking'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { calcDeliveryFee } from '@/lib/delivery-fee'
+import { evaluatePromo, PROMO_ERRORS, type PromoItem, type PromoType } from '@/lib/promo-rules'
 import {
   MALAYSIA_STATES, validateCheckoutForm, firstErrorField, buildManualAddress,
   type CheckoutErrors, type CheckoutField,
 } from '@/lib/address-form'
 import { HoneypotField } from '@/components/honeypot-field'
 import { markPendingCartClear } from '@/components/store/pending-cart-clear'
+import { CheckoutRecover, type RecoveredInfo } from '@/components/store/checkout-recover'
 import { SfWhatsappFab } from '@/components/storev2/sf-whatsapp-fab'
 import Link from 'next/link'
 import {
   Loader2, MapPin, Clock, CheckCircle2, Tag, Star,
   Building2, Smartphone, PackageCheck, ArrowLeftRight,
   Lock, ChevronRight, ChevronLeft, Pencil, Truck, XCircle, Store,
-  CreditCard, QrCode, Landmark, AlertTriangle, X, AlertCircle,
+  CreditCard, QrCode, Landmark, AlertTriangle, X, AlertCircle, RotateCcw,
 } from 'lucide-react'
 import { isChipMethod } from '@/lib/chip-methods'
 import { CartSync } from '@/components/store/cart-sync'
@@ -35,6 +37,9 @@ const PAYMENT_ICONS: Record<string, React.ElementType> = {
   cod:          PackageCheck,
   bank_transfer:ArrowLeftRight,
 }
+
+// Sprint 3F: email sah (sama dengan lib/address-form) — pencetus capture sesi checkout.
+const CAPTURE_EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 // Baris promo_codes (voucher peribadi member) — client Supabase tak bertaip.
 type VoucherRow = {
@@ -131,6 +136,14 @@ export default function CheckoutPage() {
   // Fix 5: kiraan dikongsi dengan Troli (lib/delivery-fee) — troli & checkout papar nilai sama.
   const deliveryFee = calcDeliveryFee({ subtotal, baseFee: zoneBaseFee, freeMin: freeDeliveryMin, isPickup })
 
+  // Item troli dalam bentuk yang difahami lib/promo-rules — untuk kod berskop
+  // (produk/kategori tertentu). Server tetap sahkan semula.
+  const promoItems: PromoItem[] = items.map(({ product, variant, quantity }) => ({
+    product_id: product.id,
+    category_id: product.category_id ?? null,
+    line_total: Number(variant?.price ?? product.price) * quantity,
+  }))
+
   const slots = buildDeliverySlots(slotConfigs)
   const [loading, setLoading] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([])
@@ -140,7 +153,11 @@ export default function CheckoutPage() {
   const [promoInput, setPromoInput] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
   const [appliedPromo, setAppliedPromo] = useState<{
-    id: string; code: string; type: 'percentage' | 'fixed'; value: number
+    id: string; code: string; type: PromoType; value: number
+    // Sprint 3H — skop produk/kategori & hantar percuma (lihat lib/promo-rules).
+    freeShipping?: boolean
+    scope_product_ids?: string[] | null
+    scope_category_ids?: string[] | null
   } | null>(null)
   // Voucher peribadi member (cth Welcome RM5) — auto-guna bila cukup min belian.
   const [autoVoucher, setAutoVoucher] = useState<{
@@ -172,6 +189,10 @@ export default function CheckoutPage() {
   const [manualState, setManualState] = useState('')
   const [errors, setErrors] = useState<CheckoutErrors>({})
   const [saveAddress, setSaveAddress] = useState(false)
+  // Sprint 3F: pemulihan troli terbengkalai (email sahaja) — notis "troli dipulihkan"
+  // + dedup payload capture terakhir (elak POST berulang untuk snapshot sama).
+  const [recovered, setRecovered] = useState<RecoveredInfo | null>(null)
+  const lastCaptureRef = useRef('')
 
   useEffect(() => {
     if (items.length > 0) trackInitiateCheckout(getTotal())
@@ -381,17 +402,17 @@ export default function CheckoutPage() {
     if (!code) return
     setPromoLoading(true)
     const supabase = createClient()
+    // select('*') — kolum Sprint 3H (starts_at/scope_*/per_user_limit) mungkin
+    // belum wujud sebelum migration 131; yang tiada sekadar hilang dari baris.
     const { data, error } = await supabase
       .from('promo_codes')
-      .select('id, code, type, value, min_order, max_uses, uses_count, expires_at')
+      .select('*')
       .eq('code', code).eq('active', true).maybeSingle()
 
-    if (error || !data) { toast.error('Kod promosi tidak sah atau tidak aktif'); setPromoLoading(false); return }
-    if (data.expires_at && new Date(data.expires_at) < new Date()) { toast.error('Kod promosi sudah tamat tempoh'); setPromoLoading(false); return }
-    if (data.max_uses !== null && data.uses_count >= data.max_uses) { toast.error('Kod promosi sudah mencapai had penggunaan'); setPromoLoading(false); return }
-    if (subtotal < Number(data.min_order)) { toast.error(`Min. pesanan RM${Number(data.min_order).toFixed(2)} untuk kod ini`); setPromoLoading(false); return }
+    if (error || !data) { toast.error(PROMO_ERRORS.invalid); setPromoLoading(false); return }
 
-    // Per-user limit — check if this user already used this promo in a non-cancelled order
+    // Had per pelanggan — order tidak-dibatalkan milik user ini yang guna kod sama.
+    let priorUses = 0
     const { data: { user: currentUser } } = await supabase.auth.getUser()
     if (currentUser) {
       const { count } = await supabase
@@ -400,10 +421,23 @@ export default function CheckoutPage() {
         .eq('user_id', currentUser.id)
         .eq('promo_code_id', data.id)
         .neq('status', 'cancelled')
-      if (count && count > 0) { toast.error('Anda sudah menggunakan kod ini sebelum ini'); setPromoLoading(false); return }
+      priorUses = count ?? 0
     }
 
-    setAppliedPromo({ id: data.id, code: data.code, type: data.type, value: Number(data.value) })
+    const verdict = evaluatePromo(data, { subtotal, deliveryFee, items: promoItems, priorUses })
+    if (!verdict.ok) { toast.error(verdict.error); setPromoLoading(false); return }
+
+    // Legacy: tanpa per_user_limit, member hanya boleh guna sekali (macam dulu).
+    if (currentUser && data.per_user_limit == null && priorUses > 0) {
+      toast.error('Anda sudah menggunakan kod ini sebelum ini'); setPromoLoading(false); return
+    }
+
+    setAppliedPromo({
+      id: data.id, code: data.code, type: data.type, value: Number(data.value),
+      freeShipping: verdict.freeShipping,
+      scope_product_ids: data.scope_product_ids ?? null,
+      scope_category_ids: data.scope_category_ids ?? null,
+    })
     toast.success(`Kod ${data.code} berjaya digunakan!`)
     setPromoLoading(false)
   }
@@ -419,19 +453,72 @@ export default function CheckoutPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoVoucher, subtotal, appliedPromo, voucherDismissed])
 
+  // Sprint 3F: tangkap sesi checkout (email + snapshot troli) untuk pemulihan troli
+  // terbengkalai — POST /api/store/checkout-session, best-effort, TAK menghalang
+  // checkout. Dipanggil (a) debounce 1.5s bila email sah / troli berubah, dan
+  // (b) sebelum order dicipta (lihat handleSubmit). Senarai putih medan sahaja —
+  // tiada data kad/bayaran.
+  function buildCapturePayload(): string | null {
+    const email = form.email.trim().toLowerCase()
+    if (!CAPTURE_EMAIL_RE.test(email) || items.length === 0) return null
+    return JSON.stringify({
+      email,
+      name: form.recipient_name.trim().slice(0, 60),
+      phone: form.phone.trim(),
+      items: items.slice(0, 30).map(({ product, variant, quantity }) => ({
+        product_id: product.id,
+        variant_id: variant?.id ?? null,
+        name: variant ? `${product.name} (${variant.name})` : product.name,
+        qty: quantity,
+        unit_price: Number(variant?.price ?? product.price),
+      })),
+      subtotal,
+      website, // honeypot — bot isi → server abaikan senyap
+    })
+  }
+
+  function captureCheckoutSession(payload: string, keepalive = false): Promise<void> {
+    if (lastCaptureRef.current === payload) return Promise.resolve()
+    lastCaptureRef.current = payload
+    return fetch('/api/store/checkout-session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive,
+    }).then(() => undefined).catch(() => {})
+  }
+
+  useEffect(() => {
+    const payload = buildCapturePayload()
+    if (!payload) return
+    const t = setTimeout(() => { captureCheckoutSession(payload) }, 1500)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.email, form.recipient_name, form.phone, items, subtotal])
+
+  // Sprint 3F: troli dipulihkan dari pautan email — prefill medan yang masih kosong sahaja.
+  const handleRecovered = useCallback((info: RecoveredInfo) => {
+    setForm((prev) => ({
+      ...prev,
+      recipient_name: prev.recipient_name || info.name || '',
+      phone: prev.phone || info.phone || '',
+      email: prev.email || info.email || '',
+    }))
+    setRecovered(info)
+  }, [])
+
   const POINTS_RATE = 100 // 100 mata = RM1 (1% pulangan asas)
   const pointsDiscount = usePoints ? Math.min(userPoints / POINTS_RATE, subtotal + deliveryFee) : 0
   const pointsUsed = usePoints ? Math.min(userPoints, Math.floor((subtotal + deliveryFee) * POINTS_RATE)) : 0
 
+  // Diskaun promo dikira semula setiap render (subtotal/kos hantar boleh berubah)
+  // guna peraturan yang SAMA dengan server — lihat lib/promo-rules.
+  const promoDiscountAmount = appliedPromo
+    ? (() => {
+        const verdict = evaluatePromo(appliedPromo, { subtotal, deliveryFee, items: promoItems })
+        return verdict.ok ? verdict.discount : 0
+      })()
+    : 0
+
   function calcDiscount() {
-    let discount = 0
-    if (appliedPromo) {
-      discount += appliedPromo.type === 'percentage'
-        ? Math.min((subtotal * appliedPromo.value) / 100, subtotal)
-        : Math.min(appliedPromo.value, subtotal)
-    }
-    discount += pointsDiscount
-    return discount
+    return promoDiscountAmount + pointsDiscount
   }
 
   const finalTotal = subtotal + deliveryFee - calcDiscount()
@@ -454,9 +541,14 @@ export default function CheckoutPage() {
       <div className="min-h-screen bg-[#F4F6F5] flex flex-col">
         <Suspense fallback={null}>
           <PaymentFailedBanner />
+          <CheckoutRecover onRestored={handleRecovered} />
         </Suspense>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <p className="text-gray-400 mb-4">Troli kosong</p>
+          {/* Sprint 3F: pautan pemulihan tapi semua item tidak lagi tersedia */}
+          {recovered && recovered.count === 0 && (
+            <p className="text-xs text-gray-500 mb-4">Item dalam troli yang disimpan tidak lagi tersedia.</p>
+          )}
           <Link href="/products" className="text-[#E11D2A] font-bold">Kembali beli-belah</Link>
         </div>
         <SfWhatsappFab offset="nav" />
@@ -490,6 +582,20 @@ export default function CheckoutPage() {
     if (firstBad) { scrollToField(firstBad); return }
 
     setLoading(true)
+
+    // Sprint 3F: simpan snapshot troli TERKINI sebelum order dicipta (bounded ≤ 1.5s,
+    // best-effort). Mesti SEBELUM /api/orders & /api/store/guest-order kerana kedua-dua
+    // jalur menanda sesi ini "pulih" sebaik order masuk — capture selepas itu akan
+    // buka sesi baharu & hantar peringatan palsu. Troli tak berubah lagi selepas ini
+    // (borang dikunci semasa loading) → ini snapshot yang sampai ke gateway.
+    const capturePayload = buildCapturePayload()
+    if (capturePayload) {
+      await Promise.race([
+        captureCheckoutSession(capturePayload, true),
+        new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+      ])
+    }
+
     const supabase = createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -662,7 +768,29 @@ export default function CheckoutPage() {
       </div>
       <Suspense fallback={null}>
         <PaymentFailedBanner />
+        <CheckoutRecover onRestored={handleRecovered} />
       </Suspense>
+      {/* Sprint 3F: notis troli dipulihkan dari pautan email peringatan */}
+      {recovered && recovered.count > 0 && (
+        <div role="status" className="max-w-2xl mx-auto px-4 pt-4">
+          <div className="flex items-start gap-3 rounded-2xl border border-gray-300 bg-white px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.05)]">
+            <RotateCcw className="h-5 w-5 text-gray-700 shrink-0 mt-0.5" />
+            <p className="flex-1 text-[13px] text-gray-800 leading-snug">
+              <span className="font-bold">Troli anda dipulihkan.</span>{' '}
+              {recovered.count} item dimasukkan semula — semak &amp; teruskan bayar.
+              {recovered.skipped > 0 && ` ${recovered.skipped} item tidak lagi tersedia.`}
+            </p>
+            <button
+              type="button"
+              onClick={() => setRecovered(null)}
+              aria-label="Tutup"
+              className="h-8 w-8 -mr-1 -mt-1 grid place-items-center rounded-lg text-gray-500 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Sprint 3E: noValidate — pengesahan inline kami ganti gelembung pelayar */}
       <form id="checkout-form" onSubmit={handleSubmit} noValidate className="max-w-2xl mx-auto px-4 pt-4 pb-44 space-y-3">
         <HoneypotField value={website} onChange={setWebsite} />
@@ -1196,7 +1324,11 @@ export default function CheckoutPage() {
                     <CheckCircle2 className="h-4 w-4 text-[#E11D2A] shrink-0" />
                     <span className="text-sm font-mono font-bold text-[#A01018]">{appliedPromo.code}</span>
                     <span className="text-xs text-[#C81824]">
-                      {appliedPromo.type === 'percentage' ? `${appliedPromo.value}% off` : `RM${appliedPromo.value.toFixed(2)} off`}
+                      {appliedPromo.type === 'free_shipping'
+                        ? 'Hantar percuma'
+                        : appliedPromo.type === 'percentage'
+                          ? `${appliedPromo.value}% off`
+                          : `RM${appliedPromo.value.toFixed(2)} off`}
                     </span>
                   </div>
                   <button
@@ -1308,12 +1440,10 @@ export default function CheckoutPage() {
               )}
               {appliedPromo && (
                 <div className="flex justify-between text-sm text-[#C81824]">
-                  <span>Diskaun ({appliedPromo.code})</span>
-                  <span className="tabular-nums">
-                    -RM{(appliedPromo.type === 'percentage'
-                      ? Math.min((subtotal * appliedPromo.value) / 100, subtotal)
-                      : Math.min(appliedPromo.value, subtotal)).toFixed(2)}
+                  <span>
+                    {appliedPromo.type === 'free_shipping' ? 'Hantar percuma' : 'Diskaun'} ({appliedPromo.code})
                   </span>
+                  <span className="tabular-nums">-RM{promoDiscountAmount.toFixed(2)}</span>
                 </div>
               )}
               {usePoints && pointsDiscount > 0 && (
