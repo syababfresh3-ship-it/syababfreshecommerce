@@ -1,9 +1,12 @@
 "use client";
 
-// Admin Waitlist — kumpul entri ikut produk; bila restock: salin nombor
-// → tampal ke Blast (Rasmi) "Paste numbers" → hantar → tanda "Dah maklum".
+// Admin Waitlist — kumpul entri ikut produk. Bila restock:
+//   utama   → "Hantar notis restock" (sheet: kiraan WA/e-mel, stok, template,
+//             mesej) → kempen Blaster + e-mel + tanda notified automatik.
+//   manual  → "Salin nombor" (tampal ke Blast wizard sendiri) + "Dah maklum".
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Check, Copy, Loader2 } from "lucide-react";
+import { Bell, Check, Copy, Loader2, Send } from "lucide-react";
+import { RestockSheet } from "./restock-sheet";
 
 interface Entry {
   id: string;
@@ -27,16 +30,25 @@ export function WaitlistClient() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState<string | null>(null);
+  const [restockFor, setRestockFor] = useState<Group | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch("/api/admin/waitlist");
-    const j = await res.json();
-    setEntries(j.entries ?? []);
-    setLoading(false);
-  }, []);
+  // Muat senarai — setState hanya dalam callback fetch (react-hooks/set-state-in-effect).
+  // Muat semula selepas hantar/tanda = bump refreshKey (senyap, tanpa kelip loading).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/waitlist")
+      .then((r) => r.json())
+      .catch(() => ({ entries: [] }))
+      .then((j) => {
+        if (cancelled) return;
+        setEntries(j.entries ?? []);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(() => setRefreshKey((k) => k + 1), []);
 
   const groups: Group[] = [];
   for (const e of entries) {
@@ -50,14 +62,15 @@ export function WaitlistClient() {
   }
   groups.sort((a, b) => b.pending.length - a.pending.length);
 
+  // Aliran manual (kekal): salin nombor → tampal ke Blast wizard sendiri.
   async function copyNumbers(g: Group) {
     const nums = g.pending.map((e) => e.phone).join("\n");
     await navigator.clipboard.writeText(nums);
-    window.alert(`${g.pending.length} nombor disalin.\n\nPergi Blast (Rasmi) → New Campaign → Paste numbers → tampal → hantar template restock.`);
+    window.alert(`${g.pending.length} nombor disalin.\n\nPergi Blast (Rasmi) → New Campaign → Paste numbers → tampal → hantar template restock.\nLepas hantar, tekan "Dah maklum" di sini.`);
   }
 
   async function markNotified(g: Group) {
-    if (!window.confirm(`Tanda ${g.pending.length} entri "${g.productName}" sebagai dah dimaklum?\n\n(Buat SELEPAS blast dihantar.)`)) return;
+    if (!window.confirm(`Tanda ${g.pending.length} entri "${g.productName}" sebagai dah dimaklum?\n\n(Buat SELEPAS blast dihantar secara manual.)`)) return;
     setMarking(g.productId);
     const res = await fetch("/api/admin/waitlist", {
       method: "PATCH",
@@ -78,7 +91,7 @@ export function WaitlistClient() {
           <Bell size={20} /> Waitlist Produk
         </h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          Customer yang minta dimaklum bila stok masuk — senarai pembeli paling panas untuk blast restock
+          Customer yang minta dimaklum bila stok masuk — senarai pembeli paling panas untuk notis restock
         </p>
       </div>
 
@@ -102,58 +115,79 @@ export function WaitlistClient() {
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {groups.map((g) => (
-              <div key={g.productId} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  {g.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={g.image} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-lg bg-gray-100 shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900 truncate">{g.productName}</p>
-                    <p className="text-[11px] text-gray-400">
-                      <b className="text-gray-700">{g.pending.length}</b> menunggu
-                      {g.notified > 0 && <span> · {g.notified} dah dimaklum</span>}
-                    </p>
+            {groups.map((g) => {
+              const total = g.pending.length + g.notified;
+              return (
+                <div key={g.productId} className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {g.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={g.image} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-lg bg-gray-100 shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{g.productName}</p>
+                      <p className="text-[11px] text-gray-400">
+                        <b className="text-gray-700">{g.pending.length}</b> menunggu
+                        {g.notified > 0 && (
+                          <span> · <span className="inline-flex items-center gap-0.5 text-gray-600"><Check size={11} /> Dihantar {g.notified}/{total}</span></span>
+                        )}
+                      </p>
+                    </div>
+                    {g.pending.length > 0 && (
+                      <div className="flex flex-wrap justify-end gap-2 shrink-0">
+                        <button
+                          onClick={() => setRestockFor(g)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-800 rounded-lg px-3 py-1.5 hover:bg-gray-900"
+                        >
+                          <Send size={13} /> Hantar notis restock
+                        </button>
+                        <button
+                          onClick={() => copyNumbers(g)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50"
+                          title="Aliran manual: tampal ke Blast wizard sendiri"
+                        >
+                          <Copy size={13} /> Salin nombor
+                        </button>
+                        <button
+                          onClick={() => markNotified(g)}
+                          disabled={marking === g.productId}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 rounded-lg px-2 py-1.5 hover:text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                          title="Tanda dah dimaklum tanpa hantar (selepas blast manual)"
+                        >
+                          {marking === g.productId ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          Dah maklum
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {g.pending.length > 0 && (
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => copyNumbers(g)}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50"
-                      >
-                        <Copy size={13} /> Salin nombor
-                      </button>
-                      <button
-                        onClick={() => markNotified(g)}
-                        disabled={marking === g.productId}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-800 rounded-lg px-3 py-1.5 hover:bg-gray-900 disabled:opacity-50"
-                      >
-                        {marking === g.productId ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                        Dah maklum
-                      </button>
+                    <div className="mt-2 flex flex-wrap gap-1.5 pl-13">
+                      {g.pending.slice(0, 12).map((e) => (
+                        <span key={e.id} className="text-[10.5px] bg-gray-50 border border-gray-100 rounded-full px-2 py-0.5 text-gray-500">
+                          {e.name ? `${e.name} · ` : ""}{e.phone}
+                        </span>
+                      ))}
+                      {g.pending.length > 12 && (
+                        <span className="text-[10.5px] text-gray-400">+{g.pending.length - 12} lagi</span>
+                      )}
                     </div>
                   )}
                 </div>
-                {g.pending.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5 pl-13">
-                    {g.pending.slice(0, 12).map((e) => (
-                      <span key={e.id} className="text-[10.5px] bg-gray-50 border border-gray-100 rounded-full px-2 py-0.5 text-gray-500">
-                        {e.name ? `${e.name} · ` : ""}{e.phone}
-                      </span>
-                    ))}
-                    {g.pending.length > 12 && (
-                      <span className="text-[10.5px] text-gray-400">+{g.pending.length - 12} lagi</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
+      {restockFor && (
+        <RestockSheet
+          productId={restockFor.productId}
+          onClose={() => setRestockFor(null)}
+          onDone={load}
+        />
+      )}
     </div>
   );
 }
