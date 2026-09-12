@@ -3,6 +3,7 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifySupportToken } from '@/lib/support/token'
+import { guardUpload, IMAGE_TYPES } from '@/lib/file-guard'
 
 // Upload gambar bukti aduan — token-gated (customer hanya boleh tambah pada
 // aduan sendiri). Ikut pattern api/admin/refunds/upload tapi guna token, bukan admin.
@@ -17,7 +18,11 @@ export async function POST(req: Request) {
   const file = form.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'Tiada fail.' }, { status: 400 })
   if (file.size > 8 * 1024 * 1024) return NextResponse.json({ error: 'Fail terlalu besar (max 8MB).' }, { status: 400 })
-  if (!file.type.startsWith('image/')) return NextResponse.json({ error: 'Hanya gambar dibenarkan.' }, { status: 400 })
+
+  // Sahkan ikut magic bytes — laluan ini terbuka kepada pelanggan (token sahaja),
+  // jadi SVG/HTML yang menyamar sebagai gambar mesti ditolak di sini.
+  const guard = await guardUpload(file, IMAGE_TYPES)
+  if (!guard.ok) return NextResponse.json({ error: guard.error }, { status: 400 })
 
   const admin = createAdminClient()
   const { data: complaint } = await admin
@@ -30,9 +35,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `Maksimum ${MAX_IMAGES} gambar.` }, { status: 400 })
   }
 
-  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-  const path = `support/${complaintId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const { error: upErr } = await admin.storage.from('brand-assets').upload(path, file, { contentType: file.type, upsert: false })
+  const path = `support/${complaintId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${guard.type.ext}`
+  const { error: upErr } = await admin.storage.from('brand-assets').upload(path, file, { contentType: guard.type.mime, upsert: false })
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
 
   const { data: { publicUrl } } = admin.storage.from('brand-assets').getPublicUrl(path)

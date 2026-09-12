@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { upsertCustomer } from '@/lib/customers'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitDb } from '@/lib/rate-limit-db'
 import { safeClientIp, checkMemberOrderIpFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
 import { evaluatePromo } from '@/lib/promo-rules'
@@ -17,7 +17,7 @@ interface CartItem {
 export async function POST(request: Request) {
   // Anti-bot lapisan 1: burst gate in-memory.
   const ip = safeClientIp(request)
-  if (!rateLimit('mo:' + (ip ?? 'unknown'), 8, 60_000))
+  if (!(await rateLimitDb('mo:' + (ip ?? 'unknown'), 8, 60_000)))
     return NextResponse.json({ error: FLOOD_ERROR }, { status: 429 })
 
   const userClient = await createClient()

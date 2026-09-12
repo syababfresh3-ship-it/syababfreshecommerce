@@ -3,18 +3,18 @@
 // GET ?phone=<raw> → { orders: [{ id, order_number, status, total, created_at }] }
 // Identiti = telefon (model sama dgn /api/support/identify & /resit/[id]).
 // Pulang medan SELAMAT sahaja (tiada nama/email/alamat).
-// TODO: rate-limit (lookup tanpa auth ikut telefon).
+// Had kadar sejagat (migration 133) — lookup tanpa auth ikut telefon.
 // ============================================================
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizePhone, isValidPhone } from "@/lib/phone";
-import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { rateLimitDb, clientIp } from "@/lib/rate-limit-db";
 
 export async function GET(req: NextRequest) {
   // Had kadar: 10 lookup / 60 saat per IP (halang enumerasi telefon).
-  if (!rateLimit(`track:${clientIp(req)}`, 10, 60_000)) {
+  if (!(await rateLimitDb(`track:${clientIp(req)}`, 10, 60_000))) {
     return NextResponse.json({ error: "Terlalu banyak permintaan. Cuba sebentar lagi." }, { status: 429 });
   }
 

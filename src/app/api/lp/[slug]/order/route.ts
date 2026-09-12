@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { upsertCustomer } from '@/lib/customers'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimitDb } from '@/lib/rate-limit-db'
 import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   // Anti-bot lapisan 1: burst gate in-memory.
   const ip = safeClientIp(request)
-  if (!rateLimit('lpo:' + (ip ?? 'unknown'), 8, 60_000))
+  if (!(await rateLimitDb('lpo:' + (ip ?? 'unknown'), 8, 60_000)))
     return NextResponse.json({ error: FLOOD_ERROR }, { status: 429 })
 
   const body = await request.json().catch(() => ({}))

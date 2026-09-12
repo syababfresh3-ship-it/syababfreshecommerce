@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimitDb, clientIp } from '@/lib/rate-limit-db'
+import { confirmLpGuestOrder, confirmStorefrontOrder } from '@/lib/order-confirm'
 
 // Resume-payment link untuk order online (FPX/e-wallet) yang belum dibayar.
 // Diletak dalam email reminder. orderId (UUID) bertindak sebagai token —
@@ -53,10 +55,56 @@ async function createCheckout(opts: {
     : null
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// Order yang tak sepatutnya boleh dibayar lagi.
+const DEAD_STATUS = new Set(['cancelled', 'refunded'])
+
+type PurchaseState =
+  | { state: 'paid' }                    // CHIP kata dah dibayar — JANGAN cipta yang baru
+  | { state: 'reusable'; url: string }   // masih 'created' & belum luput — guna semula
+  | { state: 'stale' }                   // luput/batal/ralat — selamat cipta yang baru
+
+// Periksa purchase yang kita dah simpan sebelum mencipta yang baharu.
+//
+// Dua sebab ini penting:
+//  1. Kalau purchase lama sebenarnya SUDAH DIBAYAR (webhook tak sampai), mencipta
+//     purchase baharu bermakna pelanggan boleh bayar KALI KEDUA.
+//  2. Setiap kali kita cipta purchase baharu, `payment_ref` ditimpa — rujukan
+//     lama hilang, jadi verify-payment & reconcile tak dapat lagi menjumpai
+//     pembayaran yang sebenarnya berjaya.
+async function inspectPurchase(purchaseId: string | null): Promise<PurchaseState> {
+  if (!purchaseId) return { state: 'stale' }
+  try {
+    const res = await fetch(`${CHIP_API_URL}/purchases/${purchaseId}/`, {
+      headers: { Authorization: `Bearer ${process.env.CHIP_SECRET_KEY}` },
+    })
+    if (!res.ok) return { state: 'stale' }
+    const p = await res.json()
+    if (p?.status === 'paid') return { state: 'paid' }
+    const expired = typeof p?.due === 'number' && p.due * 1000 < Date.now()
+    if (p?.status === 'created' && !expired && typeof p?.checkout_url === 'string') {
+      return { state: 'reusable', url: p.checkout_url }
+    }
+    return { state: 'stale' }
+  } catch {
+    return { state: 'stale' }
+  }
+}
+
+const tooMany = () =>
+  new NextResponse(
+    '<meta charset="utf-8"><p style="font:16px system-ui;padding:2rem">Terlalu banyak cubaan. Sila tunggu seminit, kemudian cuba semula.</p>',
+    { status: 429, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+  )
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const appUrl = getAppUrl()
   const fail = NextResponse.redirect(`${appUrl}/?bayar=ralat`, 302)
+
+  // Tanpa had, sesiapa yang ada satu UUID order boleh mencipta purchase CHIP
+  // tanpa henti. Had dua lapis: per-IP dan per-order.
+  if (!(await rateLimitDb(`pay:ip:${clientIp(req)}`, 10, 60_000))) return tooMany()
+  if (!(await rateLimitDb(`pay:order:${id}`, 5, 60_000))) return tooMany()
 
   if (!process.env.CHIP_SECRET_KEY || !process.env.CHIP_BRAND_ID) return fail
   const supabase = createAdminClient()
@@ -64,12 +112,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── 1) Storefront order ──────────────────────────────────────────────
   const { data: sf } = await supabase
     .from('orders')
-    .select('id, order_number, total, delivery_fee, payment_status, payment_method, user_id, order_items(product_name, unit_price, quantity)')
+    .select('id, order_number, total, delivery_fee, payment_status, payment_method, status, payment_ref, user_id, order_items(product_name, unit_price, quantity)')
     .eq('id', id)
     .maybeSingle()
 
   if (sf) {
     if (sf.payment_status === 'paid') return NextResponse.redirect(`${appUrl}/orders/${sf.id}`, 302)
+    if (DEAD_STATUS.has(sf.status)) return fail
+
+    const existing = await inspectPurchase(sf.payment_ref)
+    // Sudah dibayar di CHIP tetapi DB belum tahu — sahkan, jangan cipta yang baharu.
+    if (existing.state === 'paid') {
+      await confirmStorefrontOrder(supabase, sf.id)
+      return NextResponse.redirect(`${appUrl}/orders/${sf.id}`, 302)
+    }
+    // Masih sah — hantar ke checkout yang sama, `payment_ref` kekal.
+    if (existing.state === 'reusable') return NextResponse.redirect(existing.url, 302)
 
     const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', sf.user_id).single()
     if (!profile?.email) return fail
@@ -96,7 +154,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── 2) LP guest order ────────────────────────────────────────────────
   const { data: lp } = await supabase
     .from('lp_guest_orders')
-    .select('id, order_number, name, phone, total, delivery_fee, discount, points_discount, payment_status, items, product_name, variant_name, quantity, unit_price, landing_pages(slug)')
+    .select('id, order_number, name, phone, total, delivery_fee, discount, points_discount, payment_status, status, payment_ref, items, product_name, variant_name, quantity, unit_price, landing_pages(slug)')
     .eq('id', id)
     .maybeSingle()
 
@@ -104,6 +162,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const slug = Array.isArray(lp.landing_pages) ? (lp.landing_pages[0] as any)?.slug : (lp.landing_pages as any)?.slug
     if (lp.payment_status === 'paid')
       return NextResponse.redirect(`${appUrl}/lp/${slug}/berjaya?pesanan=${lp.order_number}`, 302)
+    if (DEAD_STATUS.has(lp.status)) return fail
+
+    const existing = await inspectPurchase(lp.payment_ref)
+    if (existing.state === 'paid') {
+      await confirmLpGuestOrder(supabase, lp.id)
+      return NextResponse.redirect(`${appUrl}/lp/${slug}/berjaya?pesanan=${lp.order_number}`, 302)
+    }
+    if (existing.state === 'reusable') return NextResponse.redirect(existing.url, 302)
 
     const itemsArr: any[] = Array.isArray(lp.items) && lp.items.length > 0
       ? lp.items

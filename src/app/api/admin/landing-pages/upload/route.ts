@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { NextResponse } from 'next/server'
+import { guardUpload, IMAGE_TYPES, VIDEO_TYPES } from '@/lib/file-guard'
 
 export async function POST(request: Request) {
   const { supabase, forbidden } = await requireAdmin()
@@ -12,27 +13,27 @@ export async function POST(request: Request) {
 
   // Video (section "Video Jualan") → bucket lp-videos (migration 119).
   // Gambar kekal seperti sedia ada → brand-assets.
-  const isVideo = file.type.startsWith('video/')
+  // Cabang ditentukan oleh magic bytes, bukan `file.type` dari klien.
+  const guard = await guardUpload(file, [...IMAGE_TYPES, ...VIDEO_TYPES])
+  if (!guard.ok)
+    return NextResponse.json({ error: 'Hanya gambar (JPG/PNG/WebP/GIF/HEIC) atau video (MP4/WebM) dibenarkan' }, { status: 400 })
+
+  const isVideo = (VIDEO_TYPES as readonly string[]).includes(guard.type.mime)
   let bucket = 'brand-assets'
   let path: string
   if (isVideo) {
-    if (!['video/mp4', 'video/webm'].includes(file.type))
-      return NextResponse.json({ error: 'Format video: MP4 atau WebM sahaja' }, { status: 400 })
     if (file.size > 50 * 1024 * 1024)
       return NextResponse.json({ error: 'Video terlalu besar (max 50MB). Mampatkan ke 720p dulu.' }, { status: 400 })
     bucket = 'lp-videos'
-    const ext = file.type === 'video/webm' ? 'webm' : 'mp4'
-    path = `lp-videos/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    path = `lp-videos/${Date.now()}-${Math.random().toString(36).slice(2)}.${guard.type.ext}`
   } else {
     if (file.size > 4 * 1024 * 1024) return NextResponse.json({ error: 'Fail terlalu besar (max 4MB)' }, { status: 400 })
-    if (!file.type.startsWith('image/')) return NextResponse.json({ error: 'Hanya fail gambar dibenarkan' }, { status: 400 })
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
-    path = `lp-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    path = `lp-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${guard.type.ext}`
   }
 
   const { error } = await supabase!.storage
     .from(bucket)
-    .upload(path, file, { contentType: file.type, upsert: false })
+    .upload(path, file, { contentType: guard.type.mime, upsert: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
