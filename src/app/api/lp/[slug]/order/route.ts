@@ -5,6 +5,7 @@ import { getAppSettings } from '@/lib/app-settings'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { upsertCustomer } from '@/lib/customers'
 import { rateLimitDb } from '@/lib/rate-limit-db'
+import { requiredSlugsFromHtml } from '@/lib/lp-required'
 import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
@@ -103,7 +104,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Get landing page
   const { data: page } = await supabase
     .from('landing_pages')
-    .select('id, title')
+    .select('id, title, html_content')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -162,6 +163,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       const unitPrice = Number(product.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: product.name, unit_price: unitPrice })
+    }
+  }
+
+  // ── Produk wajib untuk LP ini ────────────────────────────────────────
+  // LP promosi satu produk menanda produk itu `{{checkout:slug*}}`. Borang
+  // mengelabukan add-on sehingga ia dipilih, tetapi POST terus memintas UI
+  // sepenuhnya — jadi pintu sebenar ada DI SINI. Corak sama seperti kaedah
+  // bayaran per LP (migration 132): apa yang dipapar dan apa yang diterima
+  // mesti datang dari sumber yang sama.
+  const requiredSlugs = requiredSlugsFromHtml(page.html_content)
+  if (requiredSlugs.length > 0) {
+    // Kumpul produk dalam pesanan, termasuk produk induk bagi item variant.
+    const orderedProductIds = new Set<string>()
+    for (const item of items as OrderItem[]) {
+      if (item.variant_id) {
+        const parent = (variantMap.get(item.variant_id)?.products as any)?.id
+        if (parent) orderedProductIds.add(parent)
+      } else {
+        orderedProductIds.add(item.product_id)
+      }
+    }
+
+    const { data: reqProducts } = await supabase
+      .from('products')
+      .select('id, name')
+      .in('slug', requiredSlugs)
+
+    const missing = (reqProducts ?? []).filter(rp => !orderedProductIds.has(rp.id))
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: `${missing.map(m => m.name).join(' & ')} wajib disertakan dalam pesanan ini` },
+        { status: 400 },
+      )
     }
   }
 

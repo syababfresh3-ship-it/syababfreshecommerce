@@ -9,6 +9,7 @@ import { LpMultiCheckout } from './lp-multi-checkout'
 import { LpPixels } from './lp-pixels'
 import { LpTracker } from './lp-tracker'
 import { LpHtmlScripts } from './lp-html-scripts'
+import { parseCheckoutSlugs } from '@/lib/lp-required'
 import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
@@ -240,15 +241,21 @@ export default async function LandingPage({ params }: Props) {
 
           // {{checkout:slug}} or {{checkout:slug1,slug2,...}}
           if (part.startsWith('{{checkout:')) {
-            const rawSlugs = part.slice(11, -2).split(',').map(s => s.trim())
-            const checkoutProducts = rawSlugs.map(s => productsBySlug.get(s)).filter(p => p && p.is_active)
+            // `slug*` menanda produk WAJIB — add-on dikunci sehingga ia dipilih.
+            // Tiada `*` → tiada syarat, sama seperti sebelum ini (lib/lp-required.ts).
+            const parsed = parseCheckoutSlugs(part.slice(11, -2))
+            const checkoutProducts = parsed.map(s => productsBySlug.get(s.slug)).filter(p => p && p.is_active)
             if (checkoutProducts.length === 0) return null
 
             // Multi-product
             if (checkoutProducts.length > 1) {
               const stocks: Record<string, number | null> = {}
               checkoutProducts.forEach(p => { stocks[p!.id] = stockByProductId.get(p!.id) ?? null })
-              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
+              const requiredIds = parsed
+                .filter(s => s.required)
+                .map(s => productsBySlug.get(s.slug)?.id)
+                .filter((id): id is string => !!id)
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} requiredIds={requiredIds} />
             }
 
             // Single product

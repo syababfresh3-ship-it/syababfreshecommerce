@@ -19,6 +19,8 @@ interface Props {
   slug: string
   freeMin?: number
   pickupEnabled?: boolean
+  /** Produk yang WAJIB dipilih sebelum add-on boleh dipilih (tag `slug*`). */
+  requiredIds?: string[]
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
@@ -29,7 +31,7 @@ interface ProductSelection {
   qty: number
 }
 
-export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEnabled = false }: Props) {
+export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEnabled = false, requiredIds = [] }: Props) {
   // Init: only first product qty=1, rest qty=0
   const initSelections = (): ProductSelection[] =>
     products.map((p, i) => {
@@ -103,8 +105,31 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
 
   useEffect(() => { fetchFee(form.postcode) }, [form.postcode, fetchFee])
 
+  // ── Produk wajib ────────────────────────────────────────────────────
+  // LP promosi satu produk (cth figs) menanda produk itu `slug*`. Add-on
+  // kekal NAMPAK tetapi kelabu sehingga produk wajib dipilih.
+  // Tiada produk wajib → requiredMet sentiasa true, jadi LP lain tidak
+  // terjejas langsung.
+  const requiredSet = new Set(requiredIds)
+  const hasRequired = requiredIds.length > 0
+  const requiredSels = selections.filter(s => requiredSet.has(s.product.id))
+  const requiredMet = requiredSels.length === 0 || requiredSels.every(s => s.qty > 0)
+  const requiredNames = requiredSels.map(s => s.product.name)
+  // Produk wajib habis stok → seluruh borang tidak boleh diteruskan.
+  const requiredSoldOut = requiredSels.some(s => (stocks[s.product.id] ?? null) === 0)
+
   function updateSelection(idx: number, patch: Partial<ProductSelection>) {
-    setSelections(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s))
+    setSelections(prev => {
+      const next = prev.map((s, i) => i === idx ? { ...s, ...patch } : s)
+      // Produk wajib diturunkan ke 0 → kosongkan add-on serentak. Tanpa ini
+      // add-on yang sudah dipilih akan kekal dikira dalam jumlah walaupun
+      // kadnya sudah kelabu — pengguna nampak harga yang tak boleh dibayar.
+      const stillMet = next.filter(x => requiredSet.has(x.product.id)).every(x => x.qty > 0)
+      if (hasRequired && !stillMet) {
+        return next.map(x => (requiredSet.has(x.product.id) ? x : { ...x, qty: 0 }))
+      }
+      return next
+    })
   }
 
   async function applyPromo() {
@@ -121,6 +146,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     if (activeSelections.length === 0) { toast.error('Sila pilih sekurang-kurangnya 1 produk'); return }
+    if (!requiredMet) { toast.error(`Sila pilih ${requiredNames.join(' & ')} dahulu`); return }
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan no. telefon'); return }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Sila masukkan email yang sah'); return }
@@ -259,7 +285,13 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
             <div style={stepBadge}>1</div>
             <div>
               <p style={stepTitle}>Pilih Produk &amp; Kuantiti</p>
-              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>Set kuantiti kepada 0 untuk tidak order</p>
+              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                {hasRequired
+                  ? (requiredSoldOut
+                      ? `${requiredNames.join(' & ')} sedang habis stok`
+                      : `${requiredNames.join(' & ')} wajib — add-on terbuka selepas anda pilih`)
+                  : 'Set kuantiti kepada 0 untuk tidak order'}
+              </p>
             </div>
           </div>
 
@@ -271,18 +303,33 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
               const stock = stocks[sel.product.id] ?? null
               const isOutOfStock = stock === 0
               const isActive = sel.qty > 0
+              const isRequired = requiredSet.has(sel.product.id)
+              // Add-on kekal nampak tetapi terkunci sehingga produk wajib dipilih.
+              const isLocked = hasRequired && !isRequired && !requiredMet
 
               return (
                 <div key={sel.product.id} style={{
                   borderRadius: 14, border: `2px solid ${isActive ? cv('--cherry', '#9C0F30') : '#e5e7eb'}`,
                   background: isActive ? cv('--cherry-light', '#fef2f2') : '#fafafa',
-                  overflow: 'hidden', transition: 'all 0.15s', opacity: isOutOfStock ? 0.5 : 1,
+                  overflow: 'hidden', transition: 'all 0.15s',
+                  opacity: isOutOfStock ? 0.5 : isLocked ? 0.45 : 1,
                 }}>
                   {/* Product header row */}
                   <div style={{ padding: '12px 14px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 800, fontSize: 14, color: '#111', marginBottom: 2, lineHeight: 1.3 }}>{sel.product.name}</p>
+                      <p style={{ fontWeight: 800, fontSize: 14, color: '#111', marginBottom: 2, lineHeight: 1.3 }}>
+                        {sel.product.name}
+                        {isRequired && hasRequired && (
+                          <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: cv('--cherry', '#9C0F30'), border: `1px solid ${cv('--cherry', '#9C0F30')}`, borderRadius: 999, padding: '1px 6px', verticalAlign: 'middle' }}>Wajib</span>
+                        )}
+                      </p>
                       <p style={{ fontSize: 14, fontWeight: 900, color: cv('--cherry', '#9C0F30') }}>RM{(price * Math.max(sel.qty, 1)).toFixed(2)}</p>
+                      {isLocked && (
+                        <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, color: '#9ca3af', marginTop: 3 }}>
+                          <Lock style={{ width: 10, height: 10, flexShrink: 0 }} />
+                          Pilih {requiredNames.join(' & ')} dahulu
+                        </p>
+                      )}
                     </div>
                     {isOutOfStock ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fee2e2', borderRadius: 8, padding: '4px 10px' }}>
@@ -291,11 +338,11 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-                        <button type="button" onClick={() => updateSelection(idx, { qty: Math.max(0, sel.qty - 1) })}
-                          style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <button type="button" disabled={isLocked} onClick={() => updateSelection(idx, { qty: Math.max(0, sel.qty - 1) })}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', fontSize: 16, fontWeight: 700, cursor: isLocked ? 'not-allowed' : 'pointer', color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                         <span style={{ width: 32, textAlign: 'center', fontSize: 15, fontWeight: 900, color: '#111' }}>{sel.qty}</span>
-                        <button type="button" onClick={() => updateSelection(idx, { qty: stock !== null ? Math.min(stock, sel.qty + 1) : sel.qty + 1 })}
-                          style={{ width: 32, height: 32, borderRadius: 8, border: `1.5px solid ${cv('--cherry', '#9C0F30')}`, background: cv('--cherry', '#9C0F30'), fontSize: 16, fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                        <button type="button" disabled={isLocked} onClick={() => updateSelection(idx, { qty: stock !== null ? Math.min(stock, sel.qty + 1) : sel.qty + 1 })}
+                          style={{ width: 32, height: 32, borderRadius: 8, border: `1.5px solid ${isLocked ? '#d1d5db' : cv('--cherry', '#9C0F30')}`, background: isLocked ? '#d1d5db' : cv('--cherry', '#9C0F30'), fontSize: 16, fontWeight: 700, cursor: isLocked ? 'not-allowed' : 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       </div>
                     )}
                   </div>
