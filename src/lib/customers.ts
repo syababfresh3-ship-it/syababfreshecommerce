@@ -81,12 +81,18 @@ export async function upsertCustomer(input: {
 // dedup ikut phone_norm, kira hanya order yang BUKAN cancelled/refunded supaya
 // tiada double-count dari order unpaid/abandoned. Upsert ikut phone_norm dan
 // SENGAJA tak hantar tags / is_reseller / consent (jadi nilai admin kekal).
-// Ini logik sama dengan scripts/backfill-customers.mjs, dipanggil oleh cron
-// harian supaya nombor CRM tak basi antara backfill manual. [[lib/customers.ts]]
+// Dipanggil oleh cron harian `refresh-customers` dan POST /api/admin/database/refresh
+// (butang "Segarkan sekarang"). scripts/backfill-customers.mjs ialah versi LAMA
+// (tiada paginasi, tindih medan identiti) — jangan guna; ia dikekalkan untuk rujukan.
+//
+// Sejak migration 134, fungsi ini juga mengisi product_names, coupon_codes,
+// coupon_count dan first_order_at — semuanya dari order yang lulus counts() sahaja,
+// supaya coupon_count <= order_count dan first_order_at <= last_order_at sentiasa.
 const DEAD_STATUS = new Set(['cancelled', 'refunded'])
 
 export async function refreshCustomerAggregates(): Promise<{
-  customers: number; withOrders: number; totalSpend: number; written: number; failed: number
+  customers: number; withOrders: number; withProducts: number; withCoupons: number
+  totalSpend: number; written: number; failed: number
 }> {
   const supabase = createAdminClient()
 
@@ -94,17 +100,33 @@ export async function refreshCustomerAggregates(): Promise<{
     phone_norm: string; name: string | null; email: string | null; address: string | null
     postcode: string | null; user_id: string | null; sources: Set<string>
     order_count: number; total_spend: number; last_order_at: string | null; first_seen_at: string | null
+    // migration 134 — fakta beli
+    products: Set<string>; coupons: Set<string>; coupon_count: number; first_order_at: string | null
   }
   const map = new Map<string, Person>()
   const touch = (phone: string | null | undefined): Person | null => {
     const k = normalizePhone(phone); if (!k) return null
     let p = map.get(k)
-    if (!p) { p = { phone_norm: k, name: null, email: null, address: null, postcode: null, user_id: null, sources: new Set(), order_count: 0, total_spend: 0, last_order_at: null, first_seen_at: null }; map.set(k, p) }
+    if (!p) { p = { phone_norm: k, name: null, email: null, address: null, postcode: null, user_id: null, sources: new Set(), order_count: 0, total_spend: 0, last_order_at: null, first_seen_at: null, products: new Set(), coupons: new Set(), coupon_count: 0, first_order_at: null }; map.set(k, p) }
     return p
   }
   const fill = (p: Person, f: 'name' | 'email' | 'address' | 'postcode', v: string | null | undefined) => { if (v && !p[f]) p[f] = v }
   const seen = (p: Person, t: string | null | undefined) => { if (t && (!p.first_seen_at || new Date(t) < new Date(p.first_seen_at))) p.first_seen_at = t }
   const ordered = (p: Person, t: string | null | undefined) => { if (t && (!p.last_order_at || new Date(t) > new Date(p.last_order_at))) p.last_order_at = t }
+  const firstOrdered = (p: Person, t: string | null | undefined) => { if (t && (!p.first_order_at || new Date(t) < new Date(p.first_order_at))) p.first_order_at = t }
+  // Embed PostgREST: to-one (promo_codes) pulang objek, tetapi tahan kalau ia array.
+  const codeOf = (pc: unknown): string | null => {
+    const x = Array.isArray(pc) ? pc[0] : pc
+    const c = (x as { code?: unknown } | null)?.code
+    return typeof c === 'string' && c.trim() ? c.trim() : null
+  }
+  // Dedup ikut product_name SAHAJA (tanpa variant) — supaya dropdown penapis tak meletup.
+  const addProducts = (p: Person, names: Array<string | null | undefined>) => {
+    for (const nm of names) { const t = (nm ?? '').trim(); if (t) p.products.add(t) }
+  }
+  const addCoupon = (p: Person, pc: unknown) => {
+    const code = codeOf(pc); if (code) { p.coupons.add(code); p.coupon_count++ }
+  }
 
   // Semua select di bawah guna fetchAll — PostgREST cap 1000 baris/permintaan;
   // dulu select tanpa .range() diam-diam terpotong → agregat salah bila >1000 baris.
@@ -129,31 +151,51 @@ export async function refreshCustomerAggregates(): Promise<{
     (['fpx', 'ewallet'].includes(o.payment_method ?? '') ? o.payment_status === 'paid' : true)
 
   // storefront orders → key ikut telefon profil
-  type OrderRow = { user_id: string; total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string }
+  // Embed order_items + promo_codes (FK tunggal, tidak samar — preseden admin/promos/usage).
+  type OrderRow = {
+    id: string; user_id: string; total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string
+    order_items: { product_name: string | null }[] | null
+    promo_codes: { code: string } | { code: string }[] | null
+  }
   const orders = await fetchAll<OrderRow>((f, t) =>
-    supabase.from('orders').select('user_id, total, status, payment_method, payment_status, created_at').order('id').range(f, t),
+    supabase.from('orders').select('id, user_id, total, status, payment_method, payment_status, created_at, order_items(product_name), promo_codes(code)').order('id').range(f, t),
     'customers:orders')
   for (const o of orders) {
     const pr = profileById.get(o.user_id); if (!pr?.phone) continue
     const p = touch(pr.phone); if (!p) continue
     p.sources.add('store'); seen(p, o.created_at)
-    if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+    if (counts(o)) {
+      p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at); firstOrdered(p, o.created_at)
+      addProducts(p, (o.order_items ?? []).map(i => i.product_name)); addCoupon(p, o.promo_codes)
+    }
   }
 
   // LP guest orders
   type LpRow = {
     phone: string | null; name: string | null; email: string | null; address: string | null; postcode: string | null
     total: number | null; status: string; payment_method: string | null; payment_status: string | null; created_at: string
+    // items jsonb (043) atau skalar legasi product_name (pra-043) — corak daily-summary.ts
+    items: unknown; product_name: string | null
+    promo_codes: { code: string } | { code: string }[] | null
+  }
+  const lpItemNames = (o: LpRow): Array<string | null | undefined> => {
+    if (Array.isArray(o.items) && o.items.length > 0) {
+      return (o.items as Array<{ product_name?: string | null; name?: string | null }>).map(i => i?.product_name ?? i?.name)
+    }
+    return [o.product_name]
   }
   const lp = await fetchAll<LpRow>((f, t) =>
-    supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at').order('id').range(f, t),
+    supabase.from('lp_guest_orders').select('phone, name, email, address, postcode, total, status, payment_method, payment_status, created_at, items, product_name, promo_codes(code)').order('id').range(f, t),
     'customers:lp')
   for (const o of lp) {
     const p = touch(o.phone); if (!p) continue
     p.sources.add('lp')
     fill(p, 'name', o.name); fill(p, 'email', o.email); fill(p, 'address', o.address); fill(p, 'postcode', o.postcode)
     seen(p, o.created_at)
-    if (counts(o)) { p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at) }
+    if (counts(o)) {
+      p.order_count++; p.total_spend += Number(o.total || 0); ordered(p, o.created_at); firstOrdered(p, o.created_at)
+      addProducts(p, lpItemNames(o)); addCoupon(p, o.promo_codes)
+    }
   }
 
   // leads (belum beli)
@@ -165,7 +207,12 @@ export async function refreshCustomerAggregates(): Promise<{
     p.sources.add('lead'); fill(p, 'name', l.name); seen(p, l.created_at)
   }
 
-  const people = [...map.values()].map(p => ({ ...p, total_spend: Math.round(p.total_spend * 100) / 100 }))
+  const people = [...map.values()].map(p => ({
+    ...p,
+    total_spend: Math.round(p.total_spend * 100) / 100,
+    product_names: [...p.products].sort(),
+    coupon_codes: [...p.coupons].sort(),
+  }))
 
   // Baris sedia ada → kemas AGREGAT sahaja (jangan tindih name/email/address yang
   // mungkin admin dah betulkan, dan jangan sentuh tags/is_reseller/consent).
@@ -187,6 +234,7 @@ export async function refreshCustomerAggregates(): Promise<{
         phone_norm: p.phone_norm, name: p.name, email: p.email, address: p.address, postcode: p.postcode,
         user_id: p.user_id, sources: [...p.sources], order_count: p.order_count,
         total_spend: p.total_spend, last_order_at: p.last_order_at, first_seen_at: p.first_seen_at,
+        product_names: p.product_names, coupon_codes: p.coupon_codes, coupon_count: p.coupon_count, first_order_at: p.first_order_at,
       })
       continue
     }
@@ -198,6 +246,11 @@ export async function refreshCustomerAggregates(): Promise<{
       total_spend: p.total_spend,
       last_order_at: p.last_order_at,
       sources: [...new Set([...(ex.sources ?? []), ...p.sources])],
+      // migration 134 — fakta beli (cache agregat, sama sifat dengan order_count)
+      product_names: p.product_names,
+      coupon_codes: p.coupon_codes,
+      coupon_count: p.coupon_count,
+      first_order_at: p.first_order_at,
       updated_at: now,
     })
   }
@@ -219,6 +272,8 @@ export async function refreshCustomerAggregates(): Promise<{
   return {
     customers: people.length,
     withOrders: people.filter(p => p.order_count > 0).length,
+    withProducts: people.filter(p => p.product_names.length > 0).length,
+    withCoupons: people.filter(p => p.coupon_count > 0).length,
     totalSpend: Math.round(people.reduce((s, p) => s + p.total_spend, 0) * 100) / 100,
     written, failed,
   }

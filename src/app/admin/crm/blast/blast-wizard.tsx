@@ -11,7 +11,7 @@ interface Template {
   components: Array<{ type: string; text?: string; format?: string }>;
 }
 interface PastBlast { id: string; name: string; total: number }
-type AudType = "contacts" | "csv" | "paste" | "past";
+type AudType = "contacts" | "csv" | "paste" | "past" | "database"; // database = handoff dari /admin/database sahaja
 interface CsvRow { phone: string; name?: string; vars: Record<string, string> }
 
 // Parse CSV ringkas: kesan lajur phone + nama; lajur lain → merge fields.
@@ -63,6 +63,10 @@ export function BlastWizard() {
   const [excludeBlastedDays, setExcludeBlastedDays] = useState(""); // cooldown: kosong = selamanya, N = N hari terakhir sahaja
   const [pastList, setPastList] = useState<PastBlast[]>([]);
   const [pastId, setPastId] = useState("");
+  // Dari /admin/database (handoff via sessionStorage) — id baris `customers` yang staf tanda.
+  const [dbIds, setDbIds] = useState<string[]>([]);
+  const [dbLabel, setDbLabel] = useState("");
+  const [handoffChecked, setHandoffChecked] = useState(false);
 
   // Template
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -113,14 +117,44 @@ export function BlastWizard() {
     [pasteText],
   );
 
-  // Preview 'contacts' — guna endpoint preview (resolver SAMA dgn hantar sebenar).
+  // Handoff dari /admin/database: baca SEKALI masa mount, kemudian padam kuncinya.
+  // Dalam useEffect (bukan initializer useState) — server render audType='contacts',
+  // baca window dalam initializer = hydration mismatch. StrictMode jalan dua kali:
+  // larian kedua tak jumpa kunci → tak sentuh audType. Sentiasa tanda handoffChecked
+  // supaya kesan preview di bawah tahu ia selamat untuk mula.
   useEffect(() => {
-    if (audType !== "contacts") return;
+    try {
+      const raw = sessionStorage.getItem("blast-handoff");
+      if (raw) {
+        sessionStorage.removeItem("blast-handoff");
+        const h = JSON.parse(raw) as { customerIds?: unknown; label?: unknown; name?: unknown };
+        if (Array.isArray(h.customerIds) && h.customerIds.length > 0) {
+          setDbIds(h.customerIds.filter((x): x is string => typeof x === "string" && x.length > 0));
+          setDbLabel(typeof h.label === "string" ? h.label : "");
+          if (typeof h.name === "string" && h.name) setName(h.name);
+          setExcluded(new Set());
+          setAudType("database");
+        }
+      }
+    } catch { /* sessionStorage tak tersedia / JSON rosak → mula seperti biasa */ }
+    setHandoffChecked(true);
+  }, []);
+
+  // Preview 'contacts' & 'database' — guna endpoint preview (resolver SAMA dgn hantar sebenar).
+  useEffect(() => {
+    // Tunggu semakan handoff selesai — kalau tidak, preview 'contacts' tembak masa mount
+    // (resolve penuh wa_contacts 12k+ baris) sebelum handoff sempat tukar ke 'database'.
+    if (!handoffChecked) return;
+    if (audType !== "contacts" && audType !== "database") return;
     let cancelled = false;
     setPreviewLoading(true);
+    const cooldown = { excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined };
+    const spec = audType === "database"
+      ? { source: "database", customerIds: dbIds, ...cooldown }
+      : { source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, ...cooldown };
     fetch("/api/whatsapp/blast/preview", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined }),
+      body: JSON.stringify(spec),
     })
       .then((r) => r.json())
       .then((j) => {
@@ -132,19 +166,20 @@ export function BlastWizard() {
       })
       .finally(() => { if (!cancelled) setPreviewLoading(false); });
     return () => { cancelled = true; };
-  }, [audType, selectedTags, recentDays, excludeBlasted, excludeBlastedDays]);
+  }, [audType, selectedTags, recentDays, excludeBlasted, excludeBlastedDays, dbIds, handoffChecked]);
 
   const shownPreview = contactSearch.trim()
     ? previewContacts.filter((c) => (c.name ?? "").toLowerCase().includes(contactSearch.toLowerCase()) || c.wa_id.includes(contactSearch.replace(/\D/g, "")))
     : previewContacts.slice(0, 200);
 
   const count =
-    audType === "contacts" ? Math.max(0, previewCount - excluded.size)
+    audType === "contacts" || audType === "database" ? Math.max(0, previewCount - excluded.size)
     : audType === "csv" ? csv?.rows.length ?? 0
     : audType === "paste" ? pasteNumbers.length
     : pastList.find((p) => p.id === pastId)?.total ?? 0;
 
   function buildAudience() {
+    if (audType === "database") return { source: "database", customerIds: dbIds, excludeWaIds: [...excluded], excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined };
     if (audType === "contacts") return { source: "contacts", tags: selectedTags, op: "any", recentDays: parseInt(recentDays, 10) || undefined, excludeWaIds: [...excluded], excludeBlasted, excludeBlastedDays: parseInt(excludeBlastedDays, 10) || undefined };
     if (audType === "csv") return { source: "csv", rows: csv?.rows ?? [] };
     if (audType === "paste") return { source: "paste", numbers: pasteNumbers };
@@ -245,6 +280,7 @@ export function BlastWizard() {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="cth: Promo Ceri Uzbek Jun" className={`${inputCls} mt-1`} />
           </div>
 
+          {audType !== "database" && (
           <div>
             <label className="text-sm font-semibold text-gray-600 block mb-2">Pilih audiens</label>
             <div className="grid grid-cols-2 gap-2">
@@ -262,10 +298,31 @@ export function BlastWizard() {
               ))}
             </div>
           </div>
+          )}
+
+          {/* Audiens dari /admin/database — berkunci; tukar hanya melalui "Tukar audiens" */}
+          {audType === "database" && (
+            <div className="rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-bold text-gray-800">From Customer Database</p>
+                <button type="button" onClick={() => { setDbIds([]); setDbLabel(""); setExcluded(new Set()); setAudType("contacts"); }}
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline">Change audience</button>
+              </div>
+              <p className="text-xs text-gray-700">
+                <b>{dbIds.length}</b> selected · <b>{previewLoading ? "…" : previewCount}</b> sendable
+                {!previewLoading && previewCount < dbIds.length && (
+                  <span className="text-amber-700"> · {dbIds.length - previewCount} excluded (opt-out, suppression list, or previously blasted)</span>
+                )}
+              </p>
+              {dbLabel && <p className="text-[11px] text-gray-500">{dbLabel}</p>}
+              <p className="text-[11px] text-gray-400">Refreshing this page clears the list — go back to Customer Database to reselect.</p>
+            </div>
+          )}
 
           {/* Input ikut jenis audiens */}
-          {audType === "contacts" && (
+          {(audType === "contacts" || audType === "database") && (
             <div className="space-y-3">
+              {audType === "contacts" && (<>
               {/* Chips tag (multi-select / union) */}
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => setSelectedTags([])}
@@ -276,6 +333,7 @@ export function BlastWizard() {
                 ))}
               </div>
               <input value={recentDays} onChange={(e) => setRecentDays(e.target.value.replace(/\D/g, ""))} placeholder="aktif dalam X hari (kosong = semua)" className={inputCls} />
+              </>)}
 
               {/* Exclude yang dah pernah di-blast — elak hantar sama berulang (jimat kos) */}
               <div className="space-y-1.5">
@@ -412,7 +470,7 @@ export function BlastWizard() {
           <div className="bg-gray-50 rounded-xl p-4 space-y-1.5 text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Campaign</span><span className="font-bold text-gray-800">{name}</span></div>
             <div className="flex justify-between"><span className="text-gray-400">Template</span><span className="font-semibold">{tpl?.name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Audiens</span><span className="font-semibold">{audType} · {count} penerima</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Audiens</span><span className="font-semibold">{audType === "database" ? "Customer Database" : audType} · {count} penerima</span></div>
           </div>
 
           {!done && (

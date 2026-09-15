@@ -1,3 +1,10 @@
+// ⚠️  SUPERSEDED (Sep 2026) — JANGAN GUNA untuk backfill sebenar.
+//   1) select() tanpa .range() → PostgREST potong pada 1000 baris (lp_guest_orders > 2000).
+//   2) upsert baris penuh → tindih name/email/address/first_seen_at yang admin dah betulkan.
+//   3) Tidak mengisi product_names/coupon_codes/coupon_count/first_order_at (migration 134).
+//   Guna sebaliknya: POST /api/admin/database/refresh (butang "Segarkan sekarang") atau
+//   cron /api/cron/refresh-customers — kedua-duanya panggil lib/customers.ts yang betul.
+
 // Backfill master `customers` dari semua sumber sedia ada, dedup ikut telefon.
 //   node scripts/backfill-customers.mjs          → DRY-RUN (cetak sahaja)
 //   node scripts/backfill-customers.mjs --write  → tulis (upsert) ke DB

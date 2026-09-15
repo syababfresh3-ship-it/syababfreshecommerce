@@ -7,7 +7,7 @@
 import { formatWaPhone } from "@/lib/whatsapp-cloud";
 
 export interface AudienceSpec {
-  source?: string; // contacts | customers | paste | csv | past
+  source?: string; // contacts | customers | paste | csv | past | database
   tag?: string; // legacy: tag tunggal (kekal serasi)
   tags?: string[]; // multi-tag
   op?: "any" | "all"; // operator tag (default any = union)
@@ -15,6 +15,7 @@ export interface AudienceSpec {
   numbers?: string[];
   rows?: { phone: string; name?: string; vars?: Record<string, string> }[];
   pastBlastId?: string;
+  customerIds?: string[]; // source=database — id baris public.customers (dari /admin/database)
   excludeWaIds?: string[];
   excludeBlasted?: boolean; // buang sesiapa yang pernah di-blast (mana-mana kempen)
   excludeBlastedDays?: number; // had: hanya yang di-blast dalam N hari (kosong = semua sejarah)
@@ -76,6 +77,22 @@ export async function resolveAudience(sb: SB, spec: AudienceSpec): Promise<Recip
         .order("id", { ascending: true }).range(from, to)
     );
     recipients = data.map((c) => ({ wa_id: c.wa_id, name: c.name }));
+  } else if (spec.source === "database") {
+    // Dari /admin/database: senarai id `customers` yang staf tanda.
+    // customers.phone_norm sudah 60xxxxxxxxx = format wa_id — tiada penukaran.
+    // .in() dipecah 300 (had panjang URL PostgREST) — corak api/admin/customers/broadcast.
+    // Consent: OPT-OUT — hormati hanya penolakan eksplisit (consent_wa === false).
+    // Semua baris NULL hari ini; opt-in (=== true) bermakna 0 penerima selamanya.
+    // Penindasan Meta (wa_contacts.opt_out ∪ crm_suppressions) tetap terpakai di bawah.
+    const ids = (spec.customerIds ?? []).filter((x) => typeof x === "string" && x.length > 0);
+    const rows: { id: string; phone_norm: string; name: string | null; tags: string[] | null; consent_wa: boolean | null }[] = [];
+    for (let i = 0; i < ids.length; i += 300) {
+      const { data } = await sb.from("customers").select("id, phone_norm, name, tags, consent_wa").in("id", ids.slice(i, i + 300));
+      rows.push(...((data ?? []) as typeof rows));
+    }
+    recipients = rows
+      .filter((c) => c.consent_wa !== false && c.phone_norm)
+      .map((c) => ({ wa_id: c.phone_norm, name: c.name, tags: c.tags ?? [] }));
   } else {
     return [];
   }
