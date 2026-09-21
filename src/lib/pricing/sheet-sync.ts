@@ -72,6 +72,16 @@ const RULES: Rule[] = [
   { nama: 'Century Pear', productRe: /century\s*pear/i, sheetRe: /century\s*pear/i, unit: 'biji' },
   { nama: 'Forelle Pear', productRe: /forelle|forella/i, sheetRe: /forelle|forella/i, unit: 'biji' },
   { nama: 'Lemon', productRe: /^lemon/i, sheetRe: /lemon/i, unit: 'biji' },
+
+  // ── Figs (21 Sep 2026) ─────────────────────────────────────────────────────
+  // Sheet ada DUA figs: Bursa Black (~RM25/kg, Item 'Fresh Black Fig Bursa Karasi')
+  // dan punnet Turkey (~RM60/kg, 'Turkey Figs 1x6', 'TK Fig Eren 4PCSX6').
+  // Pemilik sahkan SEMUA figs website dihantar dari stok Bursa — termasuk produk
+  // bernama 'Fresh Figs Turkey (4-5Pcs)' (nama legasi). Jadi SATU rule: mana-mana
+  // produk figs → baris Bursa. Baris punnet Turkey untuk saluran lain, sengaja tak
+  // dipakai di sini. Clearance: baris Transport 'Kos Import Fresh Fig …'.
+  // Sebelum ini kedua-dua produk figs dilangkau 'tiada rule' — 9 varian tanpa kos.
+  { nama: 'Figs Bursa Black (landed)', productRe: /\bfigs?\b/i, sheetRe: /bursa|karasi/i, unit: 'kg', clearanceRe: /\bfig/i },
 ]
 
 // ── CSV parser (RFC4180 ringkas: handle petik & koma/newline dalam field) ──────
@@ -158,7 +168,9 @@ function beratKg(v: Variant): number | null {
   const t = (v.name ?? '').toLowerCase().replace(/\s/g, '')
   const kg = t.match(/(\d+(?:\.\d+)?)kg/)
   if (kg) return parseFloat(kg[1])
-  const g = t.match(/(\d+(?:\.\d+)?)g(?!r)/)
+  // 'gram' diterima: nama seperti '250 Gram' → '250gram' dulu GAGAL pada g(?!r)
+  // (g diikuti r) dan varian dilangkau 'berat tak dapat ditentukan'.
+  const g = t.match(/(\d+(?:\.\d+)?)(?:gram|g)(?!r)/)
   if (g) return parseFloat(g[1]) / 1000
   return null
 }
