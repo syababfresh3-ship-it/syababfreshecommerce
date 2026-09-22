@@ -4,92 +4,102 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
-  LayoutDashboard, Package, ShoppingBag, Users, Boxes, Tag,
-  BarChart2, Image, MapPin, ClipboardList, FolderOpen,
-  LogOut, RotateCcw, Bell, ChevronRight, CreditCard, Truck, Megaphone, Gift, DollarSign, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Headset, Rocket, ScanLine, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database,
+  LayoutDashboard, Package, ShoppingBag, Users, Tag,
+  BarChart2, Image, MapPin, FolderOpen,
+  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
 
-const sections = [
+type NavEntry = { href: string; label: string; icon: React.ElementType; badge?: keyof Counts }
+type Section = { label: string; items: NavEntry[]; collapsible?: boolean }
+
+// Disorok dari nav 2026-09-23 (page masih wujud — boleh dibuka terus via URL).
+// Bukti: tarikh tulis terakhir jadual DB di belakang setiap page.
+//   /admin/customers          Customers          → ahli berdaftar sahaja; Customer Database cover semua
+//   /admin/contacts           All Contacts       → jadual customers + Broadcast Murpati (0 hantaran)
+//   /admin/broadcast          Broadcast WA       → Murpati, 0 hantaran direkod; guna Blast (Rasmi)
+//   /admin/wa-blast           WA Blast (ReplyLa) → tracking WA kini dihantar dari syababfresh-app
+//   /admin/shipping/dispatch  Scan Keluar        → 1 scan sahaja (8 Jun); dispatch di syababfresh-app
+//   /admin/notifications      Notifications      → push, 13 pelanggan langgan, terakhir 18 Ogos
+//   /admin/referrals          Referrals          → 1 rekod (Jul)
+//   /admin/affiliates         Affiliate          → 0 komisen, 0 pengeluaran
+//   /admin/support            Support AI         → 3 aduan, terakhir 5 Jun
+//   /admin/inventory          Inventory          → batch stok terakhir 7 Mei
+//   /admin/marketing/ads      Ad Spend & ROAS    → jadual ad_spend kosong
+// Untuk pulihkan: tambah semula ke kumpulan berkaitan + import ikon lucide
+// (Bell, Boxes, DollarSign, Gift, Headset, Rocket, ScanLine).
+const sections: Section[] = [
   {
     label: 'CRM',
     items: [
-      { href: '/admin/crm/inbox',    label: 'Inbox WhatsApp', icon: Inbox },
-      { href: '/admin/crm/contacts', label: 'Contacts',       icon: Users },
-      { href: '/admin/database',     label: 'Customer Database', icon: Database },
-      { href: '/admin/crm/blast',    label: 'Blast (Rasmi)',  icon: Megaphone },
-      { href: '/admin/crm/templates', label: 'Templates',     icon: MessageCircle },
-      { href: '/admin/crm/ai',       label: 'AI Chatbot',     icon: Bot },
+      { href: '/admin/crm/inbox',     label: 'Inbox WhatsApp',    icon: Inbox },
+      { href: '/admin/crm/contacts',  label: 'Contacts',          icon: Users },
+      { href: '/admin/database',      label: 'Customer Database', icon: Database },
+      { href: '/admin/crm/blast',     label: 'Blast (Rasmi)',     icon: Megaphone },
+      { href: '/admin/crm/templates', label: 'Templates',         icon: MessageCircle },
+      { href: '/admin/crm/ai',        label: 'AI Chatbot',        icon: Bot },
     ],
   },
   {
     label: 'OPERATIONS',
     items: [
       // Disorok 2026-06-17: team tak guna Fulfillment (urus order di Orders / syababfresh-app).
-      // Page masih wujud — untuk pulihkan: nyahkomen baris bawah.
+      // Page masih wujud — untuk pulihkan: nyahkomen baris bawah + tambah balik `ClipboardList` ke import lucide.
       // { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
-      { href: '/admin/quick-order',          label: 'Quick Order',     icon: MessageSquare },
-      { href: '/admin/orders',             label: 'Orders',          icon: ShoppingBag },
-      { href: '/admin/inventory',          label: 'Inventory',        icon: Boxes },
-      { href: '/admin/refunds',            label: 'Refund',           icon: RotateCcw,   badge: 'refunds' },
-      { href: '/admin/support',            label: 'Support AI',       icon: Headset },
-      { href: '/admin/shipping',           label: 'Shipping',     icon: Truck },
-      { href: '/admin/shipping/dispatch',  label: 'Scan Keluar',      icon: ScanLine },
-      { href: '/admin/wa-outbox',          label: 'WA Outbox',        icon: Send },
-      { href: '/admin/wa-blast',           label: 'WA Blast (ReplyLa)', icon: Rocket },
+      { href: '/admin/quick-order', label: 'Quick Order', icon: MessageSquare },
+      { href: '/admin/orders',      label: 'Orders',      icon: ShoppingBag },
+      { href: '/admin/shipping',    label: 'Shipping',    icon: Truck },
+      { href: '/admin/refunds',     label: 'Refund',      icon: RotateCcw, badge: 'refunds' },
+      { href: '/admin/wa-outbox',   label: 'WA Outbox',   icon: Send },
       // Disorok 2026-06-12: semua dispatch (Lalamove/Poslaju/Ninja) kini diuruskan di
       // syababfresh-app via raw export (/api/admin/orders-export). Page masih wujud —
       // untuk pulihkan: nyahkomen baris bawah + tambah balik `Route` ke import lucide.
       // { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
-      { href: '/admin/sop',                label: 'Panduan SOP',      icon: BookOpen },
     ],
   },
   {
     label: 'CATALOG',
     items: [
-      { href: '/admin/products',   label: 'Products',    icon: Package },
-      { href: '/admin/categories', label: 'Categories',  icon: FolderOpen },
-      { href: '/admin/reviews',    label: 'Reviews',     icon: Star },
-    ],
-  },
-  {
-    label: 'KEWANGAN',
-    items: [
-      { href: '/admin/pricing', label: 'Harga & Kos',  icon: Calculator },
-      { href: '/admin/pnl',     label: 'P&L Website',  icon: TrendingUp },
+      { href: '/admin/products',      label: 'Products',      icon: Package },
+      { href: '/admin/categories',    label: 'Categories',    icon: FolderOpen },
+      { href: '/admin/reviews',       label: 'Reviews',       icon: Star },
+      { href: '/admin/media',         label: 'Media Library', icon: Image },
+      { href: '/admin/landing-pages', label: 'Landing Pages', icon: Globe },
+      { href: '/admin/banners',       label: 'Banner',        icon: PanelTop },
     ],
   },
   {
     label: 'MARKETING',
     items: [
-      { href: '/admin/promos',         label: 'Promotions',    icon: Tag },
-      { href: '/admin/waitlist',       label: 'Waitlist',      icon: BellRing },
-      { href: '/admin/promos/usage',   label: 'Kupon & Points', icon: BarChart2 },
-      { href: '/admin/banners',        label: 'Banner',     icon: Image },
-      { href: '/admin/notifications',  label: 'Notifications', icon: Bell },
-      { href: '/admin/referrals',      label: 'Referrals',    icon: Gift },
-      { href: '/admin/affiliates',     label: 'Affiliate',  icon: DollarSign },
-      { href: '/admin/marketing',      label: 'Ad Tracking', icon: Megaphone },
-      { href: '/admin/marketing/ads',  label: 'Ad Spend & ROAS', icon: TrendingUp },
-      { href: '/admin/broadcast',       label: 'Broadcast WA',   icon: MessageSquare },
-      { href: '/admin/landing-pages',  label: 'Landing Pages',  icon: Globe },
-      { href: '/admin/media',          label: 'Media Library',  icon: Image },
-      { href: '/admin/tiktok-sync',    label: 'TikTok Customers', icon: ShoppingBag },
+      { href: '/admin/promos',       label: 'Promotions',     icon: Tag },
+      { href: '/admin/promos/usage', label: 'Kupon & Points', icon: BarChart2 },
+      { href: '/admin/waitlist',     label: 'Waitlist',       icon: BellRing },
     ],
   },
   {
-    label: 'OTHER',
+    label: 'KEWANGAN',
     items: [
-      { href: '/admin/customers', label: 'Customers',     icon: Users },
-      { href: '/admin/contacts',  label: 'All Contacts',  icon: Users },
-      { href: '/admin/resellers', label: 'Reseller',      icon: Store },
-      { href: '/admin/analytics', label: 'Analytics',      icon: BarChart2 },
-      { href: '/admin/delivery',  label: 'Delivery Zones', icon: MapPin },
-      { href: '/admin/payments',  label: 'Payment Methods',  icon: CreditCard },
-      { href: '/admin/settings',  label: 'Store Settings',  icon: Settings2 },
-      { href: '/admin/settings/whatsapp', label: 'WA Templates', icon: MessageCircle },
-      { href: '/admin/team',      label: 'Pengguna Admin', icon: Shield },
+      { href: '/admin/pricing',   label: 'Harga & Kos', icon: Calculator },
+      { href: '/admin/pnl',       label: 'P&L Website', icon: TrendingUp },
+      { href: '/admin/analytics', label: 'Analytics',   icon: BarChart2 },
+    ],
+  },
+  {
+    // Tetapan yang jarang disentuh — kumpulan ini lipat (collapsed) secara lalai,
+    // terbuka automatik bila salah satu page di dalamnya sedang dibuka.
+    label: 'SETTINGS',
+    collapsible: true,
+    items: [
+      { href: '/admin/settings',          label: 'Store Settings',   icon: Settings2 },
+      { href: '/admin/payments',          label: 'Payment Methods',  icon: CreditCard },
+      { href: '/admin/delivery',          label: 'Delivery Zones',   icon: MapPin },
+      { href: '/admin/team',              label: 'Pengguna Admin',   icon: Shield },
+      { href: '/admin/sop',               label: 'Panduan SOP',      icon: BookOpen },
+      { href: '/admin/marketing',         label: 'Ad Tracking',      icon: Megaphone },
+      { href: '/admin/settings/whatsapp', label: 'WA Templates',     icon: MessageCircle },
+      { href: '/admin/resellers',         label: 'Reseller',         icon: Store },
+      { href: '/admin/tiktok-sync',       label: 'TikTok Customers', icon: ShoppingBag },
     ],
   },
 ]
@@ -101,6 +111,14 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const router = useRouter()
   const clearCart = useCartStore((s) => s.clearCart)
   const [counts, setCounts] = useState<Counts>({ fulfillment: 0, refunds: 0 })
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+
+  // Satu item sahaja aktif: padanan href paling panjang (dulu '/admin/settings' dan
+  // '/admin/settings/whatsapp' menyala serentak sebab startsWith).
+  const activeHref = sections
+    .flatMap((s) => s.items.map((i) => i.href))
+    .filter((h) => pathname === h || pathname.startsWith(h + '/'))
+    .sort((a, b) => b.length - a.length)[0]
 
   // Close drawer when navigating on mobile
   useEffect(() => { onClose() }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -139,9 +157,9 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     router.push('/login')
   }
 
-  function getBadge(key?: string) {
+  function getBadge(key?: keyof Counts) {
     if (!key) return 0
-    return counts[key as keyof Counts] ?? 0
+    return counts[key] ?? 0
   }
 
   return (
@@ -174,29 +192,42 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
           active={pathname === '/admin'}
         />
 
-        {sections.map((section) => (
-          <div key={section.label}>
-            <p className="px-2 mb-1 text-[10px] font-bold text-gray-600 tracking-widest uppercase">
-              {section.label}
-            </p>
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = pathname.startsWith(item.href)
-                const badge = getBadge(item.badge)
-                return (
-                  <NavItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                    active={active}
-                    badge={badge}
-                  />
-                )
-              })}
+        {sections.map((section) => {
+          const inside = section.items.some((i) => i.href === activeHref)
+          const open = !section.collapsible || (openGroups[section.label] ?? inside)
+          return (
+            <div key={section.label}>
+              {section.collapsible ? (
+                <button
+                  type="button"
+                  onClick={() => setOpenGroups((g) => ({ ...g, [section.label]: !open }))}
+                  className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-bold text-gray-600 tracking-widest uppercase hover:text-gray-400 transition-colors"
+                >
+                  {section.label}
+                  <ChevronDown className={`h-3 w-3 transition-transform ${open ? '' : '-rotate-90'}`} />
+                </button>
+              ) : (
+                <p className="px-2 mb-1 text-[10px] font-bold text-gray-600 tracking-widest uppercase">
+                  {section.label}
+                </p>
+              )}
+              {open && (
+                <div className="space-y-0.5">
+                  {section.items.map((item) => (
+                    <NavItem
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      icon={item.icon}
+                      active={item.href === activeHref}
+                      badge={getBadge(item.badge)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </nav>
 
       {/* Logout */}
