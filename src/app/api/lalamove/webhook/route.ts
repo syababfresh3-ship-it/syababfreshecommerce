@@ -4,9 +4,7 @@ export const runtime = 'nodejs'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
-import { enqueueWhatsApp } from '@/lib/wa-outbox'
 import { sendDeliveryStatusEmail } from '@/lib/zeptomail'
-import { getWaCustomerTracking } from '@/lib/app-settings'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Webhook Lalamove (v3). Lalamove POST ke sini bila status order berubah.
@@ -147,7 +145,9 @@ async function handleLp(admin: SupabaseClient, lp: any, status: string) {
   // PICKED_UP/ON_GOING → tiada perubahan (LP tiada rekod shipment berasingan)
 }
 
-// ─── Notifikasi "dah sampai" — email (kalau ada) + WA (di-enqueue) ──────────────
+// ─── Notifikasi "dah sampai" — email sahaja. WA POD TIDAK dihantar dari storefront ──
+// (dasar 23 Sep 2026: tracking/POD = WA Official dari ops app sahaja; webhook Lalamove
+// di ops hantar POD sendiri. Murpati tak dipakai lagi.)
 async function sendNotifications(
   _admin: SupabaseClient,
   c: { name: string; phone: string | null; email: string | null; orderNumber: string; orderId?: string },
@@ -162,15 +162,4 @@ async function sendNotifications(
     }).catch(() => {})
   }
 
-  // WA hanya bila setting tracking bukan 'off' (elak ban — dipacing oleh drainer)
-  if (c.phone && (await getWaCustomerTracking()) !== 'off') {
-    const msg = [
-      `📦 *Pesanan ${c.orderNumber} Telah Sampai!*`,
-      ``,
-      `Hai ${c.name}, pesanan anda telah selesai dihantar. Terima kasih! 🌿`,
-      ``,
-      `_SyababFresh — Buah Segar Setiap Hari_`,
-    ].join('\n')
-    await enqueueWhatsApp([{ phone: c.phone, message: msg, orderId: c.orderId ?? null, source: 'tracking' }])
-  }
 }

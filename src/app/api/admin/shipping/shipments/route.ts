@@ -2,9 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 import { NextResponse } from 'next/server'
-import { sendWhatsApp } from '@/lib/murpati'
 import { sendTrackingEmail } from '@/lib/zeptomail'
-import { getWaCustomerTracking } from '@/lib/app-settings'
+import { syncTrackingToOps } from '@/lib/ops-tracking-sync'
 
 export async function GET(request: Request) {
   const userClient = await createClient()
@@ -152,33 +151,24 @@ export async function POST(request: Request) {
 
     const { data: customerProfile } = order?.user_id ? await supabase
       .from('profiles')
-      .select('full_name, phone, email')
+      .select('full_name, email')
       .eq('id', order.user_id)
       .single() : { data: null }
 
-    const phone = customerProfile?.phone
     const email = customerProfile?.email
     const name  = customerProfile?.full_name ?? 'Pelanggan'
     const carrierName = carrier?.name ?? carrier_id
 
     if (order) {
-      // WhatsApp (jika ada phone) — boleh dimatikan bila guna ReplyLa (setting 'off')
-      if (phone && (await getWaCustomerTracking()) !== 'off') {
-        const trackingLine = tracking_url
-          ? `🔗 *Link Penghantaran:*\n${tracking_url}`
-          : `📦 *No. Tracking:* ${tracking_number}`
-
-        const msg = [
-          `🚚 *Pesanan ${order.order_number} Dalam Penghantaran!*`,
-          ``,
-          `Hai ${name}, pesanan anda sedang dalam perjalanan.`,
-          ``,
-          trackingLine,
-          ``,
-          `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
-        ].join('\n')
-
-        sendWhatsApp(phone, msg).catch(() => {})
+      // WhatsApp: ops app SAHAJA (WA Official) — dasar 23 Sep 2026, Murpati tidak dipakai
+      // lagi untuk tracking/POD. Hantar tracking ke ops; ops yang WA customer (idempotent).
+      // Best-effort: kegagalan tak pecahkan simpanan shipment. Lihat src/lib/ops-tracking-sync.ts.
+      if (tracking_number) {
+        const ops = await syncTrackingToOps([{ orderNumber: String(order.order_number), trackingNo: String(tracking_number) }])
+        if (!ops.ok) console.warn('[shipment] ops tracking sync gagal:', ops.reason, ops.detail ?? '')
+        else if ((ops.byOrder.get(String(order.order_number)) ?? 'not_found') === 'not_found') {
+          console.warn('[shipment] order tiada dalam ops app — tiada WA:', order.order_number)
+        }
       }
 
       // Email (sentiasa hantar jika ada email)

@@ -1,10 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { enqueueWhatsApp, type WaOutboxItem } from '@/lib/wa-outbox'
 import { sendTrackingEmail } from '@/lib/zeptomail'
 import { sendUserPush } from '@/lib/push'
-import { getWaCustomerTracking } from '@/lib/app-settings'
+import { syncTrackingToOps, describeOpsTracking, type OpsTrackingResult } from '@/lib/ops-tracking-sync'
 
 interface TrackingRow {
   order_number: string
@@ -44,16 +43,17 @@ export async function POST(req: Request) {
 
   // Notifikasi customer dikumpul & ditunggu di hujung supaya loop laju & tak terputus
   const notifs: Promise<unknown>[] = []
-  // WhatsApp TIDAK dihantar terus — di-enqueue ke wa_outbox & dipacing oleh
-  // cron drainer (elak ban gateway tak rasmi). Email + Push tetap serta-merta.
-  const waQueue: WaOutboxItem[] = []
+  // WhatsApp TIDAK dihantar dari storefront (dasar 23 Sep 2026: tracking/POD = WA Official
+  // dari ops app sahaja, Murpati tidak dipakai lagi). Tracking dihantar ke ops di hujung
+  // fail; ops yang hantar WA. Nombor sahaja — link Lalamove (tiada no. tracking) tak
+  // dihantar; ops ada flow Lalamove sendiri. Email + Push storefront kekal serta-merta.
+  const opsItems: { orderNumber: string; trackingNo: string }[] = []
 
-  // Push + Email serta-merta; WhatsApp di-enqueue (bukan dihantar) untuk satu order
-  // (storefront ATAU LP). Contact (name/phone/email/userId) sudah diselesaikan oleh pemanggil.
+  // Push + Email serta-merta untuk satu order (storefront ATAU LP).
+  // Contact (name/email/userId) sudah diselesaikan oleh pemanggil.
   async function sendNotifications(c: {
     userId: string | null
     name: string
-    phone: string | null
     email: string | null
     orderNo: string
     orderId: string
@@ -62,22 +62,6 @@ export async function POST(req: Request) {
     tracking_url: string | null
     pushUrl: string
   }) {
-    if (c.phone) {
-      const trackingLine = c.tracking_url
-        ? `🔗 *Link Penghantaran:*\n${c.tracking_url}`
-        : `📦 *No. Tracking:* ${c.tn}`
-      const msg = [
-        `🚚 *Pesanan ${c.orderNo} Dalam Penghantaran!*`,
-        ``,
-        `Hai ${c.name}, pesanan anda sedang dalam perjalanan.`,
-        ``,
-        trackingLine,
-        ``,
-        `_SyababFresh — Buah Segar Setiap Hari_ 🌿`,
-      ].join('\n')
-      waQueue.push({ phone: c.phone, message: msg, orderId: c.orderId, source: 'tracking' })
-    }
-
     await sendUserPush(c.userId, {
       title: 'Dalam Penghantaran 🚚',
       body: `Pesanan ${c.orderNo} sedang dalam perjalanan ke alamat anda.`,
@@ -153,7 +137,7 @@ export async function POST(req: Request) {
       // Upsert PRIMARY shipment (refund_id is null) — biarkan shipment ganti (refund) sendiri
       const { data: existingShip } = await admin
         .from('order_shipments')
-        .select('id')
+        .select('id, tracking_number, tracking_url')
         .eq('order_id', order.id)
         .is('refund_id', null)
         .maybeSingle()
@@ -174,17 +158,22 @@ export async function POST(req: Request) {
           .eq('id', order.id)
       }
 
+      if (tn) opsItems.push({ orderNumber: on, trackingNo: tn })
+      // Re-import nilai SAMA pada order yang dah 'delivering' → tiada apa baru untuk
+      // dimaklumkan; langkau email/push/WA (elak customer terima mesej berulang).
+      const sfUnchanged = !!existingShip && existingShip.tracking_number === tn
+        && existingShip.tracking_url === tracking_url && order.status === 'delivering'
+
       const userId = order.user_id as string | null
       const orderId = order.id as string
       const orderNo = order.order_number as string
-      notifs.push((async () => {
+      if (!sfUnchanged) notifs.push((async () => {
         const { data: cust } = userId
-          ? await admin.from('profiles').select('full_name, phone, email').eq('id', userId).single()
+          ? await admin.from('profiles').select('full_name, email').eq('id', userId).single()
           : { data: null }
         await sendNotifications({
           userId,
           name: cust?.full_name ?? 'Pelanggan',
-          phone: cust?.phone ?? null,
           email: cust?.email ?? null,
           orderNo, orderId, carrierName, tn, tracking_url,
           pushUrl: `/orders/${orderId}`,
@@ -198,7 +187,7 @@ export async function POST(req: Request) {
     // ── LP guest order — tracking disimpan terus pada lp_guest_orders ─────────
     const { data: lp } = await admin
       .from('lp_guest_orders')
-      .select('id, status, order_number, user_id, name, phone, email')
+      .select('id, status, order_number, user_id, name, email, tracking_number, tracking_url')
       .eq('order_number', on)
       .single()
 
@@ -224,10 +213,13 @@ export async function POST(req: Request) {
       continue
     }
 
-    notifs.push(sendNotifications({
+    if (tn) opsItems.push({ orderNumber: on, trackingNo: tn })
+    // Sama seperti storefront: re-import nilai sama pada order 'delivering' → senyap.
+    const lpUnchanged = lp.tracking_number === tn && lp.tracking_url === tracking_url && lp.status === 'delivering'
+
+    if (!lpUnchanged) notifs.push(sendNotifications({
       userId: (lp.user_id as string | null) ?? null,
       name: lp.name ?? 'Pelanggan',
-      phone: lp.phone ?? null,
       email: lp.email ?? null,
       orderNo: lp.order_number as string,
       orderId: lp.id as string,
@@ -239,8 +231,14 @@ export async function POST(req: Request) {
   }
 
   await Promise.allSettled(notifs)
-  // Enqueue semua WA sekali gus dgn jadual berperingkat (dipacing oleh drainer).
-  // Bila setting 'off' (guna ReplyLa) → langkau WA sepenuhnya; email + push kekal.
-  const queued = (await getWaCustomerTracking()) === 'off' ? 0 : await enqueueWhatsApp(waQueue)
-  return NextResponse.json({ ok, fail: errors.length, errors, waQueued: queued })
+
+  // ── WhatsApp: ops app SAHAJA (WA Official) — satu sumber, tiada double ────────────
+  // Tracking dihantar ke ops (manage.syababfresh.my); ops yang hantar WA customer
+  // (idempotent di sana — re-import tak ulang WA). Storefront tak hantar WA sendiri
+  // untuk apa-apa keadaan; kalau ops tak dapat dihubungi / order tiada di ops, admin
+  // nampak amaran dan perlu import di ops. Lihat src/lib/ops-tracking-sync.ts.
+  const ops: OpsTrackingResult | null = opsItems.length ? await syncTrackingToOps(opsItems) : null
+  const wa = describeOpsTracking(ops)
+  // waQueued kekal untuk keserasian UI lama — sentiasa 0 (Murpati tidak dipakai lagi).
+  return NextResponse.json({ ok, fail: errors.length, errors, waQueued: 0, wa })
 }

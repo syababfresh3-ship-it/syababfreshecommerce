@@ -613,7 +613,10 @@ export function ExportsClient({
   const [trackingText, setTrackingText] = useState('')
   const [importCarrier, setImportCarrier] = useState('ninja_cold')
   const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ ok: number; fail: number; errors: string[] } | null>(null)
+  const [importResult, setImportResult] = useState<{
+    ok: number; fail: number; errors: string[]
+    wa?: { summary: string; warning: string | null } // WA via ops app (WA Official) — lihat lib/ops-tracking-sync
+  } | null>(null)
   const [pickupBusy, setPickupBusy] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -1246,6 +1249,12 @@ export function ExportsClient({
                 {importResult.errors.map((e, i) => (
                   <p key={i} className="text-xs text-red-600">{e}</p>
                 ))}
+                {importResult.wa?.summary && (
+                  <p className="text-xs text-gray-700">{importResult.wa.summary}</p>
+                )}
+                {importResult.wa?.warning && (
+                  <p className="text-xs font-semibold text-orange-700">{importResult.wa.warning}</p>
+                )}
               </div>
             )}
 
