@@ -117,7 +117,7 @@ async function getStatusCounts() {
 }
 
 const LP_SELECT =
-  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, source, landing_pages(title, slug)'
+  'id, order_number, name, phone, address, postcode, notes, status, payment_status, total, payment_method, delivery_fee, delivery_method, created_at, items, product_name, variant_name, quantity, unit_price, page_id, source, needs_approval, landing_pages(title, slug)'
 
 // Fetch ALL matching LP orders, paging past PostgREST's 1000-row-per-request cap.
 // At ~90 orders/day a fixed limit silently hides older paid orders within weeks,
@@ -222,7 +222,9 @@ export default async function AdminOrdersPage({
     created_at: lp.created_at,
     delivery_slot: null,
     delivery_method: lp.delivery_method,
-    needs_approval: false,
+    // COD dari LP menunggu kelulusan (migration 132) — Lulus/Tolak dibuat DI SINI (Orders),
+    // bukan lagi di page Landing Pages (pemilik, 24 Sep 2026).
+    needs_approval: lp.needs_approval === true,
     user_id: null,
     profiles: { full_name: lp.name, phone: lp.phone },
     order_items: (Array.isArray(lp.items) && lp.items.length > 0

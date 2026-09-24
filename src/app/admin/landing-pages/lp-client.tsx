@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown, Video, CreditCard, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, Copy, Globe, GlobeLock, Eye, Users, X, MessageCircle, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Clock, XCircle, ImagePlus, Search, Package, Sparkles, Wand2, LayoutTemplate, Code2, BarChart3, TrendingUp, ArrowUpDown, Video, CreditCard, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { LpSectionBuilder } from './lp-section-builder'
@@ -325,9 +325,6 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   const [ordersFetched, setOrdersFetched] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
-  // Kelulusan COD dari LP (migration 132) — pengesahan sebaris, bukan dialog pelayar
-  const [confirmApproval, setConfirmApproval] = useState<{ id: string; action: 'approve' | 'reject' } | null>(null)
-  const [oversoldOrders, setOversoldOrders] = useState<Set<string>>(new Set()) // diluluskan tapi stok tak cukup
 
   // All-leads tab
   const [allLeads, setAllLeads] = useState<(Lead & { landing_pages?: { title: string; slug: string } | null })[]>([])
@@ -493,36 +490,6 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     }
   }
 
-  // Lulus / Tolak order COD dari LP (migration 132).
-  // Lulus = stok ditolak, mata & kiraan promo dikemas kini, e-mel pengesahan dihantar.
-  // Tolak = order dibatalkan (tiada apa yang perlu dipulangkan, kerana tiada apa yang ditolak).
-  async function decideApproval(id: string, action: 'approve' | 'reject') {
-    setUpdatingOrder(id)
-    try {
-      const res = await fetch('/api/admin/landing-pages/orders', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) { toast.error(data.error ?? 'Failed update'); return }
-
-      setConfirmApproval(null)
-      if (action === 'reject') {
-        toast.success('Order ditolak & dibatalkan')
-      } else if (data.stock === 'oversold') {
-        setOversoldOrders(prev => new Set(prev).add(id))
-        toast.error('Diluluskan, tetapi stok tidak mencukupi — hubungi pelanggan')
-      } else {
-        toast.success('Order diluluskan — stok, mata & e-mel pengesahan dilepaskan')
-      }
-
-      await loadOrders()
-    } finally {
-      setUpdatingOrder(null)
-    }
-  }
-
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
     setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [] })
@@ -672,11 +639,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   const showForm = creating || !!editing
-  // Order menunggu kelulusan (COD dari LP, migration 132) ialah barisan berasingan:
-  // sentiasa di atas, tidak bercampur dengan senarai biasa dan tidak ikut tapisan status.
-  const approvalOrders = orders.filter(o => o.needs_approval === true)
-  const filteredOrders = (statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter))
-    .filter(o => o.needs_approval !== true)
+  // Kelulusan COD dari LP (migration 132) dibuat di page Orders (pemilik, 24 Sep 2026) —
+  // di sini order itu dipapar dalam senarai biasa dengan badge sahaja.
+  const filteredOrders = statusFilter === 'all' ? orders : orders.filter(o => o.status === statusFilter)
 
   return (
     <div className="p-6 space-y-6">
@@ -782,8 +747,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               >
                 {f.label}
                 {f.id !== 'all' && (
-                  /* Tidak kira order menunggu kelulusan — ia ada barisannya sendiri di atas */
-                  <span className="ml-1.5 opacity-70">{orders.filter(o => o.status === f.id && o.needs_approval !== true).length}</span>
+                  <span className="ml-1.5 opacity-70">{orders.filter(o => o.status === f.id).length}</span>
                 )}
               </button>
             ))}
@@ -792,125 +756,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
             </button>
           </div>
 
-          {/* ── Menunggu kelulusan (COD dari LP, migration 132) ──────────
-              Barisan berasingan di ATAS senarai biasa. Tidak bercampur. */}
-          {approvalOrders.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-gray-500" />
-                  <p className="text-sm font-bold text-gray-900">Menunggu kelulusan</p>
-                  <span className="bg-gray-900 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                    {approvalOrders.length}
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
-                  COD dari LP menunggu kelulusan; stok, mata dan e-mel pengesahan ditahan sehingga diluluskan.
-                </p>
-              </div>
-
-              <div className="divide-y divide-gray-100">
-                {approvalOrders.map(order => {
-                  const busy = updatingOrder === order.id
-                  const conf = confirmApproval?.id === order.id ? confirmApproval : null
-                  return (
-                    <div key={order.id} className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-black font-mono text-sm text-gray-900">{order.order_number}</span>
-                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
-                              <Clock className="h-3 w-3" />
-                              Menunggu kelulusan
-                            </span>
-                            {order.landing_pages && (
-                              <span className="text-[11px] text-gray-400">
-                                {order.landing_pages.title} · /lp/{order.landing_pages.slug}
-                              </span>
-                            )}
-                          </div>
-                          <p className="font-bold text-gray-900 mt-1">{order.name}</p>
-                          <p className="text-xs text-gray-500">{order.phone}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
-                            {order.address}{order.postcode ? `, ${order.postcode}` : ''}
-                          </p>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {order.product_name}{order.variant_name ? ` · ${order.variant_name}` : ''} × {order.quantity}
-                            {order.notes && <span className="text-gray-400"> · &quot;{order.notes}&quot;</span>}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-black text-gray-900">RM{Number(order.total).toFixed(2)}</p>
-                          <p className="text-[11px] text-gray-400">{order.payment_method === 'cod' ? 'COD' : order.payment_method}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            {new Date(order.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-end gap-2 flex-wrap">
-                        <a
-                          href={`https://wa.me/6${order.phone.replace(/^0/, '').replace(/\D/g, '')}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors mr-auto"
-                          title="Contact via WA"
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </a>
-
-                        {conf ? (
-                          <>
-                            <span className="text-xs text-gray-600">
-                              {conf.action === 'approve'
-                                ? 'Luluskan? Stok ditolak & e-mel pengesahan dihantar.'
-                                : 'Tolak? Order ini akan dibatalkan.'}
-                            </span>
-                            <button
-                              onClick={() => decideApproval(order.id, conf.action)}
-                              disabled={busy}
-                              className="px-2.5 py-1 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                            >
-                              {busy ? 'Memproses...' : conf.action === 'approve' ? 'Ya, lulus' : 'Ya, tolak'}
-                            </button>
-                            <button
-                              onClick={() => setConfirmApproval(null)}
-                              disabled={busy}
-                              className="px-2.5 py-1 border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                            >
-                              Batal
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => setConfirmApproval({ id: order.id, action: 'approve' })}
-                              disabled={busy}
-                              className="flex items-center gap-1.5 px-3 py-1 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                            >
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              Lulus
-                            </button>
-                            <button
-                              onClick={() => setConfirmApproval({ id: order.id, action: 'reject' })}
-                              disabled={busy}
-                              className="flex items-center gap-1.5 px-3 py-1 border border-gray-300 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              Tolak
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           {ordersLoading && <p className="text-sm text-gray-400 text-center py-12">Loading...</p>}
 
-          {!ordersLoading && filteredOrders.length === 0 && approvalOrders.length === 0 && (
+          {!ordersLoading && filteredOrders.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-semibold">No orders</p>
@@ -934,13 +782,9 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         {order.landing_pages && (
                           <span className="text-[11px] text-gray-400">dari /lp/{order.landing_pages.slug}</span>
                         )}
-                        {oversoldOrders.has(order.id) && (
-                          <span
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200"
-                            title="Diluluskan walaupun stok tidak mencukupi — hubungi pelanggan"
-                          >
-                            <AlertTriangle className="h-3 w-3" />
-                            Stok tak cukup
+                        {order.needs_approval && (
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700 border border-gray-200" title="Luluskan di page Orders">
+                            Menunggu kelulusan · Orders
                           </span>
                         )}
                       </div>

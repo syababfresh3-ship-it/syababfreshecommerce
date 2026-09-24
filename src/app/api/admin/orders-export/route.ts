@@ -53,6 +53,9 @@ export async function GET() {
     .in('status', ['confirmed', 'preparing'])
     .neq('delivery_method', 'pickup')
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
+    // Pintu kelulusan (migration 132, dikuatkuasakan 24 Sep 2026): order yang masih
+    // menunggu kelulusan TIDAK diexport — staf Approve di Orders dahulu. NULL = lama/tiada pintu.
+    .not('needs_approval', 'is', true)
     .gte('created_at', sinceISO)
 
   if (sf && sf.length) {
@@ -101,6 +104,9 @@ export async function GET() {
     .in('status', ['confirmed', 'preparing'])
     .is('tracking_number', null)
     .or('payment_status.eq.paid,payment_method.in.(cod,bank_transfer)')
+    // Pintu kelulusan (migration 132, dikuatkuasakan 24 Sep 2026): order yang masih
+    // menunggu kelulusan TIDAK diexport — staf Approve di Orders dahulu. NULL = lama/tiada pintu.
+    .not('needs_approval', 'is', true)
     .gte('created_at', sinceISO)
 
   for (const o of lp ?? []) {

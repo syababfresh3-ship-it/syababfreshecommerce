@@ -36,6 +36,8 @@ function formatDate(dateStr: string) {
 }
 
 function getActionInfo(order: any): { label: string; color: string; border: string } {
+  // COD dari LP menunggu kelulusan admin (migration 132) — paling mendesak
+  if (order.needs_approval && order._isLp) return { label: 'Approve COD', color: 'text-red-600 font-bold', border: 'border-l-4 border-l-red-400' }
   const method = order.payment_method
   const isPaid = order.payment_status === 'paid' || method === 'cod' || method === 'bank_transfer'
   if (order.status === 'pending' && isPaid)    return { label: '⚡ Confirm orders',    color: 'text-red-600 font-bold',     border: 'border-l-4 border-l-red-400' }
@@ -45,6 +47,36 @@ function getActionInfo(order: any): { label: string; color: string; border: stri
   if (order.status === 'delivering')           return { label: '📍 In transit', color: 'text-orange-500',           border: 'border-l-4 border-l-orange-300' }
   if (order.status === 'delivered')            return { label: '✓ Delivered',            color: 'text-green-600',             border: 'border-l-[3px] border-l-green-200' }
   return { label: '—', color: 'text-gray-400', border: '' }
+}
+
+// Lulus / Tolak COD dari LP terus dari senarai Orders. Lulus = stok ditolak, promo/mata
+// dikira, e-mel pengesahan dihantar (API landing-pages/orders); Tolak = order dibatalkan.
+function LpApproval({ orderId }: { orderId: string }) {
+  const router = useRouter()
+  const [busy, setBusy] = useState<'approve' | 'reject' | null>(null)
+  async function decide(action: 'approve' | 'reject') {
+    if (action === 'reject' && !window.confirm('Reject and cancel this COD order?')) return
+    setBusy(action)
+    try {
+      const res = await fetch('/api/admin/landing-pages/orders', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: orderId, action }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(j.error ?? 'Failed'); return }
+      if (action === 'reject') toast.success('Order rejected & cancelled')
+      else if (j.stock === 'oversold') toast.error('Approved, but stock is insufficient — contact the customer')
+      else toast.success('Order approved')
+      router.refresh()
+    } finally { setBusy(null) }
+  }
+  return (
+    <span className="inline-flex items-center gap-1" onClick={e => { e.preventDefault(); e.stopPropagation() }}>
+      <button type="button" disabled={!!busy} onClick={() => decide('approve')} className="px-2 py-0.5 rounded-md bg-gray-900 text-white text-[11px] font-bold hover:bg-gray-800 disabled:opacity-50">
+        {busy === 'approve' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : 'Approve'}
+      </button>
+      <button type="button" disabled={!!busy} onClick={() => decide('reject')} className="px-2 py-0.5 rounded-md border border-gray-300 text-gray-700 text-[11px] font-bold hover:bg-gray-100 disabled:opacity-50">
+        {busy === 'reject' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : 'Reject'}
+      </button>
+    </span>
+  )
 }
 
 const BULK_STATUSES = [
@@ -219,6 +251,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                       <span className="text-[9px] font-bold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">PICKUP</span>
                     )}
                     <span className={`text-[10px] font-semibold ${action.color}`}>{action.label}</span>
+                    {order.needs_approval && order._isLp && <LpApproval orderId={order.id} />}
                   </div>
                   {(order as any)._lpTitle && (
                     <span className="inline-block mb-1 text-[10px] font-semibold text-rose-700 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded-md truncate max-w-[200px]">
@@ -330,6 +363,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                   </td>
                   <td className="px-4 py-3.5">
                     <span className={`text-sm ${action.color}`}>{action.label}</span>
+                    {order.needs_approval && order._isLp && <div className="mt-1"><LpApproval orderId={order.id} /></div>}
                   </td>
                   <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
                     <StatusDropdown orderId={order.id} currentStatus={order.status} isLp={(order as any)._isLp} />

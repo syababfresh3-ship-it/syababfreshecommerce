@@ -889,7 +889,7 @@ export function ExportsClient({
           href="/api/admin/orders-export"
           download
           className="ml-auto flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
-          title="Export semua order belum-dispatch (LK + luar-LK, SYB + LP) ke Excel — syababfresh-app yang pilih Lalamove/Poslaju/Ninja"
+          title="Export semua order belum-dispatch (LK + luar-LK, SYB + LP) ke Excel — syababfresh-app yang pilih Lalamove/Poslaju/Ninja. Order COD yang menunggu kelulusan tidak termasuk — Approve di Orders dahulu."
         >
           <Download className="h-4 w-4" />
           Export Semua → syababfresh-app

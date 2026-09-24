@@ -93,8 +93,11 @@ export async function PATCH(request: Request) {
       await supabase!.rpc('increment_points', { uid: o.user_id, pts: -Number(o.points_used) })
     }
 
+    // Order boleh sampai ke sini walaupun dah dihantar (tracking masuk sebelum Lulus) —
+    // jangan undur status delivering/delivered ke confirmed; kerja buku sahaja.
+    const early = o.status === 'pending' || o.status === 'confirmed'
     const { error } = await supabase!.from('lp_guest_orders').update({
-      status: 'confirmed',
+      ...(early ? { status: 'confirmed' } : {}),
       needs_approval: false,
       approved_at: new Date().toISOString(),
       approved_by: user?.id ?? null,
@@ -103,8 +106,9 @@ export async function PATCH(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     // E-mel pengesahan hanya sekarang — pelanggan tidak dapat pengesahan untuk
-    // order yang belum diluluskan.
-    if (o.email) {
+    // order yang belum diluluskan. Langkau kalau order dah dalam penghantaran/sampai
+    // (e-mel "pesanan disahkan" lepas barang sampai mengelirukan).
+    if (o.email && early) {
       const items = Array.isArray(o.items) && o.items.length > 0
         ? (o.items as { product_name: string; quantity: number; unit_price: number; variant_name?: string | null }[])
         : [{ product_name: o.product_name, quantity: o.quantity, unit_price: Number(o.unit_price), variant_name: o.variant_name }]
