@@ -45,7 +45,8 @@ const getLpData = (slug: string) =>
       const productSlugs = [...new Set([
         ...(live?.products ?? []),
         ...[...page.html_content.matchAll(/\{\{product:([a-zA-Z0-9-]+)\}\}/g)].map(m => m[1]),
-        ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-]+)\}\}/g)].map(m => m[1].split(',').map((s: string) => s.trim())).flat(),
+        // `slug*` = produk wajib (lib/lp-required.ts) — `*` dibenarkan dalam regex, dibuang oleh parseCheckoutSlugs
+        ...[...page.html_content.matchAll(/\{\{checkout:([a-zA-Z0-9,\-*]+)\}\}/g)].map(m => parseCheckoutSlugs(m[1]).map(s => s.slug)).flat(),
         // {{video:URL|slug1,slug2|...}} — chip produk bawah video
         ...[...page.html_content.matchAll(/\{\{video:[^}|]*\|([a-zA-Z0-9,\-\s]*)/g)].map(m => m[1].split(',').map((s: string) => s.trim()).filter(Boolean)).flat(),
       ])]
@@ -183,7 +184,7 @@ export default async function LandingPage({ params }: Props) {
   const htmlContent = normaliseHtml(page.html_content)
 
   // Split on all placeholders: product, checkout (single or multi), lead-form, countdown
-  const parts = htmlContent.split(/(\{\{(?:product|checkout):[a-zA-Z0-9,\-]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\})/g)
+  const parts = htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\})/g)
 
   return (
     <div className="min-h-screen bg-white">
