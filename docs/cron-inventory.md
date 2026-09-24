@@ -1,7 +1,7 @@
 # Inventori Cron — semua automation berjadual
 
-11 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
-9 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
+12 cron, semua Bearer `CRON_SECRET`. Hanya 2 dijadual Vercel (had Hobby);
+10 lagi bergantung **cron-job.org** (akaun luar — TIADA dalam repo, senarai ini
 satu-satunya rekod). Setiap cron stamp `cron_heartbeats` (109) bila siap;
 dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 
@@ -12,6 +12,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | auto-followup | `/api/cron/auto-followup` | Nudge WA chat senyap belum beli | tiap 30 min | cron-job.org |
 | blast-drain | `/api/cron/blast-drain` | Drain campaign WA Blast (ReplyLa) | tiap ~15 min | cron-job.org |
 | wa-outbox-drain | `/api/cron/wa-outbox-drain` | Drain queue WA outbox (12/tick) | tiap ~15 min | cron-job.org |
+| meta-ad-spend | `/api/cron/meta-ad-spend` | Tarik spend Meta ikut kempen (7 hari terakhir, `?days=` utk backfill) → `ad_spend`; ROAS di Performance LP / Ad Spend / P&L | harian 02:30 | cron-job.org |
 | auto-deliver | `/api/cron/auto-deliver` | delivering→delivered lepas N hari + kredit loyalty/referral/affiliate | harian | cron-job.org |
 | external-sync | `/api/cron/external-sync` | Sync pembeli TikTok dari ops app → contacts (balas 200 serta-merta, kerja sambung di `after()`; `?dry=1` untuk kiraan sahaja) | harian (03:00) | cron-job.org |
 | payment-reminder | `/api/cron/payment-reminder` | Email order FPX belum bayar 1-24j | tiap ~2 jam | cron-job.org |

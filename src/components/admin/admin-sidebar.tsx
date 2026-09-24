@@ -26,7 +26,6 @@ type Section = { label: string; items: NavEntry[]; collapsible?: boolean }
 //   /admin/affiliates         Affiliate          → 0 komisen, 0 pengeluaran
 //   /admin/support            Support AI         → 3 aduan, terakhir 5 Jun
 //   /admin/inventory          Inventory          → batch stok terakhir 7 Mei
-//   /admin/marketing/ads      Ad Spend & ROAS    → jadual ad_spend kosong
 // Untuk pulihkan: tambah semula ke kumpulan berkaitan + import ikon lucide
 // (Bell, Boxes, DollarSign, Gift, Headset, Rocket, ScanLine).
 const sections: Section[] = [
@@ -75,6 +74,8 @@ const sections: Section[] = [
       { href: '/admin/promos',       label: 'Promotions',     icon: Tag },
       { href: '/admin/promos/usage', label: 'Kupon & Points', icon: BarChart2 },
       { href: '/admin/waitlist',     label: 'Waitlist',       icon: BellRing },
+      // Dibuka semula 24 Sep 2026: spend Meta kini ditarik automatik (cron meta-ad-spend)
+      { href: '/admin/marketing/ads', label: 'Ad Spend & ROAS', icon: TrendingUp },
     ],
   },
   {

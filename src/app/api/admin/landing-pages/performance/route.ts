@@ -1,5 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
-import { fetchAdSpend, spendForLp, type RoasOrder } from '@/lib/roas'
+import { fetchAdSpend, fetchSourceAliases, spendForLp, type RoasOrder } from '@/lib/roas'
 import { fetchAll } from '@/lib/supabase/fetch-all'
 import { NextResponse } from 'next/server'
 
@@ -30,6 +30,7 @@ export async function GET() {
   const pages = pagesRes.data ?? []
   // Sprint 3 ROAS: spend ikut lp_slug atau id kempen dalam `source` order LP (migration 130; [] kalau belum)
   const spendRows = await fetchAdSpend(supabase!)
+  const aliases = spendRows.length ? await fetchSourceAliases(supabase!) : {}
 
   // Aggregate per page
   const result = pages.map(page => {
@@ -51,7 +52,7 @@ export async function GET() {
     const aov = confirmedOrders > 0 ? revenue / confirmedOrders : 0
     const orderRate = views > 0 ? (totalOrders / views) * 100 : 0
     const leadRate = views > 0 ? (totalLeads / views) * 100 : 0
-    const spend = spendRows.length ? spendForLp(page.slug, pageOrders as unknown as RoasOrder[], spendRows) : 0
+    const spend = spendRows.length ? spendForLp(page.slug, pageOrders as unknown as RoasOrder[], spendRows, aliases) : 0
     const roas = spend > 0 ? revenue / spend : null
 
     return {

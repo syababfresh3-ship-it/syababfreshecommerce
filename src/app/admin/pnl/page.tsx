@@ -1,7 +1,7 @@
 // P&L Website — untung rugi channel website dari order sebenar (paid) ikut julat tarikh.
 // Revenue − Kos Buah − Packaging − Kurier − Lain − Gateway − Kos Operasi = Untung Bersih.
 import Link from 'next/link'
-import { fetchAdSpend, computeRoas, type RoasOrder } from '@/lib/roas'
+import { fetchAdSpend, fetchSourceAliases, computeRoas, type RoasOrder } from '@/lib/roas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
   parseSettings, costLookup, computeOrderPnl, fmtRM, type VariantCost,
@@ -176,10 +176,11 @@ export default async function PnlPage({
   // Bila ada baris, ia menggantikan "Marketing (peruntukan)" dalam untung bersih;
   // kalau jadual belum wujud / kosong → peruntukan lama dikekalkan.
   const adSpendRows = await fetchAdSpend(supabase, from, to)
+  const roasAliases = adSpendRows.length ? await fetchSourceAliases(supabase) : {}
   const adSpendActual = adSpendRows.reduce((s, r) => s + r.amount, 0)
   const useActualAds = adSpendActual > 0
   const marketingUsed = useActualAds ? adSpendActual : marketing
-  const roasSummary = useActualAds ? computeRoas(adSpendRows, lpOrders as unknown as RoasOrder[]) : null
+  const roasSummary = useActualAds ? computeRoas(adSpendRows, lpOrders as unknown as RoasOrder[], roasAliases) : null
 
   const untungKasar = revenue - cogs
   const untungBersih = revenue - cogs - packaging - kurier - lain - gateway - salesTeam - marketingUsed - kosOperasi - waMetaCost

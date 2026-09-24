@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
-import { computeRoas, fetchAdSpend } from '@/lib/roas'
+import { computeRoas, fetchAdSpend, fetchSourceAliases, parseSourceAliases, ROAS_ALIASES_KEY } from '@/lib/roas'
 
 // ============================================================
 // api/admin/ad-spend — perbelanjaan iklan (migration 130)
 // GET    ?from&to[&summary=1]   senarai baris (+ ringkasan ROAS ikut kempen)
 // POST   { spend_date, channel, campaign_id?, campaign_name?, lp_slug?, amount, notes? }
-// PATCH  { id, ...medan }
+// PATCH  { id, ...medan }  |  { aliases: { "<source>": "<campaign_id>" } } (padanan sumber manual)
+// GET    ?aliases=1            padanan sumber manual sahaja
 // DELETE ?id=
 // ============================================================
 
@@ -40,6 +41,9 @@ function cleanRow(body: Record<string, unknown>) {
 export async function GET(req: NextRequest) {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
+  if (req.nextUrl.searchParams.get('aliases') === '1') {
+    return NextResponse.json({ aliases: await fetchSourceAliases(supabase!) })
+  }
   const from = req.nextUrl.searchParams.get('from') ?? undefined
   const to = req.nextUrl.searchParams.get('to') ?? undefined
   const rows = await fetchAdSpend(supabase!, from, to)
@@ -51,7 +55,8 @@ export async function GET(req: NextRequest) {
   if (from) q = q.gte('created_at', `${from}T00:00:00+08:00`)
   if (to) q = q.lte('created_at', `${to}T23:59:59+08:00`)
   const { data: orders } = await q.limit(5000)
-  const summary = computeRoas(rows, orders ?? [])
+  const aliases = await fetchSourceAliases(supabase!)
+  const summary = computeRoas(rows, orders ?? [], aliases)
   // Kempen yang ada order tapi tiada spend — senarai untuk admin isi
   const knownSources = new Map<string, { channel: string; orders: number; revenue: number }>()
   for (const o of orders ?? []) {
@@ -86,6 +91,15 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
+  const peek = await req.clone().json().catch(() => null) as { aliases?: unknown } | null
+  if (peek && typeof peek.aliases === 'object' && peek.aliases !== null) {
+    // Padanan sumber manual → kempen (lib/roas.ts). Simpan yang sah sahaja.
+    const clean = parseSourceAliases(JSON.stringify(peek.aliases))
+    if (Object.keys(clean).length > 100) return NextResponse.json({ error: 'Terlalu banyak padanan' }, { status: 400 })
+    const { error } = await supabase!.from('app_settings').upsert({ key: ROAS_ALIASES_KEY, value: JSON.stringify(clean) }, { onConflict: 'key' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true, aliases: clean })
+  }
   const body = await req.json().catch(() => ({}))
   const id = typeof body.id === 'string' ? body.id : ''
   if (!id) return NextResponse.json({ error: 'id diperlukan' }, { status: 400 })
