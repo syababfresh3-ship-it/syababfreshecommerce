@@ -141,6 +141,9 @@ export default async function LandingPage({ params }: Props) {
   ])
   const freeMin = Number(appSettings.free_delivery_min ?? 80)
   const pickupEnabled = appSettings.pickup_enabled !== 'false'
+  // Logo kedai untuk header LP. Sumber sama dengan storefront (app_settings.store_logo_url),
+  // jadi tukar logo di admin → semua LP ikut tanpa sentuh kod. Kosong → fallback wordmark teks.
+  const storeLogoUrl = appSettings.store_logo_url || null
 
   if (!data) notFound()
   const { page, products, stock } = data
@@ -193,7 +196,14 @@ export default async function LandingPage({ params }: Props) {
 
       {/* Minimal header — no cart link (standalone LP) */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-lg font-black text-green-600 tracking-tight">SyababFresh</Link>
+        <Link href="/" className="flex items-center" aria-label="SyababFresh">
+          {storeLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={storeLogoUrl} alt="SyababFresh" className="h-8 w-auto max-w-[180px] object-contain" />
+          ) : (
+            <span className="text-lg font-black text-green-600 tracking-tight">SyababFresh</span>
+          )}
+        </Link>
         <a href={waHref} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-gray-500 hover:text-green-600">Hubungi Kami</a>
       </header>
 
