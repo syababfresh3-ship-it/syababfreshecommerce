@@ -250,14 +250,16 @@ export default function AdminBannersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(selectan · 800×360px)</span></label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 1200×675px · 16:9)</span></label>
               <ImageUploader
                 currentUrl={form.image_url || null}
                 onUpload={url => setForm(p => ({ ...p, image_url: url }))}
                 onRemove={() => setForm(p => ({ ...p, image_url: '' }))}
                 bucket="brand-assets"
                 label="Banner (JPG, PNG, WebP · Max 5MB)"
-                aspectRatio="aspect-[2.2/1]"
+                // Slot banner di laman utama ialah 16:9 (storev2/sf-promo.tsx, object-cover) —
+                // preview mesti nisbah sama supaya admin nampak potongan sebenar.
+                aspectRatio="aspect-video"
               />
               {form.image_url && (
                 <p className="text-[10px] text-gray-400 mt-1">Gambar akan gantikan warna background</p>
@@ -367,14 +369,16 @@ export default function AdminBannersPage() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(selectan · 800×360px)</span></label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Gambar Banner <span className="font-normal text-gray-400">(pilihan · 1200×675px · 16:9)</span></label>
               <ImageUploader
                 currentUrl={form.image_url || null}
                 onUpload={url => setForm(p => ({ ...p, image_url: url }))}
                 onRemove={() => setForm(p => ({ ...p, image_url: '' }))}
                 bucket="brand-assets"
                 label="Banner (JPG, PNG, WebP · Max 5MB)"
-                aspectRatio="aspect-[2.2/1]"
+                // Slot banner di laman utama ialah 16:9 (storev2/sf-promo.tsx, object-cover) —
+                // preview mesti nisbah sama supaya admin nampak potongan sebenar.
+                aspectRatio="aspect-video"
               />
               {form.image_url && (
                 <p className="text-[10px] text-gray-400 mt-1">Gambar akan gantikan warna background</p>
