@@ -31,7 +31,7 @@ export function VariantManager({ productId }: Props) {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name || !form.price) { toast.error('Name dan price diperlukan'); return }
+    if (!form.name || !form.price) { toast.error('Name and price are required'); return }
     setAdding(true)
     const res = await fetch(`/api/admin/products/${productId}/variants`, {
       method: 'POST',
@@ -46,9 +46,9 @@ export function VariantManager({ productId }: Props) {
         sort_order: variants.length,
       }),
     })
-    if (!res.ok) { toast.error('Failed tambah variasi'); }
+    if (!res.ok) { toast.error('Could not add variation'); }
     else {
-      toast.success(`Variasi "${form.name}" ditambah`)
+      toast.success(`Variation "${form.name}" added`)
       setForm(EMPTY_FORM)
       setShowAdd(false)
       load()
@@ -65,9 +65,9 @@ export function VariantManager({ productId }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(changes),
     })
-    if (!res.ok) toast.error('Failed save')
+    if (!res.ok) toast.error('Save failed')
     else {
-      toast.success('Disave')
+      toast.success('Saved')
       setEditing(prev => { const n = { ...prev }; delete n[variantId]; return n })
       load()
     }
@@ -88,18 +88,18 @@ export function VariantManager({ productId }: Props) {
       )
     )
     const failed = results.filter(r => !r.ok).length
-    if (failed > 0) toast.error(`${failed} variasi failed disave`)
-    else toast.success(`${dirtyIds.length} variasi disave`)
+    if (failed > 0) toast.error(`${failed} variation${failed > 1 ? 's' : ''} failed to save`)
+    else toast.success(`${dirtyIds.length} variation${dirtyIds.length > 1 ? 's' : ''} saved`)
     setEditing({})
     load()
     setSaving(null)
   }
 
   async function handleDelete(v: ProductVariant) {
-    if (!confirm(`Delete variasi "${v.name}"?`)) return
+    if (!confirm(`Delete variation "${v.name}"?`)) return
     const res = await fetch(`/api/admin/products/${productId}/variants/${v.id}`, { method: 'DELETE' })
-    if (!res.ok) toast.error('Failed delete')
-    else { toast.success('Didelete'); load() }
+    if (!res.ok) toast.error('Delete failed')
+    else { toast.success('Deleted'); load() }
   }
 
   async function toggleActive(v: ProductVariant) {
@@ -126,9 +126,9 @@ export function VariantManager({ productId }: Props) {
     <div className="border-t border-gray-100 pt-6 mt-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-bold text-gray-900">Variasi Product</h3>
+          <h3 className="text-sm font-bold text-gray-900">Variations</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {variants.length > 0 ? `${variants.length} variasi` : 'No variasi — product dijual pada price tetap'}
+            {variants.length > 0 ? `${variants.length} variation${variants.length > 1 ? 's' : ''}` : 'No variations — sold at a single price'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export function VariantManager({ productId }: Props) {
               className="flex items-center gap-1.5 text-xs font-semibold text-white bg-gray-900 px-3 py-2 rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {saving === 'all' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              Save All ({Object.keys(editing).length})
+              Save all ({Object.keys(editing).length})
             </button>
           )}
           <button
@@ -149,7 +149,7 @@ export function VariantManager({ productId }: Props) {
             className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
-            Add Variasi
+            Add variation
           </button>
         </div>
       </div>
@@ -160,14 +160,14 @@ export function VariantManager({ productId }: Props) {
       {/* Add form */}
       {showAdd && (
         <form onSubmit={handleAdd} className="bg-gray-50 rounded-xl p-4 mb-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Variasi New</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">New variation</p>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
               <input
                 value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="cth: 1kg, 3kg Gred A, 6 biji"
+                placeholder="e.g. 1kg, 3kg Grade A, 6 pcs"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               />
             </div>
@@ -183,7 +183,7 @@ export function VariantManager({ productId }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Price Asal (RM)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Was — original price (RM)</label>
                 <input
                   type="number" step="0.01" min="0"
                   value={form.compare_price}
@@ -193,12 +193,12 @@ export function VariantManager({ productId }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Berat (kg)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Weight (kg)</label>
                 <input
                   type="number" step="0.1" min="0"
                   value={form.weight_kg}
                   onChange={e => setForm(p => ({ ...p, weight_kg: e.target.value }))}
-                  placeholder="cth: 5"
+                  placeholder="e.g. 5"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
@@ -221,14 +221,14 @@ export function VariantManager({ productId }: Props) {
               className="flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              {adding ? 'Menambah...' : 'Tambah'}
+              {adding ? 'Adding…' : 'Add'}
             </button>
             <button
               type="button"
               onClick={() => { setShowAdd(false); setForm(EMPTY_FORM) }}
               className="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
             >
-              Batal
+              Cancel
             </button>
           </div>
         </form>
@@ -241,7 +241,7 @@ export function VariantManager({ productId }: Props) {
         </div>
       ) : variants.length === 0 ? (
         <p className="text-xs text-gray-400 text-center py-6 bg-gray-50 rounded-xl">
-          Belum ada variasi. Add variasi di atas untuk jual dalam pelbagai saiz/gred.
+          No variations yet. Add one above to sell this product in different sizes or grades.
         </p>
       ) : (
         <div className="space-y-2">
@@ -278,7 +278,7 @@ export function VariantManager({ productId }: Props) {
 
                   {/* Compare price */}
                   <div className="shrink-0 w-24">
-                    <p className="text-[10px] font-medium text-gray-400 mb-1">Price Asal</p>
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Was</p>
                     <input
                       type="number" step="0.01" min="0"
                       value={String(getVal(v, 'compare_price') ?? '')}
@@ -290,7 +290,7 @@ export function VariantManager({ productId }: Props) {
 
                   {/* Weight (kg) — drives weight-based shipping tiers */}
                   <div className="shrink-0 w-20">
-                    <p className="text-[10px] font-medium text-gray-400 mb-1">Berat (kg)</p>
+                    <p className="text-[10px] font-medium text-gray-400 mb-1">Weight (kg)</p>
                     <input
                       type="number" step="0.1" min="0"
                       value={getVal(v, 'weight_grams') == null ? '' : Number(getVal(v, 'weight_grams')) / 1000}
@@ -317,7 +317,7 @@ export function VariantManager({ productId }: Props) {
                     onClick={() => toggleActive(v)}
                     className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold shrink-0 mb-0.5 transition-colors ${v.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}
                   >
-                    {v.is_active ? 'Active' : 'Mati'}
+                    {v.is_active ? 'On' : 'Off'}
                   </button>
 
                   {/* Save */}
