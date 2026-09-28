@@ -106,6 +106,10 @@ const nextConfig: NextConfig = {
         destination: 'https://manage.syababfresh.my/bantuan',
         permanent: false,
       },
+      // Delima digabung jadi satu produk berdimensi (Saiz × Promo, migration 136, 28 Sep 2026).
+      // Pautan lama (iklan/kongsi) → produk baharu; produk lama dinyahaktif, bukan dipadam.
+      { source: '/products/delima-tunisia-small', destination: '/products/delima-tunisia', permanent: true },
+      { source: '/products/delima-tunisia-large', destination: '/products/delima-tunisia', permanent: true },
     ]
   },
 };
