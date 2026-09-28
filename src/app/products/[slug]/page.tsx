@@ -17,7 +17,7 @@ async function getProduct(slug: string) {
   const { data } = await supabase
     .from('products')
     // `stock` variant WAJIB — penunjuk "Habis stok" + butang waitlist bergantung padanya
-    .select('*, categories(name, slug), product_variants(id, name, price, compare_price, is_active, sort_order, stock)')
+    .select('*, categories(name, slug), product_variants(id, name, price, compare_price, is_active, sort_order, stock, options)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()

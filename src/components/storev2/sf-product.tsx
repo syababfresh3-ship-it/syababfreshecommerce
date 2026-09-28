@@ -20,6 +20,8 @@ import { SfProductGallery, type GalleryImage } from "@/components/storev2/sf-pro
 import { SfDeliveryEstimate } from "@/components/storev2/sf-delivery-estimate";
 import { ARTIKEL } from "@/app/panduan/artikel";
 import type { Product, ProductVariant } from "@/types";
+import { VariantOptionPicker } from "@/components/store/variant-option-picker";
+import { defaultSelection, parseVariantOptions, usesDimensions, type OptionValues } from "@/lib/variant-options";
 
 // Pautan kluster: padan produk (nama + kategori) → artikel panduan berkaitan.
 // Kuatkan pautan dalaman dari 94 page produk ke artikel & pillar /buah-online.
@@ -87,6 +89,10 @@ export function SfProduct({
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const hasVariants = variants.length > 0;
 
+  // Variasi berdimensi (migration 136): Saiz × Promo dsb. — pilihan lalai = kombinasi varian pertama
+  const dims = parseVariantOptions(product.variant_options);
+  const dimensional = usesDimensions(dims, variants);
+  const [optSel, setOptSel] = useState<OptionValues>(() => (dimensional ? defaultSelection(variants, dims) : {}));
   const [variant, setVariant] = useState<ProductVariant | null>(hasVariants ? variants[0] : null);
   const [qty, setQty] = useState(1);
   const [liked, setLiked] = useState(false);
@@ -241,8 +247,20 @@ export function SfProduct({
           {/* Waitlist — HANYA muncul bila habis stok (tiada kesan pada flow biasa) */}
           {soldOut && <SfWaitlist productId={product.id} />}
 
-          {/* #1/#2/#4 Pemilih variant */}
-          {hasVariants && (
+          {/* Variasi berdimensi (gaya TikTok): satu baris pil setiap dimensi */}
+          {hasVariants && dimensional && (
+            <div className="mt-4">
+              <VariantOptionPicker
+                dims={dims}
+                variants={variants}
+                selection={optSel}
+                onChange={(sel, v) => { setOptSel(sel); if (v) pickVariant(v as ProductVariant); }}
+              />
+            </div>
+          )}
+
+          {/* #1/#2/#4 Pemilih variant (senarai rata) */}
+          {hasVariants && !dimensional && (
             <div className="mt-4">
               <div className="text-[13px] font-bold text-gray-900 mb-2">{pickerLabel}</div>
               <div className="grid grid-cols-3 gap-2">

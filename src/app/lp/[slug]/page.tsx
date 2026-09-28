@@ -53,7 +53,7 @@ const getLpData = (slug: string) =>
 
       const [productsRes, stockRes] = await Promise.all([
         productSlugs.length > 0
-          ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active, product_variants(id, name, price, compare_price, weight_grams, is_active, sort_order)').in('slug', productSlugs)
+          ? supabase.from('products').select('id, name, slug, price, compare_price, image_url, images, is_active, variant_options, product_variants(id, name, price, compare_price, weight_grams, is_active, sort_order, options)').in('slug', productSlugs)
           : Promise.resolve({ data: [] }),
         productSlugs.length > 0
           ? supabase.from('product_stock').select('product_id, available_stock')

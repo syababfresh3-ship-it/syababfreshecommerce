@@ -3,6 +3,7 @@ import { revalidateStorefront } from '@/lib/revalidate-store'
 import { NextResponse } from 'next/server'
 
 const PRODUCT_FIELDS = [
+  'variant_options', // dimensi variasi (migration 136)
   'name', 'slug', 'description', 'price', 'compare_price', 'unit',
   'is_featured', 'is_active', 'is_shippable', 'sort_order', 'category_id',
   'image_url', 'images', 'weight_grams', 'show_in_storefront',

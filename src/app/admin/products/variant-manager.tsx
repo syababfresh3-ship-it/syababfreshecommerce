@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { VariantDimensions } from './variant-dimensions'
 import { toast } from 'sonner'
 import { Plus, Trash2, Loader2, Save, GripVertical } from 'lucide-react'
 import type { ProductVariant } from '@/types'
@@ -152,6 +153,9 @@ export function VariantManager({ productId }: Props) {
           </button>
         </div>
       </div>
+
+      {/* Dimensi variasi gaya TikTok (migration 136) — jana kombinasi ke senarai di bawah */}
+      <VariantDimensions productId={productId} onGenerated={load} />
 
       {/* Add form */}
       {showAdd && (

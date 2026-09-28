@@ -29,6 +29,7 @@ export async function PATCH(
   if (body.stock !== undefined) update.stock = Number(body.stock)
   if (body.sku !== undefined) update.sku = body.sku || null
   if (body.is_active !== undefined) update.is_active = body.is_active
+  if (body.options !== undefined) update.options = body.options && typeof body.options === 'object' && !Array.isArray(body.options) ? body.options : null
   if (body.sort_order !== undefined) update.sort_order = Number(body.sort_order)
 
   const { error } = await supabase.from('product_variants').update(update).eq('id', variantId)

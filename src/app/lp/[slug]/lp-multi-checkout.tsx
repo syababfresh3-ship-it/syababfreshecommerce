@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag, PackageX } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
+import { VariantOptionPicker } from '@/components/store/variant-option-picker'
+import { parseVariantOptions, usesDimensions, type OptionValues } from '@/lib/variant-options'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
@@ -11,6 +13,7 @@ import { HoneypotField } from '@/components/honeypot-field'
 
 interface ProductWithVariants extends Product {
   product_variants?: ProductVariant[]
+  variant_options?: { name: string; values: string[] }[] | null
 }
 
 interface Props {
@@ -347,8 +350,26 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                     )}
                   </div>
 
-                  {/* Variant chips */}
-                  {hasVariants && isActive && (
+                  {/* Variasi berdimensi (gaya TikTok) — pilihan diambil dari options varian terpilih */}
+                  {hasVariants && isActive && (() => {
+                    const dims = parseVariantOptions(sel.product.variant_options)
+                    if (!usesDimensions(dims, activeVariants)) return null
+                    const selection: OptionValues = (sel.selectedVariant?.options as OptionValues | null) ?? {}
+                    return (
+                      <div style={{ padding: '0 14px 12px' }}>
+                        <VariantOptionPicker
+                          dims={dims}
+                          variants={activeVariants}
+                          selection={selection}
+                          accent={cv('--cherry', '#9C0F30')}
+                          compact
+                          onChange={(_s, v) => { if (v) updateSelection(idx, { selectedVariant: v as ProductVariant }) }}
+                        />
+                      </div>
+                    )
+                  })()}
+                  {/* Variant chips (senarai rata) */}
+                  {hasVariants && isActive && !usesDimensions(parseVariantOptions(sel.product.variant_options), activeVariants) && (
                     <div style={{ padding: '0 14px 12px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {activeVariants.map(variant => {
                         const isSelected = sel.selectedVariant?.id === variant.id

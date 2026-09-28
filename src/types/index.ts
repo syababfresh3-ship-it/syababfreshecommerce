@@ -51,6 +51,8 @@ export interface Product {
   sort_order: number
   created_at: string
   updated_at: string
+  // Dimensi variasi gaya TikTok (migration 136): [{ name, values[] }]. null = senarai varian rata
+  variant_options?: { name: string; values: string[] }[] | null
   // Joined
   category?: Category
   available_stock?: number
@@ -151,6 +153,8 @@ export interface ProductVariant {
   is_active: boolean
   sort_order: number
   created_at: string
+  // Nilai dimensi kombinasi ini (migration 136), cth { Saiz: 'Large (300g+)', Promo: '2 biji + FREE 2 biji' }. null = varian rata
+  options?: Record<string, string> | null
 }
 
 export interface OrderItem {
