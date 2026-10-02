@@ -46,8 +46,23 @@ export async function DELETE(
   const supabase = await adminCheck()
   if (!supabase) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Cuba hard-delete dulu — variasi yang belum ada order terus dibuang bersih.
   const { error } = await supabase.from('product_variants').delete().eq('id', variantId)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // 23503 = foreign_key_violation: variasi ni dirujuk order lama
+    // (lp_guest_orders.variant_id NO ACTION). Hard-delete akan buang sejarah
+    // P&L/kos (cascade) — jadi soft-delete: sorok tapi kekalkan sejarah.
+    if (error.code === '23503') {
+      const { error: softErr } = await supabase
+        .from('product_variants')
+        .update({ deleted_at: new Date().toISOString(), is_active: false })
+        .eq('id', variantId)
+      if (softErr) return NextResponse.json({ error: softErr.message }, { status: 500 })
+      revalidateStorefront()
+      return NextResponse.json({ ok: true, soft: true })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   revalidateStorefront()
   return NextResponse.json({ ok: true })
 }

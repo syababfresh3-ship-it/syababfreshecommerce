@@ -20,6 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .from('product_variants')
     .select('*')
     .eq('product_id', id)
+    .is('deleted_at', null)
     .order('sort_order')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)

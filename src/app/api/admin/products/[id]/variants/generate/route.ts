@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (defPrice !== null && (!Number.isFinite(defPrice) || defPrice < 0)) return NextResponse.json({ error: 'Harga lalai tidak sah' }, { status: 400 })
 
   const { data: existing, error: exErr } = await supabase
-    .from('product_variants').select('id, name, options, sort_order, is_active').eq('product_id', id)
+    .from('product_variants').select('id, name, options, sort_order, is_active').eq('product_id', id).is('deleted_at', null)
   if (exErr) return NextResponse.json({ error: exErr.message }, { status: 500 })
 
   const combos = generateCombos(dims)

@@ -98,8 +98,11 @@ export function VariantManager({ productId }: Props) {
   async function handleDelete(v: ProductVariant) {
     if (!confirm(`Delete variation "${v.name}"?`)) return
     const res = await fetch(`/api/admin/products/${productId}/variants/${v.id}`, { method: 'DELETE' })
-    if (!res.ok) toast.error('Delete failed')
-    else { toast.success('Deleted'); load() }
+    if (!res.ok) { toast.error('Delete failed'); return }
+    const data = await res.json().catch(() => ({}))
+    // soft:true → variasi ada order lama, disorok (bukan dibuang) untuk kekalkan sejarah
+    toast.success(data.soft ? 'Variation removed (hidden — it has past orders)' : 'Deleted')
+    load()
   }
 
   async function toggleActive(v: ProductVariant) {
