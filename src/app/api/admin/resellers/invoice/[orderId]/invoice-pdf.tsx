@@ -29,7 +29,7 @@ const SELLER = {
   addr2: 'Jalan 6C/13A, Seksyen 16, Bandar Baru Bangi',
   pic: 'Muhammad Anas bin Mohd Bukhari',
   email: 'syababtrading@gmail.com',
-  phone: '011 9003 6446',
+  phone: '011 5681 6548',
 }
 const BANK = { name: 'Maybank', accName: 'Syabab Trading Sdn Bhd', accNo: '562263630996' }
 

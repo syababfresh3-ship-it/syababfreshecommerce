@@ -152,7 +152,7 @@ export function localBusinessSchema() {
     parentOrganization: { '@id': `${BASE_URL}/#organization` },
     url: BASE_URL,
     image: `${BASE_URL}/og-image.png`,
-    telephone: '+601190036446',
+    telephone: '+601156816548',
     address: {
       '@type': 'PostalAddress',
       streetAddress: 'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16',

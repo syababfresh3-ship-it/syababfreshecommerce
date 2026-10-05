@@ -14,7 +14,7 @@ const BUSINESS = {
   tin: 'C 59556871080',
   address:
     'Lot No. 2 (Semi-D), Kompleks Premis Usahawan SME Bank Bangi, Jalan 6C/13A, Seksyen 16, Bandar Baru Bangi',
-  phone: '011 9003 6446',
+  phone: '011 5681 6548',
   email: 'syababtrading@gmail.com',
 }
 

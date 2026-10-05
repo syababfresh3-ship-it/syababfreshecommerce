@@ -106,7 +106,7 @@ export function SfShell({ children }: { children: React.ReactNode }) {
               <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-3">Hubungi</p>
               <ul className="space-y-2 text-[13px] text-gray-600">
                 <li><a href="mailto:syababtrading@gmail.com" className="hover:text-gray-900">syababtrading@gmail.com</a></li>
-                <li><a href="tel:+601190036446" className="hover:text-gray-900">011 9003 6446</a></li>
+                <li><a href="tel:+601156816548" className="hover:text-gray-900">011 5681 6548</a></li>
                 <li><Link href="/info" className="hover:text-gray-900">Bantuan &amp; Sokongan</Link></li>
               </ul>
             </div>

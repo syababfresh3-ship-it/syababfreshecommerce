@@ -139,7 +139,7 @@ export default function InfoPage() {
             </p>
             <p className="text-xs text-gray-600">
               <span className="font-medium">Telefon:</span>{' '}
-              <a href="tel:+601190036446" className="text-brand-red-600 hover:underline">011 9003 6446</a>
+              <a href="tel:+601156816548" className="text-brand-red-600 hover:underline">011 5681 6548</a>
             </p>
             <p className="text-xs text-gray-600">
               <span className="font-medium">Waktu Operasi:</span> Isnin–Ahad, 8am–9pm
