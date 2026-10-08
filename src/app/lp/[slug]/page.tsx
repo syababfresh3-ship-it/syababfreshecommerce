@@ -212,7 +212,10 @@ export default async function LandingPage({ params }: Props) {
         {parts.map((part: string, i: number) => {
           if (i % 2 === 0) {
             if (!part.trim()) return null
-            return <div key={i} data-lp-html dangerouslySetInnerHTML={{ __html: part }} />
+            // Section html_content direka full-width (width:100% + padding dalaman sendiri).
+            // -mx-4 batalkan px-4 container → section penuh tepi-ke-tepi (full mobile). Widget
+            // suntikan (checkout/kad produk) kekal px-4 container, jadi masih ada jurang.
+            return <div key={i} data-lp-html className="-mx-4" dangerouslySetInnerHTML={{ __html: part }} />
           }
 
           if (part === '{{lead-form}}' || part.startsWith('{{lead-form:')) {
