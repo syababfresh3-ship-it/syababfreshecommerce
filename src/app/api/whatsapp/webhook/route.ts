@@ -50,6 +50,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Teruskan ke app ops (manage) — ia perlukan status delivered/read/failed untuk
+  // membuktikan mesej tracking/POD benar-benar sampai. Meta hanya benarkan SATU URL
+  // callback per app, dan URL itu milik app ini, jadi manage mesti menerimanya melalui
+  // sini.
+  //
+  // Muatan MENTAH dan tandatangan ASAL dihantar tanpa diubah, supaya manage mengesahkan
+  // tandatangan Meta itu sendiri — tiada laluan auth baharu, tiada kepercayaan tambahan.
+  // Gagal menghantar TIDAK menjejaskan pemprosesan di sini: ia ditangkap dan dilog.
+  forwardToOps(raw, sig);
+
   // Balas 200 cepat; proses best-effort (Meta retry kalau bukan 200).
   try {
     await handle(body);
@@ -57,6 +67,16 @@ export async function POST(req: NextRequest) {
     console.error("[wa webhook] proses gagal:", e);
   }
   return NextResponse.json({ ok: true });
+}
+
+function forwardToOps(raw: string, sig: string) {
+  const url = process.env.OPS_WA_WEBHOOK_URL;
+  if (!url) return;   // tidak dikonfigurasi → langkau senyap
+  void fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-hub-signature-256": sig },
+    body: raw,
+  }).catch((e) => console.error("[wa webhook] forward ke ops gagal:", e));
 }
 
 // ---------- jenis ringkas ----------
