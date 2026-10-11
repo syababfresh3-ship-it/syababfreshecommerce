@@ -57,8 +57,11 @@ export async function POST(req: NextRequest) {
   //
   // Muatan MENTAH dan tandatangan ASAL dihantar tanpa diubah, supaya manage mengesahkan
   // tandatangan Meta itu sendiri — tiada laluan auth baharu, tiada kepercayaan tambahan.
-  // Gagal menghantar TIDAK menjejaskan pemprosesan di sini: ia ditangkap dan dilog.
-  forwardToOps(raw, sig);
+  // DITUNGGU, bukan fire-and-forget. Pada serverless Vercel instance boleh dibekukan
+  // sebaik handler memulangkan respons, jadi `void fetch(...)` selalunya TIDAK sempat
+  // dihantar — permintaan itu hilang senyap tanpa ralat. Menunggu menambah ~200ms
+  // sahaja; Meta benarkan beberapa saat.
+  await forwardToOps(raw, sig);
 
   // Balas 200 cepat; proses best-effort (Meta retry kalau bukan 200).
   try {
@@ -69,14 +72,21 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-function forwardToOps(raw: string, sig: string) {
+async function forwardToOps(raw: string, sig: string): Promise<void> {
   const url = process.env.OPS_WA_WEBHOOK_URL;
   if (!url) return;   // tidak dikonfigurasi → langkau senyap
-  void fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-hub-signature-256": sig },
-    body: raw,
-  }).catch((e) => console.error("[wa webhook] forward ke ops gagal:", e));
+  try {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-hub-signature-256": sig },
+      body: raw,
+      signal: AbortSignal.timeout(5000),   // jangan sekat webhook ini kalau ops perlahan
+    });
+    if (!r.ok) console.error("[wa webhook] forward ke ops:", r.status, (await r.text()).slice(0, 200));
+  } catch (e) {
+    // Gagal menghantar TIDAK boleh menjejaskan pemprosesan di sini.
+    console.error("[wa webhook] forward ke ops gagal:", e);
+  }
 }
 
 // ---------- jenis ringkas ----------
