@@ -8,6 +8,8 @@ export interface LpCartItem {
   qty: number
   unitPrice: number
   imageUrl: string | null
+  // Variasi free_shipping (migration 141) → seluruh order percuma
+  freeShip?: boolean
 }
 
 interface LpCartStore {

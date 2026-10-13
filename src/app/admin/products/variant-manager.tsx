@@ -10,7 +10,7 @@ interface Props {
   productId: string
 }
 
-const EMPTY_FORM = { name: '', price: '', compare_price: '', weight_kg: '', stock: '0', sku: '' }
+const EMPTY_FORM = { name: '', price: '', compare_price: '', weight_kg: '', stock: '0', sku: '', free_shipping: false }
 
 export function VariantManager({ productId }: Props) {
   const [variants, setVariants] = useState<ProductVariant[]>([])
@@ -44,6 +44,7 @@ export function VariantManager({ productId }: Props) {
         stock: parseInt(form.stock) || 0,
         sku: form.sku || null,
         sort_order: variants.length,
+        free_shipping: form.free_shipping,
       }),
     })
     if (!res.ok) { toast.error('Could not add variation'); }
@@ -110,6 +111,16 @@ export function VariantManager({ productId }: Props) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !v.is_active }),
+    })
+    load()
+  }
+
+  // Penghantaran percuma per-variasi (migration 141) — simpan terus (boolean, macam Active)
+  async function toggleFreeShipping(v: ProductVariant) {
+    await fetch(`/api/admin/products/${productId}/variants/${v.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ free_shipping: !v.free_shipping }),
     })
     load()
   }
@@ -217,6 +228,15 @@ export function VariantManager({ productId }: Props) {
               </div>
             </div>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.free_shipping}
+              onChange={e => setForm(p => ({ ...p, free_shipping: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400"
+            />
+            <span className="text-xs font-medium text-gray-700">Free shipping — variasi ini hantar percuma (abai had basket)</span>
+          </label>
           <div className="flex gap-2">
             <button
               type="submit"
@@ -313,6 +333,16 @@ export function VariantManager({ productId }: Props) {
                       className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 font-mono text-right focus:outline-none focus:ring-2 focus:ring-red-500"
                     />
                   </div>
+
+                  {/* Free shipping toggle (migration 141) */}
+                  <button
+                    type="button"
+                    onClick={() => toggleFreeShipping(v)}
+                    title="Penghantaran percuma untuk variasi ini"
+                    className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold shrink-0 mb-0.5 transition-colors ${v.free_shipping ? 'bg-gray-900 text-white border-gray-900 hover:bg-gray-800' : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'}`}
+                  >
+                    Free ship
+                  </button>
 
                   {/* Active toggle */}
                   <button

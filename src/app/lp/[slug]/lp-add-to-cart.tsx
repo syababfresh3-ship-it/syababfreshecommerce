@@ -50,6 +50,7 @@ export function LpAddToCartBtn({ product, stock, variants }: Props) {
       qty,
       unitPrice: displayPrice,
       imageUrl: (product as any).image_url ?? null,
+      freeShip: !!selectedVariant?.free_shipping,
     })
     setJustAdded(true)
     toast.success(`${product.name}${selectedVariant ? ` (${selectedVariant.name})` : ''} ditambah!`)

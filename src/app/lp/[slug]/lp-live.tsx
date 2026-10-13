@@ -181,6 +181,7 @@ export function LpLive({ slug, title, config, products, stocks, reviews, viewerC
       qty: 1,
       unitPrice: Number(v ? v.price : p.price),
       imageUrl: p.image_url ?? null,
+      freeShip: !!v?.free_shipping,
     })
     setPicking(null)
     setBagOpen(false)

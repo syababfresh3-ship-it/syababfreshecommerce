@@ -104,7 +104,7 @@ export async function POST(request: Request) {
       ? supabase.from('products').select('id, name, price, is_active, weight_grams, category_id').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, free_shipping, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -148,6 +148,11 @@ export async function POST(request: Request) {
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
+  // Free shipping per-variasi (migration 141): mana-mana baris ada variasi
+  // free_shipping → seluruh order percuma.
+  const hasFreeShipVariant = (items as OrderItem[]).some(i =>
+    i.variant_id ? !!(variantMap.get(i.variant_id) as any)?.free_shipping : false)
+
   // Zon inactive = kawasan memang tiada penghantaran → tolak. SEBELUM logik fee
   // supaya berlaku walau order layak free delivery. (Poskod tiada dlm jadual =
   // tidak dihalang.)
@@ -159,7 +164,7 @@ export async function POST(request: Request) {
 
   if (isPickup) {
     deliveryFee = 0
-  } else if (subtotal >= FREE_MIN) {
+  } else if (hasFreeShipVariant || subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state').eq('postcode', postcode).maybeSingle()

@@ -36,10 +36,12 @@ export function SfDeliveryEstimate({
   subtotal,
   shippable,
   productName,
+  freeShip = false,
 }: {
   subtotal: number; // harga unit × kuantiti (untuk peraturan percuma)
   shippable: boolean; // products.is_shippable — boleh dipos luar Lembah Klang
   productName: string;
+  freeShip?: boolean; // variasi terpilih free_shipping (migration 141) → percuma
 }) {
   const [pc, setPc] = useState("");
   const [res, setRes] = useState<PcRes | null>(null);
@@ -88,7 +90,7 @@ export function SfDeliveryEstimate({
   const isKV = ok && res.covered === true;
   const knownArea = ok && !!res.area;
   const fee = isKV
-    ? calcDeliveryFee({ subtotal, baseFee: Number(res?.fee ?? 0), freeMin: freeMin ?? FREE_DELIVERY_OFF })
+    ? calcDeliveryFee({ subtotal, baseFee: Number(res?.fee ?? 0), freeMin: freeMin ?? FREE_DELIVERY_OFF, hasFreeShipItem: freeShip })
     : 0;
   const freeActive = freeMin != null && freeDeliveryActive(freeMin);
   const place = res?.area && res?.city && res.city !== res.area ? `${res.area}, ${res.city}` : res?.area ?? res?.city ?? "";

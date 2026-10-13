@@ -120,9 +120,11 @@ export function SfCart() {
   const pcChecked = !!pcRes && !pcRes.error;
   const isKV = pcRes?.covered === true;
   const outsideKV = pcChecked && !isKV;
+  // Free shipping per-variasi (migration 141): mana-mana item ada variasi free_shipping → seluruh order percuma.
+  const hasFreeShipItem = items.some(({ variant }) => !!variant?.free_shipping);
   // Fix 5: kiraan SAMA dengan Checkout (lib/delivery-fee) — termasuk peraturan percuma.
   const deliveryFee = isKV
-    ? calcDeliveryFee({ subtotal, baseFee: Number(pcRes?.fee ?? 0), freeMin, isPickup: mode === "pickup" })
+    ? calcDeliveryFee({ subtotal, baseFee: Number(pcRes?.fee ?? 0), freeMin, isPickup: mode === "pickup", hasFreeShipItem })
     : 0;
   const freeApplied = mode === "delivery" && isKV && deliveryFee === 0;
   const grandTotal = subtotal + deliveryFee;
@@ -343,7 +345,7 @@ export function SfCart() {
           {/* Sprint 3E: bar kemajuan penghantaran percuma — sembunyi bila percuma
               dimatikan atau had dicapai (komponen kendali sendiri). Mod Penghantaran sahaja. */}
           {mode === "delivery" && (
-            <SfFreeDeliveryBar subtotal={subtotal} freeMin={freeMin} className="pt-1" />
+            <SfFreeDeliveryBar subtotal={subtotal} freeMin={freeMin} hasFreeShipItem={hasFreeShipItem} className="pt-1" />
           )}
         </div>
 

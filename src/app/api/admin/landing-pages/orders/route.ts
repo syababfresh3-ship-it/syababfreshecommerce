@@ -7,6 +7,7 @@ import { sendLpReviewRequest } from '@/lib/order-delivered'
 import { deductLpOrderStock } from '@/lib/stock'
 import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { canTransition, transitionError } from '@/lib/order-status'
+import { sendCapiPurchase } from '@/lib/meta-capi'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -122,6 +123,31 @@ export async function PATCH(request: Request) {
         deliverySlot: null,
         paymentMethod: o.payment_method,
         notes: o.notes ?? null,
+      }).catch(() => {})
+    }
+
+    // Meta CAPI Purchase untuk COD (migration 141/142) — COD LP terdetect sebagai
+    // conversion HANYA bila diluluskan (order jadi "real"; COD cancel rate tinggi).
+    // Guna atribusi tersimpan masa order dibuat (fbc/fbp/user_agent/client_ip).
+    // Dedup dgn mana-mana pixel via event_id = purchase_<order_number>. Fire-and-forget.
+    if (o.payment_method === 'cod') {
+      const capiItems = Array.isArray(o.items) && o.items.length > 0
+        ? (o.items as { product_id?: string | null; quantity: number; unit_price: number }[])
+            .map(i => ({ productId: i.product_id ?? '', quantity: Number(i.quantity), price: Number(i.unit_price) }))
+        : [{ productId: o.product_id ?? '', quantity: Number(o.quantity), price: Number(o.unit_price) }]
+      sendCapiPurchase({
+        orderId: o.id,
+        orderNumber: o.order_number,
+        total: Number(o.total),
+        items: capiItems,
+        userEmail: o.email,
+        userPhone: o.phone,
+        userId: o.user_id,
+        customerName: o.name,
+        clientIp: o.client_ip,
+        userAgent: o.user_agent ?? null,
+        fbc: o.fbc ?? null,
+        fbp: o.fbp ?? null,
       }).catch(() => {})
     }
 

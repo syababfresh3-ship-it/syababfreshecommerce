@@ -31,6 +31,7 @@ export async function PATCH(
   if (body.is_active !== undefined) update.is_active = body.is_active
   if (body.options !== undefined) update.options = body.options && typeof body.options === 'object' && !Array.isArray(body.options) ? body.options : null
   if (body.sort_order !== undefined) update.sort_order = Number(body.sort_order)
+  if (body.free_shipping !== undefined) update.free_shipping = !!body.free_shipping
 
   const { error } = await supabase.from('product_variants').update(update).eq('id', variantId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

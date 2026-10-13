@@ -58,21 +58,25 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
   const discount = promoDiscount(appliedPromo, sub)
-  const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  const hasFreeShip = items.some(i => i.freeShip)  // variasi free_shipping (migration 141) → percuma, abai had
+  const fee = isPickup || hasFreeShip ? 0 : (deliveryFee ?? 0)
   const redeemable = Math.max(0, sub + fee - discount)
   const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
   const total = Math.max(0, sub + fee - discount - ptsDiscount)
 
+  // variant_ids troli → server tahu kalau ada variasi free_shipping (migration 141)
+  const variantIdsCsv = items.map(i => i.variantId).filter(Boolean).join(',')
   const fetchFee = useCallback(async (postcode: string) => {
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); return }
     setFetchingFee(true)
     try {
-      const res = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${sub}`)
+      const vq = variantIdsCsv ? `&variant_ids=${encodeURIComponent(variantIdsCsv)}` : ''
+      const res = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${sub}${vq}`)
       const data = await res.json()
       setDeliveryFee(data.fee ?? 15)
     } catch { setDeliveryFee(15) }
     finally { setFetchingFee(false) }
-  }, [slug, sub])
+  }, [slug, sub, variantIdsCsv])
 
   useEffect(() => {
     if (open) fetchFee(form.postcode)
@@ -362,7 +366,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                     <div className="flex justify-between text-gray-600">
                       <span>{isPickup ? 'Ambil Sendiri' : 'Penghantaran'}</span>
                       <span>
-                        {isPickup
+                        {isPickup || hasFreeShip
                           ? <span className="text-green-600 font-bold">PERCUMA</span>
                           : fetchingFee ? '...' : deliveryFee === null
                           ? freeOn && sub >= FREE_MIN ? <span className="text-green-600 font-bold">PERCUMA</span> : 'Isi poskod'
@@ -371,9 +375,9 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                     </div>
                     <div className="flex justify-between font-black text-gray-900 border-t border-gray-200 pt-1.5 text-base">
                       <span>Jumlah</span>
-                      <span className="text-green-600">RM{total.toFixed(2)}{!isPickup && deliveryFee === null && sub < FREE_MIN ? '+' : ''}</span>
+                      <span className="text-green-600">RM{total.toFixed(2)}{!isPickup && !hasFreeShip && deliveryFee === null && sub < FREE_MIN ? '+' : ''}</span>
                     </div>
-                    {!isPickup && freeOn && sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
+                    {!isPickup && !hasFreeShip && freeOn && sub < FREE_MIN && <p className="text-[11px] text-gray-400">Tambah RM{(FREE_MIN - sub).toFixed(2)} lagi untuk penghantaran percuma</p>}
                   </div>
 
                   <button type="submit" disabled={submitting || items.length === 0}

@@ -306,7 +306,7 @@ export function SfProduct({
           </div>
 
           {/* Anggaran penghantaran ikut poskod (nasihat; disahkan semula di Checkout) */}
-          <SfDeliveryEstimate subtotal={total} shippable={product.is_shippable !== false} productName={cleanName} />
+          <SfDeliveryEstimate subtotal={total} shippable={product.is_shippable !== false} productName={cleanName} freeShip={!!variant?.free_shipping} />
 
           {/* Benefit chips */}
           <div className="grid grid-cols-3 gap-2 mt-4">

@@ -12,13 +12,17 @@ export function calcDeliveryFee({
   baseFee,
   freeMin,
   isPickup = false,
+  hasFreeShipItem = false,
 }: {
   subtotal: number
   baseFee: number
   freeMin: number
   isPickup?: boolean
+  // Troli ada variasi free_shipping (migration 141) → seluruh order percuma, abai had basket.
+  hasFreeShipItem?: boolean
 }): number {
   if (isPickup) return 0
+  if (hasFreeShipItem) return 0
   if (freeMin < FREE_DELIVERY_OFF && subtotal >= freeMin) return 0
   const fee = Number(baseFee)
   return Number.isFinite(fee) && fee > 0 ? fee : 0

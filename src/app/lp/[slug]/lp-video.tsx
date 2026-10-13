@@ -24,6 +24,7 @@ export interface LpVideoVariant {
   compare_price?: number | string | null
   is_active: boolean
   sort_order: number
+  free_shipping?: boolean
 }
 export interface LpVideoProduct {
   id: string
@@ -170,6 +171,7 @@ export function LpVideo({ url, products, stocks, caption, sticky = true, autopla
       qty: 1,
       unitPrice: priceOf(p, v),
       imageUrl: p.image_url ?? null,
+      freeShip: !!v?.free_shipping,
     })
     setPicking(null)
     toast.success(`${p.name}${v ? ` (${v.name})` : ''} ditambah! Tekan "Bayar Sekarang" di bawah.`)

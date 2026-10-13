@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!supabase) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { name, price, compare_price, weight_grams, stock, sku, sort_order, options } = body
+  const { name, price, compare_price, weight_grams, stock, sku, sort_order, options, free_shipping } = body
   if (!name || price === undefined) return NextResponse.json({ error: 'name dan price diperlukan' }, { status: 400 })
 
   const { data, error } = await supabase
@@ -46,6 +46,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       sort_order: Number(sort_order ?? 0),
       // Nilai dimensi (migration 136) — objek {dim: nilai} sahaja; selainnya null
       options: options && typeof options === 'object' && !Array.isArray(options) ? options : null,
+      // Penghantaran percuma per-variasi (migration 141)
+      free_shipping: !!free_shipping,
     })
     .select()
     .single()

@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
   const [variantsRes, productsRes] = await Promise.all([
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, is_active, products(id, name, is_active)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, free_shipping, is_active, products(id, name, is_active)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
     productIds.length > 0
       ? supabase.from('products').select('id, name, price, is_active').in('id', productIds)
@@ -94,12 +94,17 @@ export async function POST(request: Request) {
   const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
   let deliveryFee = Number(appSettings.default_delivery_fee ?? 15)
 
+  // Free shipping per-variasi (migration 141): mana-mana baris ada variasi
+  // free_shipping → seluruh order percuma (kecuali admin override di bawah).
+  const hasFreeShipVariant = validatedItems.some(i =>
+    i.variant_id ? !!(variantMap.get(i.variant_id) as any)?.free_shipping : false)
+
   const deliveryOverride = Number(delivery_fee)
   if (isPickup) {
     deliveryFee = 0 // ambil sendiri — tiada caj penghantaran
   } else if (Number.isFinite(deliveryOverride) && deliveryOverride >= 0) {
     deliveryFee = deliveryOverride
-  } else if (subtotal >= FREE_MIN) {
+  } else if (hasFreeShipVariant || subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()

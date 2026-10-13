@@ -72,7 +72,8 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   }, 0)
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
-  const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  const hasFreeShip = activeSelections.some(s => !!s.selectedVariant?.free_shipping)  // variasi free_shipping (migration 141) → percuma
+  const fee = isPickup || hasFreeShip ? 0 : (deliveryFee ?? 0)
   // Item untuk skop promo (Sprint 3H) — kod boleh dihadkan pada produk/kategori.
   const promoItems = activeSelections.map(s => ({
     product_id: s.product.id,
@@ -97,7 +98,10 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
     setFetchingFee(true)
     try {
       const totalQty = activeSelections.reduce((s, sel) => s + sel.qty, 0)
-      const r = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${subtotal}&qty=${totalQty}`)
+      // variant_ids → server tahu kalau ada variasi free_shipping (migration 141)
+      const vids = activeSelections.map(sel => sel.selectedVariant?.id).filter(Boolean).join(',')
+      const vq = vids ? `&variant_ids=${encodeURIComponent(vids)}` : ''
+      const r = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${subtotal}&qty=${totalQty}${vq}`)
       const d = await r.json()
       if (d.available === false) { setPostcodeBlocked(true); setDeliveryFee(null); return }
       setPostcodeBlocked(false)
@@ -582,7 +586,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                   <Truck style={{ width: 13, height: 13 }} /> {isPickup ? 'Ambil Sendiri' : 'Penghantaran'}
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {isPickup
+                  {isPickup || hasFreeShip
                     ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
                     : postcodeBlocked
                     ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Tidak tersedia ✗</span>
@@ -595,7 +599,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                         : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
-              {!isPickup && freeOn && subtotal > 0 && subtotal < FREE_MIN && (
+              {!isPickup && !hasFreeShip && freeOn && subtotal > 0 && subtotal < FREE_MIN && (
                 <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '7px 10px', marginBottom: 8, fontSize: 11, color: '#166534', fontWeight: 600 }}>
                   🎁 Tambah RM{(FREE_MIN - subtotal).toFixed(2)} lagi untuk penghantaran <strong>PERCUMA</strong>
                 </div>

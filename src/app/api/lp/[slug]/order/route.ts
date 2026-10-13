@@ -10,6 +10,7 @@ import { safeClientIp, isHoneypotFilled, fakeOrderNumber, checkGuestOrderFlood, 
 import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
 import { lpPaymentMethods, lpOrderNeedsApproval } from '@/lib/lp-payment'
+import { sendCapiPurchase } from '@/lib/meta-capi'
 import { NextResponse } from 'next/server'
 
 // Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
@@ -45,6 +46,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const ip = safeClientIp(request)
   if (!(await rateLimitDb('lpo:' + (ip ?? 'unknown'), 8, 60_000)))
     return NextResponse.json({ error: FLOOD_ERROR }, { status: 429 })
+
+  // Atribusi Meta (migration 142) — untuk CAPI Purchase COD (ditembak di approval,
+  // jadi disimpan di order). Ikut corak orders/[id]/finalize.
+  const cookieHeader = request.headers.get('cookie') ?? ''
+  const fbc = cookieHeader.match(/(?:^|;\s*)_fbc=([^;]+)/)?.[1] ?? null
+  const fbp = cookieHeader.match(/(?:^|;\s*)_fbp=([^;]+)/)?.[1] ?? null
+  const userAgent = request.headers.get('user-agent') ?? null
 
   const body = await request.json().catch(() => ({}))
 
@@ -129,7 +137,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       ? supabase.from('products').select('id, name, price, is_active, weight_grams, category_id').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, free_shipping, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -206,9 +214,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const KL_STATES = new Set(['Selangor', 'W.P. Kuala Lumpur', 'W.P. Putrajaya'])
 
+  // Free shipping per-variasi (migration 141): mana-mana baris ada variasi
+  // free_shipping → seluruh order percuma (shipping dikira per-order).
+  const hasFreeShipVariant = validatedItems.some(i =>
+    i.variant_id ? !!(variantMap.get(i.variant_id) as any)?.free_shipping : false)
+
   if (isPickup) {
     deliveryFee = 0   // ambil sendiri — tiada caj penghantaran
-  } else if (subtotal >= FREE_MIN) {
+  } else if (hasFreeShipVariant || subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
@@ -320,6 +333,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       payment_method,
       source: source?.trim().slice(0, 100) || null,
       items: validatedItems,
+      // Atribusi Meta (migration 142) — untuk CAPI Purchase COD
+      fbc,
+      fbp,
+      user_agent: userAgent,
       ...(needsApproval ? { needs_approval: true } : {}),
   }
 
@@ -330,12 +347,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .single()
 
   let { data: order, error } = await insertOrder()
-  // Migration 132 belum dijalankan → kolum needs_approval tiada. Ulang tanpa
-  // kolum itu dan teruskan seperti kelakuan lama (tiada pintu kelulusan).
+  // Migration 132 (needs_approval) / 142 (fbc/fbp/user_agent) belum dijalankan →
+  // kolum tiada. Buang kolum yang mungkin hilang & ulang (kelakuan lama, tiada
+  // pintu kelulusan / tiada atribusi tersimpan).
   let approvalPending = needsApproval
-  if (error && MISSING_COLUMN.has(error.code ?? '') && needsApproval) {
-    delete orderRow.needs_approval
-    approvalPending = false
+  if (error && MISSING_COLUMN.has(error.code ?? '')) {
+    if (needsApproval) { delete orderRow.needs_approval; approvalPending = false }
+    delete orderRow.fbc
+    delete orderRow.fbp
+    delete orderRow.user_agent
     ;({ data: order, error } = await insertOrder())
   }
 
@@ -430,6 +450,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     await supabase.rpc('increment_points', { uid: userId, pts: -pointsUsed })
   }
 
+  // Meta CAPI Purchase untuk COD (migration 141/142 — LP tanpa pintu kelulusan:
+  // order COD confirmed terus di sini). Request masih hidup → guna cookie _fbc/_fbp
+  // + user-agent terus. Dedup dgn mana-mana pixel via event_id = purchase_<order_number>.
+  // bank_transfer kekal ikut aliran sedia ada (tiada CAPI di sini).
+  if (payment_method === 'cod') {
+    sendCapiPurchase({
+      orderId: order.id,
+      orderNumber: order.order_number,
+      total: Number(order.total),
+      items: validatedItems.map(i => ({ productId: i.product_id ?? '', quantity: i.quantity, price: Number(i.unit_price) })),
+      userEmail: customerEmail,
+      userPhone: phone.trim(),
+      userId,
+      customerName: name.trim(),
+      clientIp: ip,
+      userAgent,
+      fbc,
+      fbp,
+    }).catch(() => {})
+  }
+
   // COD / bank_transfer — hantar WhatsApp terus (FPX handled in webhook after payment)
   // Nota: WhatsApp pengesahan order ke customer DIBUANG — guna email sahaja
   // (kurangkan risiko ban WA tidak rasmi). WA ke customer kini hanya untuk tracking.
@@ -464,9 +505,19 @@ export async function GET(request: Request) {
   const postcode = url.searchParams.get('postcode') ?? ''
   const subtotal = parseFloat(url.searchParams.get('subtotal') ?? '0')
 
+  // Free shipping per-variasi (migration 141): kalau troli ada variasi free_shipping
+  // → seluruh order percuma, abai poskod & had basket.
+  const variantIdsParam = (url.searchParams.get('variant_ids') ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  const supabase = createAdminClient()
+  let hasFreeShipVariant = false
+  if (variantIdsParam.length > 0) {
+    const { data: fsRows } = await supabase.from('product_variants').select('id').in('id', variantIdsParam).eq('free_shipping', true).limit(1)
+    hasFreeShipVariant = !!(fsRows && fsRows.length > 0)
+  }
+  if (hasFreeShipVariant) return NextResponse.json({ available: true, fee: 0, free_ship: true })
+
   if (!/^\d{5}$/.test(postcode)) return NextResponse.json({ available: true, fee: 15 })
 
-  const supabase = createAdminClient()
   const appSettings = await getAppSettings()
   const FREE_MIN = Number(appSettings.free_delivery_min ?? 80)
   let fee = Number(appSettings.default_delivery_fee ?? 15)

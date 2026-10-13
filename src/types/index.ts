@@ -155,6 +155,8 @@ export interface ProductVariant {
   created_at: string
   // Nilai dimensi kombinasi ini (migration 136), cth { Saiz: 'Large (300g+)', Promo: '2 biji + FREE 2 biji' }. null = varian rata
   options?: Record<string, string> | null
+  // Penghantaran percuma automatik untuk variasi ini (migration 141). Jika ada dalam troli → seluruh order free shipping.
+  free_shipping?: boolean
 }
 
 export interface OrderItem {

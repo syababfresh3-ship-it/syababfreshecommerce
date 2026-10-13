@@ -58,7 +58,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   const subtotal = displayPrice * qty
   const FREE_MIN = freeMin
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
-  const fee = isPickup ? 0 : (deliveryFee ?? 0)
+  const hasFreeShip = !!selectedVariant?.free_shipping  // variasi free_shipping (migration 141) → percuma, abai had
+  const fee = isPickup || hasFreeShip ? 0 : (deliveryFee ?? 0)
   // Item untuk skop promo (Sprint 3H) — kod boleh dihadkan pada produk/kategori.
   const promoItems = [{ product_id: product.id, category_id: product.category_id ?? null, line_total: subtotal }]
   const discount = promoDiscount(appliedPromo, subtotal, fee, promoItems)
@@ -79,14 +80,16 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
     if (!/^\d{5}$/.test(postcode)) { setDeliveryFee(null); setPostcodeBlocked(false); return }
     setFetchingFee(true)
     try {
-      const r = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${subtotal}&qty=${qty}`)
+      // variant_ids → server tahu kalau variasi free_shipping (migration 141)
+      const vq = selectedVariant?.id ? `&variant_ids=${encodeURIComponent(selectedVariant.id)}` : ''
+      const r = await fetch(`/api/lp/${slug}/order?postcode=${postcode}&subtotal=${subtotal}&qty=${qty}${vq}`)
       const d = await r.json()
       if (d.available === false) { setPostcodeBlocked(true); setDeliveryFee(null); return }
       setPostcodeBlocked(false)
       setDeliveryFee(d.fee ?? 15)
     } catch { setDeliveryFee(15); setPostcodeBlocked(false) }
     finally { setFetchingFee(false) }
-  }, [slug, subtotal, qty])
+  }, [slug, subtotal, qty, selectedVariant?.id])
 
   useEffect(() => { fetchFee(form.postcode) }, [form.postcode, fetchFee])
 
@@ -471,7 +474,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                   <Truck style={{ width: 13, height: 13 }} /> {isPickup ? 'Ambil Sendiri' : 'Penghantaran'}
                 </span>
                 <span style={{ fontWeight: 700 }}>
-                  {isPickup
+                  {isPickup || hasFreeShip
                     ? <span style={{ color: '#16a34a', fontWeight: 800 }}>PERCUMA ✓</span>
                     : postcodeBlocked
                     ? <span style={{ color: '#ef4444', fontWeight: 800 }}>Tidak tersedia ✗</span>
@@ -484,7 +487,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                         : <span style={{ color: '#9ca3af' }}>Isi poskod</span>}
                 </span>
               </div>
-              {!isPickup && freeOn && subtotal < FREE_MIN && (
+              {!isPickup && !hasFreeShip && freeOn && subtotal < FREE_MIN && (
                 <div style={{ background: '#f0fdf4', borderRadius: 8, padding: '7px 10px', marginBottom: 10, fontSize: 11, color: '#166534', fontWeight: 600 }}>
                   🎁 Tambah RM{(FREE_MIN - subtotal).toFixed(2)} lagi untuk penghantaran <strong>PERCUMA</strong>
                 </div>

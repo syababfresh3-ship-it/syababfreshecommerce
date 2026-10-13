@@ -10,11 +10,15 @@ export function SfFreeDeliveryBar({
   subtotal,
   freeMin,
   className = "",
+  hasFreeShipItem = false,
 }: {
   subtotal: number;
   freeMin: number;
   className?: string;
+  // Troli sudah ada variasi free_shipping (migration 141) → percuma, tiada nudge perlu.
+  hasFreeShipItem?: boolean;
 }) {
+  if (hasFreeShipItem) return null;
   if (!freeDeliveryActive(freeMin) || subtotal >= freeMin) return null;
   const remaining = freeMin - subtotal;
   const pct = Math.max(0, Math.min(100, Math.round((subtotal / freeMin) * 100)));

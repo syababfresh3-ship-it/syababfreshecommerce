@@ -133,8 +133,10 @@ export default function CheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
+  // Free shipping per-variasi (migration 141): mana-mana item ada variasi free_shipping → seluruh order percuma.
+  const hasFreeShipItem = items.some(({ variant }) => !!variant?.free_shipping)
   // Fix 5: kiraan dikongsi dengan Troli (lib/delivery-fee) — troli & checkout papar nilai sama.
-  const deliveryFee = calcDeliveryFee({ subtotal, baseFee: zoneBaseFee, freeMin: freeDeliveryMin, isPickup })
+  const deliveryFee = calcDeliveryFee({ subtotal, baseFee: zoneBaseFee, freeMin: freeDeliveryMin, isPickup, hasFreeShipItem })
 
   // Item troli dalam bentuk yang difahami lib/promo-rules — untuk kod berskop
   // (produk/kategori tertentu). Server tetap sahkan semula.
