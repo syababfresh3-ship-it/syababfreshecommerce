@@ -278,8 +278,8 @@ export function VariantManager({ productId }: Props) {
                 <div className="flex flex-wrap items-end gap-2">
                   <GripVertical className="h-4 w-4 text-gray-300 shrink-0 mb-1.5 hidden sm:block" />
 
-                  {/* Name */}
-                  <div className="flex-1 min-w-[140px]">
+                  {/* Name — full width di mobile (elak nama variasi terpotong), flex di desktop */}
+                  <div className="w-full sm:w-auto sm:flex-1 min-w-0 sm:min-w-[140px]">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Name</p>
                     <input
                       value={String(getVal(v, 'name'))}
@@ -289,7 +289,7 @@ export function VariantManager({ productId }: Props) {
                   </div>
 
                   {/* Price */}
-                  <div className="shrink-0 w-24">
+                  <div className="flex-1 min-w-[70px] sm:flex-none sm:w-24">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Price (RM)</p>
                     <input
                       type="number" step="0.01" min="0"
@@ -300,7 +300,7 @@ export function VariantManager({ productId }: Props) {
                   </div>
 
                   {/* Compare price */}
-                  <div className="shrink-0 w-24">
+                  <div className="flex-1 min-w-[70px] sm:flex-none sm:w-24">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Was</p>
                     <input
                       type="number" step="0.01" min="0"
@@ -312,7 +312,7 @@ export function VariantManager({ productId }: Props) {
                   </div>
 
                   {/* Weight (kg) — drives weight-based shipping tiers */}
-                  <div className="shrink-0 w-20">
+                  <div className="flex-1 min-w-[64px] sm:flex-none sm:w-20">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Weight (kg)</p>
                     <input
                       type="number" step="0.1" min="0"
@@ -324,7 +324,7 @@ export function VariantManager({ productId }: Props) {
                   </div>
 
                   {/* Stock */}
-                  <div className="shrink-0 w-16">
+                  <div className="flex-1 min-w-[56px] sm:flex-none sm:w-16">
                     <p className="text-[10px] font-medium text-gray-400 mb-1">Stock</p>
                     <input
                       type="number" min="0"

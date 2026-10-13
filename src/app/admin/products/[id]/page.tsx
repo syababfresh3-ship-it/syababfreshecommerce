@@ -30,7 +30,9 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   if (!product) notFound()
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl">
+    // Tier "Penuh" (AGENTS.md): page ini ada jadual Variations yang lebar (nama/
+    // harga/was/berat/stok/free-ship/aktif) — regang penuh, bukan max-w-4xl borang.
+    <div className="p-4 md:p-6">
       <h1 className="text-xl font-bold text-gray-900 mb-6">Edit Product</h1>
       <ProductForm categories={categories} product={product} />
       <VariantManager productId={id} />

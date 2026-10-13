@@ -16,8 +16,8 @@ Setiap page di bawah `src/app/admin/` bermula dengan satu `<div>` pembungkus. Pi
 <div className="p-4 md:p-6 max-w-4xl">
 ```
 
-- **Penuh** bila kandungan ada banyak lajur (nama, status, tarikh, harga, butang aksi). Ruang lebar = kurang teks terpotong, kurang scroll. Contoh: Orders, Customers, Reviews, Media, Shipping.
-- **`max-w-4xl`** bila kandungan dibaca atas-ke-bawah, satu medan satu baris. Borang yang regang penuh skrin besar buat label & input terlalu jauh — senang tersalah isi. Contoh: Payments, Products new/edit, Team, Categories.
+- **Penuh** bila kandungan ada banyak lajur (nama, status, tarikh, harga, butang aksi). Ruang lebar = kurang teks terpotong, kurang scroll. Contoh: Orders, Customers, Reviews, Media, Shipping, **Products new/edit** (borang + jadual Variations yang lebar — pemilik pilih full-width).
+- **`max-w-4xl`** bila kandungan dibaca atas-ke-bawah, satu medan satu baris. Borang yang regang penuh skrin besar buat label & input terlalu jauh — senang tersalah isi. Contoh: Payments, Team, Categories.
 
 Jangan cipta tier lain (`max-w-2xl`, `3xl`, `5xl`, `6xl`) — dua pilihan ini sahaja. Sebelum ini setiap page guna nilai berbeza dan hasilnya tak konsisten.
 
