@@ -16,11 +16,15 @@ export function PWAInstallBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [visible, setVisible] = useState(false)
 
-  // Don't show on admin pages
+  // Don't show on admin pages, or on the /kurma gift-box landing pages: they are paid-ad (FB)
+  // landing pages whose whole job is calculator → WhatsApp — an install prompt there covers the
+  // calculator options and distracts a cold click. Same gating pattern as the LP "live" template.
   const isAdmin = pathname.startsWith('/admin')
+  const isKurmaLp = pathname.startsWith('/kurma')
+  const suppressed = isAdmin || isKurmaLp
 
   useEffect(() => {
-    if (isAdmin) return
+    if (suppressed) return
     // Template LP "live" (penuh skrin) tanda <html data-lp-live="1"> — banner akan tutup butang Beli
     if (document.documentElement.dataset.lpLive === '1') return
 
@@ -54,7 +58,7 @@ export function PWAInstallBanner() {
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [isAdmin])
+  }, [suppressed])
 
   function dismiss() {
     const until = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000
@@ -72,7 +76,9 @@ export function PWAInstallBanner() {
     setVisible(false)
   }
 
-  if (!visible || !platform) return null
+  // Guard render too: `visible` may already be true from a previous route (client-side nav from
+  // the shop into /kurma) — the effect guard alone would leave the banner up.
+  if (suppressed || !visible || !platform) return null
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 p-3 pb-safe animate-slide-up">

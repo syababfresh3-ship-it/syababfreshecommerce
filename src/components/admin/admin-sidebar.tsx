@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag,
   BarChart2, Image, MapPin, FolderOpen,
-  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop,
+  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -76,6 +76,14 @@ const sections: Section[] = [
       { href: '/admin/waitlist',     label: 'Waitlist',       icon: BellRing },
       // Dibuka semula 24 Sep 2026: spend Meta kini ditarik automatik (cron meta-ad-spend)
       { href: '/admin/marketing/ads', label: 'Ad Spend & ROAS', icon: TrendingUp },
+    ],
+  },
+  {
+    label: 'GIFT STUDIO',
+    items: [
+      { href: '/admin/kurma',         label: 'Gift Orders',  icon: Gift },
+      { href: '/admin/kurma/catalog', label: 'Gift Catalog', icon: Box },
+      { href: '/admin/kurma/costs',   label: 'Kos & Harga',  icon: Calculator },
     ],
   },
   {

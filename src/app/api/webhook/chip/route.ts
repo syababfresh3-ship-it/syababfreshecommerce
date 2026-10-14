@@ -113,6 +113,24 @@ export async function POST(req: NextRequest) {
 
   if (!orderId) return NextResponse.json({ ok: true })
 
+  // ── Tempahan Gift Studio: reference = `gift:<id>:<kind>` (migration 137) ────────
+  // Cawangan terasing dari order kedai/LP. Deposit lunas → deposit_paid + confirmed;
+  // baki lunas → paid. Idempotent. Kegagalan bayar TIDAK batal (customer boleh cuba lagi).
+  if (orderId.startsWith('gift:')) {
+    const [, giftId, kind] = orderId.split(':')
+    const paidNow = eventType ? eventType === 'purchase.paid' : purchaseStatus === 'paid'
+    if (paidNow && giftId) {
+      const patch = kind === 'balance'
+        ? { payment_status: 'paid', updated_at: new Date().toISOString() }
+        : { payment_status: 'deposit_paid', updated_at: new Date().toISOString() }
+      await supabase.from('gift_orders').update(patch).eq('id', giftId).neq('payment_status', 'paid')
+      if (kind !== 'balance') {
+        await supabase.from('gift_orders').update({ status: 'confirmed' }).eq('id', giftId).in('status', ['enquiry', 'quoted'])
+      }
+    }
+    return NextResponse.json({ ok: true })
+  }
+
   // Resolve outcome — prefer event_type when present, else fall back to purchase status.
   // NOTA: 'payment_failure' & 'error' adalah per-CUBAAN bayar (customer boleh cuba
   // lagi pada link sama). JANGAN cancel order atasnya — jika tidak, customer yang

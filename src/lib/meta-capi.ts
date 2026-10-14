@@ -153,6 +153,56 @@ export async function sendCapiLead({
   })
 }
 
+// Lead pelayan untuk LP gift kurma (/kurma). event_id = eventID pixel pelayar (UUID dari
+// kurma-track.ts) → Meta dedup pelayar+pelayan; pulihkan isyarat yang pixel hilang (iOS/adblock).
+// Tiada PII (tiada borang sebelum WhatsApp) — padanan guna fbc/fbp cookie + IP + user-agent.
+// Tiada `value` (anggaran bukan hasil) — hantar sebagai `estimate` + angle/UTM untuk segmen.
+export async function sendCapiKurmaLead({
+  eventId, label, angle, estimate, utm, clientIp, userAgent, fbc, fbp,
+}: {
+  eventId: string
+  label: string
+  angle?: string
+  estimate?: number
+  utm?: { source?: string; campaign?: string; content?: string }
+  clientIp?: string | null
+  userAgent?: string | null
+  fbc?: string | null
+  fbp?: string | null
+}) {
+  if (!process.env.META_CAPI_ACCESS_TOKEN) return
+  const pixelId = await getPixelId()
+  if (!pixelId) return
+
+  const userData: Record<string, string> = {}
+  if (clientIp) userData.client_ip_address = clientIp
+  if (userAgent) userData.client_user_agent = userAgent
+  if (fbc) userData.fbc = fbc
+  if (fbp) userData.fbp = fbp
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
+
+  await sendCapiEvent(pixelId, {
+    data: [{
+      event_name: 'Lead',
+      event_time: Math.floor(Date.now() / 1000),
+      event_id: eventId,
+      action_source: 'website',
+      event_source_url: `${baseUrl}/kurma${angle ? `/${angle}` : ''}`,
+      user_data: userData,
+      custom_data: {
+        content_name: label,
+        content_category: 'gift-kurma',
+        ...(angle ? { angle } : {}),
+        ...(estimate ? { estimate } : {}),
+        ...(utm?.source ? { utm_source: utm.source } : {}),
+        ...(utm?.campaign ? { utm_campaign: utm.campaign } : {}),
+        ...(utm?.content ? { utm_content: utm.content } : {}),
+      },
+    }],
+  })
+}
+
 // Purchase conversion untuk order yang berasal dari iklan Click-to-WhatsApp (CTWA).
 // Berbeza dari sendCapiPurchase (website): action_source = 'business_messaging' +
 // messaging_channel = 'whatsapp', dan padanan guna `ctwa_clid` (click id dari webhook)
