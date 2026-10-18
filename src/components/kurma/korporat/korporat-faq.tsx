@@ -6,7 +6,7 @@ import { korporatFaq } from '@/lib/korporat-copy'
 export function KorporatFaq() {
   const faq = korporatFaq()
   return (
-    <section id="faq" className="max-w-3xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="faq" className="max-w-3xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <JsonLd data={faqPageSchema(faq)} />
       <h2 className="text-2xl font-black text-gray-900 text-center mb-6">Soalan lazim</h2>
       <div className="space-y-2.5">

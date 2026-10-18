@@ -2,16 +2,19 @@ import Link from 'next/link'
 import { COMPANY, addressOneLine } from '@/lib/company'
 import { kurmaPath, shopPath } from '@/lib/kurma-host'
 
-// Footer profil syarikat — entiti berdaftar, alamat, hubungi, polisi. Semua dari lib/company.ts.
-// Prop (additive, lalai = korporat) — LP borong guna footer sama dengan pautan sendiri.
+// Footer kongsi mini-site kurma — entiti berdaftar, alamat, hubungi, pautan semua page + kedai, polisi.
+// Semua fakta dari lib/company.ts. Dulu korporat-footer.tsx (korporat/borong sahaja; LP gift box &
+// studio ada baris teks kecil) — kini satu footer sama di 5 page supaya pelawat jumpa page lain.
 const LINKS = [
   { href: kurmaPath('/'), label: 'Custom Gift Box Kurma' },
+  { href: kurmaPath('/korporat'), label: 'Gift Box Korporat & Agensi' },
+  { href: kurmaPath('/borong'), label: 'Kurma Borong (karton)' },
   { href: kurmaPath('/portfolio'), label: 'Portfolio' },
+  { href: shopPath('/kategori/kurma'), label: 'Beli runcit — Kurma' },
   { href: shopPath('/'), label: 'Kedai buah SyababFresh' },
 ]
-export interface LpFooterProps { phoneNote?: string; links?: { href: string; label: string }[] }
 
-export function KorporatFooter({ phoneNote = '(gift box)', links = LINKS }: LpFooterProps = {}) {
+export function KurmaFooter({ phoneNote = '(gift box & borong)' }: { phoneNote?: string } = {}) {
   return (
     <footer className="border-t border-gray-100 bg-white">
       <div className="max-w-5xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-8 text-[13px] text-gray-600">
@@ -34,7 +37,7 @@ export function KorporatFooter({ phoneNote = '(gift box)', links = LINKS }: LpFo
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-3">Pautan</p>
           <ul className="space-y-2">
-            {links.map(l => <li key={l.href}><Link href={l.href} className="hover:text-gray-900">{l.label}</Link></li>)}
+            {LINKS.map(l => <li key={l.href}><Link href={l.href} className="hover:text-gray-900">{l.label}</Link></li>)}
             <li><Link href={shopPath('/terma')} className="hover:text-gray-900">Terma &amp; Syarat</Link> · <Link href={shopPath('/privacy')} className="hover:text-gray-900">Privasi</Link></li>
           </ul>
         </div>

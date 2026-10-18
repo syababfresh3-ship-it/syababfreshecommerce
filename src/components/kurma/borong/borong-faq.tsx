@@ -21,7 +21,7 @@ export function BorongFaq({ terms }: { terms: BorongTerms }) {
   const all = borongFaq(terms)
   const umum = all.filter(f => !f.segment)
   return (
-    <section id="faq" className="max-w-3xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="faq" className="max-w-3xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <JsonLd data={faqPageSchema(all)} />
       <h2 className="text-2xl font-black text-gray-900 text-center mb-6">Soalan lazim</h2>
       <Items items={umum} />
@@ -29,7 +29,7 @@ export function BorongFaq({ terms }: { terms: BorongTerms }) {
         const items = all.filter(f => f.segment === s.id)
         if (!items.length) return null
         return (
-          <div key={s.id} id={`faq-${s.id}`} className="mt-7 scroll-mt-20">
+          <div key={s.id} id={`faq-${s.id}`} className="mt-7 scroll-mt-20 md:scroll-mt-28">
             <h3 className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2.5">{s.short}</h3>
             <Items items={items} />
           </div>

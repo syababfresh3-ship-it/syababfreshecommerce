@@ -9,7 +9,7 @@ import { useRfqSelection } from './rfq-context'
 export function CalculatorIsland() {
   const { setSel } = useRfqSelection()
   return (
-    <section id="kira" className="max-w-2xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="kira" className="max-w-2xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Anggaran harga segera</h2>
       <p className="text-gray-500 text-center mb-6 text-sm">Harga senarai ikut kuantiti — sebut harga rasmi dihantar selepas butiran disahkan.</p>
       <GiftCalculator angle="korporat" hideCta onChange={setSel} />

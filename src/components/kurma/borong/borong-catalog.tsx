@@ -7,7 +7,7 @@ import { CatalogRowActions } from './catalog-row-actions'
 export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: BorongRow[]; terms: BorongTerms; updated: string | null; anyPrice: boolean }) {
   if (!rows.length) return null
   return (
-    <section id="katalog" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="katalog" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-2">
         <div>
           <h2 className="text-2xl font-black text-gray-900">Katalog borong</h2>

@@ -7,10 +7,10 @@
 import { useEffect, useState } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { openWaLead } from '@/lib/kurma-track'
+import { GIFT_WA_TEXT } from '@/lib/gift-copy'
 
-const GIFT_TEXT = 'Salam Syabab Dates 👋\n\nSaya berminat dengan Custom Gift Box Kurma. Boleh bantu sebut harga?\n\nHantar ke (negeri/bandar): ___\nNama syarikat / agensi: ___\nPerlu menjelang (tarikh): ___'
 
-export function KurmaFab({ angle, hideIds = ['kira'], text = GIFT_TEXT }: { angle?: string; hideIds?: string[]; text?: string }) {
+export function KurmaFab({ angle, hideIds = ['kira'], text = GIFT_WA_TEXT }: { angle?: string; hideIds?: string[]; text?: string }) {
   const [hidden, setHidden] = useState(false)
   const idsKey = hideIds.join(',')
 

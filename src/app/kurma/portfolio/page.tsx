@@ -1,9 +1,11 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { ChevronRight, ArrowLeft } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { PRODUCT_PHOTOS } from '@/lib/gift'
-import { GIFT_CLIENTS } from '@/lib/gift-copy'
+import { GIFT_CLIENTS, GIFT_WA_TEXT } from '@/lib/gift-copy'
 import { PhotoGallery } from '@/components/kurma/photo-gallery'
+import { KurmaNav } from '@/components/kurma/kurma-nav'
+import { KurmaFooter } from '@/components/kurma/kurma-footer'
 import { kurmaPath } from '@/lib/kurma-host'
 
 export const metadata: Metadata = {
@@ -20,12 +22,11 @@ export default function PortfolioPage() {
   const total = PRODUCT_PHOTOS.length
 
   return (
+    <>
+    <KurmaNav current="portfolio" wa={{ label: 'portfolio-header', text: GIFT_WA_TEXT }} cta={{ href: kurmaPath('/#kira'), label: 'Kira harga' }} />
     <main className="min-h-screen bg-white">
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 pt-12 pb-8 text-center">
-        <Link href={kurmaPath('/')} className="inline-flex items-center gap-1 text-[12px] font-semibold text-gray-400 hover:text-gray-600 mb-4">
-          <ArrowLeft className="h-3.5 w-3.5" />Custom Gift Kurma
-        </Link>
         <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#E11D2A] bg-[#FDECEC] px-3 py-1 rounded-full mb-4 mx-auto">
           Portfolio · {total}+ kotak
         </div>
@@ -74,5 +75,7 @@ export default function PortfolioPage() {
         </div>
       </section>
     </main>
+    <KurmaFooter />
+    </>
   )
 }

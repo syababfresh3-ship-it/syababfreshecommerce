@@ -6,7 +6,7 @@ const RED = '#E11D2A'
 export function ProcessSteps() {
   const list = steps()
   return (
-    <section id="cara" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="cara" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center">Cara tempah — {list.length} langkah</h2>
       <ol className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-7 list-none p-0 m-0">
         {list.map((s, i) => (

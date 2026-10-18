@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import { GiftStudio } from '@/components/kurma/studio/gift-studio'
+import { KurmaNav } from '@/components/kurma/kurma-nav'
+import { KurmaFooter } from '@/components/kurma/kurma-footer'
+import { GIFT_WA_TEXT } from '@/lib/gift-copy'
 import { kurmaPath } from '@/lib/kurma-host'
 
 // /kurma/studio — page HOT LEAD (pautan dihantar sales selepas lead berminat), bukan LP iklan:
@@ -13,5 +16,12 @@ export const metadata: Metadata = {
 }
 
 export default function StudioPage() {
-  return <GiftStudio />
+  return (
+    <>
+      {/* Menu kongsi — studio tiada tab sendiri (noindex), tapi pelawat boleh ke page lain */}
+      <KurmaNav current="studio" wa={{ label: 'studio-header', text: GIFT_WA_TEXT }} />
+      <GiftStudio />
+      <KurmaFooter />
+    </>
+  )
 }

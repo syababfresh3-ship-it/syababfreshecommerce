@@ -4,7 +4,8 @@ import { Phone, ChevronRight, Quote } from 'lucide-react'
 import { JsonLd, breadcrumbSchema } from '@/components/seo/json-ld'
 import { KurmaWaLink } from '@/components/kurma/kurma-wa-link'
 import { KurmaFab } from '@/components/kurma/kurma-fab'
-import { KorporatHeader } from '@/components/kurma/korporat/korporat-header'
+import { KurmaNav } from '@/components/kurma/kurma-nav'
+import { KurmaFooter } from '@/components/kurma/kurma-footer'
 import { KorporatHero } from '@/components/kurma/korporat/korporat-hero'
 import { TrustBar } from '@/components/kurma/korporat/trust-bar'
 import { CasesGrid } from '@/components/kurma/korporat/cases-grid'
@@ -15,7 +16,6 @@ import { RfqProvider } from '@/components/kurma/korporat/rfq-context'
 import { CalculatorIsland } from '@/components/kurma/korporat/calculator-island'
 import { RfqForm } from '@/components/kurma/korporat/rfq-form'
 import { KorporatFaq } from '@/components/kurma/korporat/korporat-faq'
-import { KorporatFooter } from '@/components/kurma/korporat/korporat-footer'
 import { KORPORAT_META, KORPORAT_WA_TEXT } from '@/lib/korporat-copy'
 import { featuredCases, photoAt } from '@/lib/gift-clients'
 import { PRODUCT_PHOTOS } from '@/lib/gift'
@@ -38,6 +38,14 @@ export const metadata: Metadata = {
 
 const RED = '#E11D2A'
 
+// Anchor dalam page (baris kedua KurmaNav, desktop) — profil syarikat perlu orientasi.
+const ANCHORS = [
+  { href: '#kerja', label: 'Kerja kami' },
+  { href: '#proses', label: 'Kenapa kami' },
+  { href: '#cara', label: 'Cara tempah' },
+  { href: '#faq', label: 'Soalan' },
+]
+
 export default function KorporatPage() {
   const cases = featuredCases().slice(0, 12).map(c => ({ client: c.client, sector: c.sector, photos: c.photoIndexes.map(photoAt) }))
   // Tunjuk testimoni hanya jika bukan placeholder (klien dah isi yang sebenar).
@@ -46,13 +54,13 @@ export default function KorporatPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Custom Gift Box Kurma', path: '/kurma' }, { name: 'Korporat & Agensi', path: '/kurma/korporat' }])} />
-      <KorporatHeader />
+      <KurmaNav current="korporat" wa={{ angle: 'korporat', label: 'korporat-header', text: KORPORAT_WA_TEXT }} cta={{ href: '#rfq', label: 'Minta sebut harga' }} anchors={ANCHORS} />
       <main className="min-h-screen bg-white">
         <KorporatHero />
         <TrustBar />
 
         {/* Kerja kami — foto kotak sebenar + nama klien */}
-        <section id="kerja" className="max-w-5xl mx-auto px-4 pt-12 pb-10 scroll-mt-16">
+        <section id="kerja" className="max-w-5xl mx-auto px-4 pt-12 pb-10 scroll-mt-16 md:scroll-mt-24">
           <h2 className="text-2xl font-black text-gray-900 text-center text-balance">Kotak yang kami hasilkan untuk organisasi</h2>
           <p className="text-gray-500 text-center mt-2 text-sm max-w-xl mx-auto">Foto sebenar kotak yang telah kami cetak, isi &amp; hantar — klik untuk lihat lebih dekat.</p>
           <div className="mt-7"><CasesGrid items={cases} totalPhotos={PRODUCT_PHOTOS.length} /></div>
@@ -86,7 +94,7 @@ export default function KorporatPage() {
           <KorporatFaq />
 
           {/* RFQ */}
-          <section id="rfq" className="max-w-2xl mx-auto px-4 pb-16 scroll-mt-16">
+          <section id="rfq" className="max-w-2xl mx-auto px-4 pb-16 scroll-mt-16 md:scroll-mt-24">
             <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Minta sebut harga rasmi</h2>
             <p className="text-gray-500 text-center mb-6 text-sm">Isi butiran organisasi — kami hantar sebut harga rasmi ikut kuantiti, lengkap untuk proses perolehan anda.</p>
             <RfqForm />
@@ -113,7 +121,7 @@ export default function KorporatPage() {
           </div>
         </section>
       </main>
-      <KorporatFooter />
+      <KurmaFooter />
       <KurmaFab angle="korporat" hideIds={['kira', 'rfq']} />
     </>
   )

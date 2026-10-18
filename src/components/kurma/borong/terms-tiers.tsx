@@ -15,7 +15,7 @@ export function TermsTiers({ terms: t }: { terms: BorongTerms }) {
   if (t.returns.note) cards.push({ icon: RotateCcw, t: 'Pulangan', d: t.returns.note })
   if (t.sample.available) cards.push({ icon: FlaskConical, t: 'Sampel', d: t.sample.note ?? 'WhatsApp kami untuk atur sampel.' })
   return (
-    <section id="terma" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="terma" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center">Terma borong</h2>
       {t.tiers.length > 0 && (
         <div className="mt-6 rounded-2xl border border-gray-200 overflow-hidden bg-white">

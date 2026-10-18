@@ -4,8 +4,8 @@ import { Phone, ChevronRight } from 'lucide-react'
 import { JsonLd, breadcrumbSchema } from '@/components/seo/json-ld'
 import { KurmaWaLink } from '@/components/kurma/kurma-wa-link'
 import { KurmaFab } from '@/components/kurma/kurma-fab'
-import { BorongHeader } from '@/components/kurma/borong/borong-header'
-import { BorongFooter } from '@/components/kurma/borong/borong-footer'
+import { KurmaNav } from '@/components/kurma/kurma-nav'
+import { KurmaFooter } from '@/components/kurma/kurma-footer'
 import { BorongHero } from '@/components/kurma/borong/borong-hero'
 import { BorongProvider } from '@/components/kurma/borong/borong-context'
 import { SegmentCards } from '@/components/kurma/borong/segment-cards'
@@ -18,7 +18,7 @@ import { RamadanCalendar } from '@/components/kurma/borong/ramadan-calendar'
 import { BorongFaq } from '@/components/kurma/borong/borong-faq'
 import { ApplyForm } from '@/components/kurma/borong/apply-form'
 import { borongMeta, BORONG_WA_TEXT, steps } from '@/lib/borong-copy'
-import { BORONG_GROUPS } from '@/lib/borong-pricing'
+import { BORONG_GROUPS, hasAgentProgram } from '@/lib/borong-pricing'
 import { getBorongRows, getBorongSettings } from '@/lib/borong-data'
 import { effectiveTerms } from '@/lib/borong-settings'
 import { COMPANY } from '@/lib/company'
@@ -52,7 +52,17 @@ export default async function BorongPage() {
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Kurma', path: '/kategori/kurma' }, { name: 'Kurma Borong', path: '/kurma/borong' }])} />
-      <BorongHeader />
+      <KurmaNav
+        current="borong"
+        wa={{ angle: 'borong', label: 'borong-header', text: BORONG_WA_TEXT }}
+        cta={{ href: '#mohon', label: 'Mohon harga borong' }}
+        anchors={[
+          { href: '#katalog', label: 'Katalog' },
+          { href: '#terma', label: 'Terma' },
+          ...(hasAgentProgram() ? [{ href: '#ejen', label: 'Jadi ejen' }] : []),
+          { href: '#faq', label: 'Soalan' },
+        ]}
+      />
       <main className="min-h-screen bg-white">
         <BorongProvider>
           <BorongHero photos={photos} terms={terms} updated={updated} />
@@ -81,7 +91,7 @@ export default async function BorongPage() {
           <BorongFaq terms={terms} />
 
           {/* Permohonan */}
-          <section id="mohon" className="max-w-2xl mx-auto px-4 pb-16 scroll-mt-16">
+          <section id="mohon" className="max-w-2xl mx-auto px-4 pb-16 scroll-mt-16 md:scroll-mt-24">
             <h2 className="text-2xl font-black text-gray-900 text-center mb-1">Mohon harga borong</h2>
             <p className="text-gray-500 text-center mb-6 text-sm">Beritahu perniagaan & anggaran kuantiti — kami balas dengan senarai harga semasa via WhatsApp.</p>
             <ApplyForm varietyOptions={varietyOptions} />
@@ -108,7 +118,7 @@ export default async function BorongPage() {
           </div>
         </section>
       </main>
-      <BorongFooter />
+      <KurmaFooter />
       <KurmaFab angle="borong" text={BORONG_WA_TEXT} hideIds={['mohon', 'kira-untung']} />
     </>
   )

@@ -59,6 +59,9 @@ export const GIFT_ANGLES = Object.keys(GIFT_VARIANTS).filter(k => k !== 'default
 // Senarai ini untuk /api/kurma/lead (CAPI).
 export const LEAD_ANGLES = [...GIFT_ANGLES, 'korporat', 'borong']
 
+// Teks WhatsApp pra-isi LP gift box (FAB, header KurmaNav, /studio, /portfolio) — satu sumber.
+export const GIFT_WA_TEXT = 'Salam Syabab Dates 👋\n\nSaya berminat dengan Custom Gift Box Kurma. Boleh bantu sebut harga?\n\nHantar ke (negeri/bandar): ___\nNama syarikat / agensi: ___\nPerlu menjelang (tarikh): ___'
+
 // Urgency: deadline tempah untuk Ramadan 1448H (~18 Feb 2027; lead time produksi ~2 minggu).
 // Pemilik boleh laraskan tarikh ini. Bila lepas deadline, countdown auto-sorok.
 export const RAMADAN = {

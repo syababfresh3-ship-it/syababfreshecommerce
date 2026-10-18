@@ -12,7 +12,7 @@ export function SegmentCards({ terms }: { terms: BorongTerms }) {
   const { setSegment } = useBorong()
   const go = (id: SegmentId) => { setSegment(id); document.getElementById('mohon')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
   return (
-    <section id="segmen" className="max-w-5xl mx-auto px-4 pt-12 pb-12 scroll-mt-16">
+    <section id="segmen" className="max-w-5xl mx-auto px-4 pt-12 pb-12 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center text-balance">Anda beli untuk apa?</h2>
       <p className="text-gray-500 text-center mt-2 text-sm max-w-xl mx-auto">Pilih — kami tunjuk terma & soalan yang berkaitan dengan perniagaan anda.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-7">

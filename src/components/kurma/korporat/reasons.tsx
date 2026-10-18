@@ -5,7 +5,7 @@ const RED = '#E11D2A'
 export function Reasons() {
   const list = reasons()
   return (
-    <section id="proses" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="proses" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center text-balance">Kenapa organisasi pilih kami</h2>
       <p className="text-gray-500 text-center mt-2 text-sm max-w-xl mx-auto">Satu pihak, satu sebut harga — tiada urusan dengan pencetak, pembekal kurma & kurier berasingan.</p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-7">

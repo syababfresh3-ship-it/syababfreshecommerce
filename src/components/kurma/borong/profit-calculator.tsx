@@ -25,7 +25,7 @@ export function ProfitCalculator({ rows }: { rows: AgentRow[] }) {
   if (!row) return null
   const inp = 'border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500'
   return (
-    <div id="kira-untung" className="rounded-3xl border border-gray-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 scroll-mt-16">
+    <div id="kira-untung" className="rounded-3xl border border-gray-200 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.06)] p-5 scroll-mt-16 md:scroll-mt-24">
       <h3 className="text-lg font-black text-gray-900">Kira untung anda</h3>
       <p className="text-[13px] text-gray-500">Anggaran per pek — belum tolak kos hantar/pembungkusan anda.</p>
       <div className="grid sm:grid-cols-3 gap-3 mt-4">

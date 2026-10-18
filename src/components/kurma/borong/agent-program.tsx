@@ -6,7 +6,7 @@ import { ProfitCalculator } from './profit-calculator'
 export function AgentProgram({ rows }: { rows: AgentRow[] }) {
   if (!hasAgentProgram() || !rows.length) return null
   return (
-    <section id="ejen" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="ejen" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <h2 className="text-2xl font-black text-gray-900 text-center text-balance">Jadi ejen atau stokis</h2>
       <p className="text-gray-500 text-center mt-2 text-sm max-w-xl mx-auto">Beli pada harga ejen, jual sendiri, simpan margin penuh — bukan program affiliate pautan.</p>
       <div className="grid sm:grid-cols-2 gap-3 mt-7">

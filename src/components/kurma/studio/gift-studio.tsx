@@ -3,10 +3,8 @@
 // Studio hot-lead — pemilik state merentas seksyen: template/logo/transform, mod design,
 // finishing, pilihan calculator, dan borang enquiry. Data template dari GET /api/kurma/catalog
 // (gift_designs aktif + logo_area, migration 143). Tiada 3D, tiada FAB/countdown (bukan LP iklan).
-import Link from 'next/link'
-import { shopPath } from '@/lib/kurma-host'
 import { useCallback, useEffect, useState } from 'react'
-import { Palette, Calculator, Send, Phone } from 'lucide-react'
+import { Palette, Calculator, Send } from 'lucide-react'
 import { GiftCalculator, type GiftCalculatorSelection } from '@/components/kurma/gift-calculator'
 import { StudioOffer } from './studio-offer'
 import { TemplatePicker } from './template-picker'
@@ -16,7 +14,6 @@ import { FullDesignUpload, type DesignAsset } from './full-design-upload'
 import { EnquiryForm } from './enquiry-form'
 import { DEFAULT_TRANSFORM, type LogoTransform } from '@/lib/gift-mockup'
 import { FINISHES, type GiftDesign, type GiftFinishCode } from '@/lib/gift'
-import { KURMA_WA } from '@/lib/kurma-track'
 
 export type DesignMode = 'template' | 'full'
 const RED = '#E11D2A'
@@ -52,12 +49,8 @@ export function GiftStudio() {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* Header */}
+      {/* Header (logo kini dalam KurmaNav — dipasang di app/kurma/studio/page.tsx) */}
       <section className="max-w-5xl mx-auto px-4 pt-8 pb-6 text-center">
-        <Link href={shopPath('/')} className="inline-block mb-5" aria-label="SyababFresh — laman utama">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/syababfresh-logo.png" alt="SyababFresh" className="h-9 w-auto mx-auto" />
-        </Link>
         <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#E11D2A] bg-[#FDECEC] px-3 py-1 rounded-full mb-3">Studio · Custom Gift Box Kurma</div>
         <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight tracking-tight text-balance">Reka kotak anda, kira harga, hantar enquiry.</h1>
         <p className="text-gray-500 mt-3 text-base max-w-2xl mx-auto">Pilih template kami, letak logo anda dan tengok hasilnya. Kira harga ikut kurma, berat & kuantiti — kami sahkan di WhatsApp.</p>
@@ -122,9 +115,6 @@ export function GiftStudio() {
         <EnquiryForm sel={sel} mode={mode} template={template} logo={logo} t={t} fullDesign={fullDesign} finishing={finishing} />
       </section>
 
-      <footer className="max-w-5xl mx-auto px-4 pb-10 text-center text-[12px] text-gray-400">
-        Syabab Trading Sdn Bhd (1584185-T) · <a href={`tel:+${KURMA_WA}`} className="inline-flex items-center gap-1 underline underline-offset-2"><Phone className="h-3 w-3" />011-5640 3601</a> · Penghantaran seluruh Malaysia
-      </footer>
     </main>
   )
 }

@@ -5,7 +5,7 @@ export function RamadanCalendar({ terms }: { terms: BorongTerms }) {
   if (!hasRamadan(terms)) return null
   const r = terms.ramadan
   return (
-    <section id="ramadan" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16">
+    <section id="ramadan" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <div className="rounded-3xl border border-gray-200 bg-[#FBFAF7] p-6 sm:p-8 grid sm:grid-cols-[auto_1fr] gap-5 items-start">
         <div className="h-12 w-12 rounded-2xl bg-[#FDECEC] grid place-items-center"><CalendarDays className="h-6 w-6" style={{ color: '#E11D2A' }} /></div>
         <div>
