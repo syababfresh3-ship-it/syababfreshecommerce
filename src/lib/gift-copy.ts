@@ -22,16 +22,6 @@ export const GIFT_VARIANTS: Record<string, GiftLandingCopy> = {
     metaTitle: 'Gift Box Kurma Custom — Hadiah Ramadan Korporat | SyababFresh',
     metaDesc: 'Kotak hadiah kurma premium dengan design & logo syarikat anda. Termasuk kurma, siap dicetak & dihantar. Kira harga & terus WhatsApp.',
   },
-  korporat: {
-    slug: 'korporat',
-    eyebrow: 'Hadiah Korporat',
-    headlineBefore: 'Buat klien & staff rasa ',
-    headlineHighlight: 'dihargai',
-    headlineAfter: ' dengan hadiah kurma berjenama.',
-    sub: 'Gift box kurma premium dengan logo syarikat anda — hadiah korporat yang profesional, diingati & buat hubungan lebih rapat.',
-    metaTitle: 'Hadiah Korporat Kurma Custom — Gift Box Berjenama | SyababFresh',
-    metaDesc: 'Gift box kurma custom dengan logo syarikat anda untuk klien & staff. Termasuk kurma premium, siap dihantar. Kira harga & WhatsApp.',
-  },
   ramadan: {
     slug: 'ramadan',
     eyebrow: 'Ramadan 1448H',
@@ -60,18 +50,14 @@ export const GIFT_VARIANTS: Record<string, GiftLandingCopy> = {
     metaTitle: 'Gift Box Kurma Custom Murah — Dari RM4.50/Kotak | SyababFresh',
     metaDesc: 'Gift box kurma custom termasuk kurma, dari RM4.50/kotak. Lagi banyak lagi murah. Min 50 kotak. Kira harga & WhatsApp.',
   },
-  agensi: {
-    slug: 'agensi',
-    eyebrow: 'Untuk Agensi & GLC',
-    headlineBefore: 'Dipercayai agensi kerajaan & GLC ',
-    headlineHighlight: 'seluruh Malaysia.',
-    sub: 'Gift box kurma rasmi dengan jata / logo organisasi anda. Petronas, FGV, UMPSA, Yayasan Hasanah & lebih 70 organisasi telah mempercayai kami.',
-    metaTitle: 'Gift Box Kurma untuk Agensi Kerajaan & GLC | SyababFresh',
-    metaDesc: 'Gift box kurma rasmi untuk agensi kerajaan & GLC — logo organisasi anda. Dipercayai 70+ organisasi. Kira harga & WhatsApp.',
-  },
 }
 
 export const GIFT_ANGLES = Object.keys(GIFT_VARIANTS).filter(k => k !== 'default')
+
+// Angle 'korporat' & 'agensi' kini satu LP trust statik (/kurma/korporat; /kurma/agensi → redirect),
+// 'borong' = LP kurma borong statik (/kurma/borong) — bukan varian GiftLanding (elak prerender pendua).
+// Senarai ini untuk /api/kurma/lead (CAPI).
+export const LEAD_ANGLES = [...GIFT_ANGLES, 'korporat', 'borong']
 
 // Urgency: deadline tempah untuk Ramadan 1448H (~18 Feb 2027; lead time produksi ~2 minggu).
 // Pemilik boleh laraskan tarikh ini. Bila lepas deadline, countdown auto-sorok.

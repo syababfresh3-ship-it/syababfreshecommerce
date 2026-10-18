@@ -2,6 +2,8 @@
 // produk apa, harga berapa. Asas untuk SEO (rich results), AEO & GEO.
 // Rujukan schema: https://schema.org
 
+import { COMPANY } from '@/lib/company'
+
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
 
 export function JsonLd({ data }: { data: Record<string, unknown> }) {
@@ -20,10 +22,24 @@ export function organizationSchema() {
     '@type': 'OnlineStore',
     '@id': `${BASE_URL}/#organization`,
     name: 'SyababFresh',
+    // Entiti berdaftar — dari lib/company.ts (satu sumber dgn LP korporat & footer)
+    legalName: COMPANY.legalName,
     url: BASE_URL,
     logo: `${BASE_URL}/icons/icon-192x192.png`,
     description:
       'Kedai buah segar online Malaysia — Harumanis, ceri import, durian dan buah bermusim. Penghantaran pantas Klang Valley & seluruh Semenanjung.',
+    telephone: COMPANY.phoneGeneral.e164,
+    email: COMPANY.email,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: `${COMPANY.address.line1}, ${COMPANY.address.line2}`,
+      addressLocality: COMPANY.address.city,
+      addressRegion: COMPANY.address.state,
+      postalCode: COMPANY.address.postcode,
+      addressCountry: COMPANY.address.country,
+    },
+    identifier: { '@type': 'PropertyValue', propertyID: 'SSM', value: COMPANY.regNo },
+    ...(COMPANY.facts.foundingYear ? { foundingDate: String(COMPANY.facts.foundingYear) } : {}),
     areaServed: 'MY',
     sameAs: [
       'https://www.facebook.com/syababfresh',

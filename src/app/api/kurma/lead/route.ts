@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { safeClientIp } from '@/lib/order-guard'
 import { rateLimitDb } from '@/lib/rate-limit-db'
 import { sendCapiKurmaLead } from '@/lib/meta-capi'
-import { GIFT_ANGLES } from '@/lib/gift-copy'
+import { LEAD_ANGLES } from '@/lib/gift-copy'
 
 // POST /api/kurma/lead — CAPI 'Lead' pelayan untuk LP kurma, dengan event_id SAMA seperti
 // pixel pelayar (kurma-track.ts) → Meta dedup. Pulihkan isyarat yang pixel hilang (iOS/adblocker).
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!eventId) return new NextResponse(null, { status: 204 })
 
   const label = typeof body?.label === 'string' ? body.label.slice(0, 64) : 'gift-kurma'
-  const angle = typeof body?.angle === 'string' && GIFT_ANGLES.includes(body.angle) ? body.angle : undefined
+  const angle = typeof body?.angle === 'string' && LEAD_ANGLES.includes(body.angle) ? body.angle : undefined
   const estimate = typeof body?.estimate === 'number' && Number.isFinite(body.estimate) && body.estimate > 0 && body.estimate < 1_000_000
     ? Math.round(body.estimate) : undefined
   const str = (v: unknown) => (typeof v === 'string' && v ? v.slice(0, 100) : undefined)

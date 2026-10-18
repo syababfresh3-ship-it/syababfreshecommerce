@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { kurmaPath } from '@/lib/kurma-host'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CheckCircle2, Clock } from 'lucide-react'
 
@@ -15,7 +16,7 @@ export default async function GiftSuccessPage({ params }: { params: Promise<{ or
     .eq('order_number', order).maybeSingle()
 
   if (!o) {
-    return <main className="min-h-screen grid place-items-center px-4"><div className="text-center"><p className="text-gray-500">Order not found.</p><Link href="/kurma" className="text-[#E11D2A] font-semibold">Back</Link></div></main>
+    return <main className="min-h-screen grid place-items-center px-4"><div className="text-center"><p className="text-gray-500">Order not found.</p><Link href={kurmaPath('/')} className="text-[#E11D2A] font-semibold">Back</Link></div></main>
   }
 
   const depositPaid = o.payment_status === 'deposit_paid' || o.payment_status === 'paid'
@@ -44,7 +45,7 @@ export default async function GiftSuccessPage({ params }: { params: Promise<{ or
           {depositPaid && <div className="flex justify-between mt-1"><span className="text-gray-500">Balance</span><span className="text-gray-900 font-semibold">{rm(o.balance)}</span></div>}
         </div>
 
-        <Link href="/kurma" className="inline-block mt-6 text-[#E11D2A] font-semibold">Design another</Link>
+        <Link href={kurmaPath('/')} className="inline-block mt-6 text-[#E11D2A] font-semibold">Design another</Link>
       </div>
     </main>
   )

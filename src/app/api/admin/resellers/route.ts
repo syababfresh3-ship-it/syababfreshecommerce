@@ -99,8 +99,28 @@ export async function PATCH(request: Request) {
     if (f in body) patch[f] = body[f]
   }
 
-  const { data, error } = await supabase!.from('resellers').update(patch).eq('id', id).select().single()
+  // Luluskan permohonan (LP borong → status 'pending'): bila jadi 'active' buat kali pertama, isi joined_at &
+  // referral_code (seperti POST) dan tanda customers.is_reseller — sebelum ini hanya POST yang buat.
+  let activating: { customer_id: string; name: string | null } | null = null
+  if (body.status === 'active') {
+    const { data: cur } = await supabase!.from('resellers').select('status, joined_at, referral_code, customer_id, customers(name)').eq('id', id).maybeSingle()
+    if (cur && cur.status !== 'active') {
+      const custName = (cur.customers as unknown as { name: string | null } | null)?.name ?? null
+      if (!cur.joined_at) patch.joined_at = new Date().toISOString().slice(0, 10)
+      if (!cur.referral_code) patch.referral_code = genReferralCode(custName)
+      activating = { customer_id: cur.customer_id, name: custName }
+    }
+  }
+
+  let data = null, error = null
+  for (let i = 0; i < 3; i++) {
+    ;({ data, error } = await supabase!.from('resellers').update(patch).eq('id', id).select().single())
+    if (!error) break
+    if (error.code === '23505' && error.message.includes('referral_code') && activating) { patch.referral_code = genReferralCode(activating.name); continue }
+    break
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (activating) await supabase!.from('customers').update({ is_reseller: true }).eq('id', activating.customer_id)
   return NextResponse.json(data)
 }
 

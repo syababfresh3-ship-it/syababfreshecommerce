@@ -4,6 +4,7 @@
 // finishing, pilihan calculator, dan borang enquiry. Data template dari GET /api/kurma/catalog
 // (gift_designs aktif + logo_area, migration 143). Tiada 3D, tiada FAB/countdown (bukan LP iklan).
 import Link from 'next/link'
+import { shopPath } from '@/lib/kurma-host'
 import { useCallback, useEffect, useState } from 'react'
 import { Palette, Calculator, Send, Phone } from 'lucide-react'
 import { GiftCalculator, type GiftCalculatorSelection } from '@/components/kurma/gift-calculator'
@@ -53,7 +54,7 @@ export function GiftStudio() {
     <main className="min-h-screen bg-white">
       {/* Header */}
       <section className="max-w-5xl mx-auto px-4 pt-8 pb-6 text-center">
-        <Link href="/" className="inline-block mb-5" aria-label="SyababFresh — laman utama">
+        <Link href={shopPath('/')} className="inline-block mb-5" aria-label="SyababFresh — laman utama">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/syababfresh-logo.png" alt="SyababFresh" className="h-9 w-auto mx-auto" />
         </Link>

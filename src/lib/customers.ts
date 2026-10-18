@@ -76,6 +76,30 @@ export async function upsertCustomer(input: {
   }
 }
 
+// ── Helper untuk borang awam yang perlukan id customer selepas upsert (cth permohonan borong) ──
+// upsertCustomer kekal void & senyap; ini hanya tambah pembacaan semula ikut phone_norm.
+export async function upsertCustomerAndGet(input: Parameters<typeof upsertCustomer>[0]): Promise<{ id: string; name: string | null; tags: string[]; sources: string[] } | null> {
+  await upsertCustomer(input)
+  const phone_norm = normalizePhone(input.phone)
+  if (!phone_norm) return null
+  try {
+    const { data } = await createAdminClient().from('customers').select('id, name, tags, sources').eq('phone_norm', phone_norm).maybeSingle()
+    return data ? { id: data.id, name: data.name ?? null, tags: data.tags ?? [], sources: data.sources ?? [] } : null
+  } catch { return null }
+}
+
+/** Tambah tag (kesatuan, tak buang tag sedia ada). Best-effort — tak throw. */
+export async function addCustomerTags(id: string, tags: string[]): Promise<void> {
+  try {
+    const sb = createAdminClient()
+    const { data } = await sb.from('customers').select('tags').eq('id', id).maybeSingle()
+    const merged = Array.from(new Set([...(data?.tags ?? []), ...tags]))
+    await sb.from('customers').update({ tags: merged, updated_at: new Date().toISOString() }).eq('id', id)
+  } catch (err) {
+    console.error('[customers] addCustomerTags failed (non-fatal):', err)
+  }
+}
+
 // ── Segar agregat autoritatif (order_count / total_spend / recency) ──────────
 // Kira semula dari sumber sebenar (profiles + orders + lp_guest_orders + leads),
 // dedup ikut phone_norm, kira hanya order yang BUKAN cancelled/refunded supaya

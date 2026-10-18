@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { kurmaAbs } from '@/lib/kurma-host'
 import { StoreLayout } from '@/components/layout/store-layout'
 
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ const faqs = [
   },
   {
     q: 'Boleh saya buat pesanan bulk atau borong?',
-    a: 'Ya! Untuk pesanan borong atau kuantiti besar, sila hubungi kami terus melalui WhatsApp untuk harga khas.',
+    a: `Ya! Untuk kurma borong (karton) lihat halaman Kurma Borong di ${kurmaAbs('/borong').replace(/^https?:\/\//, '')}, atau hubungi kami terus melalui WhatsApp untuk harga khas.`,
   },
   {
     q: 'Macam mana nak guna Loyalty Points?',

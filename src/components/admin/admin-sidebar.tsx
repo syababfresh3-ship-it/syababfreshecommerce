@@ -108,6 +108,7 @@ const sections: Section[] = [
       { href: '/admin/marketing',         label: 'Ad Tracking',      icon: Megaphone },
       { href: '/admin/settings/whatsapp', label: 'WA Templates',     icon: MessageCircle },
       { href: '/admin/resellers',         label: 'Reseller',         icon: Store },
+      { href: '/admin/borong',            label: 'Harga Borong',     icon: Package },
       { href: '/admin/tiktok-sync',       label: 'TikTok Customers', icon: ShoppingBag },
     ],
   },

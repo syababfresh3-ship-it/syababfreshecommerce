@@ -3,6 +3,7 @@
 import type { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { ARTIKEL } from './panduan/artikel'
+import { KURMA_ORIGIN } from '@/lib/kurma-host'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
 
@@ -19,6 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/jadi-ejen`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/jadi-affiliate`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/panduan`, changeFrequency: 'weekly', priority: 0.7 },
+    // Funnel gift box kurma — bila subdomain kurma aktif, URL ini 308 ke sana (sitemap sendiri di
+    // kurma.<domain>/sitemap.xml) → jangan senarai di sini.
+    ...(KURMA_ORIGIN ? [] : [
+      { url: `${BASE_URL}/kurma`, changeFrequency: 'weekly' as const, priority: 0.8 },
+      { url: `${BASE_URL}/kurma/korporat`, changeFrequency: 'weekly' as const, priority: 0.8 },
+      { url: `${BASE_URL}/kurma/borong`, changeFrequency: 'weekly' as const, priority: 0.8 },
+      { url: `${BASE_URL}/kurma/portfolio`, changeFrequency: 'monthly' as const, priority: 0.6 },
+    ]),
     ...ARTIKEL.map((a) => ({
       url: `${BASE_URL}/panduan/${a.slug}`,
       changeFrequency: 'monthly' as const,

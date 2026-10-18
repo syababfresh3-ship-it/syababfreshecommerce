@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { kurmaAbs } from '@/lib/kurma-host'
 
 // Pembina purchase CHIP untuk Gift Studio (deposit / baki). Cermin corak
 // api/pay/[id] & lp order. reference = `gift:<id>:<kind>` supaya webhook kenal
@@ -31,9 +32,9 @@ export async function createGiftCheckout(order: {
       purchase: { currency: 'MYR', products: [{ name: `${label} — ${order.order_number}`, price: Math.round(amountRM * 100), quantity: 1 }], notes: order.order_number },
       brand_id: process.env.CHIP_BRAND_ID,
       reference: `gift:${order.id}:${kind}`,
-      success_redirect: `${base}/kurma/berjaya/${order.order_number}`,
-      failure_redirect: `${base}/kurma/berjaya/${order.order_number}?bayar=gagal`,
-      cancel_redirect: `${base}/kurma/berjaya/${order.order_number}`,
+      success_redirect: kurmaAbs(`/berjaya/${order.order_number}`),
+      failure_redirect: kurmaAbs(`/berjaya/${order.order_number}?bayar=gagal`),
+      cancel_redirect: kurmaAbs(`/berjaya/${order.order_number}`),
       success_callback: `${base}/api/webhook/chip`,
       send_receipt: false,
     }),

@@ -110,6 +110,9 @@ const nextConfig: NextConfig = {
       // Pautan lama (iklan/kongsi) → produk baharu; produk lama dinyahaktif, bukan dipadam.
       { source: '/products/delima-tunisia-small', destination: '/products/delima-tunisia', permanent: true },
       { source: '/products/delima-tunisia-large', destination: '/products/delima-tunisia', permanent: true },
+      // LP agensi digabung ke LP trust korporat (15 Okt 2026). Kekal (308) — iklan/pautan lama masih
+      // jalan; query (UTM) dikekalkan Next secara lalai.
+      { source: '/kurma/agensi', destination: '/kurma/korporat', permanent: true },
     ]
   },
 };

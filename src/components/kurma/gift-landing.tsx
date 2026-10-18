@@ -8,6 +8,7 @@ import { GiftCalculator } from '@/components/kurma/gift-calculator'
 import { KurmaFab } from '@/components/kurma/kurma-fab'
 import { KurmaCountdown } from '@/components/kurma/kurma-countdown'
 import { GIFT_FAQ, GIFT_TESTIMONIALS, GIFT_CLIENTS, RAMADAN, type GiftLandingCopy } from '@/lib/gift-copy'
+import { kurmaPath, shopPath } from '@/lib/kurma-host'
 
 const CLIENTS = GIFT_CLIENTS   // satu sumber (gift-copy) — sama dgn /portfolio
 const RED = '#E11D2A'
@@ -35,7 +36,7 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 pt-10 pb-10 text-center">
         {/* Logo jenama — identiti & kredibiliti di atas lipatan (dulu LP mula terus dgn eyebrow) */}
-        <Link href="/" className="inline-block mb-6" aria-label="SyababFresh — laman utama">
+        <Link href={shopPath('/')} className="inline-block mb-6" aria-label="SyababFresh — laman utama">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/syababfresh-logo.png" alt="SyababFresh" className="h-9 w-auto mx-auto" />
         </Link>
@@ -50,7 +51,7 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
           <a href="#kira" className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: RED }}>
             Kira harga sekarang <ChevronRight className="h-5 w-5" />
           </a>
-          <Link href="/kurma/portfolio" className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl font-bold text-base text-gray-700 border border-gray-200 hover:border-gray-400">
+          <Link href={kurmaPath('/portfolio')} className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl font-bold text-base text-gray-700 border border-gray-200 hover:border-gray-400">
             Lihat portfolio
           </Link>
         </div>
@@ -82,7 +83,7 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
             ))}
           </div>
           <div className="text-center mt-4">
-            <Link href="/kurma/portfolio" className="text-sm font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-4">Lihat 70+ kotak yang kami hasilkan →</Link>
+            <Link href={kurmaPath('/portfolio')} className="text-sm font-semibold text-gray-500 hover:text-gray-800 underline underline-offset-4">Lihat 70+ kotak yang kami hasilkan →</Link>
           </div>
         </section>
       )}
@@ -193,7 +194,7 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
 
       {/* Kredibiliti — entiti berdaftar (no. syarikat dari dokumen harga pemilik), bukan dakwaan kabur */}
       <footer className="max-w-5xl mx-auto px-4 pb-10 text-center text-[12px] text-gray-400">
-        Syabab Trading Sdn Bhd (1584185-T) · WhatsApp 011-5640 3601 · Penghantaran seluruh Malaysia
+        Syabab Trading Sdn Bhd (1584185-T) · WhatsApp 011-5640 3601 · Penghantaran seluruh Malaysia · <Link href={kurmaPath('/borong')} className="underline underline-offset-4 hover:text-gray-600">Kurma borong</Link>
       </footer>
 
       <KurmaFab angle={angle} />

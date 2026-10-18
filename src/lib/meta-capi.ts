@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { getAppSettings } from './app-settings'
+import { kurmaAbs } from '@/lib/kurma-host'
 
 const CAPI_URL = 'https://graph.facebook.com/v21.0'
 
@@ -188,7 +189,7 @@ export async function sendCapiKurmaLead({
       event_time: Math.floor(Date.now() / 1000),
       event_id: eventId,
       action_source: 'website',
-      event_source_url: `${baseUrl}/kurma${angle ? `/${angle}` : ''}`,
+      event_source_url: kurmaAbs(angle ? `/${angle}` : '/'),   // subdomain bila aktif (lib/kurma-host)
       user_data: userData,
       custom_data: {
         content_name: label,

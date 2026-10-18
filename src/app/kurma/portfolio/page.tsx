@@ -4,11 +4,13 @@ import { ChevronRight, ArrowLeft } from 'lucide-react'
 import { PRODUCT_PHOTOS } from '@/lib/gift'
 import { GIFT_CLIENTS } from '@/lib/gift-copy'
 import { PhotoGallery } from '@/components/kurma/photo-gallery'
+import { kurmaPath } from '@/lib/kurma-host'
 
 export const metadata: Metadata = {
   // absolute: elak template root tambah "| SyababFresh" sekali lagi (pendua)
   title: { absolute: 'Portfolio — Custom Gift Box Kurma | SyababFresh' },
   description: 'Koleksi kotak hadiah kurma custom yang telah kami hasilkan untuk korporat, agensi kerajaan & individu.',
+  alternates: { canonical: kurmaPath('/portfolio') },
 }
 
 // Antara klien yang pernah kami hasilkan kotak (kredibiliti) — satu sumber di gift-copy.
@@ -21,7 +23,7 @@ export default function PortfolioPage() {
     <main className="min-h-screen bg-white">
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-4 pt-12 pb-8 text-center">
-        <Link href="/kurma" className="inline-flex items-center gap-1 text-[12px] font-semibold text-gray-400 hover:text-gray-600 mb-4">
+        <Link href={kurmaPath('/')} className="inline-flex items-center gap-1 text-[12px] font-semibold text-gray-400 hover:text-gray-600 mb-4">
           <ArrowLeft className="h-3.5 w-3.5" />Custom Gift Kurma
         </Link>
         <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#E11D2A] bg-[#FDECEC] px-3 py-1 rounded-full mb-4 mx-auto">
@@ -29,7 +31,7 @@ export default function PortfolioPage() {
         </div>
         <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">Kerja custom box yang kami hasilkan.</h1>
         <p className="text-gray-500 mt-3 text-base max-w-2xl mx-auto">Kotak hadiah kurma custom untuk korporat, agensi kerajaan &amp; individu — reka ikut citarasa &amp; jenama anda.</p>
-        <Link href="/kurma#kira" className="inline-flex items-center gap-1.5 mt-6 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: '#E11D2A' }}>
+        <Link href={kurmaPath('/#kira')} className="inline-flex items-center gap-1.5 mt-6 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: '#E11D2A' }}>
           Reka kotak anda <ChevronRight className="h-5 w-5" />
         </Link>
       </section>
@@ -66,7 +68,7 @@ export default function PortfolioPage() {
         <div className="rounded-2xl bg-[#1F2937] text-white px-6 py-10 text-center">
           <h3 className="text-2xl font-black">Nak kotak macam ni untuk brand anda?</h3>
           <p className="text-white/70 mt-2 text-sm max-w-xl mx-auto">Pilih saiz, pilih design atau upload artwork sendiri, isi dengan kurma pilihan — terus dapat harga.</p>
-          <Link href="/kurma#kira" className="inline-flex items-center gap-1.5 mt-6 px-6 py-3.5 rounded-2xl text-white font-bold" style={{ background: '#E11D2A' }}>
+          <Link href={kurmaPath('/#kira')} className="inline-flex items-center gap-1.5 mt-6 px-6 py-3.5 rounded-2xl text-white font-bold" style={{ background: '#E11D2A' }}>
             Mula reka <ChevronRight className="h-5 w-5" />
           </Link>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { X, Share, Plus } from 'lucide-react'
 import Image from 'next/image'
+import { KURMA_HOST } from '@/lib/kurma-host'
 
 const DISMISS_KEY = 'pwa-banner-dismissed'
 const DISMISS_DAYS = 14
@@ -25,6 +26,8 @@ export function PWAInstallBanner() {
 
   useEffect(() => {
     if (suppressed) return
+    // Subdomain LP kurma (kurma.<domain>): pathname = '/korporat' dll. — semak hos di klien
+    if (KURMA_HOST && window.location.hostname === KURMA_HOST) return
     // Template LP "live" (penuh skrin) tanda <html data-lp-live="1"> — banner akan tutup butang Beli
     if (document.documentElement.dataset.lpLive === '1') return
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search, X, Store, Trash2, Save, BadgeCheck, Tag } from 'lucide-react'
+import { Plus, Search, X, Store, Trash2, Save, BadgeCheck, Tag, MessageCircle, Check } from 'lucide-react'
 
 interface Customer { id: string; name: string | null; phone_norm: string; email: string | null; order_count: number; total_spend: number; is_reseller?: boolean }
 interface Reseller {
@@ -10,7 +10,16 @@ interface Reseller {
   commission_rate: number; territory: string | null; agreement_notes: string | null
   referral_code: string | null; joined_at: string | null
   customers: Customer | null
+  // Permohonan dari LP /kurma/borong (migration 144) — null untuk reseller yang dicipta admin
+  application?: ResellerApplication | null; source?: string | null; created_at?: string
 }
+interface ResellerApplication {
+  ref: string; business_name: string; business_type: string; name: string; phone: string; email: string | null
+  state: string | null; est_qty: number; est_unit: 'kg' | 'ctn'; varieties: string[]; notes: string | null
+  source_utm: string | null; submitted_at: string; history?: unknown[]
+}
+const BIZ_LABEL: Record<string, string> = { runcit: 'Kedai runcit / kafe', bazar: 'Bazar Ramadan', ejen: 'Ejen / stokis', masjid: 'Masjid / NGO / korporat' }
+const STATUS_ORDER: Record<string, number> = { pending: 0, active: 1, suspended: 2 }
 
 const STATUS = ['active', 'pending', 'suspended']
 const STATUS_STYLE: Record<string, string> = {
@@ -19,8 +28,15 @@ const STATUS_STYLE: Record<string, string> = {
   suspended: 'bg-red-100 text-red-600 border-red-200',
 }
 
-export function ResellersClient({ initial }: { initial: Reseller[] }) {
+export function ResellersClient({ initial, initialFilter = 'all' }: { initial: Reseller[]; initialFilter?: string }) {
   const [rows, setRows] = useState<Reseller[]>(initial)
+  const [filter, setFilter] = useState<string>(initialFilter)   // all | pending | active | suspended
+  const counts = rows.reduce<Record<string, number>>((m, r) => { m[r.status] = (m[r.status] ?? 0) + 1; return m }, {})
+  // Pending (permohonan LP borong) dahulu, kemudian ikut masa dicipta
+  const visible = rows
+    .filter(r => filter === 'all' || r.status === filter)
+    .slice()
+    .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || (b.created_at ?? '').localeCompare(a.created_at ?? ''))
   const [editId, setEditId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Partial<Reseller>>({})
   const [adding, setAdding] = useState(false)
@@ -80,6 +96,13 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
     toast.success('Disimpan'); setEditId(null); refresh()
   }
 
+  // Luluskan permohonan → status active (server isi joined_at/referral_code + customers.is_reseller)
+  async function approve(r: Reseller) {
+    const res = await fetch('/api/admin/resellers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, status: 'active' }) })
+    if (!res.ok) { toast.error('Gagal luluskan'); return }
+    toast.success(`${r.customers?.name ?? r.application?.business_name ?? 'Reseller'} diluluskan`); refresh()
+  }
+
   async function remove(r: Reseller) {
     if (!confirm(`Buang status reseller untuk ${r.customers?.name ?? r.customers?.phone_norm}?`)) return
     const res = await fetch('/api/admin/resellers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, customer_id: r.customer_id }) })
@@ -92,17 +115,25 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Store className="h-5 w-5 text-rose-500" /> Reseller</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{rows.length} reseller</p>
+          <p className="text-sm text-gray-400 mt-0.5">{rows.length} reseller{counts.pending ? ` · ${counts.pending} pending` : ''}</p>
         </div>
         <button onClick={() => setAdding(true)} className="flex items-center gap-1.5 text-sm font-semibold text-white bg-rose-600 px-3.5 py-2 rounded-xl hover:bg-rose-700 shadow-sm">
           <Plus className="h-4 w-4" /> Tambah Reseller
         </button>
       </div>
 
+      {/* Penapis status — permohonan LP borong masuk sebagai 'pending' */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-4">
+        {[['all', 'Semua', rows.length], ['pending', 'Pending', counts.pending ?? 0], ['active', 'Active', counts.active ?? 0], ['suspended', 'Suspended', counts.suspended ?? 0]].map(([id, label, n]) => (
+          <button key={String(id)} onClick={() => setFilter(String(id))} aria-pressed={filter === id} className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${filter === id ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'}`}>{label} <span className={filter === id ? 'text-white/70' : 'text-gray-400'}>{String(n)}</span></button>
+        ))}
+      </div>
+
       {rows.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Belum ada reseller. Klik “Tambah Reseller” untuk promosi customer.</p>}
+      {rows.length > 0 && visible.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Tiada reseller dengan status ini.</p>}
 
       <div className="space-y-3">
-        {rows.map(r => {
+        {visible.map(r => {
           const c = r.customers
           const editing = editId === r.id
           return (
@@ -120,10 +151,26 @@ export function ResellersClient({ initial }: { initial: Reseller[] }) {
                   </p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {r.status === 'pending' && <button onClick={() => approve(r)} className="inline-flex items-center gap-1 text-xs font-bold text-white bg-gray-900 hover:bg-gray-800 px-2.5 py-1.5 rounded-lg"><Check className="h-3.5 w-3.5" />Luluskan</button>}
                   {!editing && <button onClick={() => startEdit(r)} className="text-xs font-semibold text-gray-500 hover:text-gray-800 px-2 py-1">Edit</button>}
                   <button onClick={() => remove(r)} className="text-gray-300 hover:text-red-500 p-1"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
+
+              {/* Permohonan LP borong (application jsonb, migration 144) */}
+              {r.application && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Permohonan borong <span className="normal-case tracking-normal font-mono text-gray-500">{r.application.ref}</span> · {new Date(r.application.submitted_at).toLocaleString('en-MY')}{(r.application.history?.length ?? 0) > 0 ? ` · ${r.application.history!.length} permohonan sebelum` : ''}</p>
+                  <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    <dt className="text-gray-500">Perniagaan</dt><dd className="text-gray-900 font-medium">{r.application.business_name} <span className="text-gray-400 font-normal">· {BIZ_LABEL[r.application.business_type] ?? r.application.business_type}</span></dd>
+                    <dt className="text-gray-500">Anggaran</dt><dd className="text-gray-900">{r.application.est_qty} {r.application.est_unit === 'kg' ? 'kg' : 'karton'} / bulan{r.application.state ? ` · ${r.application.state}` : ''}</dd>
+                    {r.application.varieties?.length > 0 && <><dt className="text-gray-500">Kurma</dt><dd className="text-gray-900">{r.application.varieties.join(', ')}</dd></>}
+                    {r.application.notes && <><dt className="text-gray-500">Nota</dt><dd className="text-gray-700">{r.application.notes}</dd></>}
+                    {r.application.source_utm && <><dt className="text-gray-500">Sumber</dt><dd className="text-gray-500 text-xs">{r.application.source_utm}</dd></>}
+                  </dl>
+                  <a href={`https://wa.me/${r.application.phone}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg hover:bg-gray-50"><MessageCircle className="h-3.5 w-3.5" />WhatsApp pemohon</a>
+                </div>
+              )}
 
               {editing && (
                 <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
