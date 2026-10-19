@@ -235,3 +235,23 @@ Untuk team sales yang ambil order customer melalui **WhatsApp / telefon**. Setia
 ---
 
 > Kemaskini SOP ini bila aliran sistem berubah. Lokasi: `docs/SOP-admin.md`.
+
+## 5. LP Kurma di kurma.syababfresh.my — Team Sales
+
+LP builder (Landing Pages) boleh dihidangkan di subdomain kurma. Sales tulis HTML sendiri; blok funnel gift box datang dari tag.
+
+1. **Landing Pages → + Baru.** Isi Tajuk & Slug seperti biasa.
+2. **Domain → pilih "Kurma".** URL jadi `kurma.syababfresh.my/lp/<slug>` (dipapar di bawah Slug). Pilih "Kedai" untuk LP produk biasa.
+3. **Tekan "Isi contoh LP kurma"** untuk mula dari contoh (menu, hero, kalkulator, galeri, Studio, WhatsApp, footer), atau tulis HTML sendiri.
+4. **Letak tag** di mana-mana dalam HTML (hover chip untuk penerangan):
+   - `{{kurma:menu}}` menu kurma + WhatsApp (ganti header biasa LP)
+   - `{{kurma:kira}}` kalkulator harga gift box (pelanggan dapat anggaran, hantar ke WhatsApp)
+   - `{{kurma:wa|Teks butang}}` butang WhatsApp lead
+   - `{{kurma:renders}}` strip design (render artwork klien, berlabel)
+   - `{{kurma:galeri|8}}` foto kotak sebenar (nombor = bilangan)
+   - `{{kurma:studio|Teks}}` butang ke Studio (letak logo, sebut harga)
+   - `{{kurma:fab}}` butang WhatsApp terapung · `{{kurma:footer}}` footer kurma
+5. **Tracking Ads:** Meta Pixel per LP seperti biasa. Lead WhatsApp dari tag direkod dengan angle `lp-<slug>` (CAPI), jadi setiap LP boleh dibanding.
+6. **Simpan & Kongsi:** butang salin/WhatsApp di senarai dah bagi URL kurma. Lencana "Kurma" tanda LP di subdomain.
+
+Nota: LP ini untuk **gift box custom** (sebut harga). Untuk jual kurma runcit/karton dengan checkout, pilih Domain "Kedai" dan guna `{{checkout:...}}` seperti biasa.

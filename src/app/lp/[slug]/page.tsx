@@ -19,6 +19,20 @@ import { LpLive, type LiveReview, type LiveViewerComment } from './lp-live'
 import { normalizeLiveConfig, shortReviewerName } from '@/lib/lp-live'
 import { HUMAN_WA } from '@/lib/support/constants'
 import type { Metadata } from 'next'
+// LP hos 'kurma' (migration 145, lib/lp-host.ts): blok funnel gift box via tag {{kurma:...}}
+import { normalizeLpHost, lpPublicPath } from '@/lib/lp-host'
+import { parseKurmaTag } from '@/lib/lp-kurma-tags'
+import { kurmaPath, kurmaAbs } from '@/lib/kurma-host'
+import { KURMA_WA } from '@/lib/kurma-track'
+import { GIFT_WA_TEXT } from '@/lib/gift-copy'
+import { PRODUCT_PHOTOS } from '@/lib/gift'
+import { KurmaNav } from '@/components/kurma/kurma-nav'
+import { KurmaFooter } from '@/components/kurma/kurma-footer'
+import { KurmaWaLink } from '@/components/kurma/kurma-wa-link'
+import { KurmaFab } from '@/components/kurma/kurma-fab'
+import { GiftCalculator } from '@/components/kurma/gift-calculator'
+import { DesignRenders } from '@/components/kurma/design-renders'
+import { PhotoGallery } from '@/components/kurma/photo-gallery'
 
 // ISR: cache LP setiap slug (trafik iklan tinggi → TTFB rendah = conversion lebih
 // baik). Stok cuma paparan (LP order TIDAK enforce stok), jadi cache 60s selamat.
@@ -128,8 +142,21 @@ type Props = { params: Promise<{ slug: string }> }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const supabase = createAdminClient()
-  const { data } = await supabase.from('landing_pages').select('title').eq('slug', slug).eq('is_active', true).single()
-  return { title: data?.title ?? 'SyababFresh' }
+  const q = (sel: string) => supabase.from('landing_pages').select(sel).eq('slug', slug).eq('is_active', true).single()
+  // `host` (migration 145) belum wujud → 42703 → tajuk sahaja seperti dulu
+  let res: { data: unknown; error: { code?: string } | null } = await q('title, host')
+  if (res.error?.code === '42703') res = await q('title')
+  const row = (res.data ?? null) as { title?: string; host?: unknown } | null
+  const title = row?.title ?? 'SyababFresh'
+  if (normalizeLpHost(row?.host) !== 'kurma') return { title }
+  // LP di subdomain kurma: canonical & OG ikut hos kurma (OG gift box kongsi — JPEG berfoto)
+  const url = lpPublicPath(slug, 'kurma')
+  return {
+    title,
+    alternates: { canonical: url },
+    openGraph: { title, url, type: 'website', images: [{ url: kurmaAbs('/opengraph-image'), width: 1200, height: 630 }] },
+    twitter: { card: 'summary_large_image', title },
+  }
 }
 
 export default async function LandingPage({ params }: Props) {
@@ -151,8 +178,12 @@ export default async function LandingPage({ params }: Props) {
   const productsBySlug = new Map(products.map(p => [p.slug, p]))
   const stockByProductId = new Map(stock.map(s => [s.product_id, s.available_stock]))
 
+  // LP hos 'kurma' (lib/lp-host.ts): WhatsApp header = nombor gift box, tag {{kurma:...}} aktif
+  const lpHost = normalizeLpHost((page as { host?: unknown }).host)
+  const kurmaAngle = `lp-${slug}`   // angle Lead/CAPI (api/kurma/lead terima `lp-<slug>`)
+
   // "Hubungi Kami" → WhatsApp CS sebenar (dulu placeholder wa.me/60), prefill tajuk LP
-  const waNumber = process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || HUMAN_WA
+  const waNumber = lpHost === 'kurma' ? KURMA_WA : (process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || HUMAN_WA)
   const waHref = `https://wa.me/${waNumber}?text=${encodeURIComponent(`Hai SyababFresh, saya ada pertanyaan tentang "${page.title}"`)}`
 
   // ── Template 'live': susun atur penuh skrin, tiada HTML/placeholder ──
@@ -186,15 +217,60 @@ export default async function LandingPage({ params }: Props) {
 
   const htmlContent = normaliseHtml(page.html_content)
 
-  // Split on all placeholders: product, checkout (single or multi), lead-form, countdown
-  const parts = htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\})/g)
+  // Split on all placeholders: product, checkout (single or multi), lead-form, countdown, video, kurma
+  const parts = htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{kurma:[a-z]+(?:\|[^}]*)?\}\})/g)
+  // {{kurma:menu}} bawa header sendiri (KurmaNav) — jangan tindih dengan header minimal LP
+  const hasKurmaMenu = parts.includes('{{kurma:menu}}')
+  // {{kurma:fab}} = butang WhatsApp terapung — sorok butang kongsi LP supaya tak bertindih di bawah kanan
+  const hasKurmaFab = parts.includes('{{kurma:fab}}')
+
+  // Blok funnel gift box (lib/lp-kurma-tags.ts). Pembalut -mx-4 = penuh tepi seperti seksyen HTML.
+  function renderKurmaTag(part: string, key: number) {
+    const tag = parseKurmaTag(part)
+    if (!tag) return null
+    switch (tag.id) {
+      case 'menu':
+        return <div key={key} className="-mx-4"><KurmaNav wa={{ angle: kurmaAngle, label: `${kurmaAngle}-header`, text: GIFT_WA_TEXT }} /></div>
+      case 'footer':
+        return <div key={key} className="-mx-4"><KurmaFooter /></div>
+      case 'kira':
+        return <section key={key} id="kira" className="my-6 scroll-mt-6"><GiftCalculator angle={kurmaAngle} /></section>
+      case 'wa':
+        return (
+          <div key={key} className="my-6 text-center">
+            <KurmaWaLink angle={kurmaAngle} label={`${kurmaAngle}-wa`} text={GIFT_WA_TEXT}
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-white font-bold text-base shadow-[0_6px_24px_rgba(37,211,102,0.35)]"
+              style={{ background: '#25D366' }}>
+              {tag.arg || 'WhatsApp kami'}
+            </KurmaWaLink>
+          </div>
+        )
+      case 'renders':
+        return <div key={key} className="-mx-4 pt-6"><DesignRenders /></div>
+      case 'galeri': {
+        const n = Math.min(Math.max(parseInt(tag.arg, 10) || 8, 1), PRODUCT_PHOTOS.length)
+        return <div key={key} className="my-6"><PhotoGallery photos={PRODUCT_PHOTOS.slice(0, n)} /></div>
+      }
+      case 'studio':
+        return (
+          <div key={key} className="my-4 text-center">
+            <Link href={kurmaPath('/studio')} className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: '#E11D2A' }}>
+              {tag.arg || 'Buka Studio'}
+            </Link>
+          </div>
+        )
+      case 'fab':
+        return <KurmaFab key={key} angle={kurmaAngle} />
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
       <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
       <LpTracker slug={slug} />
 
-      {/* Minimal header — no cart link (standalone LP) */}
+      {/* Minimal header — no cart link (standalone LP); disorok bila {{kurma:menu}} bawa header sendiri */}
+      {!hasKurmaMenu && (
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center" aria-label="SyababFresh">
           {storeLogoUrl ? (
@@ -206,6 +282,7 @@ export default async function LandingPage({ params }: Props) {
         </Link>
         <a href={waHref} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-gray-500 hover:text-green-600">Hubungi Kami</a>
       </header>
+      )}
 
       {/* Rendered HTML + injected product cards */}
       <div className="max-w-2xl mx-auto px-4 pb-56">
@@ -278,6 +355,9 @@ export default async function LandingPage({ params }: Props) {
             return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
           }
 
+          // {{kurma:...}} — blok funnel gift box (LP hos kurma)
+          if (part.startsWith('{{kurma:')) return renderKurmaTag(part, i)
+
           // {{product:slug}} — add-to-cart widget (cart bar flow)
           const productSlug = part.slice(10, -2)
           const product = productsBySlug.get(productSlug)
@@ -305,7 +385,7 @@ export default async function LandingPage({ params }: Props) {
       <LpHtmlScripts />
 
       <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
-      <LpWaShare title={page.title} />
+      {!hasKurmaFab && <LpWaShare title={page.title} />}
     </div>
   )
 }

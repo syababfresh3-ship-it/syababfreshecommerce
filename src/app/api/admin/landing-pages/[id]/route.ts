@@ -3,6 +3,7 @@ import { sanitizePaymentMethodIds } from '@/lib/lp-payment'
 import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
+import { normalizeLpHost } from '@/lib/lp-host'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, forbidden } = await requireAdmin()
@@ -63,7 +64,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     update.payment_methods = await sanitizePaymentMethodIds(supabase!, body.payment_methods)
   }
 
-  const { data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single()
+  // Domain awam (migration 145)
+  if ('host' in body) update.host = normalizeLpHost(body.host)
+
+  let { data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single()
+  let warning: string | undefined
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && 'host' in update) {
+    delete update.host
+    warning = 'Lajur host belum wujud — jalankan migration 145. Domain LP tidak disimpan (kekal kedai).'
+    ;({ data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single())
+  }
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Slug sudah digunakan' }, { status: 409 })
     if (error.code === '42703' || error.code === 'PGRST204') return NextResponse.json({ error: 'Kolum belum wujud — jalankan migration 120 / 132 dulu' }, { status: 500 })
@@ -71,7 +81,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
   // Bust cache LP supaya edit terus nampak (cache 60s tak perlu ditunggu)
   if (data?.slug) revalidateTag(`lp-${data.slug}`, 'default')
-  return NextResponse.json({ ok: true })
+  return NextResponse.json(warning ? { ok: true, warning } : { ok: true })
 }
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {

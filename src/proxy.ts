@@ -8,6 +8,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 //   kurma.<domain>/agensi      → 308 /korporat
 //   kurma.<domain>/sitemap.xml → rewrite /kurma/sitemap.xml · /robots.txt → /api/kurma/robots
 //   shop.<domain>/kurma/x      → 308 https://kurma.<domain>/x (pautan/iklan lama kekal jalan)
+//   kurma.<domain>/lp/<slug>   → dilalukan terus ke /lp/<slug> (LP builder admin dengan host='kurma',
+//                                migration 145; page sendiri set canonical ikut hos — tiada DB di proxy)
 // API, _next, ikon & fail statik dilalukan terus pada kedua-dua hos. Tiada auth diperlukan di subdomain.
 const KURMA_HOST = process.env.NEXT_PUBLIC_KURMA_HOST ?? ''
 const META_ASSET = /\/(opengraph|twitter)-image(\/|$|\?)/
@@ -20,6 +22,7 @@ function kurmaHostRouting(request: NextRequest): NextResponse | null {
   const p = url.pathname
   if (host === KURMA_HOST) {
     if (isPassThrough(p)) return NextResponse.next()
+    if (p === '/lp' || p.startsWith('/lp/')) return NextResponse.next()
     if (p === '/robots.txt') { const u = url.clone(); u.pathname = '/api/kurma/robots'; return NextResponse.rewrite(u) }
     if (p === '/sitemap.xml') { const u = url.clone(); u.pathname = '/kurma/sitemap.xml'; return NextResponse.rewrite(u) }
     if (p === '/agensi') { const u = url.clone(); u.pathname = '/korporat'; return NextResponse.redirect(u, 308) }

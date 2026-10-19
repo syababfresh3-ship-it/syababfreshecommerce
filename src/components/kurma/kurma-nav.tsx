@@ -23,7 +23,8 @@ export const KURMA_PAGES: { id: KurmaPageId; href: string; label: string }[] = [
 const RED = '#E11D2A'
 
 export interface KurmaNavProps {
-  current: KurmaPageId
+  /** Tab aktif; tiada (LP builder hos kurma) → semua tab tak aktif. */
+  current?: KurmaPageId
   /** Butang WhatsApp header — angle & teks ikut page (label = nama event Lead). */
   wa: { angle?: string; label: string; text: string }
   /** CTA sekunder (desktop sm+), cth '#rfq' Minta sebut harga. */

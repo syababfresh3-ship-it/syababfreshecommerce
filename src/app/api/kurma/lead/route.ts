@@ -23,7 +23,9 @@ export async function POST(request: Request) {
   if (!eventId) return new NextResponse(null, { status: 204 })
 
   const label = typeof body?.label === 'string' ? body.label.slice(0, 64) : 'gift-kurma'
-  const angle = typeof body?.angle === 'string' && LEAD_ANGLES.includes(body.angle) ? body.angle : undefined
+  // Angle = senarai kod (LEAD_ANGLES) ATAU LP builder hos kurma `lp-<slug>` (lp/[slug]/page.tsx tag {{kurma:…}})
+  const angle = typeof body?.angle === 'string' && (LEAD_ANGLES.includes(body.angle) || /^lp-[a-z0-9-]{1,80}$/.test(body.angle))
+    ? body.angle : undefined
   const estimate = typeof body?.estimate === 'number' && Number.isFinite(body.estimate) && body.estimate > 0 && body.estimate < 1_000_000
     ? Math.round(body.estimate) : undefined
   const str = (v: unknown) => (typeof v === 'string' && v ? v.slice(0, 100) : undefined)

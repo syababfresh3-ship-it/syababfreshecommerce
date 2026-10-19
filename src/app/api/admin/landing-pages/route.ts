@@ -3,6 +3,7 @@ import { sanitizePaymentMethodIds } from '@/lib/lp-payment'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
+import { normalizeLpHost } from '@/lib/lp-host'
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
@@ -13,9 +14,10 @@ export async function GET() {
     supabase!.from('landing_pages').select(select).order('created_at', { ascending: false })
 
   let res: { data: unknown; error: { code?: string; message: string } | null } =
-    await list(`${BASE}, template, landing_page_leads(count)`)
+    await list(`${BASE}, host, template, landing_page_leads(count)`)
 
-  // 42703 = lajur `template` belum wujud (migration 120 belum dijalankan) → senarai tanpa template
+  // 42703 = lajur belum wujud: `host` (migration 145) → cuba tanpa host; `template` (120) → tanpa kedua-dua
+  if (res.error?.code === '42703') res = await list(`${BASE}, template, landing_page_leads(count)`)
   if (res.error?.code === '42703') res = await list(`${BASE}, landing_page_leads(count)`)
 
   if (res.error) return NextResponse.json({ error: res.error.message }, { status: 500 })
@@ -72,12 +74,22 @@ export async function POST(request: Request) {
     insertData.payment_methods = await sanitizePaymentMethodIds(supabase!, body.payment_methods)
   }
 
-  const { data, error } = await supabase!.from('landing_pages').insert(insertData).select().single()
+  // Domain awam (migration 145): 'shop' lalai | 'kurma' (kurma.syababfresh.my/lp/slug)
+  if ('host' in body) insertData.host = normalizeLpHost(body.host)
+
+  let { data, error } = await supabase!.from('landing_pages').insert(insertData).select().single()
+  // Lajur host belum wujud → simpan tanpa host (= kedai) dan beritahu admin, bukan gagal.
+  let warning: string | undefined
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && 'host' in insertData) {
+    delete insertData.host
+    warning = 'Lajur host belum wujud — jalankan migration 145. LP disimpan untuk domain kedai.'
+    ;({ data, error } = await supabase!.from('landing_pages').insert(insertData).select().single())
+  }
 
   if (error) {
     if (error.code === '23505') return NextResponse.json({ error: 'Slug sudah digunakan' }, { status: 409 })
     if (error.code === '42703') return NextResponse.json({ error: 'Jalankan migration 120 (supabase/120_lp_live_template.sql) dulu' }, { status: 500 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json(warning ? { ...data, warning } : data, { status: 201 })
 }

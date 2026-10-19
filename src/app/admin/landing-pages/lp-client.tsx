@@ -8,6 +8,10 @@ import { createClient } from '@/lib/supabase/client'
 import { LpSectionBuilder } from './lp-section-builder'
 import { type Section } from '@/lib/lp-sections'
 import { DEFAULT_LIVE_CONFIG, validateLiveConfig, type LpLiveConfig, type LpTemplate } from '@/lib/lp-live'
+// Domain awam LP (migration 145): kedai vs subdomain kurma + tag {{kurma:...}} & contoh permulaan
+import { LP_HOSTS, normalizeLpHost, lpPublicPath, lpPublicUrl, type LpHost } from '@/lib/lp-host'
+import { KURMA_TAG_HELP } from '@/lib/lp-kurma-tags'
+import { LP_KURMA_STARTER_HTML } from '@/lib/lp-kurma-starter'
 import { LpLiveForm } from './lp-live-form'
 import { CommentsClient } from './comments/comments-client'
 import { DEFAULT_META_PIXEL_ID } from '@/lib/lp-defaults'
@@ -23,6 +27,7 @@ interface LandingPage {
   meta_pixel_id?: string | null
   google_tag_id?: string | null
   template?: LpTemplate
+  host?: LpHost | null   // migration 145 — tiada = kedai
   landing_page_leads?: { count: number }[]
 }
 
@@ -125,6 +130,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     title: '', slug: '', html_content: '', is_active: true,
     meta_pixel_id: '', google_tag_id: '',
     template: 'classic' as LpTemplate,
+    host: 'shop' as LpHost,   // migration 145 — domain awam LP
     live_config: DEFAULT_LIVE_CONFIG as LpLiveConfig,
     // migration 132 — kosong = ikut tetapan global (payment_methods.is_active)
     payment_methods: [] as string[],
@@ -492,7 +498,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [] })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', host: 'shop', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [] })
     setPmMode('global')
     loadPmCatalog()
     setSections([])
@@ -509,6 +515,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       meta_pixel_id: page.meta_pixel_id ?? '',
       google_tag_id: page.google_tag_id ?? '',
       template: page.template === 'live' ? 'live' : 'classic',
+      host: normalizeLpHost(page.host),
       live_config: DEFAULT_LIVE_CONFIG,
       payment_methods: pmOverrides[page.id] ?? [],
     })
@@ -524,6 +531,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           ...f,
           html_content: d.html_content ?? '',
           template: d.template === 'live' ? 'live' : 'classic',
+          host: d.host !== undefined ? normalizeLpHost(d.host) : f.host,
           live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
           payment_methods: pm,
         }))
@@ -590,6 +598,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       if (!res.ok) { toast.error(data.error ?? 'Failed save'); return }
 
       toast.success(isNew ? 'Landing page success dibuat!' : 'Landing page diupdate!')
+      // Lajur host belum wujud (migration 145) — LP tetap disimpan, beritahu admin
+      if (typeof data?.warning === 'string') toast(data.warning, { duration: 8000 })
 
       const savedId: string | undefined = isNew ? data?.id : editing!.id
       if (savedId) {
@@ -633,7 +643,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
   }
 
   function shareWa(page: LandingPage) {
-    const url = `${window.location.origin}/lp/${page.slug}`
+    const url = lpPublicUrl(page.slug, page.host, window.location.origin)
     const text = encodeURIComponent(`${page.title} — ${url}`)
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener')
   }
@@ -875,7 +885,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-600 block mb-1">
-                  Slug <span className="text-gray-400 font-normal">(URL: /lp/slug-anda)</span>
+                  Slug <span className="text-gray-400 font-normal">(URL: {lpPublicPath(form.slug || 'slug-anda', form.host)})</span>
                 </label>
                 <input
                   value={form.slug}
@@ -884,6 +894,23 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
                 />
               </div>
+            </div>
+
+            {/* Domain awam (migration 145): kedai vs subdomain kurma — hos kurma buka tag {{kurma:...}} */}
+            <div>
+              <label className="text-xs font-bold text-gray-600 block mb-1">Domain</label>
+              <div className="inline-flex gap-1 bg-gray-100 p-1 rounded-xl">
+                {LP_HOSTS.map(h => (
+                  <button key={h.id} type="button" onClick={() => setForm(f => ({ ...f, host: h.id }))}
+                    title={h.hint}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${form.host === h.id ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {h.label} <span className="font-normal text-gray-400">{h.hint}</span>
+                  </button>
+                ))}
+              </div>
+              {form.host === 'kurma' && (
+                <p className="text-[11px] text-gray-400 mt-1">LP dibuka di kurma.syababfresh.my. Guna tag <code className="bg-gray-100 px-1 rounded">{'{{kurma:...}}'}</code> untuk blok gift box (menu, kalkulator, WhatsApp, galeri, Studio, footer).</p>
+              )}
             </div>
 
             {/* Jenis page: Biasa (HTML/blok) vs Live (gaya TikTok, kandungan sebenar) */}
@@ -952,6 +979,18 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded">{'{{lead-form}}'}</code>
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Video Jualan: pelanggan tonton, tekan produk, bayar di page yang sama">{'{{video:URL|slug1,slug2}}'}</code>
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Borang checkout. Tanda * pada slug = produk utama — add-on (slug tanpa *) kekal nampak tetapi kelabu sehingga pelanggan pilih produk utama. Ada beberapa *? Cukup pilih salah satu. Tiada * langsung = tiada syarat.">{'{{checkout:slug*,addon}}'}</code>
+                      {form.host === 'kurma' && (
+                        <>
+                          <button type="button"
+                            onClick={() => { if (!form.html_content.trim() || confirm('Ganti HTML sekarang dengan contoh LP kurma?')) setForm(f => ({ ...f, html_content: LP_KURMA_STARTER_HTML })) }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-700 transition-colors">
+                            <LayoutTemplate className="h-3.5 w-3.5" />Isi contoh LP kurma
+                          </button>
+                          {KURMA_TAG_HELP.map(t => (
+                            <code key={t.tag} className="text-[10px] text-gray-500 bg-gray-100 px-1 rounded cursor-help" title={t.title}>{t.tag}</code>
+                          ))}
+                        </>
+                      )}
                     </div>
                   </div>
                   <textarea
@@ -1622,11 +1661,14 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                   {page.template === 'live' && (
                     <span className="ml-2 inline-flex items-center gap-1 align-middle text-[10px] font-bold uppercase tracking-wide bg-gray-900 text-white px-1.5 py-0.5 rounded"><Video className="h-3 w-3" />Live-style</span>
                   )}
+                  {page.host === 'kurma' && (
+                    <span className="ml-2 inline-flex items-center align-middle text-[10px] font-bold uppercase tracking-wide border border-gray-900 text-gray-900 px-1.5 py-0.5 rounded">Kurma</span>
+                  )}
                 </p>
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                  <span className="text-xs font-mono text-gray-400">/lp/{page.slug}</span>
+                  <span className="text-xs font-mono text-gray-400">{lpPublicPath(page.slug, page.host)}</span>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/lp/${page.slug}`); toast.success('Link disalin!') }}
+                    onClick={() => { navigator.clipboard.writeText(lpPublicUrl(page.slug, page.host, window.location.origin)); toast.success('Link disalin!') }}
                     className="text-gray-300 hover:text-gray-500 transition-colors"
                   >
                     <Copy className="h-3 w-3" />
@@ -1686,7 +1728,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 </button>
 
                 <a
-                  href={`/lp/${page.slug}`}
+                  href={lpPublicPath(page.slug, page.host)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
