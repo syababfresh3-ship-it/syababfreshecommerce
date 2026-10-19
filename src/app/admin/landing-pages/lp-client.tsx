@@ -951,7 +951,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       </button>
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded">{'{{lead-form}}'}</code>
                       <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Video Jualan: pelanggan tonton, tekan produk, bayar di page yang sama">{'{{video:URL|slug1,slug2}}'}</code>
-                      <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Borang checkout. Tanda * pada slug = produk WAJIB — add-on kekal nampak tetapi kelabu sehingga pelanggan pilih produk wajib itu. Tanpa * tiada syarat.">{'{{checkout:slug*,addon}}'}</code>
+                      <code className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded" title="Borang checkout. Tanda * pada slug = produk utama — add-on (slug tanpa *) kekal nampak tetapi kelabu sehingga pelanggan pilih produk utama. Ada beberapa *? Cukup pilih salah satu. Tiada * langsung = tiada syarat.">{'{{checkout:slug*,addon}}'}</code>
                     </div>
                   </div>
                   <textarea

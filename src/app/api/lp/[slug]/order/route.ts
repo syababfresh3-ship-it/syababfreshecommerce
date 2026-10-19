@@ -198,10 +198,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       .select('id, name')
       .in('slug', requiredSlugs)
 
-    const missing = (reqProducts ?? []).filter(rp => !orderedProductIds.has(rp.id))
-    if (missing.length > 0) {
+    // Cukup SALAH SATU produk wajib dalam pesanan (bukan semua) — sama
+    // seperti `requiredMet` dalam lp-multi-checkout.tsx.
+    const req = reqProducts ?? []
+    const hasOne = req.some(rp => orderedProductIds.has(rp.id))
+    if (req.length > 0 && !hasOne) {
+      const names = req.map(m => m.name)
       return NextResponse.json(
-        { error: `${missing.map(m => m.name).join(' & ')} wajib disertakan dalam pesanan ini` },
+        {
+          error: names.length > 1
+            ? `Pesanan ini perlu sekurang-kurangnya satu daripada: ${names.join(', ')}`
+            : `${names[0]} wajib disertakan dalam pesanan ini`,
+        },
         { status: 400 },
       )
     }
