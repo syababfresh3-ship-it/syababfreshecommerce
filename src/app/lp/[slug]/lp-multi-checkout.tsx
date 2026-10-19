@@ -115,15 +115,21 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   // ── Produk wajib ────────────────────────────────────────────────────
   // LP promosi satu produk (cth figs) menanda produk itu `slug*`. Add-on
   // kekal NAMPAK tetapi kelabu sehingga produk wajib dipilih.
+  // Lebih dari satu `slug*` → pelanggan cukup pilih SALAH SATU (bukan semua).
+  // Kos iklan ditanggung oleh mana-mana produk utama, jadi satu sudah memadai.
   // Tiada produk wajib → requiredMet sentiasa true, jadi LP lain tidak
   // terjejas langsung.
   const requiredSet = new Set(requiredIds)
   const hasRequired = requiredIds.length > 0
   const requiredSels = selections.filter(s => requiredSet.has(s.product.id))
-  const requiredMet = requiredSels.length === 0 || requiredSels.every(s => s.qty > 0)
+  const requiredMet = requiredSels.length === 0 || requiredSels.some(s => s.qty > 0)
   const requiredNames = requiredSels.map(s => s.product.name)
-  // Produk wajib habis stok → seluruh borang tidak boleh diteruskan.
-  const requiredSoldOut = requiredSels.some(s => (stocks[s.product.id] ?? null) === 0)
+  const multiRequired = requiredNames.length > 1
+  // Nama penuh untuk satu produk; untuk ramai, teks pendek — nama panjang-panjang
+  // tak muat di skrin telefon, dan lencana "Utama" sudah tunjuk yang mana.
+  const requiredLabel = multiRequired ? 'salah satu produk utama' : (requiredNames[0] ?? '')
+  // SEMUA produk wajib habis stok → tiada cara untuk buka add-on.
+  const requiredSoldOut = requiredSels.length > 0 && requiredSels.every(s => (stocks[s.product.id] ?? null) === 0)
 
   function updateSelection(idx: number, patch: Partial<ProductSelection>) {
     setSelections(prev => {
@@ -131,7 +137,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
       // Produk wajib diturunkan ke 0 → kosongkan add-on serentak. Tanpa ini
       // add-on yang sudah dipilih akan kekal dikira dalam jumlah walaupun
       // kadnya sudah kelabu — pengguna nampak harga yang tak boleh dibayar.
-      const stillMet = next.filter(x => requiredSet.has(x.product.id)).every(x => x.qty > 0)
+      const stillMet = next.filter(x => requiredSet.has(x.product.id)).some(x => x.qty > 0)
       if (hasRequired && !stillMet) {
         return next.map(x => (requiredSet.has(x.product.id) ? x : { ...x, qty: 0 }))
       }
@@ -153,7 +159,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
     if (activeSelections.length === 0) { toast.error('Sila pilih sekurang-kurangnya 1 produk'); return }
-    if (!requiredMet) { toast.error(`Sila pilih ${requiredNames.join(' & ')} dahulu`); return }
+    if (!requiredMet) { toast.error(`Sila pilih ${requiredLabel} dahulu`); return }
     if (!form.name.trim()) { toast.error('Sila masukkan nama'); return }
     if (!form.phone.trim()) { toast.error('Sila masukkan no. telefon'); return }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) { toast.error('Sila masukkan email yang sah'); return }
@@ -295,8 +301,10 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
               <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                 {hasRequired
                   ? (requiredSoldOut
-                      ? `${requiredNames.join(' & ')} sedang habis stok`
-                      : `${requiredNames.join(' & ')} wajib — add-on terbuka selepas anda pilih`)
+                      ? (multiRequired ? 'Semua produk utama sedang habis stok' : `${requiredLabel} sedang habis stok`)
+                      : multiRequired
+                        ? 'Pilih sekurang-kurangnya satu produk utama — add-on terbuka selepas itu'
+                        : `${requiredLabel} wajib — add-on terbuka selepas anda pilih`)
                   : 'Set kuantiti kepada 0 untuk tidak order'}
               </p>
             </div>
@@ -327,14 +335,14 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                       <p style={{ fontWeight: 800, fontSize: 14, color: '#111', marginBottom: 2, lineHeight: 1.3 }}>
                         {sel.product.name}
                         {isRequired && hasRequired && (
-                          <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: cv('--cherry', '#9C0F30'), border: `1px solid ${cv('--cherry', '#9C0F30')}`, borderRadius: 999, padding: '1px 6px', verticalAlign: 'middle' }}>Wajib</span>
+                          <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: cv('--cherry', '#9C0F30'), border: `1px solid ${cv('--cherry', '#9C0F30')}`, borderRadius: 999, padding: '1px 6px', verticalAlign: 'middle' }}>{multiRequired ? 'Utama' : 'Wajib'}</span>
                         )}
                       </p>
                       <p style={{ fontSize: 14, fontWeight: 900, color: cv('--cherry', '#9C0F30') }}>RM{(price * Math.max(sel.qty, 1)).toFixed(2)}</p>
                       {isLocked && (
                         <p style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 600, color: '#9ca3af', marginTop: 3 }}>
                           <Lock style={{ width: 10, height: 10, flexShrink: 0 }} />
-                          Pilih {requiredNames.join(' & ')} dahulu
+                          Pilih {requiredLabel} dahulu
                         </p>
                       )}
                     </div>

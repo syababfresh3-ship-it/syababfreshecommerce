@@ -10,6 +10,13 @@
 //   {{checkout:fresh-figs-bursa-jumbo*,mangga-harum,pisang-berangan}}
 //                                   ↑ wajib
 //
+// Lebih dari satu `*` → pelanggan cukup pilih SALAH SATU daripadanya, bukan
+// semua. Cth LP dengan tiga produk iklan:
+//
+//   {{checkout:harumanis*,figs*,delima*,sweet-persimmon}}
+//
+// → beli mana-mana satu buah utama, baru sweet-persimmon (add-on) terbuka.
+//
 // Tanpa `*` tiada apa berubah — setiap LP sedia ada berkelakuan betul-betul
 // seperti sebelum ini. Itu sengaja: peraturan ini opt-in per LP.
 //
