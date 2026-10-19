@@ -8,6 +8,8 @@ import { GiftCalculator } from '@/components/kurma/gift-calculator'
 import { KurmaFab } from '@/components/kurma/kurma-fab'
 import { KurmaNav } from '@/components/kurma/kurma-nav'
 import { KurmaFooter } from '@/components/kurma/kurma-footer'
+import { DesignRenders } from '@/components/kurma/design-renders'
+import { RENDER_HERO, RENDER_NOTE } from '@/lib/gift-renders'
 import { KurmaCountdown } from '@/components/kurma/kurma-countdown'
 import { GIFT_FAQ, GIFT_TESTIMONIALS, GIFT_CLIENTS, GIFT_WA_TEXT, RAMADAN, type GiftLandingCopy } from '@/lib/gift-copy'
 import { kurmaPath } from '@/lib/kurma-host'
@@ -39,30 +41,52 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
     <KurmaNav current="gift" wa={{ angle, label: 'gift-header', text: GIFT_WA_TEXT }} cta={{ href: '#kira', label: 'Kira harga' }} />
     <main className="min-h-screen bg-white">
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-4 pt-10 pb-10 text-center">
-        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#E11D2A] bg-[#FDECEC] px-3 py-1 rounded-full mb-4">
-          <Sparkles className="h-3.5 w-3.5" />{copy.eyebrow}
-        </div>
-        <h1 className="text-3xl sm:text-5xl font-black text-gray-900 leading-[1.08] tracking-tight max-w-3xl mx-auto text-balance">
-          {copy.headlineBefore}<span style={{ color: RED }}>{copy.headlineHighlight}</span>{copy.headlineAfter ?? ''}
-        </h1>
-        <p className="text-gray-500 mt-4 text-base sm:text-lg max-w-2xl mx-auto">{copy.sub}</p>
-        <div className="flex items-center justify-center gap-3 mt-7 flex-wrap">
-          <a href="#kira" className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: RED }}>
-            Kira harga sekarang <ChevronRight className="h-5 w-5" />
-          </a>
-          <Link href={kurmaPath('/portfolio')} className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl font-bold text-base text-gray-700 border border-gray-200 hover:border-gray-400">
-            Lihat portfolio
-          </Link>
-        </div>
+      <section className="max-w-5xl mx-auto px-4 pt-8 pb-10 lg:pt-12">
+        {/* Mobile: teks → CTA → visual → countdown. Desktop (lg): teks+countdown kiri, visual kanan (2 baris). */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] lg:grid-rows-[auto_auto] gap-x-12 gap-y-7 items-center">
+          <div className="text-center lg:text-left lg:col-start-1 lg:row-start-1 lg:self-end">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#E11D2A] bg-[#FDECEC] px-3 py-1 rounded-full mb-4">
+              <Sparkles className="h-3.5 w-3.5" />{copy.eyebrow}
+            </div>
+            <h1 className="text-3xl sm:text-5xl font-black text-gray-900 leading-[1.08] tracking-tight max-w-3xl mx-auto lg:mx-0 text-balance">
+              {copy.headlineBefore}<span style={{ color: RED }}>{copy.headlineHighlight}</span>{copy.headlineAfter ?? ''}
+            </h1>
+            <p className="text-gray-500 mt-4 text-base sm:text-lg max-w-2xl mx-auto lg:mx-0">{copy.sub}</p>
+            <div className="flex items-center justify-center lg:justify-start gap-3 mt-7 flex-wrap">
+              <a href="#kira" className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl text-white font-bold text-base" style={{ background: RED }}>
+                Kira harga sekarang <ChevronRight className="h-5 w-5" />
+              </a>
+              <Link href={kurmaPath('/portfolio')} className="inline-flex items-center gap-1.5 px-6 py-3.5 rounded-2xl font-bold text-base text-gray-700 border border-gray-200 hover:border-gray-400">
+                Lihat portfolio
+              </Link>
+            </div>
+          </div>
 
-        {/* Urgency — tempah awal Ramadan 1448H */}
-        <div className="max-w-md mx-auto mt-8">
-          <KurmaCountdown deadline={RAMADAN.deadline} label={RAMADAN.label} />
+          {/* Visual hero — render AI daripada artwork sebenar klien (lib/gift-renders.ts); dilabel, bukan foto produk */}
+          <figure className="w-full max-w-sm mx-auto lg:max-w-none lg:col-start-2 lg:row-start-1 lg:row-span-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={RENDER_HERO.src}
+              srcSet={RENDER_HERO.srcSet}
+              sizes="(min-width: 1024px) 420px, (min-width: 640px) 384px, 88vw"
+              width={RENDER_HERO.width}
+              height={RENDER_HERO.height}
+              alt={RENDER_HERO.alt}
+              fetchPriority="high"
+              decoding="async"
+              className="w-full aspect-[4/5] object-cover rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.10)] bg-gray-50"
+            />
+            <figcaption className="text-[11px] text-gray-400 text-center mt-2">{RENDER_NOTE}</figcaption>
+          </figure>
+
+          {/* Urgency — tempah awal Ramadan 1448H */}
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:col-start-1 lg:row-start-2 lg:self-start">
+            <KurmaCountdown deadline={RAMADAN.deadline} label={RAMADAN.label} />
+          </div>
         </div>
 
         {/* Social proof */}
-        <div className="mt-10">
+        <div className="mt-10 text-center">
           <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Telah dipercayai</p>
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 mt-3 max-w-3xl mx-auto">
             {CLIENTS.map(c => <span key={c} className="text-sm font-bold text-gray-400">{c}</span>)}
@@ -105,6 +129,9 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
           ))}
         </div>
       </section>
+
+      {/* Design yang kami hasilkan — render (dilabel), selepas manfaat 'kami reka untuk anda' */}
+      <DesignRenders />
 
       {/* Cara order */}
       <section className="max-w-5xl mx-auto px-4 pb-14">

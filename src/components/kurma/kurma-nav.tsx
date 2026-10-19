@@ -5,10 +5,11 @@ import { kurmaPath } from '@/lib/kurma-host'
 // Menu kongsi mini-site kurma (kurma.syababfresh.my): Gift Box · Korporat · Borong · Portfolio.
 // Dulu LP iklan sengaja tiada header (fokus satu CTA); kini subdomain ada 4 page awam yang sales
 // hantar pautannya — pelawat mesti boleh tukar ke tawaran yang betul (kedai → borong, pejabat → korporat).
-//  - Desktop (md+): melekat; baris 1 = logo + tab page + CTA + WhatsApp; baris 2 (pilihan) = anchor
-//    dalam page (korporat/borong) — seksyen sasaran perlu `md:scroll-mt-24` (tinggi 56+36px).
-//  - Mobile: TIDAK melekat (jimat skrin; KurmaFab dah cover WhatsApp); tab page = chip scroll mendatar,
-//    tiada hamburger. Tab aktif ditebalkan (aria-current).
+// Gaya: tab teks bergaris bawah (pilihan pemilik 18 Okt; chip pil nampak macam penapis, bukan navigasi).
+//  - Desktop (md+): melekat; baris 1 = logo + tab (aktif: tebal + garis merah) + CTA + WhatsApp;
+//    baris 2 (pilihan) = anchor dalam page (korporat/borong) — seksyen sasaran perlu `md:scroll-mt-24`.
+//  - Mobile: TIDAK melekat (jimat skrin; KurmaFab dah cover WhatsApp); baris 2 = 4 tab seluas skrin,
+//    sama lebar, tiada hamburger. Tab aktif ditebalkan (aria-current).
 //  - /studio (hot-lead, noindex) tiada dalam senarai tab tapi tetap papar menu (current='studio' → tiada aktif).
 export type KurmaPageId = 'gift' | 'korporat' | 'borong' | 'portfolio' | 'studio'
 
@@ -18,6 +19,8 @@ export const KURMA_PAGES: { id: KurmaPageId; href: string; label: string }[] = [
   { id: 'borong', href: '/borong', label: 'Borong' },
   { id: 'portfolio', href: '/portfolio', label: 'Portfolio' },
 ]
+
+const RED = '#E11D2A'
 
 export interface KurmaNavProps {
   current: KurmaPageId
@@ -29,16 +32,22 @@ export interface KurmaNavProps {
   anchors?: { href: string; label: string }[]
 }
 
+/** Garis merah di bawah tab aktif — dikongsi tab desktop & mobile. */
+function ActiveBar({ inset }: { inset: string }) {
+  return <span aria-hidden className={`absolute bottom-0 h-0.5 rounded-full ${inset}`} style={{ background: RED }} />
+}
+
 export function KurmaNav({ current, wa, cta, anchors }: KurmaNavProps) {
   return (
-    <header className="bg-white border-b border-gray-100 md:sticky md:top-0 md:z-30 md:bg-white/90 md:backdrop-blur">
+    <header className="bg-white border-b border-gray-200 md:sticky md:top-0 md:z-30 md:bg-white/95 md:backdrop-blur">
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
         <Link href={kurmaPath('/')} className="shrink-0" aria-label="Kurma SyababFresh — halaman utama">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/syababfresh-logo.png" alt="SyababFresh" className="h-8 w-auto" />
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1" aria-label="Halaman kurma">
+        {/* Desktop: tab teks setinggi header, garis merah di bawah tab aktif */}
+        <nav className="hidden md:flex items-stretch self-stretch gap-1" aria-label="Halaman kurma">
           {KURMA_PAGES.map(p => {
             const active = p.id === current
             return (
@@ -46,9 +55,10 @@ export function KurmaNav({ current, wa, cta, anchors }: KurmaNavProps) {
                 key={p.id}
                 href={kurmaPath(p.href)}
                 aria-current={active ? 'page' : undefined}
-                className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition ${active ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                className={`relative inline-flex items-center px-3.5 text-[14px] transition ${active ? 'font-bold text-gray-900' : 'font-semibold text-gray-500 hover:text-gray-900'}`}
               >
                 {p.label}
+                {active ? <ActiveBar inset="inset-x-3.5" /> : null}
               </Link>
             )
           })}
@@ -62,21 +72,24 @@ export function KurmaNav({ current, wa, cta, anchors }: KurmaNavProps) {
         </div>
       </div>
 
-      {/* Mobile: chip page — scroll mendatar */}
-      <nav className="md:hidden flex items-center gap-2 overflow-x-auto no-scrollbar px-4 pb-2.5" aria-label="Halaman kurma">
-        {KURMA_PAGES.map(p => {
-          const active = p.id === current
-          return (
-            <Link
-              key={p.id}
-              href={kurmaPath(p.href)}
-              aria-current={active ? 'page' : undefined}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold border ${active ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200'}`}
-            >
-              {p.label}
-            </Link>
-          )
-        })}
+      {/* Mobile: 4 tab sama lebar seluas skrin, garis merah di bawah tab aktif */}
+      <nav className="md:hidden border-t border-gray-100" aria-label="Halaman kurma">
+        <div className="grid grid-cols-4">
+          {KURMA_PAGES.map(p => {
+            const active = p.id === current
+            return (
+              <Link
+                key={p.id}
+                href={kurmaPath(p.href)}
+                aria-current={active ? 'page' : undefined}
+                className={`relative flex items-center justify-center h-11 text-[13px] whitespace-nowrap ${active ? 'font-bold text-gray-900' : 'font-semibold text-gray-500'}`}
+              >
+                {p.label}
+                {active ? <ActiveBar inset="inset-x-4" /> : null}
+              </Link>
+            )
+          })}
+        </div>
       </nav>
 
       {/* Anchor dalam page (desktop) */}

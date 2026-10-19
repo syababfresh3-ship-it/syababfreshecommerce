@@ -1,10 +1,10 @@
-import { kurmaOg } from '@/lib/kurma-og'
+import { kurmaOg, asJpeg } from '@/lib/kurma-og'
 import { HERO } from '@/lib/borong-copy'
 import { BORONG_CATALOG } from '@/lib/borong-pricing'
 import { getBorongProducts } from '@/lib/borong-data'
 
 export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+export const contentType = 'image/jpeg'
 
 // OG LP borong: teks + foto produk `featured` pertama (PNG/JPEG DB → normalise & kecilkan dgn sharp → JPEG
 // data URL supaya Satori tak fetch luar). Apa-apa gagal → teks sahaja.
@@ -23,5 +23,6 @@ export default async function Image() {
       }
     }
   } catch { dataUrl = undefined }
-  return kurmaOg(`${HERO.headlineBefore}${HERO.headlineHighlight}`, HERO.sub, dataUrl, { kicker: 'Kurma Borong', footer: 'Karton 3–5kg · Kedai · Bazar · Ejen · Masjid · WhatsApp 011-5640 3601' })
+  // JPEG: PNG berfoto 440KB melebihi had thumbnail WhatsApp (~300KB)
+  return asJpeg(kurmaOg(`${HERO.headlineBefore}${HERO.headlineHighlight}`, HERO.sub, dataUrl, { kicker: 'Kurma Borong', footer: 'Karton 3–5kg · Kedai · Bazar · Ejen · Masjid · WhatsApp 011-5640 3601' }))
 }

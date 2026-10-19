@@ -1,10 +1,10 @@
-import { kurmaOg } from '@/lib/kurma-og'
+import { kurmaOg, asJpeg } from '@/lib/kurma-og'
 import { HERO } from '@/lib/korporat-copy'
 import { featuredCases, photoAt } from '@/lib/gift-clients'
 import { thumbUrl } from '@/lib/gift'
 
 export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
+export const contentType = 'image/jpeg'
 
 // OG LP korporat: teks + foto kotak klien pertama (BPMB). Foto diambil sebagai bait → data URL
 // (Satori tak fetch luar). Satori TAK sokong WebP (foto kita semua .webp) → tukar ke JPEG dgn `sharp`
@@ -20,5 +20,6 @@ export default async function Image() {
       dataUrl = `data:image/jpeg;base64,${jpg.toString('base64')}`
     }
   } catch { dataUrl = undefined }
-  return kurmaOg(`${HERO.headlineBefore}${HERO.headlineHighlight}`, HERO.sub, dataUrl)
+  // JPEG: PNG berfoto 375KB melebihi had thumbnail WhatsApp (~300KB)
+  return asJpeg(kurmaOg(`${HERO.headlineBefore}${HERO.headlineHighlight}`, HERO.sub, dataUrl))
 }
