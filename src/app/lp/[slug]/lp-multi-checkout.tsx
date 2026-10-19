@@ -321,6 +321,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
               const isRequired = requiredSet.has(sel.product.id)
               // Add-on kekal nampak tetapi terkunci sehingga produk wajib dipilih.
               const isLocked = hasRequired && !isRequired && !requiredMet
+              const productImage = sel.product.image_url || sel.product.images?.[0] || null
 
               return (
                 <div key={sel.product.id} style={{
@@ -397,6 +398,22 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                           </button>
                         )
                       })}
+                    </div>
+                  )}
+                  {/* Gambar produk — keluar bila produk dipilih, supaya pelanggan
+                      nampak rupa buah sebelum bayar. object-fit: contain supaya
+                      gambar produk (biasanya latar putih) tak terpotong. */}
+                  {isActive && productImage && (
+                    <div style={{ padding: '0 14px 14px' }}>
+                      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img
+                          src={productImage}
+                          alt={sel.product.name}
+                          decoding="async"
+                          onError={e => { const box = e.currentTarget.parentElement?.parentElement; if (box) box.style.display = 'none' }}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
