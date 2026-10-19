@@ -6,12 +6,13 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag,
   BarChart2, Image, MapPin, FolderOpen,
-  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box,
+  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
+import { kurmaPath } from '@/lib/kurma-host'
 
-type NavEntry = { href: string; label: string; icon: React.ElementType; badge?: keyof Counts }
+type NavEntry = { href: string; label: string; icon: React.ElementType; badge?: keyof Counts; external?: boolean }
 type Section = { label: string; items: NavEntry[]; collapsible?: boolean }
 
 // Disorok dari nav 2026-09-23 (page masih wujud — boleh dibuka terus via URL).
@@ -84,6 +85,9 @@ const sections: Section[] = [
       { href: '/admin/kurma',         label: 'Gift Orders',  icon: Gift },
       { href: '/admin/kurma/catalog', label: 'Gift Catalog', icon: Box },
       { href: '/admin/kurma/costs',   label: 'Kos & Harga',  icon: Calculator },
+      { href: '/admin/borong',        label: 'Harga Borong', icon: Package },
+      // LP awam kurma (kurma.syababfresh.my di production; /kurma di dev) — buka tab baharu, bukan page admin.
+      { href: kurmaPath('/'),         label: 'Buka LP Kurma', icon: Link2, external: true },
     ],
   },
   {
@@ -108,7 +112,6 @@ const sections: Section[] = [
       { href: '/admin/marketing',         label: 'Ad Tracking',      icon: Megaphone },
       { href: '/admin/settings/whatsapp', label: 'WA Templates',     icon: MessageCircle },
       { href: '/admin/resellers',         label: 'Reseller',         icon: Store },
-      { href: '/admin/borong',            label: 'Harga Borong',     icon: Package },
       { href: '/admin/tiktok-sync',       label: 'TikTok Customers', icon: ShoppingBag },
     ],
   },
@@ -231,6 +234,7 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
                       icon={item.icon}
                       active={item.href === activeHref}
                       badge={getBadge(item.badge)}
+                      external={item.external}
                     />
                   ))}
                 </div>
@@ -255,19 +259,30 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
 }
 
 function NavItem({
-  href, label, icon: Icon, active, badge,
+  href, label, icon: Icon, active, badge, external,
 }: {
   href: string; label: string; icon: React.ElementType
-  active: boolean; badge?: number
+  active: boolean; badge?: number; external?: boolean
 }) {
+  const className = `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group ${
+    active
+      ? 'bg-brand-red-600 text-white'
+      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+  }`
+  // Pautan luar (cth LP kurma): tab baharu, tiada keadaan aktif/badge.
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate">{label}</span>
+        <ExternalLink className="h-3 w-3 opacity-50" />
+      </a>
+    )
+  }
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group ${
-        active
-          ? 'bg-brand-red-600 text-white'
-          : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-      }`}
+      className={className}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span className="flex-1 truncate">{label}</span>
