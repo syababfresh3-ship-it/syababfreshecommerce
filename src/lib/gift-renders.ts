@@ -12,8 +12,7 @@ export const RENDER_HERO = {
   width: 1122,
   height: 1402,
   alt: 'Koleksi gift box kurma custom — BPMB, Hertz / Thrifty dan reka bentuk Ramadan lain (visual render)',
-  /** Laluan fail dari root projek — untuk OG image (dibaca di server, bukan URL). */
-  file: 'public/kurma/renders/koleksi-hero.webp',
+  // Fail sumber OG dibaca di server dengan laluan literal dalam lib/kurma-og-photo.ts (sebab NFT tracing) — kekalkan selari.
 }
 
 export interface DesignRender { slug: string; src: string; label: string; client: string | null }
