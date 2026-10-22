@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLpCart } from '@/lib/stores/lp-cart'
+import { lpTrackInitiateCheckout } from '@/lib/lp-tracking'
 import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, Mail, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
 import { freeDeliveryActive } from '@/lib/shipping'
@@ -90,6 +91,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
     setStep('form')
     setOrderResult(null)
     setOpen(true)
+    lpTrackInitiateCheckout(slug, sub)  // Meta Pixel, sekali per sesi (lib/lp-tracking)
     if (paymentMethods.length === 0) {
       // ?slug= — LP boleh ada senarai kaedah bayaran sendiri (migration 132)
       const res = await fetch(`/api/lp/payment-methods?slug=${encodeURIComponent(slug)}`)

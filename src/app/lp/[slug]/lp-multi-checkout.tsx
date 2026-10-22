@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { lpTrackInitiateCheckout } from '@/lib/lp-tracking'
 import { toast } from 'sonner'
 import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag, PackageX } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
@@ -433,7 +434,8 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
         <div style={{ height: 8, background: '#f3f4f6', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }} />
 
         {/* ── STEP 2: Customer Details ── */}
-        <div style={{ padding: '20px 20px 0' }}>
+        {/* Meta Pixel InitiateCheckout: sekali per sesi, bila pembeli mula isi maklumat */}
+        <div style={{ padding: '20px 20px 0' }} onFocusCapture={() => lpTrackInitiateCheckout(slug, subtotal)}>
           <div style={sectionHead}>
             <div style={stepBadge}>2</div>
             <div>

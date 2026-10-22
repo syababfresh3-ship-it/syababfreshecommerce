@@ -9,6 +9,8 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Pembayaran Berjaya — SyababFresh' }
 
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<{ pesanan?: string }> }
+// Bentuk item dalam lp_guest_orders.items (jsonb) / lajur legasi — untuk lint & pixel.
+type LpOrderItem = { product_id?: string | null; product_name?: string | null; variant_name?: string | null; quantity: number; unit_price: number | string }
 
 export default async function ThankYouPage({ params, searchParams }: Props) {
   const { slug } = await params
@@ -34,10 +36,30 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
     .single()
     .then(r => r.data) : null
 
-  const items: any[] = Array.isArray(order?.items) && order.items.length > 0
+  const items: LpOrderItem[] = Array.isArray(order?.items) && order.items.length > 0
     ? order.items
     : order ? [{ product_name: order.product_name, variant_name: order.variant_name, quantity: order.quantity, unit_price: order.unit_price }]
     : []
+
+  // Meta Pixel Purchase (22 Okt 2026):
+  // - eventID = purchase_<order_number>, SAMA dengan event_id CAPI (lib/meta-capi.ts
+  //   sendCapiPurchase) → Meta dedup pelayar ↔ pelayan.
+  // - Penanda sessionStorage per order → tak fire semula bila page ini di-refresh.
+  // - Nilai dimasukkan ke skrip melalui JSON.stringify (bukan interpolasi mentah).
+  const pixelId = String(page.meta_pixel_id ?? '').replace(/[^0-9]/g, '')
+  const orderNo = order ? String(order.order_number).replace(/[^A-Za-z0-9_-]/g, '') : ''
+  const purchaseKey = orderNo ? `sf_lp_purchase_${orderNo}` : `sf_lp_purchase_${slug.replace(/[^A-Za-z0-9_-]/g, '')}_tiada`
+  const purchaseData = {
+    value: Number(order?.total ?? 0),
+    currency: 'MYR',
+    content_type: 'product',
+    contents: items.map((i) => ({ id: String(i.product_id ?? i.product_name ?? ''), quantity: Number(i.quantity) || 1 })),
+    num_items: items.reduce((s, i) => s + (Number(i.quantity) || 1), 0),
+  }
+  const js = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c')
+  const purchaseArgs = orderNo
+    ? `${js(purchaseData)}, ${js({ eventID: `purchase_${orderNo}` })}`
+    : js(purchaseData)
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafafa', fontFamily: "'DM Sans', sans-serif" }}>
@@ -47,11 +69,16 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
       )}
 
       {/* Meta Pixel */}
-      {page.meta_pixel_id && (
+      {pixelId && (
         <script dangerouslySetInnerHTML={{ __html: `
           !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init', '${page.meta_pixel_id}');
-          fbq('track', 'Purchase', { value: ${order?.total ?? 0}, currency: 'MYR' });
+          fbq('init', '${pixelId}');
+          (function(){
+            var k = ${js(purchaseKey)};
+            try { if (window.sessionStorage.getItem(k)) return; } catch (e) {}
+            fbq('track', 'Purchase', ${purchaseArgs});
+            try { window.sessionStorage.setItem(k, '1'); } catch (e) {}
+          })();
         ` }} />
       )}
 
@@ -92,7 +119,7 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
                     <span style={{ fontWeight: 700, color: '#111' }}>{order.phone}</span>
                   </div>
                   <div style={{ borderTop: '1px solid #fecaca', paddingTop: 10, marginTop: 4 }}>
-                    {items.map((item: any, i: number) => (
+                    {items.map((item, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: i < items.length - 1 ? 6 : 0 }}>
                         <span style={{ color: '#374151' }}>{item.product_name}{item.variant_name ? ` · ${item.variant_name}` : ''} × {item.quantity}</span>
                         <span style={{ fontWeight: 700, color: '#111' }}>RM{(Number(item.unit_price) * item.quantity).toFixed(2)}</span>
@@ -151,8 +178,8 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
 }
 
 // Client component for WhatsApp (needs window)
-function WaButton({ order, items }: { order: any; items: any[] }) {
-  const itemLines = items.map((i: any) =>
+function WaButton({ order, items }: { order: { order_number: string; total: number | string }; items: LpOrderItem[] }) {
+  const itemLines = items.map((i) =>
     `• ${i.product_name}${i.variant_name ? ` (${i.variant_name})` : ''} × ${i.quantity} — RM${(Number(i.unit_price) * i.quantity).toFixed(2)}`
   ).join('\n')
 

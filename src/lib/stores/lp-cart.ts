@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { lpTrackAddToCart } from '@/lib/lp-tracking'
 
 export interface LpCartItem {
   productId: string
@@ -25,7 +26,9 @@ interface LpCartStore {
 export const useLpCart = create<LpCartStore>((set, get) => ({
   items: [],
 
-  addItem: (item) => set(state => {
+  // Meta Pixel AddToCart (22 Okt 2026) — di sini supaya SEMUA pemanggil addItem
+  // (LpAddToCartBtn, LpLive, LpVideo) dikira tanpa ubah setiap komponen.
+  addItem: (item) => { lpTrackAddToCart(item); set(state => {
     const existing = state.items.find(
       i => i.productId === item.productId && i.variantId === item.variantId
     )
@@ -39,7 +42,7 @@ export const useLpCart = create<LpCartStore>((set, get) => ({
       }
     }
     return { items: [...state.items, item] }
-  }),
+  }) },
 
   removeItem: (productId, variantId) => set(state => ({
     items: state.items.filter(
