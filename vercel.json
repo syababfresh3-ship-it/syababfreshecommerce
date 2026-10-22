@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/reconcile-payments",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/pricing-auto-apply",
+      "schedule": "0 0 * * 1"
     }
   ]
 }
