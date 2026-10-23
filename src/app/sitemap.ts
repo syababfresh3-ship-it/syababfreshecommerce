@@ -24,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // kurma.<domain>/sitemap.xml) → jangan senarai di sini.
     ...(KURMA_ORIGIN ? [] : [
       { url: `${BASE_URL}/kurma`, changeFrequency: 'weekly' as const, priority: 0.8 },
+      { url: `${BASE_URL}/kurma/shop`, changeFrequency: 'daily' as const, priority: 0.8 },
       { url: `${BASE_URL}/kurma/korporat`, changeFrequency: 'weekly' as const, priority: 0.8 },
       { url: `${BASE_URL}/kurma/borong`, changeFrequency: 'weekly' as const, priority: 0.8 },
       { url: `${BASE_URL}/kurma/portfolio`, changeFrequency: 'monthly' as const, priority: 0.6 },

@@ -11,10 +11,12 @@ import { kurmaPath } from '@/lib/kurma-host'
 //  - Mobile: TIDAK melekat (jimat skrin; KurmaFab dah cover WhatsApp); baris 2 = 4 tab seluas skrin,
 //    sama lebar, tiada hamburger. Tab aktif ditebalkan (aria-current).
 //  - /studio (hot-lead, noindex) tiada dalam senarai tab tapi tetap papar menu (current='studio' → tiada aktif).
-export type KurmaPageId = 'gift' | 'korporat' | 'borong' | 'portfolio' | 'studio'
+export type KurmaPageId = 'gift' | 'shop' | 'korporat' | 'borong' | 'portfolio' | 'studio'
 
 export const KURMA_PAGES: { id: KurmaPageId; href: string; label: string }[] = [
   { id: 'gift', href: '/', label: 'Gift Box' },
+  // Kedai kurma satu page (23 Okt 2026) — beli terus kurma & barang kering, tanpa buah segar
+  { id: 'shop', href: '/shop', label: 'Shop' },
   { id: 'korporat', href: '/korporat', label: 'Korporat' },
   { id: 'borong', href: '/borong', label: 'Borong' },
   { id: 'portfolio', href: '/portfolio', label: 'Portfolio' },
@@ -73,9 +75,9 @@ export function KurmaNav({ current, wa, cta, anchors }: KurmaNavProps) {
         </div>
       </div>
 
-      {/* Mobile: 4 tab sama lebar seluas skrin, garis merah di bawah tab aktif */}
+      {/* Mobile: 5 tab sama lebar seluas skrin, garis merah di bawah tab aktif */}
       <nav className="md:hidden border-t border-gray-100" aria-label="Halaman kurma">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {KURMA_PAGES.map(p => {
             const active = p.id === current
             return (

@@ -10,9 +10,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 //   shop.<domain>/kurma/x      → 308 https://kurma.<domain>/x (pautan/iklan lama kekal jalan)
 //   kurma.<domain>/lp/<slug>   → dilalukan terus ke /lp/<slug> (LP builder admin dengan host='kurma',
 //                                migration 145; page sendiri set canonical ikut hos — tiada DB di proxy)
+//   kurma.<domain>/shop        → rewrite /kurma/shop (kedai kurma satu page, 23 Okt 2026); flow beli
+//                                (/cart, /checkout, /orders, /resit, /products, /login, /daftar, /auth)
+//                                dilalukan terus pada hos kurma + X-Robots-Tag noindex (kanonik = hos kedai)
+//                                supaya troli (localStorage ikut origin) & checkout di hos yang sama.
 // API, _next, ikon & fail statik dilalukan terus pada kedua-dua hos. Tiada auth diperlukan di subdomain.
 const KURMA_HOST = process.env.NEXT_PUBLIC_KURMA_HOST ?? ''
 const META_ASSET = /\/(opengraph|twitter)-image(\/|$|\?)/
+// Laluan kedai yang perlu wujud di hos kurma untuk beli dari /shop (bukan page funnel)
+const STORE_FLOW = /^\/(cart|checkout|orders|resit|products|login|daftar|auth|reset-password)(\/|$)/
 const isPassThrough = (p: string) => p.startsWith('/_next') || p.startsWith('/api/') || p.startsWith('/icons/') || (/\.[a-z0-9]{2,5}$/i.test(p) && p !== '/robots.txt' && p !== '/sitemap.xml')
 
 function kurmaHostRouting(request: NextRequest): NextResponse | null {
@@ -23,6 +29,7 @@ function kurmaHostRouting(request: NextRequest): NextResponse | null {
   if (host === KURMA_HOST) {
     if (isPassThrough(p)) return NextResponse.next()
     if (p === '/lp' || p.startsWith('/lp/')) return NextResponse.next()
+    if (STORE_FLOW.test(p)) { const res = NextResponse.next(); res.headers.set('X-Robots-Tag', 'noindex, follow'); return res }
     if (p === '/robots.txt') { const u = url.clone(); u.pathname = '/api/kurma/robots'; return NextResponse.rewrite(u) }
     if (p === '/sitemap.xml') { const u = url.clone(); u.pathname = '/kurma/sitemap.xml'; return NextResponse.rewrite(u) }
     if (p === '/agensi') { const u = url.clone(); u.pathname = '/korporat'; return NextResponse.redirect(u, 308) }

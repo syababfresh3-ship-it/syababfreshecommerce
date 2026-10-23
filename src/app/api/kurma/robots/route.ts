@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export function GET() {
   const prod = process.env.VERCEL_ENV === 'production'
   const body = prod
-    ? `User-agent: *\nAllow: /\nDisallow: /studio\nDisallow: /berjaya/\nDisallow: /api/\n\nSitemap: ${KURMA_ORIGIN || 'https://shop.syababfresh.my/kurma'}/sitemap.xml\n`
+    ? `User-agent: *\nAllow: /\nDisallow: /studio\nDisallow: /berjaya/\nDisallow: /api/\nDisallow: /cart\nDisallow: /checkout\nDisallow: /orders\nDisallow: /resit\nDisallow: /login\nDisallow: /daftar\n\nSitemap: ${KURMA_ORIGIN || 'https://shop.syababfresh.my/kurma'}/sitemap.xml\n`
     : 'User-agent: *\nDisallow: /\n'
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } })
 }

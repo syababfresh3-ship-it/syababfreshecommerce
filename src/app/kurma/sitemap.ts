@@ -6,6 +6,7 @@ import { kurmaAbs } from '@/lib/kurma-host'
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: kurmaAbs('/'), changeFrequency: 'weekly', priority: 0.9 },
+    { url: kurmaAbs('/shop'), changeFrequency: 'daily', priority: 0.9 },
     { url: kurmaAbs('/korporat'), changeFrequency: 'weekly', priority: 0.8 },
     { url: kurmaAbs('/borong'), changeFrequency: 'weekly', priority: 0.8 },
     { url: kurmaAbs('/portfolio'), changeFrequency: 'monthly', priority: 0.6 },

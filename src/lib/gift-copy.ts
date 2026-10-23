@@ -57,7 +57,7 @@ export const GIFT_ANGLES = Object.keys(GIFT_VARIANTS).filter(k => k !== 'default
 // Angle 'korporat' & 'agensi' kini satu LP trust statik (/kurma/korporat; /kurma/agensi → redirect),
 // 'borong' = LP kurma borong statik (/kurma/borong) — bukan varian GiftLanding (elak prerender pendua).
 // Senarai ini untuk /api/kurma/lead (CAPI).
-export const LEAD_ANGLES = [...GIFT_ANGLES, 'korporat', 'borong']
+export const LEAD_ANGLES = [...GIFT_ANGLES, 'korporat', 'borong', 'shop']
 
 // Teks WhatsApp pra-isi LP gift box (FAB, header KurmaNav, /studio, /portfolio) — satu sumber.
 export const GIFT_WA_TEXT = 'Salam Syabab Dates 👋\n\nSaya berminat dengan Custom Gift Box Kurma. Boleh bantu sebut harga?\n\nHantar ke (negeri/bandar): ___\nNama syarikat / agensi: ___\nPerlu menjelang (tarikh): ___'

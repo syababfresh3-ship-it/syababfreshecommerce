@@ -7,6 +7,7 @@ import { kurmaPath, shopPath } from '@/lib/kurma-host'
 // studio ada baris teks kecil) — kini satu footer sama di 5 page supaya pelawat jumpa page lain.
 const LINKS = [
   { href: kurmaPath('/'), label: 'Custom Gift Box Kurma' },
+  { href: kurmaPath('/shop'), label: 'Shop — Beli Kurma Online' },
   { href: kurmaPath('/korporat'), label: 'Gift Box Korporat & Agensi' },
   { href: kurmaPath('/borong'), label: 'Kurma Borong (karton)' },
   { href: kurmaPath('/portfolio'), label: 'Portfolio' },
