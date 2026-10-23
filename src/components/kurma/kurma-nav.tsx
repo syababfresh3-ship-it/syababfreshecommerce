@@ -14,9 +14,10 @@ import { kurmaPath } from '@/lib/kurma-host'
 export type KurmaPageId = 'gift' | 'shop' | 'korporat' | 'borong' | 'portfolio' | 'studio'
 
 export const KURMA_PAGES: { id: KurmaPageId; href: string; label: string }[] = [
-  { id: 'gift', href: '/', label: 'Gift Box' },
-  // Kedai kurma satu page (23 Okt 2026) — beli terus kurma & barang kering, tanpa buah segar
+  // Kedai kurma satu page (23 Okt 2026) — beli terus kurma & barang kering, tanpa buah segar.
+  // Pemilik mahu Shop di tab paling kiri (23 Okt); page utama subdomain kekal gift box.
   { id: 'shop', href: '/shop', label: 'Shop' },
+  { id: 'gift', href: '/', label: 'Gift Box' },
   { id: 'korporat', href: '/korporat', label: 'Korporat' },
   { id: 'borong', href: '/borong', label: 'Borong' },
   { id: 'portfolio', href: '/portfolio', label: 'Portfolio' },
