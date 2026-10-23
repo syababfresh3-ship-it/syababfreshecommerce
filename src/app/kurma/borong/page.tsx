@@ -22,7 +22,7 @@ import { BORONG_GROUPS, hasAgentProgram } from '@/lib/borong-pricing'
 import { getBorongRows, getBorongSettings } from '@/lib/borong-data'
 import { effectiveTerms } from '@/lib/borong-settings'
 import { COMPANY } from '@/lib/company'
-import { kurmaPath } from '@/lib/kurma-host'
+import { kurmaAbs, kurmaPath } from '@/lib/kurma-host'
 
 // LP kurma borong — destinasi iklan "kurma borong" & pautan untuk peniaga. Harga/terma dari
 // lib/borong-pricing.ts (pemilik isi; null = tak dirender). Permohonan → /api/kurma/borong → admin Resellers.
@@ -51,7 +51,7 @@ export default async function BorongPage() {
 
   return (
     <>
-      <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Kurma', path: '/kategori/kurma' }, { name: 'Kurma Borong', path: '/kurma/borong' }])} />
+      <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Gift Box Kurma', url: kurmaAbs('/') }, { name: 'Kurma Borong', url: kurmaAbs('/borong') }])} />
       <KurmaNav
         current="borong"
         wa={{ angle: 'borong', label: 'borong-header', text: BORONG_WA_TEXT }}

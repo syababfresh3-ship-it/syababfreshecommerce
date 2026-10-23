@@ -143,7 +143,8 @@ export function withAggregateRating(
 }
 
 // BreadcrumbList — bantu Google faham hierarki & papar breadcrumb dalam carian.
-export function breadcrumbSchema(items: { name: string; path: string }[]) {
+// `path` = relatif kepada kedai (BASE_URL); `url` = absolute (cth page di subdomain kurma — guna kurmaAbs()).
+export function breadcrumbSchema(items: { name: string; path?: string; url?: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -151,8 +152,48 @@ export function breadcrumbSchema(items: { name: string; path: string }[]) {
       '@type': 'ListItem',
       position: i + 1,
       name: it.name,
-      item: `${BASE_URL}${it.path}`,
+      item: it.url ?? `${BASE_URL}${it.path ?? ''}`,
     })),
+  }
+}
+
+// Service — perkhidmatan tempahan (bukan produk stok tetap), cth gift box kurma custom.
+// Harga = julat (AggregateOffer) kerana ikut kuantiti/berat; pembekal = Organization root.
+// Hanya hantar angka yang benar-benar dipapar/dikira pada page (jangan reka harga).
+export function serviceSchema(s: {
+  name: string
+  description: string
+  url: string
+  serviceType?: string
+  areaServed?: string
+  offers?: { lowPrice: number; highPrice?: number; currency?: string; minQty?: number; unitText?: string; note?: string }
+}) {
+  const o = s.offers
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    '@id': `${s.url}#service`,
+    name: s.name,
+    description: s.description,
+    url: s.url,
+    ...(s.serviceType ? { serviceType: s.serviceType } : {}),
+    provider: { '@id': `${BASE_URL}/#organization` },
+    ...(s.areaServed ? { areaServed: { '@type': 'Country', name: s.areaServed } } : {}),
+    ...(o
+      ? {
+          offers: {
+            '@type': 'AggregateOffer',
+            priceCurrency: o.currency ?? 'MYR',
+            lowPrice: o.lowPrice.toFixed(2),
+            ...(o.highPrice != null ? { highPrice: o.highPrice.toFixed(2) } : {}),
+            url: s.url,
+            ...(o.minQty
+              ? { eligibleQuantity: { '@type': 'QuantitativeValue', minValue: o.minQty, ...(o.unitText ? { unitText: o.unitText } : {}) } }
+              : {}),
+            ...(o.note ? { description: o.note } : {}),
+          },
+        }
+      : {}),
   }
 }
 

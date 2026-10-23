@@ -44,6 +44,15 @@ export const KURMA: readonly SheetKurma[] = [
     '500g': { 500: 20, 1000: 18, 2000: 16 } } },
 ]
 
+/** Julat harga/kotak seluruh sheet (untuk schema/teks "dari RM__") + tier kuantiti terkecil. Dikira, bukan hardcode. */
+export function sheetPriceRange(): { low: number; high: number; minQty: number } {
+  let low = Infinity, high = -Infinity, minQty = Infinity
+  for (const k of KURMA) for (const tiers of Object.values(k.w)) for (const [q, p] of Object.entries(tiers ?? {})) {
+    low = Math.min(low, p); high = Math.max(high, p); minQty = Math.min(minQty, Number(q))
+  }
+  return { low, high, minQty }
+}
+
 export function kurmaById(id: string): SheetKurma | undefined {
   return KURMA.find(k => k.id === id)
 }

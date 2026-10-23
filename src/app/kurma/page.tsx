@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { GiftLanding } from '@/components/kurma/gift-landing'
 import { GIFT_VARIANTS } from '@/lib/gift-copy'
-import { kurmaPath } from '@/lib/kurma-host'
+import { kurmaAbs, kurmaPath } from '@/lib/kurma-host'
+import { JsonLd, breadcrumbSchema, serviceSchema } from '@/components/seo/json-ld'
+import { sheetPriceRange } from '@/lib/gift-pricing'
 
 const copy = GIFT_VARIANTS.default
 
@@ -15,5 +17,30 @@ export const metadata: Metadata = {
 }
 
 export default function KurmaLandingPage() {
-  return <GiftLanding copy={copy} />
+  // JSON-LD page utama funnel: BreadcrumbList + Service (FAQPage sudah di dalam GiftLanding).
+  // URL absolute ikut hos berkesan (kurmaAbs → subdomain bila aktif); julat harga dari sheet gift-pricing.
+  const url = kurmaAbs('/')
+  const harga = sheetPriceRange()
+  return (
+    <>
+      <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Gift Box Kurma', url }])} />
+      <JsonLd
+        data={serviceSchema({
+          name: 'Gift Box Kurma Custom',
+          serviceType: 'Gift box kurma custom berjenama untuk korporat, agensi & individu',
+          description: copy.sub,
+          url,
+          areaServed: 'Malaysia',
+          offers: {
+            lowPrice: harga.low,
+            highPrice: harga.high,
+            minQty: harga.minQty,
+            unitText: 'kotak',
+            note: 'Harga sekotak termasuk kurma & kotak custom, tanpa penghantaran. Lebih banyak kuantiti, lebih murah seunit.',
+          },
+        })}
+      />
+      <GiftLanding copy={copy} />
+    </>
+  )
 }

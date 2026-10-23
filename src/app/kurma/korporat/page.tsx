@@ -21,7 +21,7 @@ import { featuredCases, photoAt } from '@/lib/gift-clients'
 import { PRODUCT_PHOTOS } from '@/lib/gift'
 import { GIFT_TESTIMONIALS } from '@/lib/gift-copy'
 import { COMPANY } from '@/lib/company'
-import { kurmaPath } from '@/lib/kurma-host'
+import { kurmaAbs, kurmaPath } from '@/lib/kurma-host'
 
 // LP trust korporat & agensi kerajaan — destinasi iklan FB "korporat/agensi" DAN profil syarikat
 // yang sales hantar kepada pegawai perolehan. Menggantikan varian GiftLanding `korporat` & `agensi`
@@ -53,7 +53,7 @@ export default function KorporatPage() {
 
   return (
     <>
-      <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Custom Gift Box Kurma', path: '/kurma' }, { name: 'Korporat & Agensi', path: '/kurma/korporat' }])} />
+      <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Gift Box Kurma', url: kurmaAbs('/') }, { name: 'Korporat & Agensi', url: kurmaAbs('/korporat') }])} />
       <KurmaNav current="korporat" wa={{ angle: 'korporat', label: 'korporat-header', text: KORPORAT_WA_TEXT }} cta={{ href: '#rfq', label: 'Minta sebut harga' }} anchors={ANCHORS} />
       <main className="min-h-screen bg-white">
         <KorporatHero />
