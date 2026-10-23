@@ -7,11 +7,11 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 610
+- **Mata:** 620
 - **Level:** 3 — Naik Carta 🚀
-- **Streak:** 1 hari *(commit sebenar terakhir 27 Jul; jurang besar sebelum sambung semula 13 Ogos — streak reset, rekod jujur)*
+- **Streak:** 1 hari *(terakhir 13 Ogos; jurang besar sebelum sambung semula 23 Okt — streak reset, rekod jujur)*
 - **Pencapaian dibuka:** 14 / 15
-- **Kemaskini terakhir:** 13 Ogos 2026
+- **Kemaskini terakhir:** 23 Okt 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
 
@@ -112,6 +112,7 @@ Menang bawah dulu, naik ke atas:
 | 27 Jul 2026 | FAQ + FAQPage pillar /buah-online (+40) · varian Klang Valley (+30) — **naik Level 3** | +70 | 1 |
 | 27 Jul 2026 | Pautan produk → panduan (94 page, +40) · llms.txt kemas kini kluster (+20) | +60 | 1 |
 | 13 Ogos 2026 | Frasa tepat "buah online" dalam metadata homepage (description utama · OG · Twitter) — bonus luar senarai | +10 | 1 |
+| 23 Okt 2026 | Frasa tepat "kurma online" dalam metadata root (description utama 158 aksara · OG · Twitter), "buah online" kekal — bonus luar senarai; *tick Trek A bila papan KURMA 18 Okt di-paste* | +10 | 1 |
 
 ---
 
