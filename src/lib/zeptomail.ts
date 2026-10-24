@@ -832,3 +832,44 @@ export async function sendRestockEmail(params: {
     html,
   })
 }
+
+// ─── email: sebut harga (quotation) — modul Sebut Harga (docs/plan-sebut-harga.md) ───
+// English (klien korporat). PDF dilampirkan + pautan awam /q/<token> untuk lihat & terima.
+export async function sendQuotationEmail(params: {
+  to: string
+  toName: string | null
+  quoteNumber: string
+  total: number
+  validUntil: string | null   // YYYY-MM-DD
+  shareUrl: string
+  pdfBase64: string
+  message?: string | null     // mesej tambahan admin (pilihan)
+}): Promise<boolean> {
+  const valid = params.validUntil
+    ? new Date(params.validUntil + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null
+  const html = layout(`Quotation ${params.quoteNumber}`, `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Dear <strong>${esc(params.toName ?? 'Sir/Madam')}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#111827;">Quotation ${esc(params.quoteNumber)}</h1>
+    <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+      Thank you for your enquiry. Please find our quotation attached.
+      Total: <strong>RM${Number(params.total).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>${valid ? `, valid until <strong>${esc(valid)}</strong>` : ''}.
+    </p>
+    ${params.message ? `<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;white-space:pre-line;">${esc(params.message)}</p>` : ''}
+    <p style="margin:0 0 20px;">
+      <a href="${esc(params.shareUrl)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:10px;">View &amp; accept quotation</a>
+    </p>
+    <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
+      Should you require any clarification, simply reply to this email or WhatsApp us at +60 11 5640 3601.
+    </p>
+  `)
+  return send({
+    from: FROM_ORDER,
+    fromName: 'Syabab Trading Sdn Bhd',
+    to: params.to,
+    toName: params.toName ?? 'Sir/Madam',
+    subject: `Quotation ${params.quoteNumber} — Syabab Trading Sdn Bhd`,
+    html,
+    attachments: [{ name: `${params.quoteNumber}.pdf`, contentBase64: params.pdfBase64, mimeType: 'application/pdf' }],
+  })
+}

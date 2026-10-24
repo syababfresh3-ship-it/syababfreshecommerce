@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Loader2, ChevronLeft, Copy, ExternalLink, Save } from 'lucide-react'
 import { GIFT_STATUSES, finishLabel } from '@/lib/gift'
 import { QuotePanel } from './quote-panel'
+import { GiftQuotationLinks } from './quotation-links'
 
 interface Order {
   id: string; order_number: string; channel: string; status: string; payment_status: string
@@ -183,6 +184,9 @@ export function GiftOrderDetail({ id }: { id: string }) {
         </div>
       </div>
       )}
+
+      {/* Sebut harga (modul Sebut Harga — additive, 24 Okt 2026) */}
+      <GiftQuotationLinks orderId={o.id} />
 
       {/* Fulfilment */}
       <div className={box}>

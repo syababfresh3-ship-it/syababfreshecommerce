@@ -22,7 +22,9 @@ export function PWAInstallBanner() {
   // calculator options and distracts a cold click. Same gating pattern as the LP "live" template.
   const isAdmin = pathname.startsWith('/admin')
   const isKurmaLp = pathname.startsWith('/kurma')
-  const suppressed = isAdmin || isKurmaLp
+  // Pautan awam sebut harga /q/<token> (klien korporat baca dokumen) — banner pasang app mengganggu.
+  const isQuote = pathname.startsWith('/q/')
+  const suppressed = isAdmin || isKurmaLp || isQuote
 
   useEffect(() => {
     if (suppressed) return

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag,
   BarChart2, Image, MapPin, FolderOpen,
-  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2,
+  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -93,6 +93,8 @@ const sections: Section[] = [
   {
     label: 'KEWANGAN',
     items: [
+      { href: '/admin/quotations', label: 'Sebut Harga', icon: FileText },   // modul Sebut Harga (migration 146)
+      { href: '/admin/invoices',   label: 'Invois Refrens', icon: Receipt }, // baca sahaja dari API Refrens (fasa 2)
       { href: '/admin/pricing',   label: 'Harga & Kos', icon: Calculator },
       { href: '/admin/pnl',       label: 'P&L Website', icon: TrendingUp },
       { href: '/admin/analytics', label: 'Analytics',   icon: BarChart2 },
