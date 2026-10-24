@@ -3,7 +3,8 @@
 //   1) Preview CSS: kotak kawasan (absolute, peratus) + <img logo> object-fit:contain
 //      + transform translate/scale.
 //   2) Eksport canvas → WebP (dimuat naik sebagai mockup_url untuk sales/admin).
-// Tiada 3D. Tiada Supabase image transformation (kuota) — mampatkan di klien.
+// Tiada Supabase image transformation (kuota) — mampatkan di klien.
+// composeMockupCanvas juga jadi tekstur tutup kotak untuk preview 3D studio (studio-box-3d.tsx).
 
 export interface LogoArea { x: number; y: number; w: number; h: number }   // pecahan 0..1 dari imej template
 /** Default bila template tiada logo_area: segi empat tengah 40% × 30%. */
@@ -68,7 +69,20 @@ export async function compressImage(file: File, maxW = 1200, quality = 0.9): Pro
 export async function composeMockup(args: {
   templateUrl: string; logoSrc: string; area: LogoArea; t: LogoTransform; maxW?: number; quality?: number
 }): Promise<Blob | null> {
-  const { templateUrl, logoSrc, area, maxW = 1600, quality = 0.85 } = args
+  const { quality = 0.85 } = args
+  const c = await composeMockupCanvas(args)
+  if (!c) return null
+  return await new Promise<Blob | null>(res => { try { c.toBlob(res, 'image/webp', quality) } catch { res(null) } })
+}
+
+/**
+ * Gubah template + logo ke CANVAS (matematik sama dengan preview CSS). Dipakai composeMockup
+ * (eksport WebP) dan preview 3D studio (tekstur tutup kotak). null bila imej gagal dimuat.
+ */
+export async function composeMockupCanvas(args: {
+  templateUrl: string; logoSrc: string; area: LogoArea; t: LogoTransform; maxW?: number
+}): Promise<HTMLCanvasElement | null> {
+  const { templateUrl, logoSrc, area, maxW = 1600 } = args
   const t = clampTransform(args.t)
   try {
     const [tpl, logo] = await Promise.all([loadImage(templateUrl, 'anonymous'), loadImage(logoSrc)])
@@ -87,7 +101,7 @@ export async function composeMockup(args: {
     ctx.save(); ctx.beginPath(); ctx.rect(ax, ay, aw, ah); ctx.clip()
     ctx.drawImage(logo, px, py, dw, dh)
     ctx.restore()
-    return await new Promise<Blob | null>(res => { try { c.toBlob(res, 'image/webp', quality) } catch { res(null) } })
+    return c
   } catch {
     return null
   }

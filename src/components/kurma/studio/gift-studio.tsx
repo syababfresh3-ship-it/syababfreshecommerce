@@ -2,24 +2,29 @@
 
 // Studio hot-lead — pemilik state merentas seksyen: template/logo/transform, mod design,
 // finishing, pilihan calculator, dan borang enquiry. Data template dari GET /api/kurma/catalog
-// (gift_designs aktif + logo_area, migration 143). Tiada 3D, tiada FAB/countdown (bukan LP iklan).
+// (gift_designs aktif + logo_area, migration 143). Tiada FAB/countdown (bukan LP iklan).
+// Preview 3D kotak (23 Okt 2026): toggle 2D/3D dalam panel Preview (StudioBox3D, three.js
+// dimuat hanya bila 3D dipilih); mod "design penuh" tunjuk 3D terus bila fail imej.
 import { useCallback, useEffect, useState } from 'react'
 import { Palette, Calculator, Send } from 'lucide-react'
 import { GiftCalculator, type GiftCalculatorSelection } from '@/components/kurma/gift-calculator'
 import { StudioOffer } from './studio-offer'
 import { TemplatePicker } from './template-picker'
 import { LogoUploader, type LogoAsset } from './logo-uploader'
-import { LogoPreview } from './logo-preview'
+import { LogoPreview, type PreviewView } from './logo-preview'
+import { StudioBox3D, studioShapeFor, useMockupTexture } from './studio-box-3d'
 import { FullDesignUpload, type DesignAsset } from './full-design-upload'
 import { EnquiryForm } from './enquiry-form'
 import { DEFAULT_TRANSFORM, type LogoTransform } from '@/lib/gift-mockup'
-import { FINISHES, type GiftDesign, type GiftFinishCode } from '@/lib/gift'
+import { FINISHES, type GiftBox, type GiftDesign, type GiftFinishCode } from '@/lib/gift'
 
 export type DesignMode = 'template' | 'full'
 const RED = '#E11D2A'
 
 export function GiftStudio() {
   const [templates, setTemplates] = useState<GiftDesign[]>([])
+  const [boxes, setBoxes] = useState<GiftBox[]>([])   // bentuk kotak untuk preview 3D (template.box_id)
+  const [view, setView] = useState<PreviewView>('2d')
   const [templatesLoading, setTemplatesLoading] = useState(true)
   const [mode, setMode] = useState<DesignMode>('template')
   const [templateId, setTemplateId] = useState<string | null>(null)
@@ -37,6 +42,7 @@ export function GiftStudio() {
         if (!alive) return
         const list = ((j?.designs ?? []) as GiftDesign[]).filter(d => d.is_active !== false && !!d.image_url)
         setTemplates(list)
+        setBoxes((j?.boxes ?? []) as GiftBox[])
       })
       .catch(() => {})
       .finally(() => { if (alive) setTemplatesLoading(false) })
@@ -44,6 +50,8 @@ export function GiftStudio() {
   }, [])
 
   const template = templates.find(d => d.id === templateId) ?? null
+  const boxTexture = useMockupTexture(template, logo, t)
+  const boxShape = studioShapeFor(template, boxes)
   const onCalc = useCallback((s: GiftCalculatorSelection) => setSel(s), [])
   const navChip = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-[12px] font-semibold text-gray-600 hover:border-gray-400'
 
@@ -81,11 +89,18 @@ export function GiftStudio() {
               <TemplatePicker templates={templates} loading={templatesLoading} selectedId={templateId} onSelect={setTemplateId} />
               <LogoUploader logo={logo} onChange={l => { setLogo(l); setT(DEFAULT_TRANSFORM) }} />
             </div>
-            <LogoPreview template={template} logo={logo} t={t} onChange={setT} />
+            <LogoPreview template={template} logo={logo} t={t} onChange={setT} view={view} onViewChange={setView} box3d={<StudioBox3D texture={boxTexture} shape={boxShape} />} />
           </div>
         ) : (
           <div className="max-w-2xl mx-auto mt-6">
             <FullDesignUpload design={fullDesign} onChange={setFullDesign} />
+            {fullDesign?.previewUrl && (
+              <div className="mt-5">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Preview 3D atas kotak</p>
+                <StudioBox3D texture={fullDesign.previewUrl} shape="mailer" className="mt-2 max-w-sm" />
+                <p className="text-[11px] text-gray-400 mt-2">Preview 3D anggaran — seret untuk putar. Design dipadankan ke die-line kotak sebelum cetak, anda sahkan dulu.</p>
+              </div>
+            )}
           </div>
         )}
 
