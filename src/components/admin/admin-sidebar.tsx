@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Tag,
   BarChart2, Image, MapPin, FolderOpen,
-  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt,
+  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -82,7 +82,8 @@ const sections: Section[] = [
   {
     label: 'GIFT STUDIO',
     items: [
-      { href: '/admin/kurma',         label: 'Gift Orders',  icon: Gift },
+      { href: '/admin/gift-pipeline', label: 'Pipeline Gift', icon: Kanban },   // CRM deal gift kurma (migration 147)
+      { href: '/admin/kurma',         label: 'Enquiry Gift', icon: Gift },   // peti enquiry web (Studio/LP); deal diurus di Pipeline Gift
       { href: '/admin/kurma/catalog', label: 'Gift Catalog', icon: Box },
       { href: '/admin/kurma/costs',   label: 'Kos & Harga',  icon: Calculator },
       { href: '/admin/borong',        label: 'Harga Borong', icon: Package },

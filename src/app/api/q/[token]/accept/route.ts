@@ -10,6 +10,7 @@ import { isHoneypotFilled } from '@/lib/order-guard'
 import { sendAdminEmail } from '@/lib/zeptomail'
 import { loadQuotationByToken, logQuotationEvent } from '@/lib/quotation-server'
 import { clientDisplayName, isExpired } from '@/lib/quotation'
+import { markDealAccepted } from '@/lib/gift-deals-server'
 
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 
@@ -40,6 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Quotation changed, please reload' }, { status: 409 })
   await logQuotationEvent(sb, q.id, 'accepted', { by: acceptedBy, ip }, 'client')
+  await markDealAccepted(sb, q.id, now, acceptedBy)   // Pipeline Gift (best-effort)
   sendAdminEmail({
     subject: `Sebut harga ${q.quote_number} DITERIMA — ${clientDisplayName(q.client)}`,
     html: `<p>Sebut harga <b>${esc(q.quote_number ?? '')}</b> (${esc(clientDisplayName(q.client))}, RM${q.total.toFixed(2)}) diterima oleh <b>${esc(acceptedBy)}</b> pada ${esc(now)}.</p><p><a href="${esc(process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my')}/admin/quotations/${q.id}">Buka di admin</a></p>`,

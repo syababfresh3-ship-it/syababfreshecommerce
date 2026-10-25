@@ -29,6 +29,7 @@ export interface Quotation {
   status: QuotationStatus
   issued_at: string | null
   valid_until: string | null
+  needed_by: string | null            // tarikh klien perlu barang (migration 147)
   customer_id: string | null
   client: QuotationClient
   source_type: string | null
@@ -185,6 +186,7 @@ export function quotationFromGiftOrder(o: GiftOrderLike, cat: GiftCatalogNames):
     client: { company: o.company || null, name: o.name, phone: o.phone, email: o.email, address, attn: o.company ? o.name : null },
     items,
     source_type: 'gift_order', source_id: o.id,
+    needed_by: typeof cfg.needed_by === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cfg.needed_by) ? cfg.needed_by.slice(0, 10) : null,
     terms: termsForDeposit(Number(o.deposit_pct) || 50),
     notes: `${DEFAULT_NOTE} Ref: ${o.order_number}.`,
     bank_key: DEFAULT_BANK_KEY, show_bank: true,

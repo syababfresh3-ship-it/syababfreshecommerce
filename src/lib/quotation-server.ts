@@ -11,6 +11,7 @@ import { upsertCustomerAndGet } from '@/lib/customers'
 import { SHOP_ORIGIN } from '@/lib/kurma-host'
 import { BANKS } from '@/lib/seller'
 import { RefrensError, createDocumentSmart, ensureClientForQuotation, isRefrensConfigured, quotationPartsFromQuotation, toInvoiceRef } from '@/lib/refrens'
+import { ensureDealForQuotation } from '@/lib/gift-deals-server'
 import {
   addDays, calcTotals, quotationFromGiftOrder, sanitizeCharges, sanitizeClient, sanitizeCustomFields, sanitizeItems, sanitizeTerms,
   VALID_DAYS, type Quotation, type QuotationEvent, type QuotationItem, type QuotationCharge,
@@ -28,7 +29,7 @@ const num = (v: unknown, d = 0) => { const n = Number(v); return Number.isFinite
 export function rowToQuotation(r: Row): Quotation {
   return {
     id: r.id, quote_number: r.quote_number ?? null, status: r.status ?? 'draft',
-    issued_at: r.issued_at ?? null, valid_until: r.valid_until ?? null, customer_id: r.customer_id ?? null,
+    issued_at: r.issued_at ?? null, valid_until: r.valid_until ?? null, needed_by: r.needed_by ?? null, customer_id: r.customer_id ?? null,
     client: (r.client && typeof r.client === 'object') ? r.client : {},
     source_type: r.source_type ?? null, source_id: r.source_id ?? null,
     items: Array.isArray(r.items) ? r.items.map((i: Row) => ({ name: String(i.name ?? ''), description: i.description ?? null, qty: num(i.qty), unit: String(i.unit ?? 'pcs'), rate: num(i.rate) })) : [],
@@ -89,7 +90,7 @@ export const newShareToken = () => randomBytes(16).toString('hex')
 export const publicShareUrl = (token: string) => `${SHOP_ORIGIN}/q/${token}`
 
 // ── Pengesahan input admin (create/patch). `partial` = hanya kunci yang dihantar ──
-export type QuotationInput = Partial<Pick<Quotation, 'client' | 'customer_id' | 'items' | 'discount' | 'charges' | 'terms' | 'notes' | 'show_bank' | 'bank_key' | 'custom_fields' | 'valid_until' | 'source_type' | 'source_id'>>
+export type QuotationInput = Partial<Pick<Quotation, 'client' | 'customer_id' | 'items' | 'discount' | 'charges' | 'terms' | 'notes' | 'show_bank' | 'bank_key' | 'custom_fields' | 'valid_until' | 'needed_by' | 'source_type' | 'source_id'>>
 export function parseQuotationInput(body: Row, partial = false): { ok: true; data: QuotationInput } | { ok: false; error: string } {
   const d: QuotationInput = {}
   const has = (k: string) => !partial || body[k] !== undefined
@@ -105,6 +106,7 @@ export function parseQuotationInput(body: Row, partial = false): { ok: true; dat
   if (has('bank_key')) d.bank_key = typeof body.bank_key === 'string' && body.bank_key in BANKS ? body.bank_key : 'publicbank'
   if (has('custom_fields')) d.custom_fields = sanitizeCustomFields(body.custom_fields)
   if (has('valid_until')) d.valid_until = typeof body.valid_until === 'string' && DATE_RE.test(body.valid_until) ? body.valid_until : null
+  if (body.needed_by !== undefined) d.needed_by = typeof body.needed_by === 'string' && DATE_RE.test(body.needed_by) ? body.needed_by : null
   if (has('source_type')) d.source_type = ['gift_order', 'borong', 'manual'].includes(body.source_type) ? body.source_type : null
   if (has('source_id')) d.source_id = typeof body.source_id === 'string' && UUID_RE.test(body.source_id) ? body.source_id : null
 
@@ -199,6 +201,7 @@ export async function issueQuotation(sb: SB, q: Quotation, actor: string | null)
     const issued = rowToQuotation(data)
     await logQuotationEvent(sb, q.id, 'issued', { quote_number: number, source: refrensRef ? 'refrens' : 'local' }, actor)
     if (refrensRef) await logQuotationEvent(sb, q.id, 'refrens_quotation', { quotation: refrensRef }, actor)
+    await ensureDealForQuotation(sb, issued, actor)   // Pipeline Gift (best-effort; migration 147)
     if (issued.source_type === 'gift_order' && issued.source_id) {
       // Order masih enquiry → tandakan quoted (additive; harga order tak disentuh sehingga "apply").
       try { await sb.from('gift_orders').update({ status: 'quoted', updated_at: now.toISOString() }).eq('id', issued.source_id).eq('status', 'enquiry') } catch { /* best-effort */ }

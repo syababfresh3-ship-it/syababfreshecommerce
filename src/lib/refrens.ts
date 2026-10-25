@@ -72,17 +72,49 @@ const normPhone = (p: string | null | undefined) => {
 }
 const paths = { clients: (k: string) => `/api/v1/businesses/${k}/clients`, invoices: (k: string) => `/businesses/${k}/invoices` }
 
+// Balasan senarai klien Refrens: { success, data: { items[], total, limit, skip } } (disahkan 25 Okt).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function clientItems(r: any): Record<string, unknown>[] {
+  if (Array.isArray(r)) return r
+  const d = r?.data
+  if (Array.isArray(d)) return d
+  if (Array.isArray(d?.items)) return d.items
+  if (Array.isArray(r?.items)) return r.items
+  return []
+}
 export async function findClient(q: { email?: string | null; phone?: string | null; name?: string | null }): Promise<RefrensClient | null> {
   const { urlKey } = refrensConfig()!
   const tries: string[] = []
   if (q.email) tries.push(`email=${encodeURIComponent(q.email.trim().toLowerCase())}`)
   const ph = normPhone(q.phone); if (ph) tries.push(`phone=${encodeURIComponent(ph)}`)
   for (const t of tries) {
-    const r = await call<{ data?: RefrensClient[] } | RefrensClient[]>(`${paths.clients(urlKey)}?${t}&$limit=1`)
-    const list = Array.isArray(r) ? r : (r.data ?? [])
+    const r = await call<unknown>(`${paths.clients(urlKey)}?${t}&$limit=1`)
+    const list = clientItems(r) as unknown as RefrensClient[]
     if (list[0]) return list[0]
   }
   return null
+}
+
+/** Carian bebas klien Refrens (q = awal perkataan nama/alias/email/telefon). Untuk picker sebut harga/invois. */
+export interface RefrensClientHit {
+  id: string; name: string; clientType?: string | null; email: string | null; phone: string | null
+  street: string | null; city: string | null; pincode: string | null; tin: string | null; brn: string | null
+}
+export async function searchClients(q: string, limit = 8): Promise<RefrensClientHit[]> {
+  const cfg = refrensConfig(); if (!cfg) return []
+  const term = q.trim().slice(0, 60); if (term.length < 2) return []
+  const r = await call<unknown>(`${paths.clients(cfg.urlKey)}?q=${encodeURIComponent(term)}&$limit=${Math.min(limit, 50)}`)
+  const list = clientItems(r)
+  return list.map(c => {
+    const ids = Array.isArray(c.additionalIds) ? c.additionalIds as { label?: string; value?: string }[] : []
+    const brn = ids.find(i => (i.label ?? '').toUpperCase() === 'BRN')?.value ?? null
+    return {
+      id: String(c._id ?? ''), name: String(c.name ?? ''), clientType: (c.clientType as string) ?? null,
+      email: (c.email as string) ?? null, phone: (c.phone as string) ?? null,
+      street: (c.street as string) ?? null, city: (c.city as string) ?? null, pincode: (c.pincode as string) ?? null,
+      tin: (c.tinNumber as string) ?? null, brn,
+    }
+  }).filter(c => c.name)
 }
 
 export async function createClient(c: { clientId: string; name: string; email?: string | null; phone?: string | null; street?: string | null; pincode?: string | null; tin?: string | null; regNo?: string | null; isCompany?: boolean }): Promise<RefrensClient> {

@@ -17,7 +17,9 @@ export async function GET(_req: Request, { params }: Ctx) {
   const q = await loadQuotation(supabase!, id)
   if (!q) return NextResponse.json({ error: 'Tidak dijumpai' }, { status: 404 })
   const events = await loadEvents(supabase!, id)
-  return NextResponse.json({ ...q, expired: isExpired(q), events, invoice: invoiceRefFromEvents(events), refrens_quotation: refrensQuotationRefFromEvents(events), refrens_configured: isRefrensConfigured() })
+  let deal: { id: string; stage: string } | null = null
+  try { const { data } = await supabase!.from('gift_deals').select('id, stage').eq('quotation_id', id).maybeSingle(); deal = data ?? null } catch { /* migration 147 belum */ }
+  return NextResponse.json({ ...q, expired: isExpired(q), events, invoice: invoiceRefFromEvents(events), refrens_quotation: refrensQuotationRefFromEvents(events), refrens_configured: isRefrensConfigured(), deal })
 }
 
 export async function PATCH(request: Request, { params }: Ctx) {

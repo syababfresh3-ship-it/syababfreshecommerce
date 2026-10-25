@@ -114,6 +114,7 @@ export function buildQuotationElement(q: Quotation, assets: QuotationPdfAssets =
             <View style={s.metaRow}><Text style={s.metaK}>Quotation No</Text><Text style={s.metaV}>{q.quote_number ?? '—'}</Text></View>
             <View style={s.metaRow}><Text style={s.metaK}>Date</Text><Text style={s.metaV}>{fmtDate(q.issued_at ?? q.created_at)}</Text></View>
             {q.valid_until && <View style={s.metaRow}><Text style={s.metaK}>Valid until</Text><Text style={s.metaV}>{fmtDate(q.valid_until)}</Text></View>}
+            {q.needed_by && <View style={s.metaRow}><Text style={s.metaK}>Required delivery</Text><Text style={s.metaV}>{fmtDate(q.needed_by)}</Text></View>}
           </View>
         </View>
 

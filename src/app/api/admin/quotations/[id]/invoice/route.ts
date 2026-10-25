@@ -10,6 +10,7 @@ import { requireAdmin } from '@/lib/supabase/require-admin'
 import { loadEvents, loadQuotation, logQuotationEvent } from '@/lib/quotation-server'
 import { invoiceRefFromEvents } from '@/lib/quotation'
 import { RefrensError, createInvoice, ensureClientForQuotation, getInvoice, invoicePayloadFromQuotation, isRefrensConfigured, toInvoiceRef } from '@/lib/refrens'
+import { markDealInvoice } from '@/lib/gift-deals-server'
 
 type Ctx = { params: Promise<{ id: string }> }
 const errJson = (e: unknown) => {
@@ -40,6 +41,7 @@ export async function POST(request: Request, { params }: Ctx) {
     const { error } = await supabase!.from('quotations').update({ status: 'converted', updated_at: now }).eq('id', id)
     if (error) return NextResponse.json({ error: `Invois ${ref.number} dicipta di Refrens tetapi status sebut harga gagal dikemas kini: ${error.message}`, invoice: ref }, { status: 500 })
     await logQuotationEvent(supabase!, id, 'converted', { invoice: ref, client_id: client?._id ?? null, client_created: created }, user?.email ?? null)
+    await markDealInvoice(supabase!, id, ref.number, user?.email ?? null)   // Pipeline Gift (best-effort)
     return NextResponse.json({ ok: true, invoice: ref, client_created: created })
   } catch (e) { return errJson(e) }
 }

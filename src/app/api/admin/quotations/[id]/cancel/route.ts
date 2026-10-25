@@ -7,6 +7,7 @@ import { requireAdmin } from '@/lib/supabase/require-admin'
 import { loadEvents, loadQuotation, logQuotationEvent, rowToQuotation } from '@/lib/quotation-server'
 import { refrensQuotationRefFromEvents } from '@/lib/quotation'
 import { cancelInvoice, isRefrensConfigured } from '@/lib/refrens'
+import { markDealLost } from '@/lib/gift-deals-server'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -22,6 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('id', id).select('*').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   await logQuotationEvent(supabase!, id, 'cancelled', { reason }, user?.email ?? null)
+  await markDealLost(supabase!, id, reason || 'Sebut harga dibatalkan', user?.email ?? null)   // Pipeline Gift (best-effort)
   // Salinan di Refrens (pilihan 1): batal juga, best-effort — gagal tak menghalang.
   let refrens: 'cancelled' | 'failed' | 'none' = 'none'
   if (isRefrensConfigured()) {

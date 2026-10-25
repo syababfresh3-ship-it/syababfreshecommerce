@@ -58,6 +58,7 @@ export default async function PublicQuotationPage({ params }: { params: Promise<
                 <div className="flex justify-end gap-2"><dt className="text-gray-500">Quotation No</dt><dd className="font-bold text-gray-900">{q.quote_number}</dd></div>
                 <div className="flex justify-end gap-2"><dt className="text-gray-500">Date</dt><dd className="font-bold text-gray-900">{fmtDate(q.issued_at)}</dd></div>
                 {q.valid_until && <div className="flex justify-end gap-2"><dt className="text-gray-500">Valid until</dt><dd className="font-bold text-gray-900">{fmtDate(q.valid_until)}</dd></div>}
+                {q.needed_by && <div className="flex justify-end gap-2"><dt className="text-gray-500">Required delivery</dt><dd className="font-bold text-gray-900">{fmtDate(q.needed_by)}</dd></div>}
               </dl>
             </div>
           </header>

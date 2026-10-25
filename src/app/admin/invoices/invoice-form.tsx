@@ -13,7 +13,7 @@ import { ringgitInWords } from '@/lib/number-words'
 import { SELLER, BANKS } from '@/lib/seller'
 
 interface FormItem { name: string; description: string; showDesc: boolean; qty: string; unit: string; rate: string }
-interface CustomerHit { id: string; name: string | null; phone_norm: string; email: string | null; address: string | null; company?: string | null; company_reg_no?: string | null; tin?: string | null; billing_address?: string | null }
+interface CustomerHit { source?: 'web' | 'refrens'; id: string | null; refrens_id?: string | null; name: string | null; phone_norm: string | null; email: string | null; address: string | null; company?: string | null; company_reg_no?: string | null; tin?: string | null; billing_address?: string | null }
 interface Created { number: string; status: string; total: number | null; pdf: string | null; link: string | null; id: string }
 
 const inp = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white w-full focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500'
@@ -185,7 +185,7 @@ export function InvoiceForm() {
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Select a Client (cari nama / syarikat / telefon)" className={`${inp} pl-8`} />
                   {hits.length > 0 && (
                     <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                      {hits.map(h => <li key={h.id}><button type="button" onClick={() => pick(h)} className="w-full text-left px-3 py-2 hover:bg-gray-50"><span className="font-semibold text-gray-900">{h.company || h.name || '—'}</span><span className="block text-xs text-gray-500">{[h.company ? h.name : null, h.phone_norm, h.email].filter(Boolean).join(' · ')}</span></button></li>)}
+                      {hits.map(h => <li key={h.id}><button type="button" onClick={() => pick(h)} className="w-full text-left px-3 py-2 hover:bg-gray-50"><span className="font-semibold text-gray-900">{h.company || h.name || '—'}</span><span className="block text-xs text-gray-500">{h.source === 'refrens' && <span className="inline-block text-[9px] font-bold uppercase tracking-wide bg-gray-900 text-white px-1 py-px rounded mr-1.5 align-middle">Refrens</span>}{[h.company ? h.name : null, h.phone_norm, h.email].filter(Boolean).join(' · ')}</span></button></li>)}
                     </ul>
                   )}
                 </div>

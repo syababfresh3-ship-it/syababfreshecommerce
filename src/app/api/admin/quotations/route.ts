@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     items: d.items ?? [], discount: totals.discount, charges: d.charges ?? [], subtotal: totals.subtotal, total: totals.total,
     terms: d.terms ?? DEFAULT_TERMS, notes: d.notes === undefined ? DEFAULT_NOTE : d.notes,
     show_bank: d.show_bank ?? true, bank_key: d.bank_key ?? 'publicbank', custom_fields: d.custom_fields ?? [],
-    valid_until: d.valid_until ?? null, source_type: d.source_type ?? null, source_id: d.source_id ?? null,
+    valid_until: d.valid_until ?? null, needed_by: d.needed_by ?? null, source_type: d.source_type ?? null, source_id: d.source_id ?? null,
     created_by: user?.id ?? null,
   }
   const { data, error } = await supabase!.from('quotations').insert(row).select('*').single()

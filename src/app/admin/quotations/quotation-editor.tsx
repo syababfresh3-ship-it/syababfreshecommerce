@@ -22,11 +22,11 @@ interface Form {
   client: QuotationClient; customer_id: string | null
   items: FormItem[]; discount: string; charges: FormCharge[]
   terms: string[]; notes: string; show_bank: boolean; bank_key: string
-  custom_fields: { label: string; value: string }[]; valid_until: string
+  custom_fields: { label: string; value: string }[]; valid_until: string; needed_by: string
   source_type: string | null; source_id: string | null
 }
-type Loaded = Quotation & { events?: QuotationEvent[]; expired?: boolean; invoice?: QuotationInvoiceRef | null; refrens_quotation?: QuotationInvoiceRef | null; refrens_configured?: boolean }
-interface CustomerHit { id: string; name: string | null; phone_norm: string; email: string | null; address: string | null; company?: string | null; company_reg_no?: string | null; tin?: string | null; billing_address?: string | null }
+type Loaded = Quotation & { events?: QuotationEvent[]; expired?: boolean; invoice?: QuotationInvoiceRef | null; refrens_quotation?: QuotationInvoiceRef | null; refrens_configured?: boolean; deal?: { id: string; stage: string } | null }
+interface CustomerHit { source?: 'web' | 'refrens'; id: string | null; refrens_id?: string | null; name: string | null; phone_norm: string | null; email: string | null; address: string | null; company?: string | null; company_reg_no?: string | null; tin?: string | null; billing_address?: string | null }
 
 const inp = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white w-full focus:outline-none focus:ring-2 focus:ring-gray-900 disabled:bg-gray-50 disabled:text-gray-500'
 const lbl = 'block text-xs font-semibold text-gray-600 mb-1'
@@ -59,7 +59,7 @@ function toForm(q: Partial<Quotation> | null | undefined): Form {
     notes: q?.notes ?? DEFAULT_NOTE,
     show_bank: q?.show_bank ?? true, bank_key: q?.bank_key ?? DEFAULT_BANK_KEY,
     custom_fields: q?.custom_fields ?? [],
-    valid_until: q?.valid_until ?? addDays(new Date(), VALID_DAYS),
+    valid_until: q?.valid_until ?? addDays(new Date(), VALID_DAYS), needed_by: q?.needed_by ?? '',
     source_type: q?.source_type ?? null, source_id: q?.source_id ?? null,
   }
 }
@@ -69,7 +69,7 @@ function toPayload(f: Form) {
     items: f.items.map(i => ({ name: i.name, description: i.showDesc ? i.description || null : null, qty: n2(i.qty), unit: i.unit || 'pcs', rate: n2(i.rate) })),
     discount: n2(f.discount), charges: f.charges.map(c => ({ label: c.label, amount: n2(c.amount) })),
     terms: f.terms, notes: f.notes, show_bank: f.show_bank, bank_key: f.bank_key, custom_fields: f.custom_fields,
-    valid_until: f.valid_until || null, source_type: f.source_type, source_id: f.source_id,
+    valid_until: f.valid_until || null, needed_by: f.needed_by || null, source_type: f.source_type, source_id: f.source_id,
   }
 }
 
@@ -253,9 +253,14 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
             {loaded?.accepted_at ? ` · Diterima ${fmtDT(loaded.accepted_at)} oleh ${loaded.accepted_by ?? '—'}` : ''}
             {loaded?.cancel_reason ? ` · Sebab batal: ${loaded.cancel_reason}` : ''}
           </p>
-          {form.source_type === 'gift_order' && form.source_id && (
-            <Link href={`/admin/kurma/${form.source_id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 mt-1 hover:text-gray-900"><Gift className="h-3.5 w-3.5" />Berpaut pada gift order</Link>
-          )}
+          <div className="flex flex-wrap gap-3 mt-1">
+            {form.source_type === 'gift_order' && form.source_id && (
+              <Link href={`/admin/kurma/${form.source_id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900"><Gift className="h-3.5 w-3.5" />Berpaut pada gift order</Link>
+            )}
+            {loaded?.deal && (
+              <Link href={`/admin/gift-pipeline?deal=${loaded.deal.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900"><ExternalLink className="h-3.5 w-3.5" />Buka deal di Pipeline Gift</Link>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {primaryActions}
@@ -344,6 +349,8 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
           <input value={fmtD(loaded?.issued_at ?? new Date().toISOString())} disabled className={`${inp} max-w-xs`} />
           <label className="text-sm font-semibold text-gray-700">Valid until</label>
           <input type="date" value={form.valid_until} onChange={e => upd({ valid_until: e.target.value })} disabled={!editable} className={`${inp} max-w-xs`} />
+          <label className="text-sm font-semibold text-gray-700">Tarikh perlu hantar</label>
+          <div><input type="date" value={form.needed_by} onChange={e => upd({ needed_by: e.target.value })} disabled={!editable} className={`${inp} max-w-xs`} /><p className="text-[11px] text-gray-400 mt-1">Bila klien perlu barang. Dicetak &quot;Required delivery&quot; pada PDF; memacu peringatan di Pipeline Gift. Lead time cetak ~2 minggu.</p></div>
         </div>
 
         <div className="mt-3 space-y-2">
@@ -377,7 +384,7 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Select a Client (cari nama / syarikat / telefon)" className={`${inp} pl-8`} />
                   {hits.length > 0 && (
                     <ul className="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg text-sm">
-                      {hits.map(h => <li key={h.id}><button type="button" onClick={() => pickCustomer(h)} className="w-full text-left px-3 py-2 hover:bg-gray-50"><span className="font-semibold text-gray-900">{h.company || h.name || '—'}</span><span className="block text-xs text-gray-500">{[h.company ? h.name : null, h.phone_norm, h.email].filter(Boolean).join(' · ')}</span></button></li>)}
+                      {hits.map(h => <li key={h.id}><button type="button" onClick={() => pickCustomer(h)} className="w-full text-left px-3 py-2 hover:bg-gray-50"><span className="font-semibold text-gray-900">{h.company || h.name || '—'}</span><span className="block text-xs text-gray-500">{h.source === 'refrens' && <span className="inline-block text-[9px] font-bold uppercase tracking-wide bg-gray-900 text-white px-1 py-px rounded mr-1.5 align-middle">Refrens</span>}{[h.company ? h.name : null, h.phone_norm, h.email].filter(Boolean).join(' · ')}</span></button></li>)}
                     </ul>
                   )}
                 </div>

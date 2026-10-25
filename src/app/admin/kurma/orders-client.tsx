@@ -1,11 +1,11 @@
 'use client'
 
-// Gift Studio orders/enquiries list (migration 137). Filter by status, quick stats,
-// link to detail. Manual key-in via "New order". See lib/gift.ts.
+// Enquiry Gift — peti masuk permintaan web dari Studio/LP (migration 137). Kerja selepas sebut harga
+// berpindah ke Pipeline Gift. Tab ikut status gift_orders; "Bayar online" = status confirmed (deposit CHIP).
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Loader2, Plus, Gift } from 'lucide-react'
+import { Loader2, Plus, Gift, FileText } from 'lucide-react'
 import { GIFT_STATUSES } from '@/lib/gift'
 
 interface Order {
@@ -42,7 +42,7 @@ export function GiftOrdersClient() {
     setOrders(j.orders ?? [])
     setLoading(false)
   }, [filter])
-  useEffect(() => { load() }, [load])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [load])   // elak setState segerak dalam effect (lint)
 
   const stats = useMemo(() => {
     const s = { enquiry: 0, in_production: 0, ready: 0, deposit: 0 }
@@ -55,22 +55,35 @@ export function GiftOrdersClient() {
     return s
   }, [orders])
 
+  // Peti enquiry web (25 Okt 2026): page ini = permintaan yang masuk sendiri dari Studio/LP.
+  // Kerja selepas sebut harga dikeluarkan berpindah ke Pipeline Gift (/admin/gift-pipeline).
+  const inbox = useMemo(() => ({
+    baru: orders.filter(o => o.status === 'enquiry').length,
+    quoted: orders.filter(o => o.status === 'quoted').length,
+    paid: orders.filter(o => o.payment_status === 'deposit_paid' || o.payment_status === 'paid').length,
+    deposit: stats.deposit,
+  }), [orders, stats.deposit])
+  const TABS: { id: string; label: string }[] = [
+    { id: 'enquiry', label: 'Baru' }, { id: 'quoted', label: 'Dah sebut harga' }, { id: 'confirmed', label: 'Bayar online' },
+    { id: 'all', label: 'Semua' }, { id: 'cancelled', label: 'Ditutup' },
+  ]
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Gift className="h-5 w-5" />Gift Orders</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Custom giftbox enquiries & orders from <code className="bg-gray-100 px-1 rounded">/kurma</code>.</p>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Gift className="h-5 w-5" />Enquiry Gift</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Permintaan yang masuk sendiri dari Studio & LP kurma. Tekan <b>Buat sebut harga</b> — selepas dikeluarkan, deal diurus di <Link href="/admin/gift-pipeline" className="underline">Pipeline Gift</Link>.</p>
         </div>
-        <Link href="/admin/kurma/new" className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800"><Plus className="h-4 w-4" />New order</Link>
+        <Link href="/admin/kurma/new" className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-50"><Plus className="h-4 w-4" />Rekod enquiry manual</Link>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'New enquiries', value: String(stats.enquiry) },
-          { label: 'In production', value: String(stats.in_production) },
-          { label: 'Ready', value: String(stats.ready) },
-          { label: 'Deposit collected', value: rm(stats.deposit) },
+          { label: 'Enquiry baru', value: String(inbox.baru) },
+          { label: 'Dah sebut harga', value: String(inbox.quoted) },
+          { label: 'Bayar deposit online', value: String(inbox.paid) },
+          { label: 'Deposit dikutip (online)', value: rm(inbox.deposit) },
         ].map(c => (
           <div key={c.label} className="bg-white rounded-2xl border border-gray-200 p-4">
             <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{c.label}</p>
@@ -80,7 +93,7 @@ export function GiftOrdersClient() {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {[{ id: 'all', label: 'All' }, ...GIFT_STATUSES].map(s => (
+        {TABS.map(s => (
           <button key={s.id} onClick={() => setFilter(s.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${filter === s.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{s.label}</button>
         ))}
       </div>
@@ -88,16 +101,16 @@ export function GiftOrdersClient() {
       <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs"><tr>
-            <th className="text-left px-4 py-2.5">Order</th><th className="text-left px-4 py-2.5">Customer</th>
-            <th className="text-right px-4 py-2.5">Qty</th><th className="text-right px-4 py-2.5">Total</th>
-            <th className="text-left px-4 py-2.5">Payment</th><th className="text-left px-4 py-2.5">Status</th>
-            <th className="text-left px-4 py-2.5">Date</th>
+            <th className="text-left px-4 py-2.5">Rujukan</th><th className="text-left px-4 py-2.5">Customer</th>
+            <th className="text-right px-4 py-2.5">Qty</th><th className="text-right px-4 py-2.5">Anggaran</th>
+            <th className="text-left px-4 py-2.5">Bayaran</th><th className="text-left px-4 py-2.5">Status</th>
+            <th className="text-left px-4 py-2.5">Tarikh</th><th className="text-right px-4 py-2.5">Tindakan</th>
           </tr></thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400"><Loader2 className="h-4 w-4 animate-spin inline" /></td></tr>
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400"><Loader2 className="h-4 w-4 animate-spin inline" /></td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-gray-400">No orders yet.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Tiada enquiry. Deal dari WhatsApp terus dibuat di <Link href="/admin/quotations/new" className="underline">Sebut harga baharu</Link>.</td></tr>
             ) : orders.map(o => (
               <tr key={o.id} onClick={() => router.push(`/admin/kurma/${o.id}`)} className="cursor-pointer hover:bg-gray-50/60">
                 <td className="px-4 py-3">
@@ -110,11 +123,15 @@ export function GiftOrdersClient() {
                 <td className="px-4 py-3"><span className={`text-xs ${PAY_CLS[o.payment_status] ?? 'text-gray-400'}`}>{o.payment_status.replace('_', ' ')}</span></td>
                 <td className="px-4 py-3"><span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border ${STATUS_CLS[o.status] ?? 'bg-gray-100 text-gray-500 border-gray-200'}`}>{label(o.status)}</span></td>
                 <td className="px-4 py-3 text-xs text-gray-500">{new Date(o.created_at).toLocaleDateString('en-MY', { day: '2-digit', month: 'short' })}</td>
+                <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
+                  {['enquiry', 'quoted', 'confirmed'].includes(o.status) && <Link href={`/admin/quotations/new?gift=${o.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-white bg-gray-900 px-2.5 py-1.5 rounded-lg hover:bg-gray-800 whitespace-nowrap"><FileText className="h-3.5 w-3.5" />Buat sebut harga</Link>}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <p className="text-[11px] text-gray-400">Bayaran deposit online (CHIP) direkod di sini oleh webhook; untuk jejak deal, buat sebut harga dari baris itu dan tanda deposit di Pipeline.</p>
     </div>
   )
 }
