@@ -255,3 +255,38 @@ LP builder (Landing Pages) boleh dihidangkan di subdomain kurma. Sales tulis HTM
 6. **Simpan & Kongsi:** butang salin/WhatsApp di senarai dah bagi URL kurma. Lencana "Kurma" tanda LP di subdomain.
 
 Nota: LP ini untuk **gift box custom** (sebut harga). Untuk jual kurma runcit/karton dengan checkout, pilih Domain "Kedai" dan guna `{{checkout:...}}` seperti biasa.
+
+## 6. Gift Kurma — Sebut Harga, Pipeline & Invois (Team Sales)
+
+Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Convert to Invoice → Deposit → Artwork OK → Produksi → Dihantar → Baki dibayar → Selesai.** Semua di admin; Refrens hanya untuk e-Invois LHDN & akaun.
+
+### 6.1 Buat sebut harga
+1. **Sebut Harga → Sebut harga baharu.** (Dari enquiry web: **Enquiry Gift → Buat sebut harga**, borang terisi.)
+2. **Quotation For → Select a Client.** Taip nama/syarikat/telefon — klien lama (termasuk dari Refrens, bertanda) akan keluar. Tiada? **Add New Client**, isi syarikat, PIC, **telefon atau email** (wajib salah satu), alamat; SSM & TIN jika ada.
+3. **Tarikh perlu hantar** — tanya klien bila perlu barang (lead time cetak ±2 minggu). Dicetak "Required delivery" pada PDF & memacu peringatan.
+4. **Item** — taip nama, pilih dari cadangan katalog (harga semasa terisi) atau tulis sendiri (cth. Transportation). Add Description untuk gred/asal. Diskaun & caj tambahan di kanan.
+5. **Save As Draft** = simpan sahaja. **Save & Continue** = **keluarkan**: nombor **STSB2026…** diberi dari siri Refrens, salinan dicipta di Refrens, dan **deal lahir di Pipeline Gift**. Draf tidak masuk pipeline.
+
+### 6.2 Hantar kepada klien
+- **PDF** (muat turun / WhatsApp), **Email** (PDF + pautan), atau **Share link**: klien buka pautan, lihat, muat turun PDF, dan tekan **Accept**. Penerimaan direkod pada deal (lencana "Accepted").
+
+### 6.3 Klien setuju & minta invois
+1. Buka sebut harga → **Convert to Invoice** → sahkan. Invois dicipta terus di Refrens (nombor siri Refrens), PDF & pautan klien dipapar. Deal pindah ke **Invois**.
+2. Isi **No. PO/LO** klien (korporat/kerajaan) dalam panel deal.
+3. Perlu invois tanpa sebut harga (jualan terus)? **Invois Refrens → Cipta invois**.
+
+### 6.4 Deposit masuk (bank transfer)
+1. **Pipeline Gift** → buka deal → **Tanda deposit dibayar**: jumlah (terisi), tarikh, kaedah *Pindahan bank*, rujukan dari resit.
+2. Biar **"Rekod juga pada invois Refrens"** bertanda — status invois Refrens ikut bertukar, tiada kerja dua kali.
+3. Deposit % lalai 50; set **0%** untuk klien yang bayar penuh selepas hantar (tender/LO).
+
+### 6.5 Artwork → Produksi → Dihantar → Baki
+- **Artwork OK**: tanda tarikh + nama pengesah + pautan mockup akhir **sebelum** cetak (gate wajib — elak pertikaian warna/logo).
+- **Produksi**: isi sasaran siap; tukar peringkat ke Produksi.
+- **Dihantar**: tarikh, cara (Lalamove/kurier/ambil), tracking, nama penerima, **pautan foto bukti terima**.
+- **Baki**: **Tanda baki dibayar** → deal **Selesai** automatik. Batal/kalah → peringkat *Batal / Kalah* + sebab.
+
+### 6.6 Peraturan harian
+- Setiap deal mesti ada **Tindakan seterusnya + tarikh**. Kad bertanda amaran bila: tiada respons 3 hari, hampir luput, deposit belum masuk, artwork belum OK < 14 hari, lewat hantar, baki tertunggak 7/14 hari.
+- Deal milik **sales yang keluarkan sebut harga** (boleh tukar di panel). Guna **akaun admin sendiri** — jangan kongsi akaun. Penapis **Deal saya** di Pipeline.
+- Jangan keluarkan sebut harga ujian — nombor Refrens terpakai. Jangan edit kandungan invois di website — buka di Refrens. Cari klien dulu sebelum Add New Client.
