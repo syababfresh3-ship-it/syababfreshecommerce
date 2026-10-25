@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ChevronLeft, Loader2, Plus, Trash2, X, ArrowUp, ArrowDown, Send, FileText, Link2, Copy, Ban, Mail, Search, Gift, Receipt, RefreshCw, ExternalLink, RotateCcw, Save } from 'lucide-react'
 import { BANKS, DEFAULT_BANK_KEY, SELLER } from '@/lib/seller'
+import { ItemNameInput } from '@/components/admin/item-name-input'
 import { ringgitInWords } from '@/lib/number-words'
 import {
   DEFAULT_NOTE, DEFAULT_TERMS, UNITS, VALID_DAYS, addDays, calcTotals, isEditable, rm, statusLabel,
@@ -412,14 +413,14 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
         </div>
 
         {/* Jadual item */}
-        <div className="mt-4 rounded-lg overflow-hidden border border-gray-200">
-          <div className="hidden md:grid grid-cols-[1fr_80px_90px_90px_120px_130px_96px] gap-2 bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2"><span>Item</span><span>Code</span><span className="text-right">Quantity</span><span>Unit</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span /></div>
+        <div className="mt-4 rounded-lg border border-gray-200">{/* tiada overflow-hidden — dropdown cadangan item perlu melimpah */}
+          <div className="hidden md:grid grid-cols-[1fr_80px_90px_90px_120px_130px_96px] gap-2 bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-t-lg"><span>Item</span><span>Code</span><span className="text-right">Quantity</span><span>Unit</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span /></div>
           <datalist id="quotation-units">{UNITS.map(u => <option key={u} value={u} />)}</datalist>
           <div className="divide-y divide-gray-100">
             {form.items.map((it, i) => (
               <div key={i} className="grid md:grid-cols-[1fr_80px_90px_90px_120px_130px_96px] gap-2 items-start p-2">
                 <div className="space-y-1">
-                  <input value={it.name} onChange={e => updItem(i, { name: e.target.value })} disabled={!editable} placeholder={`${i + 1}. Item Name`} className={`${inp} font-semibold`} />
+                  <ItemNameInput value={it.name} onChange={v => updItem(i, { name: v })} onPick={h => updItem(i, { name: h.name, rate: h.rate > 0 ? String(h.rate) : it.rate, unit: h.unit || it.unit, description: it.description || (h.description ?? ''), showDesc: it.showDesc || !!h.description })} disabled={!editable} placeholder={`${i + 1}. Item Name (taip untuk cadangan katalog)`} className={`${inp} font-semibold`} />
                   {it.showDesc ? <textarea value={it.description} onChange={e => updItem(i, { description: e.target.value })} disabled={!editable} placeholder="Description" rows={2} className={`${inp} text-xs`} /> : (editable && <button type="button" onClick={() => updItem(i, { showDesc: true })} className={linkBtn}><Plus className="h-3.5 w-3.5" />Add Description</button>)}
                 </div>
                 <input value="" disabled placeholder="—" title="Kod item tidak disokong" className={`${inp} hidden md:block`} aria-label="Code" />

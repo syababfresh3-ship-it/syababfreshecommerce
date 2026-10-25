@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ensureDealForGiftOrderPayment } from '@/lib/gift-deals-server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createVerify } from 'crypto'
 import { confirmLpGuestOrder, confirmStorefrontOrder, normalizeChipPem } from '@/lib/order-confirm'
@@ -127,6 +128,8 @@ export async function POST(req: NextRequest) {
       if (kind !== 'balance') {
         await supabase.from('gift_orders').update({ status: 'confirmed' }).eq('id', giftId).in('status', ['enquiry', 'quoted'])
       }
+      // Pipeline Gift (migration 147/148): deal lahir/dikemas kini automatik — best-effort, tak jejas webhook.
+      await ensureDealForGiftOrderPayment(supabase, giftId, kind === 'balance' ? 'balance' : 'deposit')
     }
     return NextResponse.json({ ok: true })
   }

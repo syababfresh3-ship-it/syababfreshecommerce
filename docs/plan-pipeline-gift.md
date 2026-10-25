@@ -86,3 +86,6 @@ Invois Refrens: dibaca dari `quotation_events` (`converted`/`invoice_synced`) me
 
 ## Input pemilik
 Sahkan nama peringkat; lalai deposit 50%; senarai sebab kalah; kaedah hantar (Lalamove, kurier, ambil sendiri); mahu lajur Artwork & Produksi dipaparkan (ya/tidak); jalankan migration 147 selepas kod siap.
+
+- **Migration 148 (25 Okt malam, pemilik perlu jalankan):** `gift_deals.gift_order_id uuid unique` → deposit/baki web (CHIP) melahirkan/kemas kini deal automatik (`ensureDealForGiftOrderPayment` dipanggil dari webhook CHIP cawangan gift, best-effort); sebut harga dari enquiry yang sama berpaut pada deal sedia ada (tiada pendua). Kod toleran jika lajur belum ada.
+- **Item picker (25 Okt malam):** `GET /api/admin/quotations/items?q=` (produk + varian harga semasa, kotak gift base_price, isi gift) → `ItemNameInput` dalam editor sebut harga & borang invois; pilih → nama, kadar, unit, keterangan.

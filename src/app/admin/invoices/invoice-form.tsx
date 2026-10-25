@@ -11,6 +11,7 @@ import { ChevronLeft, Loader2, Plus, Trash2, Search, ExternalLink, FileText, Che
 import { DEFAULT_TERMS, UNITS, calcTotals, rm, type QuotationClient, type QuotationItem } from '@/lib/quotation'
 import { ringgitInWords } from '@/lib/number-words'
 import { SELLER, BANKS } from '@/lib/seller'
+import { ItemNameInput } from '@/components/admin/item-name-input'
 
 interface FormItem { name: string; description: string; showDesc: boolean; qty: string; unit: string; rate: string }
 interface CustomerHit { source?: 'web' | 'refrens'; id: string | null; refrens_id?: string | null; name: string | null; phone_norm: string | null; email: string | null; address: string | null; company?: string | null; company_reg_no?: string | null; tin?: string | null; billing_address?: string | null }
@@ -215,14 +216,14 @@ export function InvoiceForm() {
         </div>
 
         {/* Jadual item */}
-        <div className="mt-4 rounded-lg overflow-hidden border border-gray-200">
-          <div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_120px_130px_44px] gap-2 bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2"><span>Item</span><span>Code</span><span className="text-right">Quantity</span><span>Unit</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span /></div>
+        <div className="mt-4 rounded-lg border border-gray-200">{/* tiada overflow-hidden — dropdown cadangan item perlu melimpah */}
+          <div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_120px_130px_44px] gap-2 bg-gray-900 text-white text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-t-lg"><span>Item</span><span>Code</span><span className="text-right">Quantity</span><span>Unit</span><span className="text-right">Rate</span><span className="text-right">Amount</span><span /></div>
           <datalist id="invoice-units">{UNITS.map(u => <option key={u} value={u} />)}</datalist>
           <div className="divide-y divide-gray-100">
             {items.map((it, i) => (
               <div key={i} className="grid md:grid-cols-[1fr_90px_90px_90px_120px_130px_44px] gap-2 items-start p-2">
                 <div className="space-y-1">
-                  <input value={it.name} onChange={e => updItem(i, { name: e.target.value })} placeholder={`${i + 1}. Item Name`} className={`${inp} font-semibold`} />
+                  <ItemNameInput value={it.name} onChange={v => updItem(i, { name: v })} onPick={h => updItem(i, { name: h.name, rate: h.rate > 0 ? String(h.rate) : it.rate, unit: h.unit || it.unit, description: it.description || (h.description ?? ''), showDesc: it.showDesc || !!h.description })} placeholder={`${i + 1}. Item Name (taip untuk cadangan katalog)`} className={`${inp} font-semibold`} />
                   {it.showDesc ? <textarea value={it.description} onChange={e => updItem(i, { description: e.target.value })} placeholder="Description" rows={2} className={`${inp} text-xs`} /> : <button type="button" onClick={() => updItem(i, { showDesc: true })} className={linkBtn}><Plus className="h-3.5 w-3.5" />Add Description</button>}
                 </div>
                 <input value="" disabled placeholder="—" title="Kod item tidak disokong API Refrens" className={`${inp} hidden md:block`} aria-label="Code" />

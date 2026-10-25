@@ -17,7 +17,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export function rowToDeal(r: Row): GiftDeal {
   return {
-    id: r.id, quotation_id: r.quotation_id ?? null, customer_id: r.customer_id ?? null, client: r.client ?? {}, title: r.title ?? null,
+    id: r.id, quotation_id: r.quotation_id ?? null, gift_order_id: r.gift_order_id ?? null, customer_id: r.customer_id ?? null, client: r.client ?? {}, title: r.title ?? null,
     stage: (ALL_STAGES.includes(r.stage) ? r.stage : 'quote') as DealStage, amount: num(r.amount) as number, accepted_at: r.accepted_at ?? null,
     deposit_pct: num(r.deposit_pct, 50) as number, deposit_paid_at: r.deposit_paid_at ?? null, deposit_amount: num(r.deposit_amount, null), deposit_source: r.deposit_source ?? null, deposit_ref: r.deposit_ref ?? null,
     balance_paid_at: r.balance_paid_at ?? null, balance_amount: num(r.balance_amount, null), balance_source: r.balance_source ?? null, balance_ref: r.balance_ref ?? null,
@@ -79,24 +79,85 @@ export async function loadDealRow(sb: SB, id: string): Promise<(DealRow & { even
 }
 
 // ── Hook dari sebut harga (best-effort) ───────────────────────────────────
+const isMissingColumn = (e: { code?: string; message?: string } | null) => !!e && (e.code === '42703' || e.code === 'PGRST204' || /gift_order_id/.test(e.message ?? ''))
+
 export async function ensureDealForQuotation(sb: SB, q: Quotation, actor: string | null): Promise<string | null> {
   try {
     const { data: existing } = await sb.from('gift_deals').select('id').eq('quotation_id', q.id).maybeSingle()
     if (existing?.id) return existing.id
     let depositPct = 50
-    if (q.source_type === 'gift_order' && q.source_id) {
-      const { data: o } = await sb.from('gift_orders').select('deposit_pct').eq('id', q.source_id).maybeSingle()
+    const giftOrderId = q.source_type === 'gift_order' && q.source_id ? q.source_id : null
+    if (giftOrderId) {
+      const { data: o } = await sb.from('gift_orders').select('deposit_pct').eq('id', giftOrderId).maybeSingle()
       if (o && Number.isFinite(Number(o.deposit_pct))) depositPct = Number(o.deposit_pct)
+      // Deal untuk tempahan web yang sama sudah wujud (deposit online) → pautkan sebut harga ini padanya.
+      try {
+        const { data: byOrder } = await sb.from('gift_deals').select('id, quotation_id, amount').eq('gift_order_id', giftOrderId).maybeSingle()
+        if (byOrder?.id && !byOrder.quotation_id) {
+          await sb.from('gift_deals').update({ quotation_id: q.id, title: dealTitle(q.client, q.items[0]?.name, q.items.length), amount: r2(q.total) || byOrder.amount, needed_by: q.needed_by ?? undefined, updated_at: new Date().toISOString() }).eq('id', byOrder.id)
+          await logDealEvent(sb, byOrder.id, 'edited', { linked_quotation: q.quote_number }, actor)
+          return byOrder.id
+        }
+      } catch { /* lajur gift_order_id belum ada (migration 148) */ }
     }
-    const row = {
+    const row: Row = {
       quotation_id: q.id, customer_id: q.customer_id, client: q.client, title: dealTitle(q.client, q.items[0]?.name, q.items.length),
       stage: 'quote', amount: r2(q.total), accepted_at: q.accepted_at, deposit_pct: depositPct, needed_by: q.needed_by ?? null,
+      ...(giftOrderId ? { gift_order_id: giftOrderId } : {}),
     }
-    const { data, error } = await sb.from('gift_deals').insert(row).select('id').single()
+    let { data, error } = await sb.from('gift_deals').insert(row).select('id').single()
+    if (error && isMissingColumn(error) && row.gift_order_id) { delete row.gift_order_id; ({ data, error } = await sb.from('gift_deals').insert(row).select('id').single()) }
     if (error) { if (error.code !== '23505') console.warn('[gift-deals] cipta deal gagal', error.message); return null }
     await logDealEvent(sb, data.id, 'created', { quote_number: q.quote_number, amount: row.amount }, actor)
     return data.id as string
   } catch (e) { console.warn('[gift-deals] hook', (e as Error).message); return null }
+}
+
+/** Tempahan web (Studio) bayar deposit/baki online melalui CHIP → deal lahir/dikemas kini automatik (best-effort). */
+export async function ensureDealForGiftOrderPayment(sb: SB, giftOrderId: string, kind: 'deposit' | 'balance'): Promise<void> {
+  try {
+    const { data: o } = await sb.from('gift_orders')
+      .select('id, order_number, name, phone, email, company, address, postcode, quantity, total, deposit_pct, deposit_amount, balance, config')
+      .eq('id', giftOrderId).maybeSingle()
+    if (!o) return
+    const now = new Date().toISOString()
+    const cfg = (o.config ?? {}) as Record<string, unknown>
+    const what = typeof cfg.kurma_name === 'string' ? `Custom Gift Box${cfg.weight ? ` ${cfg.weight}` : ''} — ${cfg.kurma_name} × ${o.quantity}` : `Gift Box × ${o.quantity}`
+    const client = { company: o.company ?? null, name: o.name, phone: o.phone, email: o.email ?? null, address: [o.address, o.postcode].filter(Boolean).join(', ') || null }
+    const payment: Row = kind === 'deposit'
+      ? { deposit_paid_at: now, deposit_amount: r2(Number(o.deposit_amount) || 0), deposit_source: 'chip' }
+      : { balance_paid_at: now, balance_amount: r2(Number(o.balance) || 0), balance_source: 'chip' }
+
+    // Deal sedia ada ikut gift_order_id, atau ikut sebut harga yang dibuat dari enquiry ini.
+    let deal: GiftDeal | null = null
+    try { const { data } = await sb.from('gift_deals').select('*').eq('gift_order_id', o.id).maybeSingle(); if (data) deal = rowToDeal(data) } catch { /* migration 148 belum */ }
+    if (!deal) {
+      const { data: qs } = await sb.from('quotations').select('id').eq('source_type', 'gift_order').eq('source_id', o.id).limit(1)
+      if (qs?.[0]?.id) { const { data } = await sb.from('gift_deals').select('*').eq('quotation_id', qs[0].id).maybeSingle(); if (data) deal = rowToDeal(data) }
+    }
+    if (deal) {
+      const upd: Row = { ...payment, updated_at: now }
+      if (kind === 'deposit' && deal.deposit_paid_at) delete upd.deposit_paid_at
+      if (kind === 'balance' && deal.balance_paid_at) delete upd.balance_paid_at
+      upd.stage = kind === 'deposit' ? stageAfterDeposit(deal) : stageAfterBalance(deal)
+      if (!deal.gift_order_id) upd.gift_order_id = o.id
+      let { error } = await sb.from('gift_deals').update(upd).eq('id', deal.id)
+      if (error && isMissingColumn(error)) { delete upd.gift_order_id; ({ error } = await sb.from('gift_deals').update(upd).eq('id', deal.id)) }
+      if (!error) await logDealEvent(sb, deal.id, 'payment', { kind, amount: payment.deposit_amount ?? payment.balance_amount, method: 'CHIP', source: 'chip', order: o.order_number }, 'system')
+      return
+    }
+    const row: Row = {
+      gift_order_id: o.id, client, title: `${what} — ${(o.company || o.name || 'Klien').trim()}`.slice(0, 160),
+      stage: kind === 'deposit' ? 'deposit' : 'balance', amount: r2(Number(o.total) || 0), deposit_pct: Number(o.deposit_pct) || 50,
+      needed_by: typeof cfg.needed_by === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cfg.needed_by) ? cfg.needed_by.slice(0, 10) : null,
+      ...payment,
+    }
+    let { data, error } = await sb.from('gift_deals').insert(row).select('id').single()
+    if (error && isMissingColumn(error)) { delete row.gift_order_id; ({ data, error } = await sb.from('gift_deals').insert(row).select('id').single()) }
+    if (error) { if (error.code !== '23505') console.warn('[gift-deals] deal dari bayaran web gagal', error.message); return }
+    await logDealEvent(sb, data.id, 'created', { from: 'gift_order', order: o.order_number, kind }, 'system')
+    await logDealEvent(sb, data.id, 'payment', { kind, amount: payment.deposit_amount ?? payment.balance_amount, method: 'CHIP', source: 'chip', order: o.order_number }, 'system')
+  } catch (e) { console.warn('[gift-deals] hook bayaran web', (e as Error).message) }
 }
 async function dealByQuotation(sb: SB, quotationId: string): Promise<GiftDeal | null> {
   try { const { data } = await sb.from('gift_deals').select('*').eq('quotation_id', quotationId).maybeSingle(); return data ? rowToDeal(data) : null } catch { return null }
