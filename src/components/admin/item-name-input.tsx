@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Package } from 'lucide-react'
 
-export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling'; name: string; description: string | null; rate: number; unit: string }
-const SOURCE_LABEL: Record<ItemHit['source'], string> = { product: 'Produk', variant: 'Varian', gift_box: 'Kotak gift', gift_filling: 'Isi gift' }
+export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling' | 'gift_sheet'; name: string; description: string | null; rate: number; unit: string }
+const SOURCE_LABEL: Record<ItemHit['source'], string> = { product: 'Produk', variant: 'Varian', gift_box: 'Kotak gift', gift_filling: 'Isi gift', gift_sheet: 'Sheet gift 2026' }
 const rm = (n: number) => `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 export function ItemNameInput({ value, onChange, onPick, className, placeholder, disabled }: {

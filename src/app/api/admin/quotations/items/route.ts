@@ -5,8 +5,10 @@ export const dynamic = 'force-dynamic'
 // produk + varian (harga semasa), kotak gift (base_price) dan isi gift (harga/unit). Nama manual tetap boleh.
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { loadGiftCostSheet } from '@/lib/gift-cost-sheet-server'
+import { sheetItemName, sheetTiers } from '@/lib/gift-cost-sheet'
 
-export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling'; name: string; description: string | null; rate: number; unit: string }
+export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling' | 'gift_sheet'; name: string; description: string | null; rate: number; unit: string }
 const clean = (q: string) => q.replace(/[,()*\\%]/g, ' ').trim().slice(0, 60)
 const unitFor = (u: string | null | undefined) => {
   const v = (u ?? '').toLowerCase()
@@ -25,13 +27,29 @@ export async function GET(request: Request) {
   const q = clean(new URL(request.url).searchParams.get('q') ?? '')
   if (q.length < 2) return NextResponse.json([])
   const like = `%${q}%`
-  const [prods, vars, boxes, fills] = await Promise.all([
+  const [prods, vars, boxes, fills, sheet] = await Promise.all([
     supabase!.from('products').select('id, name, price, unit, is_active').ilike('name', like).eq('is_active', true).order('name').limit(8),
     supabase!.from('product_variants').select('id, name, price, is_active, products(name, unit)').ilike('name', like).eq('is_active', true).limit(8),
     supabase!.from('gift_boxes').select('id, name, base_price, capacity_label, is_active').ilike('name', like).eq('is_active', true).limit(5),
     supabase!.from('gift_fillings').select('id, name, price, unit, grade, is_active').ilike('name', like).eq('is_active', true).limit(5),
+    loadGiftCostSheet(supabase!).catch(() => null),
   ])
   const hits: ItemHit[] = []
+  // Sheet GIFT BOX CUSTOM 2026 — satu cadangan per kurma × berat; kadar = tier terkecil, tier lain dalam keterangan
+  if (sheet) {
+    const ql = q.toLowerCase()
+    const generic = /gift|kotak|custom|box/.test(ql)
+    const combos = [...new Set(sheet.rows.map(r => `${r.kurma}|${r.weight}`))]
+    for (const c of combos) {
+      const [kurma, weight] = c.split('|')
+      if (!generic && !kurma.toLowerCase().includes(ql) && !weight.includes(ql)) continue
+      const tiers = sheetTiers(sheet, kurma, weight)
+      if (!tiers.length) continue
+      const base = tiers[0]
+      const others = tiers.slice(1).map(t => `@${t.qty.toLocaleString('en-MY')} ${t.price.toFixed(2)}`).join(' · ')
+      hits.push({ source: 'gift_sheet', name: sheetItemName(base), description: `Sheet 2026 @${base.qty.toLocaleString('en-MY')}: RM${base.price.toFixed(2)} (kos RM${base.total_cost.toFixed(2)}, margin ${base.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: base.price, unit: 'box' })
+    }
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const p of (prods.data ?? []) as any[]) hits.push({ source: 'product', name: p.name, description: null, rate: Number(p.price) || 0, unit: unitFor(p.unit) })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
