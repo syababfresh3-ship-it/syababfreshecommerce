@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, RefreshCw, ExternalLink, Table2 } from 'lucide-react'
 import { GIFT_COST_SHEET_EDIT_URL, type GiftCostSheet } from '@/lib/gift-cost-sheet'
+import { GiftPriceCalculator } from '@/components/admin/gift-price-calculator'
 
 const rm = (n: number) => `RM${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const fmtDT = (v: string | null | undefined) => v ? new Date(v).toLocaleString('en-MY', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
@@ -54,6 +55,13 @@ export function SheetCostsClient() {
           <button type="button" onClick={pull} disabled={busy} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Tarik dari Sheet</button>
         </div>
       </div>
+
+      {sheet && (
+        <div className="mt-4 rounded-xl border border-dashed border-gray-300 p-3">
+          <p className="text-sm font-bold text-gray-900 mb-2">Kalkulator harga <span className="text-xs font-normal text-gray-500">— pilih kurma, berat, kuantiti; main margin atau harga anda</span></p>
+          <GiftPriceCalculator key={sheet.fetched_at} />
+        </div>
+      )}
 
       {sheet && sheet.bands.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">

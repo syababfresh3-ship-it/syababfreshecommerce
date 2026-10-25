@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { ChevronLeft, Loader2, Plus, Trash2, X, ArrowUp, ArrowDown, Send, FileText, Link2, Copy, Ban, Mail, Search, Gift, Receipt, RefreshCw, ExternalLink, RotateCcw, Save } from 'lucide-react'
 import { BANKS, DEFAULT_BANK_KEY, SELLER } from '@/lib/seller'
 import { ItemNameInput } from '@/components/admin/item-name-input'
+import { GiftPriceCalculator } from '@/components/admin/gift-price-calculator'
 import { ringgitInWords } from '@/lib/number-words'
 import {
   DEFAULT_NOTE, DEFAULT_TERMS, UNITS, VALID_DAYS, addDays, calcTotals, isEditable, rm, statusLabel,
@@ -93,6 +94,7 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
   const [confirmInvoice, setConfirmInvoice] = useState(false)
   const [confirmIssue, setConfirmIssue] = useState(false)
   const [showNotes, setShowNotes] = useState(true)
+  const [calcOpen, setCalcOpen] = useState(false)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -411,6 +413,22 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
           <span className="font-semibold text-gray-700">Currency*</span>
           <span className="border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 text-gray-600">Malaysian Ringgit (MYR, RM)</span>
         </div>
+
+        {/* Kalkulator harga gift (Sheet GIFT BOX CUSTOM 2026) — main margin/harga, tambah terus ke item */}
+        {editable && (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-300 p-3">
+            <button type="button" onClick={() => setCalcOpen(v => !v)} className="w-full flex items-center justify-between text-left">
+              <span className="text-sm font-bold text-gray-900">Kalkulator harga gift box <span className="text-xs font-normal text-gray-500">— kos & harga dari Sheet 2026, main margin, tambah ke item</span></span>
+              <span className="text-xs font-semibold text-gray-600">{calcOpen ? 'Tutup' : 'Buka'}</span>
+            </button>
+            {calcOpen && <div className="mt-3"><GiftPriceCalculator defaultQty={Math.max(1, n2(form.items[0]?.qty ?? '500') || 500)} onUse={it => {
+              const empty = form.items.findIndex(x => !x.name.trim())
+              const row = { name: it.name, description: it.description, showDesc: true, qty: String(it.qty), unit: it.unit, rate: String(it.rate) }
+              upd({ items: empty >= 0 ? form.items.map((x, k) => k === empty ? row : x) : [...form.items, row] })
+              toast.success(`Ditambah: ${it.name} × ${it.qty} @ RM${it.rate.toFixed(2)}`)
+            }} /></div>}
+          </div>
+        )}
 
         {/* Jadual item */}
         <div className="mt-4 rounded-lg border border-gray-200">{/* tiada overflow-hidden — dropdown cadangan item perlu melimpah */}

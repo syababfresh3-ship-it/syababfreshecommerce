@@ -304,3 +304,5 @@ Sumber harga gift box ialah Google Sheet, tab **GIFT BOX CUSTOM 2026**. Website 
 2. Pilih cadangan **"Custom Gift Box 200g — Mariami A"** (bertanda *Sheet gift 2026*). Harga tier 500 terisi; harga tier 1,000 dan 2,000 serta kos & margin tertera dalam keterangan.
 3. Tukar **Quantity** ikut pesanan klien dan **laraskan kadar ikut tier** (cth. 1,000 kotak → guna harga @1,000). Ikut panduan margin sasaran di atas jadual (100–300 pcs 50–55%, 300–1,000 45–50%, 1,000–5,000 40–45%).
 4. Harga akhir untuk klien ialah keputusan sales — Sheet ialah rujukan kos & margin, bukan harga wajib.
+
+**Kalkulator harga (main margin tanpa buka Sheet):** dalam sebut harga, buka **Kalkulator harga gift box** (atas jadual item) atau di **Kos & Harga**. Pilih kurma, berat, kuantiti → nampak kos/kotak & harga Sheet ikut tier. Taip **Margin sasaran %** (cth. 20) → harga baharu dikira; atau taip **Harga anda** → margin dikira. Nampak untung/kotak, jumlah untung & jumlah jualan, dan amaran bila margin bawah panduan. **Tambah ke item** masukkan terus ke sebut harga dengan kuantiti & harga itu.
