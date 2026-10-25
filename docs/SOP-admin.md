@@ -290,3 +290,17 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 - Setiap deal mesti ada **Tindakan seterusnya + tarikh**. Kad bertanda amaran bila: tiada respons 3 hari, hampir luput, deposit belum masuk, artwork belum OK < 14 hari, lewat hantar, baki tertunggak 7/14 hari.
 - Deal milik **sales yang keluarkan sebut harga** (boleh tukar di panel). Guna **akaun admin sendiri** — jangan kongsi akaun. Penapis **Deal saya** di Pipeline.
 - Jangan keluarkan sebut harga ujian — nombor Refrens terpakai. Jangan edit kandungan invois di website — buka di Refrens. Cari klien dulu sebelum Add New Client.
+
+### 6.7 Harga & kos dari Sheet "GIFT BOX CUSTOM 2026"
+Sumber harga gift box ialah Google Sheet, tab **GIFT BOX CUSTOM 2026**. Website tak simpan harga sendiri; ia salin dari Sheet bila ditarik.
+
+**Bila harga/kos berubah (orang yang jaga Sheet):**
+1. Ubah angka di Sheet seperti biasa (kos kurma, kos kotak ikut kuantiti, harga). Jangan ubah nama lajur atau tajuk "Jenis Kurma" — itu yang sistem cari.
+2. **Kos & Harga → Tarik dari Sheet.** Mesej tunjuk berapa baris baharu/berubah. Selesai — tiada benda lain perlu ditaip.
+3. Pastikan Sheet kekal dikongsi "sesiapa dengan pautan boleh lihat"; kalau tidak, butang akan beri ralat.
+
+**Bila buat sebut harga (team sales):**
+1. Dalam baris item, taip nama kurma (cth. `mariami`) atau `gift box`.
+2. Pilih cadangan **"Custom Gift Box 200g — Mariami A"** (bertanda *Sheet gift 2026*). Harga tier 500 terisi; harga tier 1,000 dan 2,000 serta kos & margin tertera dalam keterangan.
+3. Tukar **Quantity** ikut pesanan klien dan **laraskan kadar ikut tier** (cth. 1,000 kotak → guna harga @1,000). Ikut panduan margin sasaran di atas jadual (100–300 pcs 50–55%, 300–1,000 45–50%, 1,000–5,000 40–45%).
+4. Harga akhir untuk klien ialah keputusan sales — Sheet ialah rujukan kos & margin, bukan harga wajib.
