@@ -50,6 +50,7 @@ export interface Quotation {
   accepted_by: string | null
   cancel_reason: string | null
   legacy_source: string | null
+  created_by: string | null          // admin yang cipta (profiles.id) — lalai pemilik deal
   created_at: string
   updated_at: string
 }

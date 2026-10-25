@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
   const d = parsed.data
   const totals = totalsFor(d.items ?? [], d.discount ?? 0, d.charges ?? [])
-  const customerId = await syncCustomer(supabase!, d.client ?? {}, d.customer_id ?? null)
+  const customerId = await syncCustomer(supabase!, d.client ?? {}, d.customer_id ?? null, user?.id ?? null)
 
   const row = {
     status: 'draft', client: d.client ?? {}, customer_id: customerId,

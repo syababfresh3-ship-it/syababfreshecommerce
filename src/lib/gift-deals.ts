@@ -21,7 +21,7 @@ export const LOST_REASONS = ['Harga', 'Tempoh tak sempat', 'Pilih pesaing', 'Pro
 export const PAY_METHODS: [string, string][] = [['ACCOUNT_TRANSFER', 'Pindahan bank'], ['CASH', 'Tunai'], ['CHEQUE', 'Cek'], ['CREDIT_CARD', 'Kad kredit'], ['DEBIT_CARD', 'Kad debit'], ['CHIP', 'CHIP (pautan bayar)']]
 
 export interface GiftDeal {
-  id: string; quotation_id: string | null; gift_order_id?: string | null; customer_id: string | null; client: QuotationClient; title: string | null
+  id: string; quotation_id: string | null; gift_order_id?: string | null; owner_id?: string | null; customer_id: string | null; client: QuotationClient; title: string | null
   stage: DealStage; amount: number; accepted_at: string | null
   deposit_pct: number; deposit_paid_at: string | null; deposit_amount: number | null; deposit_source: string | null; deposit_ref: string | null
   balance_paid_at: string | null; balance_amount: number | null; balance_source: string | null; balance_ref: string | null
@@ -33,7 +33,9 @@ export interface GiftDeal {
   created_at: string; updated_at: string
 }
 export interface DealQuotationInfo { quote_number: string | null; status: string; valid_until: string | null; issued_at: string | null; share_token: string | null }
-export interface DealRow extends GiftDeal { quotation: DealQuotationInfo | null; invoice: QuotationInvoiceRef | null; alerts: DealAlert[] }
+export interface DealOwner { id: string; name: string }
+export interface DealRow extends GiftDeal { quotation: DealQuotationInfo | null; invoice: QuotationInvoiceRef | null; alerts: DealAlert[]; owner: DealOwner | null }
+export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?'
 export interface DealEvent { id: number; type: string; meta: Record<string, unknown>; actor: string | null; created_at: string }
 
 export interface DealAlert { level: 'warn' | 'danger'; text: string }

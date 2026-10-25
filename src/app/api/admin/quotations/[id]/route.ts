@@ -42,7 +42,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
   const totals = totalsFor(items, discount, charges)
   const client = d.client ?? cur.client
   const customerId = d.customer_id !== undefined ? d.customer_id : cur.customer_id
-  const syncedId = await syncCustomer(supabase!, client, customerId)
+  const syncedId = await syncCustomer(supabase!, client, customerId, user?.id ?? null)
 
   const update = {
     ...d, client, customer_id: syncedId ?? customerId, items, charges,

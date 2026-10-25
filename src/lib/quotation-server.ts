@@ -40,7 +40,7 @@ export function rowToQuotation(r: Row): Quotation {
     show_bank: r.show_bank !== false, bank_key: r.bank_key ?? 'publicbank',
     custom_fields: Array.isArray(r.custom_fields) ? r.custom_fields : [],
     share_token: r.share_token ?? null, accepted_at: r.accepted_at ?? null, accepted_by: r.accepted_by ?? null,
-    cancel_reason: r.cancel_reason ?? null, legacy_source: r.legacy_source ?? null,
+    cancel_reason: r.cancel_reason ?? null, legacy_source: r.legacy_source ?? null, created_by: r.created_by ?? null,
     created_at: r.created_at, updated_at: r.updated_at,
   }
 }
@@ -125,7 +125,7 @@ export function totalsFor(items: QuotationItem[], discount: number, charges: Quo
 }
 
 // ── Pelanggan: segerakkan snapshot klien ke customers (best-effort, isi medan kosong) ──
-export async function syncCustomer(sb: SB, client: Quotation['client'], customerId: string | null): Promise<string | null> {
+export async function syncCustomer(sb: SB, client: Quotation['client'], customerId: string | null, ownerId: string | null = null): Promise<string | null> {
   let id = customerId
   if (!id) {
     const phone = normalizePhone(client.phone)
@@ -142,6 +142,8 @@ export async function syncCustomer(sb: SB, client: Quotation['client'], customer
   if (Object.keys(extra).length) {
     try { await sb.from('customers').update(extra).eq('id', id) } catch { /* lajur belum ada (migration 146) → abaikan */ }
   }
+  // Sales pemilik klien: tetapkan sekali sahaja (migration 149) — tidak ditimpa.
+  if (ownerId) { try { await sb.from('customers').update({ owner_id: ownerId }).eq('id', id).is('owner_id', null) } catch { /* lajur belum ada */ } }
   return id
 }
 

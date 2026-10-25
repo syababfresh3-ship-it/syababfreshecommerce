@@ -2,7 +2,7 @@
 // Hook dari modul sebut harga adalah best-effort: jadual tiada / ralat → sebut harga tetap jalan.
 import { invoiceRefFromEvents, type Quotation, type QuotationInvoiceRef } from '@/lib/quotation'
 import {
-  ALL_STAGES, type DealEvent, type DealQuotationInfo, type DealRow, type DealStage, type GiftDeal,
+  ALL_STAGES, type DealEvent, type DealOwner, type DealQuotationInfo, type DealRow, type DealStage, type GiftDeal,
   advanceStage, balanceDue, dealAlerts, dealTitle, depositDue, r2, stageAfterBalance, stageAfterDelivered, stageAfterDeposit, stageAfterInvoice,
 } from '@/lib/gift-deals'
 import { isRefrensConfigured, listPayments, recordPayment, type PaymentMethod } from '@/lib/refrens'
@@ -17,7 +17,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export function rowToDeal(r: Row): GiftDeal {
   return {
-    id: r.id, quotation_id: r.quotation_id ?? null, gift_order_id: r.gift_order_id ?? null, customer_id: r.customer_id ?? null, client: r.client ?? {}, title: r.title ?? null,
+    id: r.id, quotation_id: r.quotation_id ?? null, gift_order_id: r.gift_order_id ?? null, owner_id: r.owner_id ?? null, customer_id: r.customer_id ?? null, client: r.client ?? {}, title: r.title ?? null,
     stage: (ALL_STAGES.includes(r.stage) ? r.stage : 'quote') as DealStage, amount: num(r.amount) as number, accepted_at: r.accepted_at ?? null,
     deposit_pct: num(r.deposit_pct, 50) as number, deposit_paid_at: r.deposit_paid_at ?? null, deposit_amount: num(r.deposit_amount, null), deposit_source: r.deposit_source ?? null, deposit_ref: r.deposit_ref ?? null,
     balance_paid_at: r.balance_paid_at ?? null, balance_amount: num(r.balance_amount, null), balance_source: r.balance_source ?? null, balance_ref: r.balance_ref ?? null,
@@ -46,16 +46,38 @@ async function attach(sb: SB, deals: GiftDeal[]): Promise<DealRow[]> {
     for (const ev of evs ?? []) { const arr = byQ.get(ev.quotation_id) ?? []; arr.push(ev); byQ.set(ev.quotation_id, arr) }
     for (const [qid, arr] of byQ) { const ref = invoiceRefFromEvents(arr as never); if (ref) invoices.set(qid, ref) }
   }
+  const owners = new Map<string, DealOwner>()
+  const ownerIds = [...new Set(deals.map(d => d.owner_id).filter(Boolean) as string[])]
+  if (ownerIds.length) {
+    const { data: ps } = await sb.from('profiles').select('id, full_name, email').in('id', ownerIds)
+    for (const p of ps ?? []) owners.set(p.id, { id: p.id, name: (p.full_name as string) || (p.email as string) || 'Admin' })
+  }
   const now = new Date()
   return deals.map(d => {
     const q = d.quotation_id ? quotes.get(d.quotation_id) ?? null : null
     const inv = d.quotation_id ? invoices.get(d.quotation_id) ?? null : null
-    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now) }
+    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now), owner: d.owner_id ? owners.get(d.owner_id) ?? null : null }
   })
 }
 
-export async function listDeals(sb: SB, opts: { scope?: string; q?: string }): Promise<DealRow[]> {
+// Insert/update yang toleran lajur belum wujud (migration 148/149): buang lajur yang disebut ralat, cuba lagi.
+const MISSING_COL_RE = /'([a-z_]+)' column|column "?([a-z_]+)"? (?:of relation )?.*does not exist/i
+async function insertTolerant(sb: SB, table: string, row: Row): Promise<{ data: Row | null; error: { code?: string; message?: string } | null }> {
+  const r = { ...row }
+  for (let i = 0; i < 4; i++) {
+    const res = await sb.from(table).insert(r).select('*').single()
+    if (!res.error) return res
+    const m = MISSING_COL_RE.exec(res.error.message ?? '')
+    const col = m?.[1] ?? m?.[2]
+    if ((res.error.code === '42703' || res.error.code === 'PGRST204') && col && col in r) { delete r[col]; continue }
+    return res
+  }
+  return { data: null, error: { message: 'insert gagal' } }
+}
+
+export async function listDeals(sb: SB, opts: { scope?: string; q?: string; owner?: string | null }): Promise<DealRow[]> {
   let query = sb.from('gift_deals').select('*').order('needed_by', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false }).limit(500)
+  if (opts.owner && UUID_RE.test(opts.owner)) query = query.eq('owner_id', opts.owner)
   const scope = opts.scope ?? 'active'
   if (scope === 'active') query = query.not('stage', 'in', '("done","lost")')
   else if (scope === 'done' || scope === 'lost') query = query.eq('stage', scope)
@@ -104,10 +126,10 @@ export async function ensureDealForQuotation(sb: SB, q: Quotation, actor: string
       quotation_id: q.id, customer_id: q.customer_id, client: q.client, title: dealTitle(q.client, q.items[0]?.name, q.items.length),
       stage: 'quote', amount: r2(q.total), accepted_at: q.accepted_at, deposit_pct: depositPct, needed_by: q.needed_by ?? null,
       ...(giftOrderId ? { gift_order_id: giftOrderId } : {}),
+      ...(q.created_by ? { owner_id: q.created_by, created_by: q.created_by } : {}),   // sales pemilik deal = pengeluar sebut harga
     }
-    let { data, error } = await sb.from('gift_deals').insert(row).select('id').single()
-    if (error && isMissingColumn(error) && row.gift_order_id) { delete row.gift_order_id; ({ data, error } = await sb.from('gift_deals').insert(row).select('id').single()) }
-    if (error) { if (error.code !== '23505') console.warn('[gift-deals] cipta deal gagal', error.message); return null }
+    const { data, error } = await insertTolerant(sb, 'gift_deals', row)
+    if (error || !data) { if (error?.code !== '23505') console.warn('[gift-deals] cipta deal gagal', error?.message); return null }
     await logDealEvent(sb, data.id, 'created', { quote_number: q.quote_number, amount: row.amount }, actor)
     return data.id as string
   } catch (e) { console.warn('[gift-deals] hook', (e as Error).message); return null }
@@ -152,9 +174,8 @@ export async function ensureDealForGiftOrderPayment(sb: SB, giftOrderId: string,
       needed_by: typeof cfg.needed_by === 'string' && /^\d{4}-\d{2}-\d{2}/.test(cfg.needed_by) ? cfg.needed_by.slice(0, 10) : null,
       ...payment,
     }
-    let { data, error } = await sb.from('gift_deals').insert(row).select('id').single()
-    if (error && isMissingColumn(error)) { delete row.gift_order_id; ({ data, error } = await sb.from('gift_deals').insert(row).select('id').single()) }
-    if (error) { if (error.code !== '23505') console.warn('[gift-deals] deal dari bayaran web gagal', error.message); return }
+    const { data, error } = await insertTolerant(sb, 'gift_deals', row)
+    if (error || !data) { if (error?.code !== '23505') console.warn('[gift-deals] deal dari bayaran web gagal', error?.message); return }
     await logDealEvent(sb, data.id, 'created', { from: 'gift_order', order: o.order_number, kind }, 'system')
     await logDealEvent(sb, data.id, 'payment', { kind, amount: payment.deposit_amount ?? payment.balance_amount, method: 'CHIP', source: 'chip', order: o.order_number }, 'system')
   } catch (e) { console.warn('[gift-deals] hook bayaran web', (e as Error).message) }
@@ -194,6 +215,7 @@ export function parseDealPatch(body: Row): { ok: true; patch: Row; stageTouched:
   const has = (k: string) => body[k] !== undefined
   if (has('stage')) { if (!ALL_STAGES.includes(body.stage)) return { ok: false, error: 'Peringkat tidak sah' }; p.stage = body.stage }
   if (has('title')) p.title = str(body.title, 160)
+  if (has('owner_id')) { const v = body.owner_id; if (v === null || v === '') p.owner_id = null; else if (typeof v === 'string' && UUID_RE.test(v)) p.owner_id = v; else return { ok: false, error: 'Pemilik tidak sah' } }
   if (has('deposit_pct')) { const n = Math.round(Number(body.deposit_pct)); if (!Number.isFinite(n) || n < 0 || n > 100) return { ok: false, error: 'Peratus deposit 0–100' }; p.deposit_pct = n }
   for (const k of ['po_number', 'artwork_by', 'tracking_no', 'received_by', 'next_action', 'lost_reason', 'delivery_method']) if (has(k)) p[k] = str(body[k], 200)
   for (const k of ['po_file_url', 'artwork_file_url', 'pod_url']) if (has(k)) p[k] = str(body[k], 1000)
@@ -218,7 +240,8 @@ export async function patchDeal(sb: SB, d: GiftDeal, patch: Row, stageTouched: b
   if (nd.stage !== d.stage) await logDealEvent(sb, d.id, 'stage', { from: d.stage, to: nd.stage, reason: patch.lost_reason ?? undefined }, actor)
   if (patch.delivered_at && !d.delivered_at) await logDealEvent(sb, d.id, 'delivered', { at: patch.delivered_at, method: nd.delivery_method, tracking: nd.tracking_no }, actor)
   if (patch.artwork_approved_at && !d.artwork_approved_at) await logDealEvent(sb, d.id, 'artwork', { at: patch.artwork_approved_at, by: nd.artwork_by }, actor)
-  const other = Object.keys(patch).filter(k => !['delivered_at', 'artwork_approved_at', 'stage'].includes(k))
+  if (patch.owner_id !== undefined && patch.owner_id !== d.owner_id) await logDealEvent(sb, d.id, 'owner', { from: d.owner_id, to: patch.owner_id }, actor)
+  const other = Object.keys(patch).filter(k => !['delivered_at', 'artwork_approved_at', 'stage', 'owner_id'].includes(k))
   if (other.length) await logDealEvent(sb, d.id, 'edited', { fields: other }, actor)
   // Tarikh perlu hantar disegerakkan balik ke sebut harga (best-effort)
   if (patch.needed_by !== undefined && d.quotation_id) { try { await sb.from('quotations').update({ needed_by: patch.needed_by }).eq('id', d.quotation_id) } catch { /* abaikan */ } }
