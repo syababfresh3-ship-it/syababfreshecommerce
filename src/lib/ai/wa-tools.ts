@@ -1,27 +1,19 @@
 // ============================================================
 // lib/ai/wa-tools — tool khusus chatbot WhatsApp (neutral) + runner.
-// search_products (harga LIVE) + get_order_by_phone (order customer ikut nombor).
+// search_products + get_product_details (katalog kongsi, lib/ai/catalog-tools.ts) + get_order_by_phone.
 // Read-only; tool TIDAK terima order_id dari model (guna konteks contact sahaja).
 // ============================================================
 import type { AiToolDef, RunTool } from "./tools";
 import { sendAdminPush } from "@/lib/push";
+import { CATALOG_TOOLS, runCatalogTool } from "./catalog-tools";
+import { GIFT_TOOLS, runGiftTool } from "./gift-knowledge";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
 
 export const WA_TOOLS: AiToolDef[] = [
-  {
-    name: "search_products",
-    description:
-      "Cari produk SyababFresh yang aktif untuk jawab soalan harga/produk atau cadang produk. Pulang nama, harga, unit, info, dan PILIHAN SAIZ (variant) + harga jika ada — gunakan harga variant yang betul ikut saiz customer pilih. Kosongkan query untuk produk popular.",
-    parameters: {
-      type: "object",
-      properties: {
-        query: { type: "string", description: 'Kata kunci produk, cth "durian", "mangga". Kosong = senarai popular.' },
-      },
-      required: [],
-    },
-  },
+  ...CATALOG_TOOLS,   // search_products + get_product_details
+  ...GIFT_TOOLS,      // gift_price_estimate + flag_gift_enquiry (Fasa 3)
   {
     name: "get_order_by_phone",
     description:
@@ -85,7 +77,10 @@ export interface WaToolCtx {
 
 export function makeWaToolRunner(sb: SB, ctx: WaToolCtx): RunTool {
   return async (name, input) => {
-    if (name === "search_products") return searchProducts(sb, String(input.query ?? ""));
+    const cat = await runCatalogTool(sb, name, input);   // search_products / get_product_details
+    if (cat !== null) return cat;
+    const gift = await runGiftTool(sb, ctx, name, input);   // gift_price_estimate / flag_gift_enquiry
+    if (gift !== null) return gift;
     if (name === "get_order_by_phone") return getOrderByPhone(sb, ctx);
     if (name === "check_delivery") return checkDelivery(sb, String(input.postcode ?? ""));
     if (name === "remember_about_customer") return rememberAboutCustomer(sb, ctx, input.facts);
@@ -178,42 +173,6 @@ async function flagReadyOrder(sb: SB, ctx: WaToolCtx, summary: string): Promise<
   }).catch(() => {});
 
   return "BERJAYA: order direkod & dihantar ke team untuk hantar pautan bayar. Beritahu customer: terima kasih, CS akan sahkan & hantar pautan bayar sekejap lagi.";
-}
-
-async function searchProducts(sb: SB, query: string): Promise<string> {
-  let q = sb
-    .from("products")
-    .select("name, price, unit, description, product_variants(name, price, is_active, sort_order)")
-    .eq("is_active", true)
-    .limit(8);
-  if (query.trim()) q = q.ilike("name", `%${query.trim()}%`);
-  else q = q.eq("is_featured", true);
-  const { data, error } = await q;
-  if (error) return `Ralat cari produk: ${error.message}`;
-  if (!data?.length) return "Tiada produk dijumpai untuk carian itu.";
-  return JSON.stringify(
-    data.map(
-      (p: {
-        name: string;
-        price: number;
-        unit: string;
-        description: string | null;
-        product_variants?: { name: string; price: number; is_active: boolean | null; sort_order: number | null }[];
-      }) => {
-        const variants = (p.product_variants ?? [])
-          .filter((v) => v.is_active !== false)
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-          .map((v) => ({ saiz: v.name, harga: `RM${Number(v.price).toFixed(2)}` }));
-        const out: Record<string, unknown> = {
-          nama: p.name,
-          harga: `RM${Number(p.price).toFixed(2)}/${p.unit}`,
-          info: (p.description ?? "").slice(0, 140),
-        };
-        if (variants.length) out.pilihan_saiz = variants;
-        return out;
-      },
-    ),
-  );
 }
 
 async function getOrderByPhone(sb: SB, ctx: WaToolCtx): Promise<string> {

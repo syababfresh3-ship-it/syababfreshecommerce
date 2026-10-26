@@ -1,6 +1,8 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendAdminPush } from '@/lib/push'
+import { CATALOG_TOOLS, runCatalogTool } from '@/lib/ai/catalog-tools'
+import { toAnthropicTools } from '@/lib/ai/tools'
 
 // Konteks aduan yang terikat pada sesi (dari token) — tool TIDAK terima order_id
 // dari model (keselamatan: pelanggan hanya boleh akses order sendiri).
@@ -13,18 +15,7 @@ export interface SupportContext {
 }
 
 export const SUPPORT_TOOLS: Anthropic.Tool[] = [
-  {
-    name: 'search_products',
-    description:
-      'Cari produk SyababFresh yang aktif untuk jawab soalan harga/produk atau cadang produk. Pulang nama, harga, unit, dan penerangan ringkas.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'Kata kunci produk, cth "mangga", "durian", "strawberry". Kosong = senarai popular.' },
-      },
-      required: ['query'],
-    },
-  },
+  ...(toAnthropicTools(CATALOG_TOOLS) as Anthropic.Tool[]),   // search_products + get_product_details (kongsi dgn chatbot WA)
   {
     name: 'get_order_status',
     description:
@@ -67,36 +58,17 @@ export const SUPPORT_TOOLS: Anthropic.Tool[] = [
   },
 ]
 
-// Mod guest: hanya benarkan search_products (tiada order/aduan).
-export const GUEST_TOOLS: Anthropic.Tool[] = SUPPORT_TOOLS.filter((t) => t.name === 'search_products')
+// Mod guest: hanya tool katalog (tiada order/aduan).
+export const GUEST_TOOLS: Anthropic.Tool[] = SUPPORT_TOOLS.filter((t) => t.name === 'search_products' || t.name === 'get_product_details')
 
 export async function runSupportTool(name: string, input: Record<string, unknown>, ctx: SupportContext): Promise<string> {
-  if (name === 'search_products') return searchProducts(ctx.admin, String(input.query ?? ''))
+  const cat = await runCatalogTool(ctx.admin, name, input)   // search_products / get_product_details
+  if (cat !== null) return cat
   if (name === 'get_order_status') return getOrderStatus(ctx)
   if (name === 'get_refund_status') return getRefundStatus(ctx)
   if (name === 'create_complaint')
     return createComplaint(ctx, String(input.category ?? 'lain'), String(input.summary ?? ''), Array.isArray(input.damage_items) ? input.damage_items : [])
   return `Tool tidak dikenali: ${name}`
-}
-
-async function searchProducts(admin: SupabaseClient, query: string): Promise<string> {
-  let q = admin
-    .from('products')
-    .select('name, price, unit, description')
-    .eq('is_active', true)
-    .limit(8)
-  if (query.trim()) q = q.ilike('name', `%${query.trim()}%`)
-  else q = q.eq('is_featured', true)
-  const { data, error } = await q
-  if (error) return `Ralat cari produk: ${error.message}`
-  if (!data?.length) return 'Tiada produk dijumpai untuk carian itu.'
-  return JSON.stringify(
-    data.map((p) => ({
-      nama: p.name,
-      harga: `RM${Number(p.price).toFixed(2)}/${p.unit}`,
-      info: (p.description ?? '').slice(0, 160),
-    })),
-  )
 }
 
 async function getOrderStatus(ctx: SupportContext): Promise<string> {

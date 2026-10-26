@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
   const { data: rows, error } = await sb
     .from("wa_ai_log")
-    .select("outcome, model, tokens_in, tokens_out, cost_usd, inbound_preview, created_at")
+    .select("*")   // termasuk reply_preview/tools bila migration 152 dijalankan
     .gte("created_at", start)
     .order("created_at", { ascending: false })
     .limit(MAX_ROWS);
@@ -37,6 +37,8 @@ export async function GET(req: Request) {
     tokens_out: number;
     cost_usd: number;
     inbound_preview: string | null;
+    reply_preview?: string | null;
+    tools?: string[] | null;
     created_at: string;
   };
   const list = (rows ?? []) as Row[];
@@ -47,6 +49,7 @@ export async function GET(req: Request) {
   let totalIn = 0;
   let totalOut = 0;
   const unanswered: { preview: string; outcome: string; created_at: string }[] = [];
+  const uncertain: { preview: string; reply: string; tools: string[]; created_at: string }[] = [];
 
   for (const r of list) {
     outcomes[r.outcome] = (outcomes[r.outcome] ?? 0) + 1;
@@ -62,9 +65,12 @@ export async function GET(req: Request) {
     if ((r.outcome === "unanswered" || r.outcome === "escalated") && unanswered.length < 30) {
       unanswered.push({ preview: r.inbound_preview ?? "", outcome: r.outcome, created_at: r.created_at });
     }
+    if (r.outcome === "uncertain" && uncertain.length < 40) {
+      uncertain.push({ preview: r.inbound_preview ?? "", reply: r.reply_preview ?? "", tools: r.tools ?? [], created_at: r.created_at });
+    }
   }
 
-  const replied = outcomes.replied ?? 0;
+  const replied = (outcomes.replied ?? 0) + (outcomes.uncertain ?? 0);   // uncertain = dibalas, tapi tak yakin
   const handled = list.length;
 
   return NextResponse.json({
@@ -79,5 +85,7 @@ export async function GET(req: Request) {
     avgTokens: handled ? Math.round((totalIn + totalOut) / handled) : 0,
     byModel,
     unanswered,
+    uncertainCount: outcomes.uncertain ?? 0,
+    uncertain,
   });
 }

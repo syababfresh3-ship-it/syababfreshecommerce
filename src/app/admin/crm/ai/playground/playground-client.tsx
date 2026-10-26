@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { FlaskConical, ArrowLeft, Send, Loader2, Wrench, RotateCcw } from "lucide-react";
+import { EvalPanel } from "./eval-panel";
 import { AI_MODELS, USD_TO_MYR } from "@/lib/ai/models";
 
 interface ToolCall {
@@ -24,6 +25,7 @@ export function PlaygroundClient() {
   const [busy, setBusy] = useState(false);
   const [model, setModel] = useState(""); // "" = guna model tersimpan
   const [err, setErr] = useState("");
+  const [tab, setTab] = useState<"chat" | "ujian">("chat");   // Fasa 3: tab Ujian (set soalan sebenar)
   const threadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,12 +62,44 @@ export function PlaygroundClient() {
     setBusy(false);
   }
 
+  const tabs = (
+    <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
+      {(["chat", "ujian"] as const).map((t) => (
+        <button key={t} type="button" onClick={() => setTab(t)} className={`px-3 py-1 rounded-md text-sm font-semibold ${tab === t ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-900"}`}>{t === "chat" ? "Chat" : "Ujian"}</button>
+      ))}
+    </div>
+  );
+
+  if (tab === "ujian") {
+    // Senarai kes → lebar penuh (AGENTS.md)
+    return (
+      <div className="p-4 md:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <FlaskConical className="h-5 w-5 text-gray-700" />
+            <h1 className="text-xl font-semibold text-gray-800">AI Playground</h1>
+            {tabs}
+          </div>
+          <div className="flex items-center gap-2">
+            <select value={model} onChange={(e) => setModel(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm text-gray-700" title="Model untuk ujian (lalai = ikut tetapan)">
+              <option value="">Model tersimpan</option>
+              {Object.values(AI_MODELS).map((m) => (<option key={m.key} value={m.key}>{m.label}</option>))}
+            </select>
+            <Link href="/admin/crm/ai" className="text-sm text-gray-500 flex items-center gap-1"><ArrowLeft className="h-3.5 w-3.5" /> Config</Link>
+          </div>
+        </div>
+        <EvalPanel model={model} />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-4xl space-y-4 flex flex-col h-[calc(100vh-2rem)]">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <FlaskConical className="h-5 w-5 text-gray-700" />
           <h1 className="text-xl font-semibold text-gray-800">AI Playground</h1>
+          {tabs}
         </div>
         <div className="flex items-center gap-2">
           <select

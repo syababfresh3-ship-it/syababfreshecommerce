@@ -1,6 +1,6 @@
 // ============================================================
 // lib/ai/models — registry model + harga (untuk kira kos).
-// Dua provider: OpenAI (gpt-4o-mini) + Anthropic (claude-haiku-4-5).
+// Dua provider: OpenAI (gpt-4o-mini) + Anthropic (Claude Haiku 5.5 / Sonnet 5.5 / Haiku 4.5).
 // Tambah model baru = tambah satu entri di sini sahaja.
 // ============================================================
 
@@ -24,18 +24,35 @@ export const AI_MODELS: Record<string, AiModelSpec> = {
     inPer1M: 0.15,
     outPer1M: 0.6,
   },
+  "claude-haiku-5-5": {
+    key: "claude-haiku-5-5",
+    provider: "anthropic",
+    apiModel: "claude-haiku-5-5",
+    label: "Claude Haiku 5.5",
+    inPer1M: 0.1,
+    outPer1M: 0.5,
+  },
+  "claude-sonnet-5-5": {
+    key: "claude-sonnet-5-5",
+    provider: "anthropic",
+    apiModel: "claude-sonnet-5-5",
+    label: "Claude Sonnet 5.5",
+    inPer1M: 2,
+    outPer1M: 10,
+  },
   "claude-haiku": {
     key: "claude-haiku",
     provider: "anthropic",
     apiModel: "claude-haiku-4-5",
-    label: "Claude Haiku",
+    label: "Claude Haiku 4.5",
     inPer1M: 1,
     outPer1M: 5,
   },
 };
 
 export const DEFAULT_MODEL_KEY = "gpt-4o-mini";
-export const FALLBACK_MODEL_KEY = "claude-haiku";
+// Sandaran: Haiku 5.5 — lebih murah dari gpt-4o-mini (harga platform.claude.com/docs/en/about-claude/pricing, 26 Okt 2026).
+export const FALLBACK_MODEL_KEY = "claude-haiku-5-5";
 
 // Tukar nilai RM (anggaran) — untuk papar kos dalam analytics.
 export const USD_TO_MYR = 4.7;

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bot, Power, Cpu, MessageSquareText, BookOpen, Check, Loader2, BarChart3, FlaskConical } from "lucide-react";
+import { Bot, Power, Cpu, MessageSquareText, BookOpen, Check, Loader2, BarChart3, FlaskConical, Leaf } from "lucide-react";
 import { AI_MODELS } from "@/lib/ai/models";
 
 interface Initial {
@@ -115,6 +115,9 @@ export function AiClient({ initial }: { initial: Initial }) {
           <h1 className="text-xl font-semibold text-gray-800">AI Chatbot</h1>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/admin/crm/ai/knowledge" className="text-sm text-gray-500 flex items-center gap-1">
+            <Leaf className="h-3.5 w-3.5" /> Pengetahuan buah
+          </Link>
           <Link href="/admin/crm/ai/playground" className="text-sm text-gray-500 flex items-center gap-1">
             <FlaskConical className="h-3.5 w-3.5" /> Playground
           </Link>

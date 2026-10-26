@@ -6,6 +6,7 @@
 import { runAiChat, type ChatTurn } from "./chat";
 import { buildWaSystemPrompt } from "./wa-knowledge";
 import { WA_TOOLS, makeWaToolRunner } from "./wa-tools";
+import { loadActiveFaqText } from "./product-knowledge";
 import { getSender } from "@/lib/wa-numbers";
 import { sendText } from "@/lib/whatsapp-cloud";
 
@@ -71,28 +72,40 @@ interface LogRow {
   conversationId: string;
   contactId: string;
   model: string | null;
-  outcome: string;
+  outcome: string;   // replied | uncertain | escalated | unanswered | error
   preview: string;
   usage: { in: number; out: number };
   cost: number;
+  reply?: string;     // migration 152
+  tools?: string[];   // migration 152
 }
 async function logAi(sb: SB, row: LogRow): Promise<void> {
-  await sb
-    .from("wa_ai_log")
-    .insert({
-      conversation_id: row.conversationId,
-      contact_id: row.contactId,
-      model: row.model,
-      tokens_in: row.usage.in,
-      tokens_out: row.usage.out,
-      cost_usd: row.cost,
-      outcome: row.outcome,
-      inbound_preview: row.preview.slice(0, 300),
-    })
-    .then(
-      () => {},
-      () => {},
-    );
+  const base: Record<string, unknown> = {
+    conversation_id: row.conversationId,
+    contact_id: row.contactId,
+    model: row.model,
+    tokens_in: row.usage.in,
+    tokens_out: row.usage.out,
+    cost_usd: row.cost,
+    outcome: row.outcome,
+    inbound_preview: row.preview.slice(0, 300),
+  };
+  const extra: Record<string, unknown> = {};
+  if (row.reply) extra.reply_preview = row.reply.slice(0, 300);
+  if (row.tools?.length) extra.tools = row.tools.slice(0, 12);
+  try {
+    const { error } = await sb.from("wa_ai_log").insert({ ...base, ...extra });
+    // Migration 152 belum dijalankan → lajur reply_preview/tools tiada → ulang tanpanya.
+    if (error && Object.keys(extra).length && (error.code === "42703" || error.code === "PGRST204" || /reply_preview|tools/.test(error.message ?? ""))) {
+      await sb.from("wa_ai_log").insert(base);
+    }
+  } catch { /* best-effort */ }
+}
+
+// AI mengaku tak pasti / tiada dalam katalog → outcome 'uncertain' (balasan tetap dihantar; Analytics senaraikan untuk admin tambah fakta/FAQ).
+const UNCERTAIN_RE = /\b(tak|tidak) pasti\b|belum boleh (saya )?sahkan|tiada dalam katalog|kami tiada (buat masa ini|jual)|semak dengan team|saya (tak|tidak) (tahu|dapat sahkan)|not sure|we don'?t (have|carry|sell)/i;
+export function isUncertainReply(reply: string, toolMisses: number): boolean {
+  return toolMisses > 0 || UNCERTAIN_RE.test(reply);
 }
 
 // Serah ke manusia: matikan AI untuk convo ini + naikkan untuk team.
@@ -188,7 +201,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
   }));
 
   // Jalankan AI (fallback model dikendali dalam runAiChat)
-  const runTool = makeWaToolRunner(sb, {
+  const baseTool = makeWaToolRunner(sb, {
     profileId: contact.profile_id,
     phone: contact.phone,
     waId: contact.wa_id,
@@ -196,11 +209,21 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     conversationId: conv.id,
     name: contact.name,
   });
+  // Jejak tool yang dipanggil + carian produk kosong (untuk outcome 'uncertain' & log).
+  const toolsUsed: string[] = [];
+  let toolMisses = 0;
+  const runTool: typeof baseTool = async (name, input) => {
+    toolsUsed.push(name);
+    const r = await baseTool(name, input);
+    if (name === "search_products" && /^Tiada produk padan/.test(r)) toolMisses++;
+    return r;
+  };
+  const faqText = await loadActiveFaqText(sb);   // FAQ disahkan admin (kosong kalau jadual belum ada)
   let result;
   try {
     result = await runAiChat({
       modelKey: s.model,
-      system: buildWaSystemPrompt({ persona: s.persona, knowledge: s.knowledge, memory: memText }),
+      system: buildWaSystemPrompt({ persona: s.persona, knowledge: s.knowledge, memory: memText, faq: faqText }),
       history,
       userMessage: text,
       tools: WA_TOOLS,
@@ -227,6 +250,8 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     return;
   }
 
+  const outcome = isUncertainReply(reply, toolMisses) ? "uncertain" : "replied";
+
   // Mod draft: UI draf = F4. Untuk F2 jangan hantar — cuma tag untuk team + log.
   if (s.mode === "draft") {
     await sb.from("wa_conversations").update({ needs_reply: true }).eq("id", conv.id);
@@ -234,10 +259,12 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
       conversationId: conv.id,
       contactId: args.contactId,
       model: result.modelKey,
-      outcome: "replied",
+      outcome,
       preview: text,
       usage: result.usage,
       cost: result.costUsd,
+      reply,
+      tools: toolsUsed,
     });
     return;
   }
@@ -279,9 +306,11 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
     conversationId: conv.id,
     contactId: args.contactId,
     model: result.modelKey,
-    outcome: "replied",
+    outcome,
     preview: text,
     usage: result.usage,
     cost: result.costUsd,
+    reply,
+    tools: toolsUsed,
   });
 }

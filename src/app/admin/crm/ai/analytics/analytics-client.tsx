@@ -17,6 +17,8 @@ interface Data {
   avgTokens: number;
   byModel: Record<string, { count: number; cost: number; tokensIn: number; tokensOut: number }>;
   unanswered: { preview: string; outcome: string; created_at: string }[];
+  uncertainCount?: number;
+  uncertain?: { preview: string; reply: string; tools: string[]; created_at: string }[];
 }
 
 const RANGES = [7, 30, 90];
@@ -77,6 +79,7 @@ export function AnalyticsClient() {
             <Stat label="Kos" value={rm(data.totalCostUsd)} sub={`$${data.totalCostUsd.toFixed(4)}`} />
             <Stat label="Avg token/balasan" value={data.avgTokens.toLocaleString()} />
             <Stat label="Tak terjawab" value={data.unansweredCount.toLocaleString()} />
+            <Stat label="Tak pasti" value={(data.uncertainCount ?? 0).toLocaleString()} sub="dibalas, AI tak yakin" />
             <Stat label="Diserah team" value={data.escalated.toLocaleString()} />
             <Stat label="Error" value={data.errors.toLocaleString()} />
           </div>
@@ -126,6 +129,30 @@ export function AnalyticsClient() {
                       {u.outcome === "escalated" ? "minta manusia" : "AI tak tahu"} ·{" "}
                       {new Date(u.created_at).toLocaleDateString("ms-MY", { day: "numeric", month: "short" })}
                     </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Soalan tak pasti — AI balas tapi mengaku tak tahu / carian kosong → tambah fakta produk atau FAQ */}
+          <div className="bg-white rounded-xl border p-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-sm font-semibold text-gray-600">Soalan tak pasti (AI jawab, tapi mengaku tak tahu atau produk tiada)</div>
+              <a href="/admin/crm/ai/knowledge" className="text-xs text-gray-500 hover:text-gray-900">Tambah fakta / FAQ →</a>
+            </div>
+            {!data.uncertain?.length ? (
+              <div className="text-xs text-gray-400">Tiada dalam tempoh ini. (Perlu migration 152 untuk simpan balasan.)</div>
+            ) : (
+              <ul className="divide-y">
+                {data.uncertain.map((u, i) => (
+                  <li key={i} className="py-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm text-gray-800 flex-1">{u.preview || <span className="text-gray-400">(tiada teks)</span>}</span>
+                      <span className="text-[11px] text-gray-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("ms-MY", { day: "numeric", month: "short" })}</span>
+                    </div>
+                    {u.reply && <p className="text-xs text-gray-500 mt-1 line-clamp-2">AI: {u.reply}</p>}
+                    {u.tools?.length > 0 && <p className="text-[11px] text-gray-400 mt-0.5">tool: {u.tools.join(", ")}</p>}
                   </li>
                 ))}
               </ul>

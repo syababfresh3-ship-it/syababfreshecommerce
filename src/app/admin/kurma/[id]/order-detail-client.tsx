@@ -17,7 +17,7 @@ interface Order {
   config: {
     box_id?: string; weight?: string | null; finishing?: string | null; design_id?: string | null; custom_design_url?: string | null; fillings?: { id: string; qty: number }[]; quantity?: number
     // Order dari Studio (/kurma/studio, source 'sheet') atau RFQ LP korporat (/kurma/korporat, source 'rfq')
-    source?: 'sheet' | 'rfq'; kurma_id?: string; kurma_name?: string; requested_qty?: number
+    source?: 'sheet' | 'rfq' | 'wa-ai'; kurma_id?: string; kurma_name?: string; requested_qty?: number
     organisation?: string; role?: string | null; est_qty?: number; needed_by?: string | null; angle?: string
     template_id?: string | null; template_name?: string | null; logo_url?: string | null; mockup_url?: string | null; full_design_url?: string | null; source_utm?: string | null
   }
@@ -86,7 +86,7 @@ export function GiftOrderDetail({ id }: { id: string }) {
   const fillings = (o.config?.fillings ?? []).map(f => ({ name: cat.fillings.find(x => x.id === f.id)?.name ?? f.id, qty: f.qty }))
   const next = NEXT[o.status]
   const isSheet = o.config?.source === 'sheet'   // order Studio → panel quote senarai-vs-kos
-  const isRfq = o.config?.source === 'rfq'       // RFQ LP korporat → panel quote sama (senarai hanya bila ada pilihan kurma)
+  const isRfq = o.config?.source === 'rfq' || o.config?.source === 'wa-ai'   // RFQ LP korporat / enquiry chatbot WA → panel quote sama (senarai hanya bila ada pilihan kurma)
   const thumb = 'h-20 rounded-lg border border-gray-200 object-contain bg-gray-50'
   const box = 'bg-white border border-gray-200 rounded-2xl p-4'
   const inp = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500'
@@ -117,7 +117,7 @@ export function GiftOrderDetail({ id }: { id: string }) {
 
       {/* Configuration */}
       <div className={box}>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Configuration{isSheet && <span className="ml-2 normal-case tracking-normal text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded">Studio</span>}{isRfq && <span className="ml-2 normal-case tracking-normal text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded">RFQ Korporat</span>}</p>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Configuration{isSheet && <span className="ml-2 normal-case tracking-normal text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded">Studio</span>}{isRfq && <span className="ml-2 normal-case tracking-normal text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded">{o.config?.source === 'wa-ai' ? 'WhatsApp AI' : 'RFQ Korporat'}</span>}</p>
         {isRfq ? (
           <dl className="text-sm grid grid-cols-2 gap-y-1.5">
             <dt className="text-gray-500">Organisasi</dt><dd className="text-gray-900 font-medium text-right">{o.config.organisation ?? o.company ?? '—'}</dd>
