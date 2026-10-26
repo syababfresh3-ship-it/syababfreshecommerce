@@ -53,3 +53,11 @@ Guard 1–5, toggle per-convo, tetingkap 24j, flow closing & `flag_ready_order`,
 1. Model lalai: kekal gpt-4o-mini atau tukar ke Claude Haiku (kos ±2–3× tapi masih sen per balasan).
 2. Siapa sahkan fakta buah: pemilik sendiri atau team ops/sales (admin akaun masing-masing).
 3. Stok: AI sebut "ada/habis" sahaja (cadangan) atau angka sebenar.
+
+## Isu 26 Okt 2026 (petang): "(tiada balasan)" di Playground dengan Claude Haiku 5.5
+
+**Punca (disahkan dengan respons mentah API):** model Claude 5.x berfikir dulu (*adaptive thinking*, lalai effort medium) dan token penaakulan dikira dalam `max_tokens`. Had kami 500 → bila AI nak panggil `flag_gift_enquiry` (tool banyak medan) selepas customer beri nama, respons terpotong (`stop_reason: max_tokens`) sebelum ada teks → balasan kosong. Di WhatsApp sebenar, balasan kosong = `handoff('unanswered')` → customer tak dapat apa-apa.
+
+**Pembetulan:** `maxTokens` 500 → 2048 (wa-agent, playground); penilai ujian 800 → 2048; draf fakta 3000 → 6000. Provider Anthropic: kalau `max_tokens` dicapai tanpa teks, ulang sekali dengan bajet 4× (had 8192). Playground tak lagi hantar "(tiada balasan)" sebagai sejarah AI. Kos kini kira token cache (baca 10%, tulis 125%) — kos sebenar ≈ RM0.002–0.004 setiap balasan, bukan RM0.0016.
+
+**Ujian:** 33 kes — thinking kekal + had 2048 = 33/33 (purata 5.5s); thinking dimatikan + had 1024 = 31/33 (3.7s). Pilih kekalkan thinking. Giliran "syabab anas" → "ya betul" kini balas & rekod enquiry (dry-run).

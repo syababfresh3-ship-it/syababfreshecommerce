@@ -19,6 +19,8 @@ interface Turn {
   costUsd?: number;
 }
 
+const EMPTY_REPLY = "(tiada balasan)";
+
 export function PlaygroundClient() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
@@ -37,7 +39,7 @@ export function PlaygroundClient() {
     if (!msg || busy) return;
     setErr("");
     setInput("");
-    const history = turns.map((t) => ({ role: t.role, content: t.content }));
+    const history = turns.filter((t) => t.content !== EMPTY_REPLY).map((t) => ({ role: t.role, content: t.content })); // balasan kosong bukan sejarah AI
     setTurns((p) => [...p, { role: "user", content: msg }]);
     setBusy(true);
     try {
@@ -54,7 +56,7 @@ export function PlaygroundClient() {
       }
       setTurns((p) => [
         ...p,
-        { role: "assistant", content: j.reply || "(tiada balasan)", tools: j.tools, model: j.model, costUsd: j.costUsd },
+        { role: "assistant", content: j.reply || EMPTY_REPLY, tools: j.tools, model: j.model, costUsd: j.costUsd },
       ]);
     } catch {
       setErr("Ralat rangkaian.");

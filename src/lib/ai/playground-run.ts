@@ -33,7 +33,7 @@ export async function runPlaygroundTurn(sb: SB, opts: { message: string; history
     userMessage: opts.message,
     tools: WA_TOOLS,
     runTool,
-    maxTokens: 500,
+    maxTokens: 2048, // sama seperti wa-agent — token penaakulan Claude 5.x dikira dalam had ini
   });
   return { reply: r.text, model: r.modelKey, usage: r.usage, costUsd: r.costUsd, tools: toolCalls };
 }

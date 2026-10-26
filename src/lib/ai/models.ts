@@ -61,6 +61,15 @@ export function resolveModel(key?: string | null): AiModelSpec {
   return AI_MODELS[key ?? ""] ?? AI_MODELS[DEFAULT_MODEL_KEY];
 }
 
-export function costUsd(spec: AiModelSpec, tokensIn: number, tokensOut: number): number {
-  return (tokensIn / 1e6) * spec.inPer1M + (tokensOut / 1e6) * spec.outPer1M;
+// Harga cache prompt Anthropic (5 minit): baca = 10% harga input, tulis = 125% — pengganda standard semua model Claude.
+export const CACHE_READ_MULT = 0.1;
+export const CACHE_WRITE_MULT = 1.25;
+
+export function costUsd(spec: AiModelSpec, tokensIn: number, tokensOut: number, cacheRead = 0, cacheCreate = 0): number {
+  return (
+    (tokensIn / 1e6) * spec.inPer1M +
+    (tokensOut / 1e6) * spec.outPer1M +
+    (cacheRead / 1e6) * spec.inPer1M * CACHE_READ_MULT +
+    (cacheCreate / 1e6) * spec.inPer1M * CACHE_WRITE_MULT
+  );
 }

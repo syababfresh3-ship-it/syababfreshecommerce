@@ -1,6 +1,9 @@
 // ============================================================
-// lib/ai/providers/anthropic — Claude (claude-haiku-4-5) tool-loop.
+// lib/ai/providers/anthropic — Claude (Haiku 5.5 / Sonnet 5.5 / Haiku 4.5) tool-loop.
 // Angkat corak dari lib/support/agent.ts: system di-cache, loop tool-use.
+// Claude 5.x berfikir dulu (adaptive thinking, lalai) — token fikir DIKIRA dalam max_tokens. Had kecil (≤500)
+// boleh terpotong sebelum sempat tulis teks/tool → stop_reason 'max_tokens' tanpa teks = balasan kosong.
+// Pengaman: ulang SEKALI dengan bajet 4× bila itu berlaku.
 // ============================================================
 import Anthropic from "@anthropic-ai/sdk";
 import { toAnthropicTools } from "../tools";
@@ -33,27 +36,43 @@ export const runAnthropicChat: ProviderRun = async ({
   ];
   let tokIn = 0;
   let tokOut = 0;
+  let cacheRead = 0;
+  let cacheCreate = 0;
+  let budget = maxTokens;
+  let retried = false;
+  const usage = () => ({ in: tokIn, out: tokOut, cacheRead, cacheCreate });
 
-  for (let i = 0; i < maxIters; i++) {
+  let iters = 0;
+  while (iters < maxIters) {
     const resp = await c.messages.create({
       model: apiModel,
-      max_tokens: maxTokens,
+      max_tokens: budget,
       system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
       tools: tools.length ? (toAnthropicTools(tools) as Anthropic.Tool[]) : undefined,
       messages,
     });
     tokIn += resp.usage.input_tokens ?? 0;
     tokOut += resp.usage.output_tokens ?? 0;
+    cacheRead += resp.usage.cache_read_input_tokens ?? 0;
+    cacheCreate += resp.usage.cache_creation_input_tokens ?? 0;
+
+    const text = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+
+    // Terpotong sebelum ada teks (biasanya penaakulan + tool call panjang) → ulang sekali, bajet lebih besar.
+    if (resp.stop_reason === "max_tokens" && !text && !retried) {
+      retried = true;
+      budget = Math.min(budget * 4, 8192);
+      continue;
+    }
+    iters++;
     messages.push({ role: "assistant", content: resp.content });
 
     if (resp.stop_reason !== "tool_use") {
-      const text =
-        resp.content
-          .filter((b): b is Anthropic.TextBlock => b.type === "text")
-          .map((b) => b.text)
-          .join("\n")
-          .trim() || "";
-      return { text, usage: { in: tokIn, out: tokOut } };
+      return { text, usage: usage() };
     }
 
     const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -66,5 +85,5 @@ export const runAnthropicChat: ProviderRun = async ({
     messages.push({ role: "user", content: toolResults });
   }
 
-  return { text: "", usage: { in: tokIn, out: tokOut } };
+  return { text: "", usage: usage() };
 };

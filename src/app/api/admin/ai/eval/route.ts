@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       if (body.judge && c.reference) {
         try {
           const toolSnap = r.tools.map((t) => `${t.name}(${JSON.stringify(t.input)}) → ${t.result.slice(0, 1200)}`).join("\n");
-          const j = await runAiChat({ modelKey: "claude-haiku-5-5", system: JUDGE_SYSTEM, userMessage: `SOALAN CUSTOMER: ${c.q}\n\nFAKTA RUJUKAN: ${c.reference}\n\nHASIL TOOL:\n${toolSnap || "(tiada tool)"}\n\nBALASAN AI:\n${r.reply}`, tools: [], maxTokens: 800, maxIters: 1 });   // 200 terlalu kecil → teks kosong (bajet token model)
+          const j = await runAiChat({ modelKey: "claude-haiku-5-5", system: JUDGE_SYSTEM, userMessage: `SOALAN CUSTOMER: ${c.q}\n\nFAKTA RUJUKAN: ${c.reference}\n\nHASIL TOOL:\n${toolSnap || "(tiada tool)"}\n\nBALASAN AI:\n${r.reply}`, tools: [], maxTokens: 2048, maxIters: 1 });   // Haiku 5.5 berfikir dulu (dikira dalam had) — 200/800 boleh pulang teks kosong
           cost += j.costUsd;
           const m = /\{[\s\S]*\}/.exec(j.text);
           const parsed = m ? (JSON.parse(m[0]) as { score?: unknown; reason?: unknown }) : null;

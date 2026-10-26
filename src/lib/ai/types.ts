@@ -9,8 +9,10 @@ export interface ChatTurn {
 }
 
 export interface AiUsage {
-  in: number;
-  out: number;
+  in: number; // token input TIDAK dicache
+  out: number; // token output (termasuk penaakulan/thinking model Claude 5.x)
+  cacheRead?: number; // token prompt dibaca dari cache (Anthropic; 10% harga input)
+  cacheCreate?: number; // token ditulis ke cache (Anthropic; 125% harga input)
 }
 
 // Setiap provider laksana tool-loop sendiri (native), terima toolDef neutral +

@@ -4,6 +4,7 @@
 // sebelum AI balas. OFF secara lalai (master switch + toggle per-customer).
 // ============================================================
 import { runAiChat, type ChatTurn } from "./chat";
+import type { AiUsage } from "./types";
 import { buildWaSystemPrompt } from "./wa-knowledge";
 import { WA_TOOLS, makeWaToolRunner } from "./wa-tools";
 import { loadActiveFaqText } from "./product-knowledge";
@@ -74,7 +75,7 @@ interface LogRow {
   model: string | null;
   outcome: string;   // replied | uncertain | escalated | unanswered | error
   preview: string;
-  usage: { in: number; out: number };
+  usage: AiUsage;
   cost: number;
   reply?: string;     // migration 152
   tools?: string[];   // migration 152
@@ -84,7 +85,7 @@ async function logAi(sb: SB, row: LogRow): Promise<void> {
     conversation_id: row.conversationId,
     contact_id: row.contactId,
     model: row.model,
-    tokens_in: row.usage.in,
+    tokens_in: row.usage.in + (row.usage.cacheRead ?? 0) + (row.usage.cacheCreate ?? 0), // jumlah token input sebenar (termasuk cache)
     tokens_out: row.usage.out,
     cost_usd: row.cost,
     outcome: row.outcome,
@@ -228,7 +229,7 @@ export async function maybeAiReply(sb: SB, args: MaybeAiReplyArgs): Promise<void
       userMessage: text,
       tools: WA_TOOLS,
       runTool,
-      maxTokens: 500,
+      maxTokens: 2048, // Claude 5.x: token penaakulan dikira dalam had ini — 500 buat balasan kosong. Panjang balasan dikawal prompt.
     });
   } catch {
     await logAi(sb, {

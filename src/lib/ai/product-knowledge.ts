@@ -66,7 +66,7 @@ PENERANGAN:
 ${p.description || "(tiada penerangan — guna pengetahuan umum jenis buah ini secara konservatif; biarkan kosong apa yang tak pasti)"}
 
 Keluarkan JSON kad fakta.`;
-  const r = await runAiChat({ modelKey, system: DRAFT_SYSTEM, userMessage: user, tools: [], maxTokens: 3000, maxIters: 1 });   // kad penuh BM ≈ 1–1.5k token; jangan terpotong
+  const r = await runAiChat({ modelKey, system: DRAFT_SYSTEM, userMessage: user, tools: [], maxTokens: 6000, maxIters: 1 });   // kad penuh BM ≈ 1–1.5k token + penaakulan model (dikira dalam had); jangan terpotong
   const parsed = extractJson(r.text);
   const facts = parseFacts(parsed);
   if (factsIsEmpty(facts)) throw new Error(`AI tidak pulangkan kad fakta yang sah (${r.text.length} aksara${/```/.test(r.text) && !/```\s*$/.test(r.text.trim()) ? ", JSON terpotong" : ""}).`);

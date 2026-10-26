@@ -6,7 +6,7 @@ import { AI_MODELS, FALLBACK_MODEL_KEY, costUsd, resolveModel, type AiModelSpec 
 import { runAnthropicChat } from "./providers/anthropic";
 import { runOpenAiChat } from "./providers/openai";
 import type { AiToolDef, RunTool } from "./tools";
-import type { ChatTurn, ProviderRun } from "./types";
+import type { AiUsage, ChatTurn, ProviderRun } from "./types";
 
 export type { ChatTurn };
 
@@ -17,7 +17,7 @@ const PROVIDERS: Record<string, ProviderRun> = {
 
 export interface AiChatResult {
   text: string;
-  usage: { in: number; out: number };
+  usage: AiUsage;
   modelKey: string;
   costUsd: number;
 }
@@ -58,7 +58,7 @@ export async function runAiChat(opts: RunAiChatOpts): Promise<AiChatResult> {
         maxIters: opts.maxIters ?? 6,
         maxTokens: opts.maxTokens ?? 600,
       });
-      return { text, usage, modelKey: spec.key, costUsd: costUsd(spec, usage.in, usage.out) };
+      return { text, usage, modelKey: spec.key, costUsd: costUsd(spec, usage.in, usage.out, usage.cacheRead ?? 0, usage.cacheCreate ?? 0) };
     } catch (e) {
       lastErr = e;
       // cuba model seterusnya dalam rantai fallback
