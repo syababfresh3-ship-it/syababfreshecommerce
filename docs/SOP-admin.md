@@ -282,6 +282,7 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 
 ### 6.5 Artwork → Produksi → Dihantar → Baki
 - **Artwork OK**: tanda tarikh + nama pengesah + pautan mockup akhir **sebelum** cetak (gate wajib — elak pertikaian warna/logo).
+- **PIC pack** (siapa siapkan pek): sebaik **deposit masuk**, buka panel deal → seksyen **PIC pack** → pilih staf (atau tekan **Saya**) → tulis **arahan pek** (kuantiti, isi, finishing, label, susunan karton) → Simpan. PIC dapat notifikasi push dan nampak semua tugasannya di penapis **Tugasan pack saya**. Kad bertanda amaran *PIC pack belum ditetapkan* selagi kosong. Bila pek siap, PIC tekan **Tanda pek siap hari ini** (lencana *Pek siap* pada kad) — barulah tanda Dihantar.
 - **Produksi**: isi sasaran siap; tukar peringkat ke Produksi.
 - **Dihantar**: tarikh, cara (Lalamove/kurier/ambil), tracking, nama penerima, **pautan foto bukti terima**.
 - **Baki**: **Tanda baki dibayar** → deal **Selesai** automatik. Batal/kalah → peringkat *Batal / Kalah* + sebab.
@@ -289,6 +290,7 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 ### 6.6 Peraturan harian
 - Setiap deal mesti ada **Tindakan seterusnya + tarikh**. Kad bertanda amaran bila: tiada respons 3 hari, hampir luput, deposit belum masuk, artwork belum OK < 14 hari, lewat hantar, baki tertunggak 7/14 hari.
 - Deal milik **sales yang keluarkan sebut harga** (boleh tukar di panel). Guna **akaun admin sendiri** — jangan kongsi akaun. Penapis **Deal saya** di Pipeline.
+- **Sales ≠ PIC pack.** Sales jaga klien & bayaran; PIC pack jaga pek siap ikut *Tarikh perlu hantar*. Satu deal, satu PIC pack. Sales yang tetapkan PIC (atau PIC tugaskan diri sendiri).
 - Jangan keluarkan sebut harga ujian — nombor Refrens terpakai. Jangan edit kandungan invois di website — buka di Refrens. Cari klien dulu sebelum Add New Client.
 
 ### 6.7 Harga & kos dari Sheet "GIFT BOX CUSTOM 2026"
@@ -306,3 +308,30 @@ Sumber harga gift box ialah Google Sheet, tab **GIFT BOX CUSTOM 2026**. Website 
 4. Harga akhir untuk klien ialah keputusan sales — Sheet ialah rujukan kos & margin, bukan harga wajib.
 
 **Kalkulator harga (main margin tanpa buka Sheet):** dalam sebut harga, buka **Kalkulator harga gift box** (atas jadual item) atau di **Kos & Harga**. Pilih kurma, berat, kuantiti → nampak kos/kotak & harga Sheet ikut tier. Taip **Margin sasaran %** (cth. 20) → harga baharu dikira; atau taip **Harga anda** → margin dikira. Nampak untung/kotak, jumlah untung & jumlah jualan, dan amaran bila margin bawah panduan. **Tambah ke item** masukkan terus ke sebut harga dengan kuantiti & harga itu. **Pecahan kos** (Kos Kurma, Ziplock, Upah, Lain-Lain, Kotak, Komisyen) dipapar dengan nilai Sheet dan boleh diubah untuk cuba senario — contoh kotak lebih murah — kos, harga & margin dikira semula; **Ikut Sheet** set balik.
+
+---
+
+## 7. AI Chatbot WhatsApp — Pengetahuan buah
+
+AI hanya tahu apa yang ada dalam **katalog** (nama, penerangan, saiz, harga, stok live) dan **kad fakta yang disahkan**. Kalau customer tanya sesuatu yang tiada, AI akan jujur kata tak pasti dan tawar semak dengan team.
+
+### 7.1 Kad fakta produk (CRM → AI Chatbot → Pengetahuan buah)
+1. Tekan **Jana draf AI** — AI isi kad fakta (asal, musim, rasa, tekstur, biji, cara simpan, tempoh tahan, tanda masak, cara makan, beza gred, nota kesihatan, soalan lazim) dari penerangan produk. Status **Draf** — AI chatbot BELUM guna.
+2. Buka produk, **baca setiap medan**, betulkan yang salah atau kosongkan yang tak pasti. Jangan tulis harga di sini (harga datang dari katalog).
+3. Tekan **Simpan & sahkan** → status **Disahkan** → AI mula guna. Nama anda direkod sebagai pengesah.
+4. Produk berubah (gred baharu, asal lain)? Buka kad, edit, Simpan. Fakta yang meragukan: **Batal pengesahan** dulu.
+
+### 7.2 FAQ umum (tab FAQ umum)
+Soalan yang kerap ditanya tanpa kaitan satu produk (polisi buah rosak, cara simpan kurma, tempoh hantar). Tulis soalan + jawapan, tanda **Aktif**. AI guna terus. Promosi semasa & nota sementara kekal di **Config → Nota & fakta tambahan**; kemas kini bila promo tamat supaya AI tak bercanggah.
+
+### 7.3 Gift box kurma & kurma borong dalam chatbot
+AI tahu kita buat **custom gift box kurma** (min 50 kotak, design percuma, deposit 50%, ~2 minggu) dan **kurma borong**. Ia beri **anggaran** harga dari kalkulator Studio, kumpul butiran (syarikat, kuantiti, kurma, tarikh, kawasan, logo) dan rekod ke **Enquiry Gift** (badge *WhatsApp AI*) — team sales dapat push, buka enquiry → **Buat sebut harga** seperti biasa. AI tidak ambil deposit dan tidak janji tarikh siap.
+
+### 7.4 Ujian & soalan tak pasti
+- **Playground → tab Ujian**: tekan **Jalankan semua**. Setiap soalan sebenar customer disemak automatik (tool betul, frasa wajib ada, frasa dilarang tiada) dan diberi skor penilai AI 0–2. Gagal? Buka baris, baca balasan, betulkan fakta/FAQ atau nota, ulang **yang gagal sahaja**. Jalankan selepas setiap perubahan besar pada pengetahuan atau persona.
+- **Analytics → Soalan tak pasti**: senarai soalan sebenar yang AI jawab tapi mengaku tak tahu atau produk tiada. Inilah senarai kerja: tambah kad fakta produk atau FAQ umum, atau beritahu pemilik produk itu patut diaktifkan.
+
+### 7.5 Peraturan
+- Jangan sahkan draf tanpa baca. AI boleh tersilap asal negara atau gred.
+- Nota kesihatan: umum sahaja (gula, serat). Tiada dakwaan ubat.
+- Uji di **Playground** selepas sahkan: tanya macam customer, pastikan jawapan ikut kad.
