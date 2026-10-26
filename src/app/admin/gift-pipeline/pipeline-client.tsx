@@ -3,14 +3,15 @@
 // Pipeline Gift Kurma — papan 7 peringkat (+Selesai/Batal) atau senarai; panel deal (fixed, bukan sticky —
 // admin-shell overflow-hidden). Auto maju dari sebut harga/invois/bayaran; admin boleh tukar peringkat bebas.
 // Bayaran: tanda manual (± rekod juga di Refrens) atau Segerak dari Refrens. Ikon lucide monokrom.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays, PackageCheck, UserCheck } from 'lucide-react'
+import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays, PackageCheck, Users, Plus, Trash2 } from 'lucide-react'
 import { rm } from '@/lib/quotation'
 import { ACTIVE_STAGES, ALL_STAGES, DELIVERY_METHODS, LOST_REASONS, PAY_METHODS, STAGE_HINT, STAGE_LABEL, balanceDue, dateOnly, depositDue, initials, stageLabel, type DealEvent, type DealRow, type DealStage } from '@/lib/gift-deals'
 
 interface Staff { id: string; full_name: string | null; email: string | null }
+interface Packer { id: string; name: string; phone: string | null; is_active: boolean }   // team packer (gift_packers, migration 153) — bukan admin
 
 type Detail = DealRow & { events: DealEvent[] }
 interface Summary { count: number; total: number; alerts: number; byStage: Record<string, { count: number; total: number }> }
@@ -43,7 +44,12 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   const [view, setView] = useState<'board' | 'list'>('board')
   const [scope, setScope] = useState('active')
   const [owner, setOwner] = useState('')   // '' semua | 'me' | profiles.id
-  const [packer, setPacker] = useState('')   // '' semua | 'me' | profiles.id — PIC pack (migration 150)
+  const [packer, setPacker] = useState('')   // '' semua | gift_packers.id — PIC pack (team packer, migration 153)
+  const [packers, setPackers] = useState<Packer[]>([])
+  const [packersWarn, setPackersWarn] = useState<string | null>(null)
+  const [packersOpen, setPackersOpen] = useState(false)
+  const [newPacker, setNewPacker] = useState({ name: '', phone: '' })
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [staff, setStaff] = useState<Staff[]>([])
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(initialDealId)
@@ -64,6 +70,8 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   }, [scope, q, owner, packer])
   useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t) }, [load])
   useEffect(() => { fetch('/api/admin/team').then(r => r.ok ? r.json() : null).then(j => { if (j?.staff) setStaff(j.staff) }).catch(() => {}) }, [])
+  const loadPackers = useCallback(async () => { try { const r = await fetch('/api/admin/gift-packers'); const j = await r.json(); if (r.ok) { setPackers(j.packers ?? []); setPackersWarn(j.warning ?? null) } } catch { /* abaikan */ } }, [])
+  useEffect(() => { loadPackers() }, [loadPackers])
 
   const loadDetail = useCallback(async (id: string) => {
     const res = await fetch(`/api/admin/gift-deals/${id}`)
@@ -131,7 +139,23 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   const markDelivered = () => { f('delivered_at', form.delivered_at || today()); saveDetail({ delivered_at: form.delivered_at || today() }) }
   const markArtwork = () => { f('artwork_approved_at', form.artwork_approved_at || today()); saveDetail({ artwork_approved_at: form.artwork_approved_at || today() }) }
   const markPacked = () => { f('packed_at', form.packed_at || today()); saveDetail({ packed_at: form.packed_at || today() }) }
-  const assignMe = () => { saveDetail({ packer_id: 'me' }) }   // server tukar 'me' → id admin semasa
+  // Team packer (gift_packers): tambah / nyahaktif / buang (buang hanya bila tiada deal)
+  const addPacker = async (e: FormEvent) => {
+    e.preventDefault(); if (newPacker.name.trim().length < 2) return
+    setBusy('packer')
+    try { const r = await fetch('/api/admin/gift-packers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPacker) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Gagal tambah packer'); setNewPacker({ name: '', phone: '' }); await loadPackers(); toast.success('Packer ditambah') }
+    catch (err) { toast.error((err as Error).message) } finally { setBusy(null) }
+  }
+  const patchPacker = async (id: string, patch: Record<string, unknown>) => {
+    try { const r = await fetch('/api/admin/gift-packers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...patch }) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Gagal'); await loadPackers() }
+    catch (err) { toast.error((err as Error).message) }
+  }
+  const removePacker = async (id: string) => {
+    if (confirmDel !== id) { setConfirmDel(id); return }   // dua langkah — tiada dialog pelayar
+    setConfirmDel(null)
+    try { const r = await fetch(`/api/admin/gift-packers?id=${encodeURIComponent(id)}`, { method: 'DELETE' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Gagal buang'); await loadPackers(); toast.success('Packer dibuang') }
+    catch (err) { toast.error((err as Error).message) }
+  }
 
   const columns = useMemo(() => ACTIVE_STAGES.map(s => ({ stage: s, deals: deals.filter(d => d.stage === s) })), [deals])
   const closed = useMemo(() => deals.filter(d => d.stage === 'done' || d.stage === 'lost'), [deals])
@@ -157,6 +181,33 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
 
   return (
     <div>
+      {packersOpen && (
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-start justify-center p-4 pt-16" onClick={() => { setPackersOpen(false); setConfirmDel(null) }}>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="Team packer">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-base font-bold text-gray-900 inline-flex items-center gap-2"><Users className="h-4 w-4" />Team packer</h2>
+              <button type="button" onClick={() => { setPackersOpen(false); setConfirmDel(null) }} className="h-8 w-8 grid place-items-center rounded-lg hover:bg-gray-100" aria-label="Tutup"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Orang yang siapkan pek — bukan akaun admin. Nama di sini dipilih sebagai PIC pack pada deal. Packer yang berhenti: nyahaktif (nama kekal pada deal lama).</p>
+            {packersWarn && <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">{packersWarn}</p>}
+            <ul className="divide-y divide-gray-100 border border-gray-200 rounded-xl mb-3 max-h-72 overflow-y-auto">
+              {packers.length === 0 && <li className="px-3 py-3 text-sm text-gray-400">Belum ada packer.</li>}
+              {packers.map(p => (
+                <li key={p.id} className="flex items-center gap-2 px-3 py-2">
+                  <div className="min-w-0 flex-1"><p className={`text-sm font-semibold truncate ${p.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{p.name}</p>{p.phone && <p className="text-[11px] text-gray-500">{p.phone}</p>}</div>
+                  <button type="button" onClick={() => patchPacker(p.id, { is_active: !p.is_active })} className="text-xs font-semibold text-gray-600 hover:text-gray-900">{p.is_active ? 'Nyahaktif' : 'Aktifkan'}</button>
+                  <button type="button" onClick={() => removePacker(p.id)} className={`h-7 px-1.5 inline-flex items-center gap-1 rounded-lg text-xs font-semibold ${confirmDel === p.id ? 'bg-red-50 text-red-700' : 'text-gray-400 hover:text-red-700 hover:bg-red-50'}`} aria-label="Buang"><Trash2 className="h-3.5 w-3.5" />{confirmDel === p.id ? 'Pasti?' : ''}</button>
+                </li>
+              ))}
+            </ul>
+            <form onSubmit={addPacker} className="flex flex-wrap gap-2">
+              <input value={newPacker.name} onChange={e => setNewPacker(v => ({ ...v, name: e.target.value }))} placeholder="Nama packer" className={`${inp} flex-1 min-w-[10rem]`} required minLength={2} aria-label="Nama packer" />
+              <input value={newPacker.phone} onChange={e => setNewPacker(v => ({ ...v, phone: e.target.value }))} placeholder="No. telefon (pilihan)" className={`${inp} w-44`} aria-label="No. telefon packer" />
+              <button type="submit" disabled={busy === 'packer'} className={btnPrimary}>{busy === 'packer' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}Tambah</button>
+            </form>
+          </div>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Pipeline Gift</h1>
@@ -165,7 +216,8 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative"><Search className="h-4 w-4 text-gray-400 absolute left-2.5 top-2.5" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari klien / PO" className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-gray-900" /></div>
           <select value={owner} onChange={e => setOwner(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white" aria-label="Sales"><option value="">Semua sales</option><option value="me">Deal saya</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
-          <select value={packer} onChange={e => setPacker(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white" aria-label="PIC pack"><option value="">Semua PIC pack</option><option value="me">Tugasan pack saya</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
+          <select value={packer} onChange={e => setPacker(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white" aria-label="PIC pack"><option value="">Semua PIC pack</option>{packers.filter(p => p.is_active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <button type="button" onClick={() => setPackersOpen(true)} className={btnGhost} title="Urus senarai team packer"><Users className="h-4 w-4" />Packer</button>
           <select value={scope} onChange={e => setScope(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"><option value="active">Aktif</option><option value="all">Semua</option><option value="done">Selesai</option><option value="lost">Batal / Kalah</option></select>
           <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
             <button type="button" onClick={() => setView('board')} className={`h-8 w-8 grid place-items-center rounded-md ${view === 'board' ? 'bg-gray-900 text-white' : 'text-gray-500'}`} aria-label="Papan"><LayoutGrid className="h-4 w-4" /></button>
@@ -334,11 +386,8 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <label className={lbl}>PIC pack</label>
-                      <div className="flex gap-1">
-                        <select value={form.packer_id ?? ''} onChange={e => f('packer_id', e.target.value)} className={inp}><option value="">— Belum ditugaskan —</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
-                        {!detail.packer_id && <button type="button" onClick={assignMe} disabled={busy === 'save'} title="Tugaskan diri sendiri" className="h-8 px-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-400 whitespace-nowrap inline-flex items-center gap-1"><UserCheck className="h-3.5 w-3.5" />Saya</button>}
-                      </div>
-                      <p className="text-[11px] text-gray-400 mt-1">{detail.packer ? `Ditugaskan ${fmtDT(detail.packer_assigned_at ?? null)} · PIC dapat notifikasi push.` : 'Tetapkan sebaik deposit masuk. PIC dapat notifikasi push & nampak di penapis "Tugasan pack saya".'}</p>
+                      <select value={form.packer_id ?? ''} onChange={e => f('packer_id', e.target.value)} className={inp}><option value="">— Belum ditugaskan —</option>{packers.filter(p => p.is_active || p.id === form.packer_id).map(p => <option key={p.id} value={p.id}>{p.name}{p.is_active ? '' : ' (tidak aktif)'}</option>)}</select>
+                      <p className="text-[11px] text-gray-400 mt-1">{detail.packer ? `Ditugaskan ${fmtDT(detail.packer_assigned_at ?? null)}. Beritahu packer sendiri (WhatsApp/lisan) — packer bukan pengguna admin, tiada notifikasi automatik.` : packersWarn ?? (packers.length ? 'Tetapkan sebaik deposit masuk, kemudian beritahu packer sendiri.' : 'Tiada packer lagi — tambah melalui butang Packer di atas papan.')}</p>
                     </div>
                     <div><label className={lbl}>Pek siap (sedia hantar)</label><input type="date" value={form.packed_at ?? ''} onChange={e => f('packed_at', e.target.value)} className={inp} /></div>
                     <div className="sm:col-span-2"><label className={lbl}>Arahan pek untuk PIC</label><textarea value={form.pack_notes ?? ''} onChange={e => f('pack_notes', e.target.value)} rows={2} className={inp} placeholder="cth. 120 kotak · Ajwa Medium 250g · finishing matte · label logo klien atas · susun 10 per karton" /></div>

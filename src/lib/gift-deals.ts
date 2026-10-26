@@ -22,7 +22,7 @@ export const PAY_METHODS: [string, string][] = [['ACCOUNT_TRANSFER', 'Pindahan b
 
 export interface GiftDeal {
   id: string; quotation_id: string | null; gift_order_id?: string | null; owner_id?: string | null; customer_id: string | null; client: QuotationClient; title: string | null
-  packer_id?: string | null; packer_assigned_at?: string | null; packed_at?: string | null; pack_notes?: string | null   // PIC pack (migration 150)
+  packer_id?: string | null; packer_assigned_at?: string | null; packed_at?: string | null; pack_notes?: string | null   // PIC pack (migration 150; packer_id → gift_packers, migration 153)
   stage: DealStage; amount: number; accepted_at: string | null
   deposit_pct: number; deposit_paid_at: string | null; deposit_amount: number | null; deposit_source: string | null; deposit_ref: string | null
   balance_paid_at: string | null; balance_amount: number | null; balance_source: string | null; balance_ref: string | null

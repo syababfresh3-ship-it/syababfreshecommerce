@@ -282,7 +282,7 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 
 ### 6.5 Artwork → Produksi → Dihantar → Baki
 - **Artwork OK**: tanda tarikh + nama pengesah + pautan mockup akhir **sebelum** cetak (gate wajib — elak pertikaian warna/logo).
-- **PIC pack** (siapa siapkan pek): sebaik **deposit masuk**, buka panel deal → seksyen **PIC pack** → pilih staf (atau tekan **Saya**) → tulis **arahan pek** (kuantiti, isi, finishing, label, susunan karton) → Simpan. PIC dapat notifikasi push dan nampak semua tugasannya di penapis **Tugasan pack saya**. Kad bertanda amaran *PIC pack belum ditetapkan* selagi kosong. Bila pek siap, PIC tekan **Tanda pek siap hari ini** (lencana *Pek siap* pada kad) — barulah tanda Dihantar.
+- **PIC pack** (siapa siapkan pek): PIC pack ialah **team packer**, bukan sales dan bukan akaun admin. Senarai nama packer diurus melalui butang **Packer** di atas Pipeline (tambah nama + telefon, nyahaktif bila berhenti). Sebaik **deposit masuk**, buka panel deal → seksyen **PIC pack** → pilih packer → tulis **arahan pek** (kuantiti, isi, finishing, label, susunan karton) → Simpan, kemudian **beritahu packer sendiri** (WhatsApp/lisan) — tiada notifikasi automatik. Penapis **PIC pack** di atas papan tunjuk deal setiap packer. Kad bertanda amaran *PIC pack belum ditetapkan* selagi kosong. Bila pek siap, sales/packer tekan **Tanda pek siap hari ini** (lencana *Pek siap* pada kad) — barulah tanda Dihantar.
 - **Produksi**: isi sasaran siap; tukar peringkat ke Produksi.
 - **Dihantar**: tarikh, cara (Lalamove/kurier/ambil), tracking, nama penerima, **pautan foto bukti terima**.
 - **Baki**: **Tanda baki dibayar** → deal **Selesai** automatik. Batal/kalah → peringkat *Batal / Kalah* + sebab.
@@ -290,7 +290,7 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 ### 6.6 Peraturan harian
 - Setiap deal mesti ada **Tindakan seterusnya + tarikh**. Kad bertanda amaran bila: tiada respons 3 hari, hampir luput, deposit belum masuk, artwork belum OK < 14 hari, lewat hantar, baki tertunggak 7/14 hari.
 - Deal milik **sales yang keluarkan sebut harga** (boleh tukar di panel). Guna **akaun admin sendiri** — jangan kongsi akaun. Penapis **Deal saya** di Pipeline.
-- **Sales ≠ PIC pack.** Sales jaga klien & bayaran; PIC pack jaga pek siap ikut *Tarikh perlu hantar*. Satu deal, satu PIC pack. Sales yang tetapkan PIC (atau PIC tugaskan diri sendiri).
+- **Sales ≠ PIC pack.** Sales jaga klien & bayaran; PIC pack (team packer) jaga pek siap ikut *Tarikh perlu hantar*. Satu deal, satu PIC pack. Sales yang tetapkan PIC dari senarai packer.
 - Jangan keluarkan sebut harga ujian — nombor Refrens terpakai. Jangan edit kandungan invois di website — buka di Refrens. Cari klien dulu sebelum Add New Client.
 
 ### 6.7 Harga & kos dari Sheet "GIFT BOX CUSTOM 2026"

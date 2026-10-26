@@ -27,7 +27,6 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (!d) return NextResponse.json({ error: 'Tidak dijumpai' }, { status: 404 })
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Data tidak sah' }, { status: 400 })
-  if (body.packer_id === 'me') body.packer_id = user?.id ?? null   // "Tugaskan saya"
   const parsed = parseDealPatch(body)
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
   try {

@@ -13,8 +13,7 @@ export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams
   const ownerParam = sp.get('owner')   // 'me' | <profiles.id> | kosong
   const owner = ownerParam === 'me' ? (user?.id ?? null) : ownerParam
-  const packerParam = sp.get('packer')   // 'me' | <profiles.id> | kosong — tugasan pack
-  const packer = packerParam === 'me' ? (user?.id ?? null) : packerParam
+  const packer = sp.get('packer')   // <gift_packers.id> | kosong — PIC pack (team packer, migration 153)
   try {
     const deals = await listDeals(supabase!, { scope: sp.get('scope') ?? 'active', q: sp.get('q') ?? undefined, owner, packer })
     const byStage = Object.fromEntries(ACTIVE_STAGES.map(s => [s, { count: 0, total: 0 }])) as Record<string, { count: number; total: number }>

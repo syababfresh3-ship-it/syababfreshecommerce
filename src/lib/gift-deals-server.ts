@@ -6,7 +6,6 @@ import {
   advanceStage, balanceDue, dealAlerts, dealTitle, depositDue, r2, stageAfterBalance, stageAfterDelivered, stageAfterDeposit, stageAfterInvoice,
 } from '@/lib/gift-deals'
 import { isRefrensConfigured, listPayments, recordPayment, type PaymentMethod } from '@/lib/refrens'
-import { sendUserPush } from '@/lib/push'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SB = any
@@ -48,18 +47,24 @@ async function attach(sb: SB, deals: GiftDeal[]): Promise<DealRow[]> {
     for (const ev of evs ?? []) { const arr = byQ.get(ev.quotation_id) ?? []; arr.push(ev); byQ.set(ev.quotation_id, arr) }
     for (const [qid, arr] of byQ) { const ref = invoiceRefFromEvents(arr as never); if (ref) invoices.set(qid, ref) }
   }
-  // Nama sales pemilik + PIC pack (satu pertanyaan profiles)
+  // Nama sales pemilik (profiles) + PIC pack (gift_packers — team packer, bukan admin; migration 153)
   const people = new Map<string, DealOwner>()
-  const peopleIds = [...new Set(deals.flatMap(d => [d.owner_id, d.packer_id]).filter(Boolean) as string[])]
-  if (peopleIds.length) {
-    const { data: ps } = await sb.from('profiles').select('id, full_name, email').in('id', peopleIds)
+  const ownerIds = [...new Set(deals.map(d => d.owner_id).filter(Boolean) as string[])]
+  if (ownerIds.length) {
+    const { data: ps } = await sb.from('profiles').select('id, full_name, email').in('id', ownerIds)
     for (const p of ps ?? []) people.set(p.id, { id: p.id, name: (p.full_name as string) || (p.email as string) || 'Admin' })
+  }
+  const packers = new Map<string, DealOwner>()
+  const packerIds = [...new Set(deals.map(d => d.packer_id).filter(Boolean) as string[])]
+  if (packerIds.length) {
+    const { data: ps } = await sb.from('gift_packers').select('id, name').in('id', packerIds)   // jadual tiada (153 belum) → null → nama kosong
+    for (const p of ps ?? []) packers.set(p.id, { id: p.id, name: (p.name as string) || 'Packer' })
   }
   const now = new Date()
   return deals.map(d => {
     const q = d.quotation_id ? quotes.get(d.quotation_id) ?? null : null
     const inv = d.quotation_id ? invoices.get(d.quotation_id) ?? null : null
-    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now), owner: d.owner_id ? people.get(d.owner_id) ?? null : null, packer: d.packer_id ? people.get(d.packer_id) ?? null : null }
+    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now), owner: d.owner_id ? people.get(d.owner_id) ?? null : null, packer: d.packer_id ? packers.get(d.packer_id) ?? null : null }
   })
 }
 
@@ -244,7 +249,8 @@ export async function patchDeal(sb: SB, d: GiftDeal, patch: Row, stageTouched: b
   const packerChanged = patch.packer_id !== undefined && patch.packer_id !== (d.packer_id ?? null)
   if (packerChanged) upd.packer_assigned_at = patch.packer_id ? upd.updated_at : null
   let { data, error } = await sb.from('gift_deals').update(upd).eq('id', d.id).select('*').single()
-  if (error && /packer_id|packer_assigned_at|packed_at|pack_notes/.test(error.message ?? '')) {
+  if (error && error.code === '23503' && /packer/.test(error.message ?? '')) throw new Error('PIC pack tidak sah — pilih packer dari senarai team packer (butang Packer di Pipeline; migration 153).')
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && /packer_id|packer_assigned_at|packed_at|pack_notes/.test(error.message ?? '')) {
     // Migration 150 belum dijalankan: kalau tiada nilai pack sebenar diubah, buang lajur itu & teruskan; kalau ada, beritahu.
     const PACK = ['packer_id', 'packer_assigned_at', 'packed_at', 'pack_notes']
     const realChange = PACK.some(k => upd[k] !== undefined && upd[k] !== null && upd[k] !== '')
@@ -255,10 +261,7 @@ export async function patchDeal(sb: SB, d: GiftDeal, patch: Row, stageTouched: b
   if (error) throw new Error(error.message)
   const nd = rowToDeal(data)
   if (nd.stage !== d.stage) await logDealEvent(sb, d.id, 'stage', { from: d.stage, to: nd.stage, reason: patch.lost_reason ?? undefined }, actor)
-  if (packerChanged) {
-    await logDealEvent(sb, d.id, 'packer', { from: d.packer_id ?? null, to: nd.packer_id ?? null }, actor)
-    if (nd.packer_id) await notifyPacker(sb, nd, actor)   // best-effort push kepada PIC
-  }
+  if (packerChanged) await logDealEvent(sb, d.id, 'packer', { from: d.packer_id ?? null, to: nd.packer_id ?? null }, actor)   // packer bukan pengguna admin → tiada push; sales beritahu sendiri
   if (patch.packed_at && !d.packed_at) await logDealEvent(sb, d.id, 'packed', { at: patch.packed_at }, actor)
   if (patch.delivered_at && !d.delivered_at) await logDealEvent(sb, d.id, 'delivered', { at: patch.delivered_at, method: nd.delivery_method, tracking: nd.tracking_no }, actor)
   if (patch.artwork_approved_at && !d.artwork_approved_at) await logDealEvent(sb, d.id, 'artwork', { at: patch.artwork_approved_at, by: nd.artwork_by }, actor)
@@ -268,15 +271,6 @@ export async function patchDeal(sb: SB, d: GiftDeal, patch: Row, stageTouched: b
   // Tarikh perlu hantar disegerakkan balik ke sebut harga (best-effort)
   if (patch.needed_by !== undefined && d.quotation_id) { try { await sb.from('quotations').update({ needed_by: patch.needed_by }).eq('id', d.quotation_id) } catch { /* abaikan */ } }
   return nd
-}
-
-/** Push web kepada PIC pack bila ditugaskan (best-effort; perlu VAPID + langganan push PIC). */
-async function notifyPacker(sb: SB, d: GiftDeal, actor: string | null) {
-  try {
-    const who = (d.client.company || d.client.name || 'Klien').trim()
-    const when = d.needed_by ? ` · hantar ${d.needed_by}` : ''
-    await sendUserPush(d.packer_id, { title: `Tugasan pack — ${who}`, body: `${d.title ?? 'Deal gift'}${when}${actor ? ` · oleh ${actor}` : ''}`, url: `/admin/gift-pipeline?deal=${d.id}`, tag: `gift-pack-${d.id}` })
-  } catch (e) { console.warn('[gift-deals] push PIC pack gagal', (e as Error).message) }
 }
 
 // ── Bayaran: manual (± rekod juga di Refrens) ──────────────────────────────
