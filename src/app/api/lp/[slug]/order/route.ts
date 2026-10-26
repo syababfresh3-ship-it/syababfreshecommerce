@@ -21,6 +21,15 @@ const CHIP_API_URL = 'https://gate.chip-in.asia/api/v1'
 // PostgREST bila kolum belum wujud (migration 132 belum dijalankan)
 const MISSING_COLUMN = new Set(['42703', 'PGRST204'])
 
+// SyababFresh tak hantar ke Malaysia Timur: Labuan (87), Sabah (88–91), Sarawak (93–98).
+// Disemak SEBELUM cabang free_shipping / had percuma — dulu varian percuma langkau
+// semakan zon, jadi poskod Sabah diterima dengan caj RM0.
+function isEastMalaysiaPostcode(postcode: string | null | undefined) {
+  if (!postcode || !/^\d{5}$/.test(postcode)) return false
+  const p = parseInt(postcode.slice(0, 2), 10)
+  return p === 87 || (p >= 88 && p <= 91) || (p >= 93 && p <= 98)
+}
+
 function getAppUrl() {
   const explicit = process.env.NEXT_PUBLIC_APP_URL
   if (explicit && !explicit.includes('localhost')) return explicit
@@ -226,6 +235,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // free_shipping → seluruh order percuma (shipping dikira per-order).
   const hasFreeShipVariant = validatedItems.some(i =>
     i.variant_id ? !!(variantMap.get(i.variant_id) as any)?.free_shipping : false)
+
+  if (!isPickup && isEastMalaysiaPostcode(postcode))
+    return NextResponse.json({ error: 'Maaf, kami tidak menghantar ke Sabah, Sarawak dan Labuan' }, { status: 400 })
 
   if (isPickup) {
     deliveryFee = 0   // ambil sendiri — tiada caj penghantaran
@@ -512,6 +524,8 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const postcode = url.searchParams.get('postcode') ?? ''
   const subtotal = parseFloat(url.searchParams.get('subtotal') ?? '0')
+
+  if (isEastMalaysiaPostcode(postcode)) return NextResponse.json({ available: false, fee: null })
 
   // Free shipping per-variasi (migration 141): kalau troli ada variasi free_shipping
   // → seluruh order percuma, abai poskod & had basket.
