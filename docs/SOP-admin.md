@@ -329,6 +329,7 @@ AI tahu kita buat **custom gift box kurma** (min 50 kotak, design percuma, depos
 
 ### 7.4 Ujian & soalan tak pasti
 - **Playground → tab Ujian**: tekan **Jalankan semua**. Setiap soalan sebenar customer disemak automatik (tool betul, frasa wajib ada, frasa dilarang tiada) dan diberi skor penilai AI 0–2. Gagal? Buka baris, baca balasan, betulkan fakta/FAQ atau nota, ulang **yang gagal sahaja**. Jalankan selepas setiap perubahan besar pada pengetahuan atau persona.
+- **Panjang balasan**: WhatsApp patut ≤3 baris, satu soalan setiap balasan. Set ujian gagalkan balasan melebihi 400 aksara (kes senarai/ringkasan dibenarkan lebih) atau lebih dari satu soalan; purata aksara dipapar di atas senarai. Purata sihat ≈ 250–300. Persona dan nota pengetahuan yang panjang/berformat turut memanjangkan balasan.
 - **Analytics → Soalan tak pasti**: senarai soalan sebenar yang AI jawab tapi mengaku tak tahu atau produk tiada. Inilah senarai kerja: tambah kad fakta produk atau FAQ umum, atau beritahu pemilik produk itu patut diaktifkan.
 
 ### 7.5 Peraturan

@@ -46,9 +46,9 @@ ${faq}`;
 /** Peraturan tingkah laku untuk topik gift (ditambah ke prompt WA). */
 export const GIFT_RULES = `GIFT BOX KURMA / HADIAH KORPORAT (penting):
 - Bila customer tanya gift box, hadiah korporat, door gift, hadiah Ramadan/Raya berlogo, kotak kurma custom, atau kurma borong: ini perkhidmatan kami — jawab yakin dari bahagian "Gift Box Kurma" di bawah. Jangan kata kami tak buat.
-- Anggaran harga: guna tool gift_price_estimate (kurma, berat, kuantiti) dan sebut jelas ia ANGGARAN harga senarai; harga rasmi datang dari sebut harga team sales (boleh berbeza ikut design/finishing/penghantaran). JANGAN reka harga atau diskaun gift.
+- Anggaran harga: guna tool gift_price_estimate (kurma, berat, kuantiti). Balas dalam bentuk ini sahaja: satu baris harga per kotak + jumlah + "(termasuk kotak berlogo, tanpa penghantaran)", satu ayat "ini anggaran senarai; harga rasmi dari sebut harga team sales", kemudian SATU soalan untuk teruskan. Jangan huraikan design percuma/finishing/deposit kecuali ditanya. JANGAN reka harga atau diskaun gift.
 - Kumpul satu-satu, jangan tanya semua sekali gus: (a) nama syarikat/organisasi & nama PIC, (b) anggaran kuantiti, (c) jenis kurma & berat (atau biar team cadang), (d) tarikh perlu / majlis, (e) kawasan hantar, (f) ada logo/design atau perlu kami reka.
-- Bila cukup sekurang-kurangnya nama/syarikat + anggaran kuantiti, panggil flag_gift_enquiry (sertakan semua yang dikumpul). Kemudian beritahu: enquiry direkod, team sales akan hubungi dengan sebut harga rasmi dalam masa bekerja; boleh juga design sendiri di Studio (beri pautan).
+- Bila cukup sekurang-kurangnya nama/syarikat + anggaran kuantiti, panggil flag_gift_enquiry SEKALI (sertakan semua yang dikumpul). Jangan panggil semula atau ulang sebut "enquiry direkod" pada giliran seterusnya kecuali customer beri butiran baru. Kemudian balas 2 baris sahaja: enquiry direkod + team sales hubungi dengan sebut harga rasmi dalam masa bekerja. Pautan Studio hanya bila customer nak design/tengok harga sendiri.
 - JANGAN ambil deposit atau beri no. akaun untuk gift, JANGAN janji tarikh siap tepat (sebut ~2 minggu bekerja selepas design & bayaran disahkan), JANGAN panggil flag_ready_order untuk gift (itu untuk order buah runcit).`;
 
 // ── Tool ──────────────────────────────────────────────────────────────────

@@ -61,3 +61,21 @@ Guard 1–5, toggle per-convo, tetingkap 24j, flow closing & `flag_ready_order`,
 **Pembetulan:** `maxTokens` 500 → 2048 (wa-agent, playground); penilai ujian 800 → 2048; draf fakta 3000 → 6000. Provider Anthropic: kalau `max_tokens` dicapai tanpa teks, ulang sekali dengan bajet 4× (had 8192). Playground tak lagi hantar "(tiada balasan)" sebagai sejarah AI. Kos kini kira token cache (baca 10%, tulis 125%) — kos sebenar ≈ RM0.002–0.004 setiap balasan, bukan RM0.0016.
 
 **Ujian:** 33 kes — thinking kekal + had 2048 = 33/33 (purata 5.5s); thinking dimatikan + had 1024 = 31/33 (3.7s). Pilih kekalkan thinking. Giliran "syabab anas" → "ya betul" kini balas & rekod enquiry (dry-run).
+
+## Tala panjang balasan (26 Okt 2026 malam)
+
+**Masalah:** balasan terlalu panjang untuk WhatsApp (contoh "ajwa 5kg": 5 perenggan, ~600 aksara, senarai gred + closing + soalan lain sekali gus). Punca: prompt kata "ringkas 1–3 ayat" tetapi peraturan lain suruh sebut saiz, stok, closing & minta nama/poskod — model patuhi semua sekali. Tiada semakan panjang dalam set ujian. Persona admin ("galak repeat order, tonjolkan nilai") & FAQ panjang dalam textarea pengetahuan turut mendorong.
+
+**Pembetulan:** blok "PANJANG & BENTUK BALASAN (WAJIB)" dalam prompt WA (`wa-knowledge.ts`): maks 3 baris (~300 aksara), SATU soalan setiap balasan, harga dalam satu baris, tiada bullet/tajuk/ayat penutup, jawab soalan yang ditanya sahaja, soalan kesihatan 2 ayat tanpa pivot jualan; pengecualian ringkasan pengesahan (≤6 baris) & senarai yang diminta. `GIFT_RULES`: format anggaran tetap (harga + jumlah + nota anggaran + satu soalan), `flag_gift_enquiry` sekali sahaja. Set ujian: semakan `Panjang ≤ 400 aksara` (boleh ubah per kes: beza/simpan/closing/refund 450, enquiry penuh 500, senarai 800) & `Soalan ≤ 1`; panel Ujian papar purata aksara & aksara setiap balasan.
+
+**Ukuran (33 kes + flow gift 4 giliran, Haiku 5.5):**
+
+| | Sebelum | Selepas |
+|---|---|---|
+| Purata aksara | 474 | 275 |
+| Purata baris | 3.6 | 2.3 |
+| Balasan >350 aksara | 29/37 | 5/37 |
+| Balasan >1 soalan | 5 | 0 |
+| Lulus semakan | 31/33 (tanpa semakan panjang) | 32/33 (dengan semakan panjang) |
+
+Satu kes gagal akhir (hantar-luar-kv: tak sebut kurier/1–3 hari) adalah variasi model — lulus dalam 2 larian sebelumnya. Cadangan kepada pemilik: ringkaskan FAQ/emoji dalam textarea pengetahuan admin & buang promo ceri basi — ia memanjangkan prompt (13.4k token) dan menggalakkan jawapan berformat.

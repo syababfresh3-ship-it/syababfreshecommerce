@@ -27,7 +27,8 @@ export function EvalPanel({ model }: { model: string }) {
     const cost = done.reduce((s, c) => s + (results[c.id].costUsd || 0), 0);
     const judged = done.filter((c) => results[c.id].judge);
     const avgJudge = judged.length ? judged.reduce((s, c) => s + (results[c.id].judge?.score ?? 0), 0) / judged.length : null;
-    return { done: done.length, pass, cost, avgJudge };
+    const avgChars = done.length ? Math.round(done.reduce((s, c) => s + (results[c.id].reply?.length ?? 0), 0) / done.length) : 0;
+    return { done: done.length, pass, cost, avgJudge, avgChars };
   }, [cases, results]);
 
   async function run(ids: string[]) {
@@ -60,7 +61,7 @@ export function EvalPanel({ model }: { model: string }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-gray-600">
-          {cases.length} soalan sebenar dari inbox + senario gift. {stats.done > 0 && <>Lulus <b>{stats.pass}/{stats.done}</b>{stats.avgJudge !== null && <> · penilai AI purata <b>{stats.avgJudge.toFixed(1)}/2</b></>} · kos RM{(stats.cost * USD_TO_MYR).toFixed(3)}</>}
+          {cases.length} soalan sebenar dari inbox + senario gift. {stats.done > 0 && <>Lulus <b>{stats.pass}/{stats.done}</b>{stats.avgJudge !== null && <> · penilai AI purata <b>{stats.avgJudge.toFixed(1)}/2</b></>} · purata <b>{stats.avgChars}</b> aksara · kos RM{(stats.cost * USD_TO_MYR).toFixed(3)}</>}
           {model && <span className="text-gray-400"> · model {AI_MODELS[model]?.label ?? model}</span>}
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -92,7 +93,7 @@ export function EvalPanel({ model }: { model: string }) {
                   {!r ? <p className="text-xs text-gray-400">Belum dijalankan.</p> : r.error ? <p className="text-xs text-red-600">Ralat: {r.error}</p> : (
                     <>
                       <div className="rounded-lg border border-gray-200 bg-white p-2.5 whitespace-pre-wrap text-gray-800">{r.reply || <span className="text-gray-400">(tiada balasan)</span>}</div>
-                      <p className="text-[11px] text-gray-500">tool: {r.tools.length ? r.tools.map((t) => `${t.name}(${JSON.stringify(t.input)})`).join(" · ") : "tiada"} · {AI_MODELS[r.model ?? ""]?.label ?? r.model} · {(r.ms / 1000).toFixed(1)}s · RM{(r.costUsd * USD_TO_MYR).toFixed(4)}</p>
+                      <p className="text-[11px] text-gray-500">tool: {r.tools.length ? r.tools.map((t) => `${t.name}(${JSON.stringify(t.input)})`).join(" · ") : "tiada"} · {AI_MODELS[r.model ?? ""]?.label ?? r.model} · {r.reply.length} aksara · {(r.ms / 1000).toFixed(1)}s · RM{(r.costUsd * USD_TO_MYR).toFixed(4)}</p>
                       <ul className="text-xs space-y-0.5">{r.checks.map((ch, i) => <li key={i} className={`inline-flex items-center gap-1 mr-3 ${ch.ok ? "text-gray-600" : "text-red-700 font-semibold"}`}>{ch.ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}{ch.text}</li>)}</ul>
                       {r.judge && <p className="text-xs text-gray-700"><b>Penilai AI {r.judge.score}/2:</b> {r.judge.reason}</p>}
                     </>
