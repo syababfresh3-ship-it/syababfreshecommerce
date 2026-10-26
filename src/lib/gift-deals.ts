@@ -22,6 +22,7 @@ export const PAY_METHODS: [string, string][] = [['ACCOUNT_TRANSFER', 'Pindahan b
 
 export interface GiftDeal {
   id: string; quotation_id: string | null; gift_order_id?: string | null; owner_id?: string | null; customer_id: string | null; client: QuotationClient; title: string | null
+  packer_id?: string | null; packer_assigned_at?: string | null; packed_at?: string | null; pack_notes?: string | null   // PIC pack (migration 150)
   stage: DealStage; amount: number; accepted_at: string | null
   deposit_pct: number; deposit_paid_at: string | null; deposit_amount: number | null; deposit_source: string | null; deposit_ref: string | null
   balance_paid_at: string | null; balance_amount: number | null; balance_source: string | null; balance_ref: string | null
@@ -34,7 +35,7 @@ export interface GiftDeal {
 }
 export interface DealQuotationInfo { quote_number: string | null; status: string; valid_until: string | null; issued_at: string | null; share_token: string | null }
 export interface DealOwner { id: string; name: string }
-export interface DealRow extends GiftDeal { quotation: DealQuotationInfo | null; invoice: QuotationInvoiceRef | null; alerts: DealAlert[]; owner: DealOwner | null }
+export interface DealRow extends GiftDeal { quotation: DealQuotationInfo | null; invoice: QuotationInvoiceRef | null; alerts: DealAlert[]; owner: DealOwner | null; packer: DealOwner | null }
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('') || '?'
 export interface DealEvent { id: number; type: string; meta: Record<string, unknown>; actor: string | null; created_at: string }
 
@@ -82,6 +83,11 @@ export function dealAlerts(d: GiftDeal, q: DealQuotationInfo | null, inv: Quotat
     if (!d.artwork_approved_at && daysToNeeded < 14) a.push({ level: daysToNeeded < 7 ? 'danger' : 'warn', text: 'Artwork belum OK' })
     if (daysToNeeded < 0 && !d.delivered_at) a.push({ level: 'danger', text: `Lewat hantar ${-daysToNeeded} hari` })
     else if (daysToNeeded <= 3 && !d.delivered_at) a.push({ level: 'warn', text: `Hantar dalam ${daysToNeeded} hari` })
+  }
+  // PIC pack: wajib ada sebaik deposit masuk / artwork (fasa siapkan pek); pek belum siap bila tarikh hantar hampir
+  if (!d.delivered_at && stageOrder(d.stage) >= stageOrder('deposit') && stageOrder(d.stage) < stageOrder('delivered')) {
+    if (!d.packer_id) a.push({ level: daysToNeeded !== null && daysToNeeded < 7 ? 'danger' : 'warn', text: 'PIC pack belum ditetapkan' })
+    else if (!d.packed_at && daysToNeeded !== null && daysToNeeded <= 2) a.push({ level: 'warn', text: 'Pek belum siap' })
   }
   const pd = dateOnly(d.production_due)
   if (pd && needed && pd > needed && !d.delivered_at) a.push({ level: 'warn', text: 'Sasaran siap lewat dari tarikh hantar' })

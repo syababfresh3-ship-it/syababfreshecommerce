@@ -13,8 +13,10 @@ export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams
   const ownerParam = sp.get('owner')   // 'me' | <profiles.id> | kosong
   const owner = ownerParam === 'me' ? (user?.id ?? null) : ownerParam
+  const packerParam = sp.get('packer')   // 'me' | <profiles.id> | kosong — tugasan pack
+  const packer = packerParam === 'me' ? (user?.id ?? null) : packerParam
   try {
-    const deals = await listDeals(supabase!, { scope: sp.get('scope') ?? 'active', q: sp.get('q') ?? undefined, owner })
+    const deals = await listDeals(supabase!, { scope: sp.get('scope') ?? 'active', q: sp.get('q') ?? undefined, owner, packer })
     const byStage = Object.fromEntries(ACTIVE_STAGES.map(s => [s, { count: 0, total: 0 }])) as Record<string, { count: number; total: number }>
     for (const d of deals) if (byStage[d.stage]) { byStage[d.stage].count++; byStage[d.stage].total += d.amount }
     const alerts = deals.reduce((n, d) => n + d.alerts.length, 0)
@@ -22,6 +24,6 @@ export async function GET(request: Request) {
   } catch (e) {
     const msg = (e as Error).message
     const missing = /does not exist|schema cache/i.test(msg)
-    return NextResponse.json({ error: missing ? `Jadual/lajur pipeline belum lengkap — jalankan migration 147, 148 dan 149 di SQL Editor (${msg})` : msg }, { status: 500 })
+    return NextResponse.json({ error: missing ? `Jadual/lajur pipeline belum lengkap — jalankan migration 147, 148, 149 dan 150 di SQL Editor (${msg})` : msg }, { status: 500 })
   }
 }

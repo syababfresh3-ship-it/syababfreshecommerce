@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays } from 'lucide-react'
+import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays, PackageCheck, UserCheck } from 'lucide-react'
 import { rm } from '@/lib/quotation'
 import { ACTIVE_STAGES, ALL_STAGES, DELIVERY_METHODS, LOST_REASONS, PAY_METHODS, STAGE_HINT, STAGE_LABEL, balanceDue, dateOnly, depositDue, initials, stageLabel, type DealEvent, type DealRow, type DealStage } from '@/lib/gift-deals'
 
@@ -25,7 +25,7 @@ const fmtD = (v: string | null | undefined) => { const d = dateOnly(v); return d
 const fmtDT = (v: string | null) => v ? new Date(v).toLocaleString('en-MY', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'
 const toDateInput = (v: string | null | undefined) => v ? v.slice(0, 10) : ''
 const today = () => new Date().toISOString().slice(0, 10)
-const EVENT_LABEL: Record<string, string> = { created: 'Deal dicipta', stage: 'Peringkat', payment: 'Bayaran', delivered: 'Dihantar', artwork: 'Artwork disahkan', edited: 'Diedit', synced: 'Segerak Refrens', accepted: 'Klien terima', note: 'Nota', owner: 'Sales ditukar' }
+const EVENT_LABEL: Record<string, string> = { created: 'Deal dicipta', stage: 'Peringkat', payment: 'Bayaran', delivered: 'Dihantar', artwork: 'Artwork disahkan', edited: 'Diedit', synced: 'Segerak Refrens', accepted: 'Klien terima', note: 'Nota', owner: 'Sales ditukar', packer: 'PIC pack ditukar', packed: 'Pek siap' }
 function countdown(needed: string | null): { text: string; cls: string } | null {
   const d = dateOnly(needed); if (!d) return null
   const days = Math.floor((d.getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
@@ -43,6 +43,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   const [view, setView] = useState<'board' | 'list'>('board')
   const [scope, setScope] = useState('active')
   const [owner, setOwner] = useState('')   // '' semua | 'me' | profiles.id
+  const [packer, setPacker] = useState('')   // '' semua | 'me' | profiles.id — PIC pack (migration 150)
   const [staff, setStaff] = useState<Staff[]>([])
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(initialDealId)
@@ -55,12 +56,12 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    const sp = new URLSearchParams({ scope }); if (q.trim().length >= 2) sp.set('q', q.trim()); if (owner) sp.set('owner', owner)
+    const sp = new URLSearchParams({ scope }); if (q.trim().length >= 2) sp.set('q', q.trim()); if (owner) sp.set('owner', owner); if (packer) sp.set('packer', packer)
     const res = await fetch(`/api/admin/gift-deals?${sp}`)
     const j = await res.json().catch(() => ({}))
     if (!res.ok) { setError(j.error ?? 'Gagal muat'); setDeals([]); setSummary(null); setLoading(false); return }
     setDeals(j.deals ?? []); setSummary(j.summary ?? null); setLoading(false)
-  }, [scope, q, owner])
+  }, [scope, q, owner, packer])
   useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t) }, [load])
   useEffect(() => { fetch('/api/admin/team').then(r => r.ok ? r.json() : null).then(j => { if (j?.staff) setStaff(j.staff) }).catch(() => {}) }, [])
 
@@ -71,6 +72,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
     setDetail(j)
     setForm({
       stage: j.stage, title: j.title ?? '', owner_id: j.owner_id ?? '', deposit_pct: String(j.deposit_pct ?? 50), po_number: j.po_number ?? '', po_file_url: j.po_file_url ?? '',
+      packer_id: j.packer_id ?? '', packed_at: toDateInput(j.packed_at), pack_notes: j.pack_notes ?? '',
       artwork_approved_at: toDateInput(j.artwork_approved_at), artwork_by: j.artwork_by ?? '', artwork_file_url: j.artwork_file_url ?? '',
       production_due: toDateInput(j.production_due), needed_by: toDateInput(j.needed_by),
       delivered_at: toDateInput(j.delivered_at), delivery_method: j.delivery_method ?? '', tracking_no: j.tracking_no ?? '', pod_url: j.pod_url ?? '', received_by: j.received_by ?? '',
@@ -86,6 +88,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
     try {
       const body: Record<string, unknown> = {
         stage: form.stage, title: form.title, owner_id: form.owner_id || null, deposit_pct: Number(form.deposit_pct), po_number: form.po_number, po_file_url: form.po_file_url,
+        packer_id: form.packer_id || null, packed_at: form.packed_at || null, pack_notes: form.pack_notes,
         artwork_approved_at: form.artwork_approved_at || null, artwork_by: form.artwork_by, artwork_file_url: form.artwork_file_url,
         production_due: form.production_due || null, needed_by: form.needed_by || null,
         delivered_at: form.delivered_at || null, delivery_method: form.delivery_method, tracking_no: form.tracking_no, pod_url: form.pod_url, received_by: form.received_by,
@@ -127,6 +130,8 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   }
   const markDelivered = () => { f('delivered_at', form.delivered_at || today()); saveDetail({ delivered_at: form.delivered_at || today() }) }
   const markArtwork = () => { f('artwork_approved_at', form.artwork_approved_at || today()); saveDetail({ artwork_approved_at: form.artwork_approved_at || today() }) }
+  const markPacked = () => { f('packed_at', form.packed_at || today()); saveDetail({ packed_at: form.packed_at || today() }) }
+  const assignMe = () => { saveDetail({ packer_id: 'me' }) }   // server tukar 'me' → id admin semasa
 
   const columns = useMemo(() => ACTIVE_STAGES.map(s => ({ stage: s, deals: deals.filter(d => d.stage === s) })), [deals])
   const closed = useMemo(() => deals.filter(d => d.stage === 'done' || d.stage === 'lost'), [deals])
@@ -136,11 +141,12 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
     return (
       <button type="button" key={d.id} onClick={() => setOpenId(d.id)} className="w-full text-left rounded-lg border border-gray-200 bg-white p-2 hover:border-gray-400 transition min-w-0">
         <p className="text-[12px] font-semibold text-gray-900 leading-snug line-clamp-2">{d.title ?? d.client.company ?? d.client.name ?? 'Deal'}</p>
-        <div className="flex items-center justify-between gap-1 mt-1 min-w-0"><span className="text-[10px] text-gray-500 truncate">{d.quotation?.quote_number ?? 'Draf'}{d.invoice ? ` · ${d.invoice.number}` : ''}</span><span className="inline-flex items-center gap-1 shrink-0">{d.owner && <span title={`Sales: ${d.owner.name}`} className="h-4 min-w-4 px-1 rounded-full bg-gray-900 text-white text-[9px] font-bold grid place-items-center">{initials(d.owner.name)}</span>}<span className="text-[12px] font-bold text-gray-900 font-mono">{rm(d.amount)}</span></span></div>
+        <div className="flex items-center justify-between gap-1 mt-1 min-w-0"><span className="text-[10px] text-gray-500 truncate">{d.quotation?.quote_number ?? 'Draf'}{d.invoice ? ` · ${d.invoice.number}` : ''}</span><span className="inline-flex items-center gap-1 shrink-0">{d.owner && <span title={`Sales: ${d.owner.name}`} className="h-4 min-w-4 px-1 rounded-full bg-gray-900 text-white text-[9px] font-bold grid place-items-center">{initials(d.owner.name)}</span>}{d.packer && <span title={`PIC pack: ${d.packer.name}`} className="h-4 min-w-4 px-1 rounded-full border border-gray-900 text-gray-900 text-[9px] font-bold grid place-items-center">{initials(d.packer.name)}</span>}<span className="text-[12px] font-bold text-gray-900 font-mono">{rm(d.amount)}</span></span></div>
         <div className="flex flex-wrap gap-1 mt-1.5">
           {d.accepted_at && d.stage === 'quote' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">Accepted</span>}
           {d.deposit_paid_at && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">Deposit ✓</span>}
           {d.balance_paid_at && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">Lunas</span>}
+          {d.packed_at && !d.delivered_at && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 inline-flex items-center gap-1"><PackageCheck className="h-3 w-3" />Pek siap</span>}
           {cd && !d.delivered_at && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${cd.cls}`}><CalendarDays className="h-3 w-3" />{cd.text}</span>}
           {d.alerts.map((a, i) => <span key={i} className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border inline-flex items-center gap-1 ${a.level === 'danger' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}><AlertTriangle className="h-3 w-3" />{a.text}</span>)}
         </div>
@@ -159,6 +165,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative"><Search className="h-4 w-4 text-gray-400 absolute left-2.5 top-2.5" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Cari klien / PO" className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm w-52 focus:outline-none focus:ring-2 focus:ring-gray-900" /></div>
           <select value={owner} onChange={e => setOwner(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white" aria-label="Sales"><option value="">Semua sales</option><option value="me">Deal saya</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
+          <select value={packer} onChange={e => setPacker(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white" aria-label="PIC pack"><option value="">Semua PIC pack</option><option value="me">Tugasan pack saya</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
           <select value={scope} onChange={e => setScope(e.target.value)} className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"><option value="active">Aktif</option><option value="all">Semua</option><option value="done">Selesai</option><option value="lost">Batal / Kalah</option></select>
           <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-white">
             <button type="button" onClick={() => setView('board')} className={`h-8 w-8 grid place-items-center rounded-md ${view === 'board' ? 'bg-gray-900 text-white' : 'text-gray-500'}`} aria-label="Papan"><LayoutGrid className="h-4 w-4" /></button>
@@ -196,14 +203,15 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
           <div className="rounded-xl border border-gray-200 bg-white overflow-x-auto">
             <table className="w-full text-sm min-w-[900px]">
               <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500"><tr>
-                <th className="text-left font-bold px-3 py-2.5">Peringkat</th><th className="text-left font-bold px-3 py-2.5">Deal</th><th className="text-left font-bold px-3 py-2.5">Sales</th><th className="text-left font-bold px-3 py-2.5">Sebut harga / Invois</th><th className="text-right font-bold px-3 py-2.5">Jumlah</th><th className="text-left font-bold px-3 py-2.5">Deposit</th><th className="text-left font-bold px-3 py-2.5">Perlu hantar</th><th className="text-left font-bold px-3 py-2.5">Tindakan seterusnya</th><th className="text-left font-bold px-3 py-2.5">Amaran</th>
+                <th className="text-left font-bold px-3 py-2.5">Peringkat</th><th className="text-left font-bold px-3 py-2.5">Deal</th><th className="text-left font-bold px-3 py-2.5">Sales</th><th className="text-left font-bold px-3 py-2.5">PIC pack</th><th className="text-left font-bold px-3 py-2.5">Sebut harga / Invois</th><th className="text-right font-bold px-3 py-2.5">Jumlah</th><th className="text-left font-bold px-3 py-2.5">Deposit</th><th className="text-left font-bold px-3 py-2.5">Perlu hantar</th><th className="text-left font-bold px-3 py-2.5">Tindakan seterusnya</th><th className="text-left font-bold px-3 py-2.5">Amaran</th>
               </tr></thead>
               <tbody>
-                {deals.length === 0 ? <tr><td colSpan={9} className="px-3 py-10 text-center text-gray-400">Tiada deal.</td></tr> : deals.map(d => (
+                {deals.length === 0 ? <tr><td colSpan={10} className="px-3 py-10 text-center text-gray-400">Tiada deal.</td></tr> : deals.map(d => (
                   <tr key={d.id} onClick={() => setOpenId(d.id)} className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer">
                     <td className="px-3 py-2.5 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-700"><span className={`h-2 w-2 rounded-full ${STAGE_DOT[d.stage]}`} />{stageLabel(d.stage)}</span></td>
                     <td className="px-3 py-2.5 text-gray-900 max-w-[280px] truncate">{d.title ?? d.client.company ?? d.client.name}</td>
                     <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{d.owner?.name ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{d.packer?.name ?? '—'}{d.packed_at ? ' · Pek siap' : ''}</td>
                     <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{d.quotation?.quote_number ?? '—'}{d.invoice ? ` · ${d.invoice.number}` : ''}</td>
                     <td className="px-3 py-2.5 text-right font-mono font-semibold">{rm(d.amount)}</td>
                     <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{d.deposit_pct}%{d.deposit_paid_at ? ' ✓' : ''}{d.balance_paid_at ? ' · Lunas' : ''}</td>
@@ -314,6 +322,26 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
                     <div><label className={lbl}>Pautan mockup akhir</label><input value={form.artwork_file_url ?? ''} onChange={e => f('artwork_file_url', e.target.value)} className={inp} placeholder="https://…" /></div>
                     <div><label className={lbl}>Sasaran siap produksi</label><input type="date" value={form.production_due ?? ''} onChange={e => f('production_due', e.target.value)} className={inp} /></div>
                     <div className="sm:col-span-2"><label className={lbl}>Tarikh perlu hantar (klien)</label><input type="date" value={form.needed_by ?? ''} onChange={e => f('needed_by', e.target.value)} className={inp} /></div>
+                  </div>
+                </div>
+
+                {/* PIC pack & pek (migration 150) */}
+                <div className={sec}>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">PIC pack · siapa siapkan pek</p>
+                    {!detail.packed_at && detail.packer_id && <button type="button" onClick={markPacked} disabled={busy === 'save'} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900"><PackageCheck className="h-3.5 w-3.5" />Tanda pek siap hari ini</button>}
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={lbl}>PIC pack</label>
+                      <div className="flex gap-1">
+                        <select value={form.packer_id ?? ''} onChange={e => f('packer_id', e.target.value)} className={inp}><option value="">— Belum ditugaskan —</option>{staff.map(st => <option key={st.id} value={st.id}>{st.full_name || st.email}</option>)}</select>
+                        {!detail.packer_id && <button type="button" onClick={assignMe} disabled={busy === 'save'} title="Tugaskan diri sendiri" className="h-8 px-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-gray-400 whitespace-nowrap inline-flex items-center gap-1"><UserCheck className="h-3.5 w-3.5" />Saya</button>}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-1">{detail.packer ? `Ditugaskan ${fmtDT(detail.packer_assigned_at ?? null)} · PIC dapat notifikasi push.` : 'Tetapkan sebaik deposit masuk. PIC dapat notifikasi push & nampak di penapis "Tugasan pack saya".'}</p>
+                    </div>
+                    <div><label className={lbl}>Pek siap (sedia hantar)</label><input type="date" value={form.packed_at ?? ''} onChange={e => f('packed_at', e.target.value)} className={inp} /></div>
+                    <div className="sm:col-span-2"><label className={lbl}>Arahan pek untuk PIC</label><textarea value={form.pack_notes ?? ''} onChange={e => f('pack_notes', e.target.value)} rows={2} className={inp} placeholder="cth. 120 kotak · Ajwa Medium 250g · finishing matte · label logo klien atas · susun 10 per karton" /></div>
                   </div>
                 </div>
 

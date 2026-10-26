@@ -6,6 +6,7 @@ import {
   advanceStage, balanceDue, dealAlerts, dealTitle, depositDue, r2, stageAfterBalance, stageAfterDelivered, stageAfterDeposit, stageAfterInvoice,
 } from '@/lib/gift-deals'
 import { isRefrensConfigured, listPayments, recordPayment, type PaymentMethod } from '@/lib/refrens'
+import { sendUserPush } from '@/lib/push'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SB = any
@@ -18,6 +19,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export function rowToDeal(r: Row): GiftDeal {
   return {
     id: r.id, quotation_id: r.quotation_id ?? null, gift_order_id: r.gift_order_id ?? null, owner_id: r.owner_id ?? null, customer_id: r.customer_id ?? null, client: r.client ?? {}, title: r.title ?? null,
+    packer_id: r.packer_id ?? null, packer_assigned_at: r.packer_assigned_at ?? null, packed_at: r.packed_at ?? null, pack_notes: r.pack_notes ?? null,
     stage: (ALL_STAGES.includes(r.stage) ? r.stage : 'quote') as DealStage, amount: num(r.amount) as number, accepted_at: r.accepted_at ?? null,
     deposit_pct: num(r.deposit_pct, 50) as number, deposit_paid_at: r.deposit_paid_at ?? null, deposit_amount: num(r.deposit_amount, null), deposit_source: r.deposit_source ?? null, deposit_ref: r.deposit_ref ?? null,
     balance_paid_at: r.balance_paid_at ?? null, balance_amount: num(r.balance_amount, null), balance_source: r.balance_source ?? null, balance_ref: r.balance_ref ?? null,
@@ -46,17 +48,18 @@ async function attach(sb: SB, deals: GiftDeal[]): Promise<DealRow[]> {
     for (const ev of evs ?? []) { const arr = byQ.get(ev.quotation_id) ?? []; arr.push(ev); byQ.set(ev.quotation_id, arr) }
     for (const [qid, arr] of byQ) { const ref = invoiceRefFromEvents(arr as never); if (ref) invoices.set(qid, ref) }
   }
-  const owners = new Map<string, DealOwner>()
-  const ownerIds = [...new Set(deals.map(d => d.owner_id).filter(Boolean) as string[])]
-  if (ownerIds.length) {
-    const { data: ps } = await sb.from('profiles').select('id, full_name, email').in('id', ownerIds)
-    for (const p of ps ?? []) owners.set(p.id, { id: p.id, name: (p.full_name as string) || (p.email as string) || 'Admin' })
+  // Nama sales pemilik + PIC pack (satu pertanyaan profiles)
+  const people = new Map<string, DealOwner>()
+  const peopleIds = [...new Set(deals.flatMap(d => [d.owner_id, d.packer_id]).filter(Boolean) as string[])]
+  if (peopleIds.length) {
+    const { data: ps } = await sb.from('profiles').select('id, full_name, email').in('id', peopleIds)
+    for (const p of ps ?? []) people.set(p.id, { id: p.id, name: (p.full_name as string) || (p.email as string) || 'Admin' })
   }
   const now = new Date()
   return deals.map(d => {
     const q = d.quotation_id ? quotes.get(d.quotation_id) ?? null : null
     const inv = d.quotation_id ? invoices.get(d.quotation_id) ?? null : null
-    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now), owner: d.owner_id ? owners.get(d.owner_id) ?? null : null }
+    return { ...d, quotation: q, invoice: inv, alerts: dealAlerts(d, q, inv, now), owner: d.owner_id ? people.get(d.owner_id) ?? null : null, packer: d.packer_id ? people.get(d.packer_id) ?? null : null }
   })
 }
 
@@ -75,9 +78,10 @@ async function insertTolerant(sb: SB, table: string, row: Row): Promise<{ data: 
   return { data: null, error: { message: 'insert gagal' } }
 }
 
-export async function listDeals(sb: SB, opts: { scope?: string; q?: string; owner?: string | null }): Promise<DealRow[]> {
+export async function listDeals(sb: SB, opts: { scope?: string; q?: string; owner?: string | null; packer?: string | null }): Promise<DealRow[]> {
   let query = sb.from('gift_deals').select('*').order('needed_by', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false }).limit(500)
   if (opts.owner && UUID_RE.test(opts.owner)) query = query.eq('owner_id', opts.owner)
+  if (opts.packer && UUID_RE.test(opts.packer)) query = query.eq('packer_id', opts.packer)   // tugasan pack (migration 150)
   const scope = opts.scope ?? 'active'
   if (scope === 'active') query = query.not('stage', 'in', '("done","lost")')
   else if (scope === 'done' || scope === 'lost') query = query.eq('stage', scope)
@@ -216,6 +220,9 @@ export function parseDealPatch(body: Row): { ok: true; patch: Row; stageTouched:
   if (has('stage')) { if (!ALL_STAGES.includes(body.stage)) return { ok: false, error: 'Peringkat tidak sah' }; p.stage = body.stage }
   if (has('title')) p.title = str(body.title, 160)
   if (has('owner_id')) { const v = body.owner_id; if (v === null || v === '') p.owner_id = null; else if (typeof v === 'string' && UUID_RE.test(v)) p.owner_id = v; else return { ok: false, error: 'Pemilik tidak sah' } }
+  if (has('packer_id')) { const v = body.packer_id; if (v === null || v === '') p.packer_id = null; else if (typeof v === 'string' && UUID_RE.test(v)) p.packer_id = v; else return { ok: false, error: 'PIC pack tidak sah' } }
+  if (has('pack_notes')) p.pack_notes = str(body.pack_notes, 2000)
+  if (has('packed_at')) p.packed_at = tsOrNull(body.packed_at)
   if (has('deposit_pct')) { const n = Math.round(Number(body.deposit_pct)); if (!Number.isFinite(n) || n < 0 || n > 100) return { ok: false, error: 'Peratus deposit 0–100' }; p.deposit_pct = n }
   for (const k of ['po_number', 'artwork_by', 'tracking_no', 'received_by', 'next_action', 'lost_reason', 'delivery_method']) if (has(k)) p[k] = str(body[k], 200)
   for (const k of ['po_file_url', 'artwork_file_url', 'pod_url']) if (has(k)) p[k] = str(body[k], 1000)
@@ -234,18 +241,42 @@ export async function patchDeal(sb: SB, d: GiftDeal, patch: Row, stageTouched: b
     if (patch.delivered_at && !d.delivered_at) stage = stageAfterDelivered({ stage, balance_paid_at: d.balance_paid_at })
     if (stage !== d.stage) upd.stage = stage
   }
-  const { data, error } = await sb.from('gift_deals').update(upd).eq('id', d.id).select('*').single()
+  const packerChanged = patch.packer_id !== undefined && patch.packer_id !== (d.packer_id ?? null)
+  if (packerChanged) upd.packer_assigned_at = patch.packer_id ? upd.updated_at : null
+  let { data, error } = await sb.from('gift_deals').update(upd).eq('id', d.id).select('*').single()
+  if (error && /packer_id|packer_assigned_at|packed_at|pack_notes/.test(error.message ?? '')) {
+    // Migration 150 belum dijalankan: kalau tiada nilai pack sebenar diubah, buang lajur itu & teruskan; kalau ada, beritahu.
+    const PACK = ['packer_id', 'packer_assigned_at', 'packed_at', 'pack_notes']
+    const realChange = PACK.some(k => upd[k] !== undefined && upd[k] !== null && upd[k] !== '')
+    if (realChange) throw new Error(`Lajur PIC pack belum ada — jalankan migration 150 di SQL Editor (${error.message})`)
+    for (const k of PACK) delete upd[k]
+    ;({ data, error } = await sb.from('gift_deals').update(upd).eq('id', d.id).select('*').single())
+  }
   if (error) throw new Error(error.message)
   const nd = rowToDeal(data)
   if (nd.stage !== d.stage) await logDealEvent(sb, d.id, 'stage', { from: d.stage, to: nd.stage, reason: patch.lost_reason ?? undefined }, actor)
+  if (packerChanged) {
+    await logDealEvent(sb, d.id, 'packer', { from: d.packer_id ?? null, to: nd.packer_id ?? null }, actor)
+    if (nd.packer_id) await notifyPacker(sb, nd, actor)   // best-effort push kepada PIC
+  }
+  if (patch.packed_at && !d.packed_at) await logDealEvent(sb, d.id, 'packed', { at: patch.packed_at }, actor)
   if (patch.delivered_at && !d.delivered_at) await logDealEvent(sb, d.id, 'delivered', { at: patch.delivered_at, method: nd.delivery_method, tracking: nd.tracking_no }, actor)
   if (patch.artwork_approved_at && !d.artwork_approved_at) await logDealEvent(sb, d.id, 'artwork', { at: patch.artwork_approved_at, by: nd.artwork_by }, actor)
   if (patch.owner_id !== undefined && patch.owner_id !== d.owner_id) await logDealEvent(sb, d.id, 'owner', { from: d.owner_id, to: patch.owner_id }, actor)
-  const other = Object.keys(patch).filter(k => !['delivered_at', 'artwork_approved_at', 'stage', 'owner_id'].includes(k))
+  const other = Object.keys(patch).filter(k => k in upd && !['delivered_at', 'artwork_approved_at', 'stage', 'owner_id', 'packer_id', 'packed_at'].includes(k))   // k in upd: lajur yang dibuang (migration belum) tak dilog
   if (other.length) await logDealEvent(sb, d.id, 'edited', { fields: other }, actor)
   // Tarikh perlu hantar disegerakkan balik ke sebut harga (best-effort)
   if (patch.needed_by !== undefined && d.quotation_id) { try { await sb.from('quotations').update({ needed_by: patch.needed_by }).eq('id', d.quotation_id) } catch { /* abaikan */ } }
   return nd
+}
+
+/** Push web kepada PIC pack bila ditugaskan (best-effort; perlu VAPID + langganan push PIC). */
+async function notifyPacker(sb: SB, d: GiftDeal, actor: string | null) {
+  try {
+    const who = (d.client.company || d.client.name || 'Klien').trim()
+    const when = d.needed_by ? ` · hantar ${d.needed_by}` : ''
+    await sendUserPush(d.packer_id, { title: `Tugasan pack — ${who}`, body: `${d.title ?? 'Deal gift'}${when}${actor ? ` · oleh ${actor}` : ''}`, url: `/admin/gift-pipeline?deal=${d.id}`, tag: `gift-pack-${d.id}` })
+  } catch (e) { console.warn('[gift-deals] push PIC pack gagal', (e as Error).message) }
 }
 
 // ── Bayaran: manual (± rekod juga di Refrens) ──────────────────────────────
