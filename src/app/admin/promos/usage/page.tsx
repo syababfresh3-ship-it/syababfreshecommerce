@@ -4,9 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { CouponCodesTable } from './coupon-codes-table'
-
-const fmtDate = (s: string) =>
-  new Date(s).toLocaleDateString('ms-MY', { day: '2-digit', month: 'short', year: '2-digit' })
+import { OrderUsageTable } from './order-usage-table'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -117,51 +115,13 @@ export default async function PromoUsagePage() {
       {/* Order guna kupon */}
       <section>
         <h2 className="font-semibold text-gray-800 mb-2">🎟️ Order guna kupon ({coupons.length})</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs">
-              <tr><th className="text-left px-4 py-2">Order</th><th className="text-left px-4 py-2">Customer</th><th className="text-left px-4 py-2">Kod</th><th className="text-right px-4 py-2">Diskaun</th><th className="text-left px-4 py-2">Sumber</th><th className="text-left px-4 py-2">Tarikh</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {coupons.map((c, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-2 font-mono text-gray-700">{c.order}</td>
-                  <td className="px-4 py-2 text-gray-800">{c.customer}</td>
-                  <td className="px-4 py-2 font-mono text-violet-600">{c.code}</td>
-                  <td className="px-4 py-2 text-right text-red-600 font-semibold">−RM{c.amount.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-gray-400 text-xs">{c.src}</td>
-                  <td className="px-4 py-2 text-gray-400">{fmtDate(c.date)}</td>
-                </tr>
-              ))}
-              {coupons.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Belum ada order guna kupon.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <OrderUsageTable rows={coupons} kind="coupon" />
       </section>
 
       {/* Order redeem points */}
       <section>
         <h2 className="font-semibold text-gray-800 mb-2">⭐ Order redeem loyalty points ({points.length})</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs">
-              <tr><th className="text-left px-4 py-2">Order</th><th className="text-left px-4 py-2">Customer</th><th className="text-right px-4 py-2">Points</th><th className="text-right px-4 py-2">Nilai</th><th className="text-left px-4 py-2">Sumber</th><th className="text-left px-4 py-2">Tarikh</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {points.map((p, i) => (
-                <tr key={i}>
-                  <td className="px-4 py-2 font-mono text-gray-700">{p.order}</td>
-                  <td className="px-4 py-2 text-gray-800">{p.customer}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-amber-600">{Number(p.pts).toLocaleString()}</td>
-                  <td className="px-4 py-2 text-right text-red-600">−RM{p.amount.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-gray-400 text-xs">{p.src}</td>
-                  <td className="px-4 py-2 text-gray-400">{fmtDate(p.date)}</td>
-                </tr>
-              ))}
-              {points.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Belum ada redeem points.</td></tr>}
-            </tbody>
-          </table>
-        </div>
+        <OrderUsageTable rows={points} kind="points" />
       </section>
     </div>
   )
