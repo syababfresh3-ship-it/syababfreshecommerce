@@ -317,7 +317,7 @@ export const ARTIKEL: Artikel[] = [
           'Untuk hadiah dan bingkisan — Medjoul Super Jumbo, Ajwa gred besar, atau mana-mana pilihan kotak siap bungkus.',
           'Untuk yang memang suka manis — Sukkari.',
           'Untuk yang tak suka kurma lembik — Deglet Noor Tunisia atau Mabroom.',
-          'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda. [Lihat semua kurma](/kategori/kurma).',
+          'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda. [Lihat semua kurma](/kategori/kurma). Mahu cepat? [Beli kurma online](/kurma/shop) terus di kedai kurma kami, atau tempah [hamper dan gift kurma](/kurma) untuk hadiah.',
         ],
       },
       {
@@ -416,7 +416,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Pek 100g sesuai kalau anda belum pernah mencuba Ajwa, atau mahu membandingkan gred sebelum membeli banyak. Ia juga saiz yang senang dijadikan buah tangan ringkas.',
           'Pek 300g dan 500g adalah saiz kegunaan rumah — cukup untuk seminggu dua bagi kebanyakan keluarga tanpa risiko kurma terlalu lama terdedah.',
-          'Pek 1kg ke atas hingga karton lebih berbaloi dari segi harga seunit, tetapi hanya kalau anda memang menghabiskannya — untuk keluarga besar, agihan surau dan masjid, majlis, atau jualan semula. Kalau tidak, kurma yang tersimpan terlalu lama akan mengeras walaupun disimpan dengan betul. Belum pasti Ajwa pilihan anda? [Banding dengan jenis kurma lain](/kategori/kurma).',
+          'Pek 1kg ke atas hingga karton lebih berbaloi dari segi harga seunit, tetapi hanya kalau anda memang menghabiskannya — untuk keluarga besar, agihan surau dan masjid, majlis, atau jualan semula. Kalau tidak, kurma yang tersimpan terlalu lama akan mengeras walaupun disimpan dengan betul. Belum pasti Ajwa pilihan anda? [Banding dengan jenis kurma lain](/kategori/kurma). Untuk pesanan pantas, [beli kurma online](/kurma/shop); untuk hadiah korporat atau raya, lihat [hamper/gift kurma](/kurma).',
         ],
       },
       {

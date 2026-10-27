@@ -8,6 +8,7 @@
 // dan panduan ialah hasil sampingan, bukan tujuan.
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { kurmaPath } from '@/lib/kurma-host'
 import { ChevronRight, Snowflake, ShieldCheck, Truck, BookOpen } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SfShell } from '@/components/storev2/sf-shell'
@@ -190,6 +191,19 @@ export default async function BuahOnlinePage() {
           >
             Lihat katalog penuh <ChevronRight className="h-4 w-4" />
           </Link>
+          {/* Pautan dalaman ke kedai kurma & gift box (subdomain kurma bila aktif, via kurmaPath) —
+              tanpa ini /kurma/shop & /kurma yatim: tiada pautan dari kedai utama. */}
+          <p className="text-[13px] text-gray-500 leading-relaxed mt-3">
+            Cari kurma sahaja? Anda boleh{' '}
+            <Link href={kurmaPath('/shop')} className="font-semibold text-gray-900 underline underline-offset-2">
+              beli kurma online — Ajwa, Safawi, Medjoul
+            </Link>{' '}
+            di kedai kurma kami, atau tempah{' '}
+            <Link href={kurmaPath('/')} className="font-semibold text-gray-900 underline underline-offset-2">
+              gift box kurma untuk korporat &amp; raya
+            </Link>
+            .
+          </p>
         </section>
 
         {/* ── Panduan ── */}

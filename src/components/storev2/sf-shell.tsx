@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Home, ShoppingBag, ShoppingCart, Package, User, Bell } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
 import { SfWhatsappFab } from "./sf-whatsapp-fab";
+import { kurmaPath } from "@/lib/kurma-host";
 
 const NAV = [
   { href: "/", label: "Utama", icon: Home },
@@ -87,6 +88,9 @@ export function SfShell({ children }: { children: React.ReactNode }) {
               <ul className="space-y-2 text-[13px] text-gray-600">
                 <li><Link href="/products" className="hover:text-gray-900">Katalog</Link></li>
                 <li><Link href="/buah-online" className="hover:text-gray-900">Beli Buah Online</Link></li>
+                {/* Pautan dalaman ke kedai kurma & gift box (subdomain kurma bila aktif) — elak /kurma/shop & /kurma yatim */}
+                <li><Link href={kurmaPath("/shop")} className="hover:text-gray-900">Kedai Kurma</Link></li>
+                <li><Link href={kurmaPath("/")} className="hover:text-gray-900">Gift Box Kurma</Link></li>
                 <li><Link href="/panduan" className="hover:text-gray-900">Panduan</Link></li>
               </ul>
             </div>

@@ -6,7 +6,8 @@
 // atas lipatan (dulu tiada produk langsung di home — semua di Katalog).
 // Rail/chip hanya muncul bila ≥ 3 item; data dari lib/merchandising (cache 10 min).
 import Link from 'next/link'
-import { Truck, PackageCheck, ShieldCheck, BookOpen } from 'lucide-react'
+import { Truck, PackageCheck, ShieldCheck, BookOpen, Gift } from 'lucide-react'
+import { kurmaPath } from '@/lib/kurma-host'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getBestsellers, getNewArrivals, getCategoryChips } from '@/lib/merchandising'
 import { ARTIKEL } from './panduan/artikel'
@@ -55,7 +56,10 @@ export default async function HomePage() {
         <div>
           <p className="text-[17px] font-extrabold text-gray-900">Selamat datang 👋</p>
           <h1 className="text-[12.5px] font-semibold text-gray-500 mt-1 leading-relaxed">
-            Buah segar online — ceri import, kurma, mangga &amp; buah bermusim, dihantar sejuk ke seluruh Semenanjung Malaysia
+            Buah segar online — ceri import,{' '}
+            {/* "kurma" → kedai kurma (/kurma/shop; subdomain bila aktif) — pautan dalaman dari page paling berautoriti */}
+            <Link href={kurmaPath('/shop')} className="underline underline-offset-2 decoration-gray-300 hover:text-gray-900">kurma</Link>
+            , mangga &amp; buah bermusim, dihantar sejuk ke seluruh Semenanjung Malaysia
           </h1>
         </div>
 
@@ -133,6 +137,17 @@ export default async function HomePage() {
               <div className="min-w-0">
                 <p className="text-[13px] font-bold text-gray-900">Beli buah online — panduan penuh</p>
                 <p className="text-[11px] text-gray-400">Apa perlu diperiksa sebelum order, dan cara pilih ikut keperluan</p>
+              </div>
+            </Link>
+            {/* Pautan dalaman ke gift box kurma (/kurma; subdomain bila aktif) — pattern sama kad pillar di atas */}
+            <Link
+              href={kurmaPath('/')}
+              className="mb-2 flex items-center gap-2 rounded-2xl bg-white border border-gray-200 px-4 py-3"
+            >
+              <Gift className="h-[18px] w-[18px] text-[#E11D2A] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[13px] font-bold text-gray-900">Gift box kurma untuk korporat &amp; raya</p>
+                <p className="text-[11px] text-gray-400">Kotak custom berlogo, min 50 kotak — atau beli kurma online di kedai kurma</p>
               </div>
             </Link>
             <div className="rounded-2xl bg-white border border-gray-200 divide-y divide-gray-100">
