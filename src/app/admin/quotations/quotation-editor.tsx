@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ChevronLeft, Loader2, Plus, Trash2, X, ArrowUp, ArrowDown, Send, FileText, Link2, Copy, Ban, Mail, Search, Gift, Receipt, RefreshCw, ExternalLink, RotateCcw, Save } from 'lucide-react'
+import { ChevronLeft, Loader2, Plus, Trash2, X, ArrowUp, ArrowDown, Send, FileText, Link2, Copy, Ban, Mail, Search, Gift, Receipt, RefreshCw, ExternalLink, RotateCcw, Save, MessageCircle } from 'lucide-react'
+import { SendDocDialog, type DocKind, type SendChannel } from './send-doc-dialog'
 import { BANKS, DEFAULT_BANK_KEY, SELLER } from '@/lib/seller'
 import { ItemNameInput } from '@/components/admin/item-name-input'
 import { GiftPriceCalculator } from '@/components/admin/gift-price-calculator'
@@ -43,6 +44,7 @@ const STATUS_CLS: Record<string, string> = {
 }
 const EVENT_LABEL: Record<string, string> = {
   created: 'Dicipta', issued: 'Dikeluarkan', edited: 'Diedit', emailed: 'Diemail', viewed: 'Dilihat klien', accepted: 'Diterima klien',
+  whatsapped: 'Dihantar WhatsApp', invoice_whatsapped: 'Invois dihantar WhatsApp', invoice_emailed: 'Invois diemail',
   rejected: 'Ditolak', cancelled: 'Dibatalkan', applied_gift_order: 'Dipakai ke gift order', duplicated: 'Diduplikat',
   converted: 'Jadi invois (Refrens)', invoice_synced: 'Status invois disegarkan', refrens_quotation: 'Sebut harga dicipta di Refrens', refrens_quotation_cancelled: 'Sebut harga Refrens dibatalkan',
 }
@@ -86,6 +88,7 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
   const [clientMode, setClientMode] = useState<'select' | 'new'>('select')
   const [lastNo, setLastNo] = useState<string | null>(null)
   const [emailOpen, setEmailOpen] = useState(false)
+  const [sendDoc, setSendDoc] = useState<null | { doc: DocKind; channel?: SendChannel }>(null)   // dialog hantar WA/email (sebut harga / invois)
   const [emailTo, setEmailTo] = useState('')
   const [emailMsg, setEmailMsg] = useState('')
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -268,6 +271,7 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
         <div className="flex flex-wrap items-center gap-2">
           {primaryActions}
           {id && <a href={`/api/admin/quotations/${id}/pdf`} target="_blank" rel="noreferrer" className={btnGhost}><FileText className="h-4 w-4" />PDF</a>}
+          {issued && loaded?.status !== 'cancelled' && <button type="button" onClick={() => setSendDoc({ doc: 'quotation' })} className={btnGhost} title="WhatsApp Official / template / WhatsApp sendiri"><MessageCircle className="h-4 w-4" />WhatsApp</button>}
           {issued && loaded?.status !== 'cancelled' && <button type="button" onClick={() => setEmailOpen(v => !v)} className={btnGhost}><Mail className="h-4 w-4" />Email</button>}
           {loaded?.share_token && <button type="button" onClick={copyLink} className={btnGhost}><Link2 className="h-4 w-4" />Share link</button>}
           {id && <button type="button" onClick={duplicate} disabled={!!busy} className={btnGhost}><Copy className="h-4 w-4" />Duplicate</button>}
@@ -312,9 +316,15 @@ export function QuotationEditor({ id = null, giftOrderId = null }: { id?: string
             {loaded.invoice.link && <a href={loaded.invoice.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-900"><ExternalLink className="h-3.5 w-3.5" />Pautan klien</a>}
             <span className="text-xs text-gray-400">Disegarkan {fmtDT(loaded.invoice.synced_at)}</span>
           </div>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <button type="button" onClick={() => setSendDoc({ doc: 'invoice' })} className={btnGhost}><MessageCircle className="h-4 w-4" />WhatsApp invois</button>
+            <button type="button" onClick={() => setSendDoc({ doc: 'invoice', channel: 'email' })} className={btnGhost}><Mail className="h-4 w-4" />Email invois</button>
+            <span className="text-[11px] text-gray-400">PDF Refrens + jumlah, deposit & butiran bank.</span>
+          </div>
           <p className="text-[11px] text-gray-400 mt-2">Bayaran, e-Invois LHDN dan perakaunan diurus dalam Refrens. Status ditarik bila Segarkan ditekan.</p>
         </div>
       )}
+      {sendDoc && id && <SendDocDialog quotationId={id} doc={sendDoc.doc} initialChannel={sendDoc.channel} onClose={() => setSendDoc(null)} onSent={load} />}
       {emailOpen && (
         <div className={card}>
           <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Email sebut harga ke klien</p>

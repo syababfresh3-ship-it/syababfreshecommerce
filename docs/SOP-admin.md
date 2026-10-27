@@ -268,12 +268,20 @@ Aliran penuh satu deal: **WhatsApp → Sebut harga → klien minta invois → Co
 5. **Save As Draft** = simpan sahaja. **Save & Continue** = **keluarkan**: nombor **STSB2026…** diberi dari siri Refrens, salinan dicipta di Refrens, dan **deal lahir di Pipeline Gift**. Draf tidak masuk pipeline.
 
 ### 6.2 Hantar kepada klien
-- **PDF** (muat turun / WhatsApp), **Email** (PDF + pautan), atau **Share link**: klien buka pautan, lihat, muat turun PDF, dan tekan **Accept**. Penerimaan direkod pada deal (lencana "Accepted").
+- Butang **WhatsApp** (sebut harga) / **WhatsApp invois** buka dialog hantar — **pilih saluran sendiri** setiap kali:
+  - **WhatsApp Official**: dari nombor Official ke perbualan klien dalam Inbox CRM, PDF dilampirkan + teks. Hanya jadi bila klien pernah mesej nombor itu dan **tetingkap 24 jam** masih terbuka (klien balas dalam 24 jam terakhir). Mesej direkod dalam inbox.
+  - **Template Meta**: bila tetingkap tutup atau klien belum pernah WhatsApp nombor Official. Perlu template diluluskan Meta (lihat `docs/wa-template-dokumen.md`); pilih sekali, tanda **Jadikan lalai**.
+  - **Buka WhatsApp sendiri**: buka WhatsApp akaun anda (nombor lama) dengan teks + pautan siap diisi — untuk klien lama yang PM akaun lama. Tak masuk inbox; tekan hantar dalam WhatsApp.
+  - **Email**: PDF dilampirkan + pautan (sebut harga) / PDF Refrens + jumlah, deposit & bank (invois).
+- Teks mesej boleh diedit sebelum hantar. Setiap hantaran direkod dalam sejarah sebut harga (Dihantar WhatsApp / Diemail / Invois dihantar WhatsApp / Invois diemail).
+- Masih ada **PDF** (muat turun) dan **Share link**: klien buka pautan, lihat, muat turun PDF, dan tekan **Accept**. Penerimaan direkod pada deal (lencana "Accepted").
+- Butang **Hantar sebut harga / Hantar invois** juga ada dalam panel deal di Pipeline Gift.
 
 ### 6.3 Klien setuju & minta invois
 1. Buka sebut harga → **Convert to Invoice** → sahkan. Invois dicipta terus di Refrens (nombor siri Refrens), PDF & pautan klien dipapar. Deal pindah ke **Invois**.
-2. Isi **No. PO/LO** klien (korporat/kerajaan) dalam panel deal.
-3. Perlu invois tanpa sebut harga (jualan terus)? **Invois Refrens → Cipta invois**.
+2. Hantar invois: **WhatsApp invois** / **Email invois** (dialog sama seperti §6.2; mesej sebut jumlah, deposit ikut deal, dan butiran bank).
+3. Isi **No. PO/LO** klien (korporat/kerajaan) dalam panel deal.
+4. Perlu invois tanpa sebut harga (jualan terus)? **Invois Refrens → Cipta invois**.
 
 ### 6.4 Deposit masuk (bank transfer)
 1. **Pipeline Gift** → buka deal → **Tanda deposit dibayar**: jumlah (terisi), tarikh, kaedah *Pindahan bank*, rujukan dari resit.

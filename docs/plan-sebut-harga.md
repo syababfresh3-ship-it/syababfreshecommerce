@@ -144,7 +144,11 @@ Invois sedia ada (`order_invoices`, `reseller_invoices`, `invoice-pdf.tsx`, rout
 
 ## Fasa 2 (bukan sekarang)
 
-Invois dari sebut harga (siri INV sedia ada), resit bayaran, import CSV Refrens, kumpulan baris, lampiran, hantar WhatsApp, pra-isi dari permohonan borong, label BM.
+Invois dari sebut harga (siri INV sedia ada), resit bayaran, import CSV Refrens, kumpulan baris, lampiran, ~~hantar WhatsApp~~ (DIBINA 27 Okt 2026 — lihat bawah), pra-isi dari permohonan borong, label BM.
+
+## Hantar WhatsApp / email (27 Okt 2026)
+
+Pemilik: "button terus wasap quot, invois, dan email" + "buat je offi dan unoffi, team sale boleh pilih" (klien lama PM akaun lama) + "buat je ketiga-tiga sekali" (termasuk template Meta). Dibina: `src/lib/doc-send.ts` (muatan dokumen + teks lalai BM; perbualan inbox ikut wa_id; hantar Official = `sendMedia` dokumen + kapsyen, log `wa_messages`/`wa_conversations` seperti `/api/whatsapp/send`; template Meta = parameter {{1}} nama, {{2}} nombor, {{3}} jumlah, {{4}} pautan, header DOCUMENT = PDF; wa.me = pautan pra-isi), `sendInvoiceEmail` (ZeptoMail, PDF Refrens dilampirkan bila dapat dimuat turun), API `/api/admin/quotations/[id]/send` (GET pra-isi, POST hantar; event `whatsapped`/`invoice_whatsapped`/`emailed`/`invoice_emailed`; template lalai disimpan `app_settings.wa_doc_tpl_<doc>`), dialog `send-doc-dialog.tsx` (editor sebut harga: WhatsApp / Email / WhatsApp invois / Email invois; panel deal Pipeline: Hantar sebut harga / Hantar invois). PDF sebut harga untuk Meta = URL awam `/api/q/<token>/pdf`. Had: mesej bebas Official perlu tetingkap 24 jam; template perlu kelulusan Meta (draf di `docs/wa-template-dokumen.md`); senarai template dari WABA utama (env).
 
 
 ## Fasa 2 (DIBINA 24 Okt 2026 petang) — invois Refrens dari sebut harga

@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays, PackageCheck, Users, Plus, Trash2 } from 'lucide-react'
+import { Loader2, Search, X, LayoutGrid, List, RefreshCw, FileText, ExternalLink, Banknote, Truck, CheckCircle2, AlertTriangle, Save, CalendarDays, PackageCheck, Users, Plus, Trash2, Send } from 'lucide-react'
+import { SendDocDialog, type DocKind } from '@/app/admin/quotations/send-doc-dialog'
 import { rm } from '@/lib/quotation'
 import { ACTIVE_STAGES, ALL_STAGES, DELIVERY_METHODS, LOST_REASONS, PAY_METHODS, STAGE_HINT, STAGE_LABEL, balanceDue, dateOnly, depositDue, initials, stageLabel, type DealEvent, type DealRow, type DealStage } from '@/lib/gift-deals'
 
@@ -50,6 +51,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
   const [packersOpen, setPackersOpen] = useState(false)
   const [newPacker, setNewPacker] = useState({ name: '', phone: '' })
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
+  const [sendDoc, setSendDoc] = useState<DocKind | null>(null)   // dialog hantar sebut harga / invois (WA Official / template / wa.me / email)
   const [staff, setStaff] = useState<Staff[]>([])
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<string | null>(initialDealId)
@@ -181,6 +183,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
 
   return (
     <div>
+      {sendDoc && detail?.quotation_id && <SendDocDialog quotationId={detail.quotation_id} doc={sendDoc} onClose={() => setSendDoc(null)} />}
       {packersOpen && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-start justify-center p-4 pt-16" onClick={() => { setPackersOpen(false); setConfirmDel(null) }}>
           <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-4" onClick={e => e.stopPropagation()} role="dialog" aria-label="Team packer">
@@ -317,6 +320,13 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
                     {detail.invoice ? <><span className="font-semibold text-gray-900">{detail.invoice.number}</span><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${detail.invoice.status === 'PAID' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>{detail.invoice.status}</span>{detail.invoice.pdf && <a href={detail.invoice.pdf} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"><FileText className="h-3.5 w-3.5" />PDF</a>}{detail.invoice.link && <a href={detail.invoice.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"><ExternalLink className="h-3.5 w-3.5" />Refrens</a>}</>
                       : <span className="text-xs text-gray-500">Belum ada invois — tekan &quot;Convert to Invoice&quot; dalam sebut harga bila klien minta invois.</span>}
                   </div>
+                  {detail.quotation_id && detail.quotation?.share_token && (
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <button type="button" onClick={() => setSendDoc('quotation')} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"><Send className="h-3.5 w-3.5" />Hantar sebut harga</button>
+                      {detail.invoice && <button type="button" onClick={() => setSendDoc('invoice')} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"><Send className="h-3.5 w-3.5" />Hantar invois</button>}
+                      <span className="text-[11px] text-gray-400">WhatsApp Official · template · WhatsApp sendiri · email</span>
+                    </div>
+                  )}
                   <div className="grid sm:grid-cols-2 gap-3 mt-3">
                     <div><label className={lbl}>No. PO / LO klien</label><input value={form.po_number ?? ''} onChange={e => f('po_number', e.target.value)} className={inp} placeholder="Pilihan — korporat/kerajaan" /></div>
                     <div><label className={lbl}>Pautan fail PO</label><input value={form.po_file_url ?? ''} onChange={e => f('po_file_url', e.target.value)} className={inp} placeholder="https://…" /></div>

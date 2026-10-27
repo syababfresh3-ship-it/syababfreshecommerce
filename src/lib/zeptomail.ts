@@ -873,3 +873,46 @@ export async function sendQuotationEmail(params: {
     attachments: [{ name: `${params.quoteNumber}.pdf`, contentBase64: params.pdfBase64, mimeType: 'application/pdf' }],
   })
 }
+
+// ── Invois (Refrens) dari sebut harga → klien: PDF dilampirkan bila dapat dimuat turun, pautan + butiran bank ──
+export async function sendInvoiceEmail(params: {
+  to: string
+  toName: string | null
+  invoiceNumber: string
+  total: number | null
+  depositLine?: string | null
+  bank?: { name: string; accName: string; accNo: string } | null
+  pdfUrl?: string | null
+  link?: string | null
+  pdfBase64?: string | null
+  message?: string | null
+}): Promise<boolean> {
+  const total = params.total !== null && params.total !== undefined
+    ? `RM${Number(params.total).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null
+  const html = layout(`Invoice ${params.invoiceNumber}`, `
+    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Dear <strong>${esc(params.toName ?? 'Sir/Madam')}</strong>,</p>
+    <h1 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#111827;">Invoice ${esc(params.invoiceNumber)}</h1>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">
+      Please find our invoice ${params.pdfBase64 ? 'attached' : 'linked below'}.${total ? ` Total: <strong>${esc(total)}</strong>.` : ''}
+    </p>
+    ${params.depositLine ? `<p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">${esc(params.depositLine)}</p>` : ''}
+    ${params.bank ? `<p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Payment by bank transfer to <strong>${esc(params.bank.name)} ${esc(params.bank.accNo)}</strong> (${esc(params.bank.accName)}). Kindly share the payment slip once done.</p>` : ''}
+    ${params.message ? `<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;white-space:pre-line;">${esc(params.message)}</p>` : ''}
+    ${params.link || params.pdfUrl ? `<p style="margin:0 0 20px;">
+      ${params.link ? `<a href="${esc(params.link)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 20px;border-radius:10px;">View invoice</a>` : ''}
+      ${params.pdfUrl ? `<a href="${esc(params.pdfUrl)}" style="display:inline-block;margin-left:8px;color:#111827;font-weight:700;font-size:14px;">Download PDF</a>` : ''}
+    </p>` : ''}
+    <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.6;">
+      Should you require any clarification, simply reply to this email or WhatsApp us at +60 11 5640 3601.
+    </p>
+  `)
+  return send({
+    from: FROM_ORDER,
+    fromName: 'Syabab Trading Sdn Bhd',
+    to: params.to,
+    toName: params.toName ?? 'Sir/Madam',
+    subject: `Invoice ${params.invoiceNumber} — Syabab Trading Sdn Bhd`,
+    html,
+    attachments: params.pdfBase64 ? [{ name: `${params.invoiceNumber}.pdf`, contentBase64: params.pdfBase64, mimeType: 'application/pdf' }] : undefined,
+  })
+}
