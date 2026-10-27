@@ -1,13 +1,13 @@
 # SyababFresh
 
-> SyababFresh ialah kedai buah segar online di Malaysia. Kami menjual mangga Harumanis Perlis bermusim, ceri import (Turki, USA, Uzbekistan), durian, dan pelbagai buah segar lain — dihantar terus ke rumah pelanggan di Klang Valley dan seluruh Semenanjung Malaysia dengan bungkusan cold-chain (cooler box).
+> SyababFresh ialah kedai buah segar online di Malaysia. Kami menjual mangga Harumanis Perlis bermusim, ceri import (Turki, USA, Uzbekistan), durian, kurma (Ajwa, Safawi, Medjoul, Mariami, Sukkari) dan pelbagai buah segar lain — dihantar terus ke rumah pelanggan di Klang Valley dan seluruh Semenanjung Malaysia dengan bungkusan cold-chain (cooler box). Kami juga menyediakan gift box kurma custom berlogo untuk korporat, agensi dan individu (Syabab Dates).
 
-SyababFresh is an online fresh fruit store in Malaysia, known for seasonal Harumanis mangoes from Perlis, imported cherries (Turkey, USA, Uzbekistan), durian, and other fresh fruits, delivered nationwide across Peninsular Malaysia with cold-chain packaging.
+SyababFresh is an online fresh fruit store in Malaysia, known for seasonal Harumanis mangoes from Perlis, imported cherries (Turkey, USA, Uzbekistan), durian, dates (Ajwa, Safawi, Medjoul, Mariami, Sukkari) and other fresh fruits, delivered nationwide across Peninsular Malaysia with cold-chain packaging. We also make custom branded date gift boxes for corporate clients, agencies and individuals (Syabab Dates).
 
 ## Maklumat utama / Key facts
 
 - Website: https://shop.syababfresh.my
-- Produk utama: Harumanis Perlis (musim ~April–Jun), ceri Turki (musim ~Jun–Ogos), durian, buah segar import & tempatan
+- Produk utama: Harumanis Perlis (musim ~April–Jun), ceri Turki (musim ~Jun–Ogos), durian, buah segar import & tempatan, kurma sepanjang tahun (Ajwa, Safawi, Medjoul, Mariami, Sukkari) dan gift box kurma custom (dari RM4.50/kotak, minimum 50 kotak)
 - Kawasan penghantaran: Klang Valley (penghantaran pantas, COD tersedia) dan seluruh Semenanjung Malaysia (kurier cold-chain)
 - Jaminan: buah sampai rosak boleh tuntut refund/ganti (jaminan kesegaran)
 - Pesanan: melalui website, WhatsApp, dan TikTok Shop
@@ -16,6 +16,9 @@ SyababFresh is an online fresh fruit store in Malaysia, known for seasonal Harum
 
 - [Beli buah online — panduan & katalog](https://shop.syababfresh.my/buah-online): Panduan membeli buah online di Malaysia (apa perlu diperiksa sebelum order, cara buah dihantar) + jalan masuk ke semua kategori
 - [Panduan buah](https://shop.syababfresh.my/panduan): 8 artikel — cara simpan ceri, jenis kurma Malaysia, panduan ceri Turki & anggur import, FAQ penghantaran, dan lain-lain
+- [Beli Kurma Online](https://shop.syababfresh.my/kurma/shop): Kedai kurma online — Ajwa, Safawi, Medjoul, Mariami, Sukkari, serunding, buah kering, kismis & kacang
+- [Gift Box Kurma Custom](https://shop.syababfresh.my/kurma): Gift box kurma berjenama untuk korporat, agensi & individu — dari RM4.50/kotak, min 50
+- [Gift Kurma Korporat](https://shop.syababfresh.my/kurma/korporat): Hamper & gift kurma berlogo untuk syarikat, agensi kerajaan & majlis — sebut harga rasmi, deposit 50%, ~2 minggu siap
 - [Semua produk](https://shop.syababfresh.my/products): Senarai penuh buah yang sedang dijual dengan harga semasa
 - [Info & penghantaran](https://shop.syababfresh.my/info): Maklumat kedai, kawasan & kos penghantaran
 - [Terma](https://shop.syababfresh.my/terma): Terma pembelian dan polisi refund

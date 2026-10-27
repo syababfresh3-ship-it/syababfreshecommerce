@@ -7,10 +7,10 @@
 Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
 
 ## 📊 Skor Semasa
-- **Mata:** 700
+- **Mata:** 720
 - **Level:** 3 — Naik Carta 🚀
 - **Streak:** 1 hari *(23 Okt → jurang 24–26 Okt → reset, sambung 27 Okt; rekod jujur)*
-- **Pencapaian dibuka:** 15 / 16
+- **Pencapaian dibuka:** 16 / 17
 - **Kemaskini terakhir:** 27 Okt 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
@@ -79,6 +79,7 @@ Ukur guna Google Search Console (Performance → Queries → "buah online" → A
 - [x] **Pautan produk → panduan** — 94 page produk paut artikel berkaitan + pillar /buah-online (+40) ✔ 27 Jul — pemetaan ceri/kurma/anggur/harumanis, fallback cara-simpan-buah
 - [x] **llms.txt kemas kini kluster** (+20) ✔ 27 Jul — tambah /buah-online & /panduan di Key pages (enjin AI nampak halaman kluster)
 - [x] **Pautan dalaman kedai utama → kedai kurma & gift box** — /kurma/shop & /kurma tidak lagi yatim (+40) ✔ 27 Okt — homepage (H1 "kurma" + kad gift box), /buah-online (perenggan 2 pautan), 2 artikel kurma (jenis-kurma-malaysia, panduan-kurma-ajwa), footer kedai (Kedai Kurma · Gift Box Kurma); semua via `kurmaPath()` supaya ikut subdomain. *Trek A/C bila papan KURMA 18 Okt di-paste*
+- [x] **llms.txt kluster kurma** (+20) ✔ 27 Okt — Key pages: Beli Kurma Online (/kurma/shop), Gift Box Kurma Custom (/kurma), Gift Kurma Korporat (/kurma/korporat); ayat pengenalan BM/EN & fakta produk utama sebut kurma + gift box (enjin AI nampak kluster kurma). *Trek A/C bila papan KURMA di-paste*
 
 ## 🔍 RANKING (ukur via Google Search Console)
 - [ ] 🌱 **5 terma long-tail dapat impressions** dalam GSC (dah diindeks & muncul) (+50)
@@ -114,6 +115,7 @@ Menang bawah dulu, naik ke atas:
 | 27 Jul 2026 | Pautan produk → panduan (94 page, +40) · llms.txt kemas kini kluster (+20) | +60 | 1 |
 | 13 Ogos 2026 | Frasa tepat "buah online" dalam metadata homepage (description utama · OG · Twitter) — bonus luar senarai | +10 | 1 |
 | 23 Okt 2026 | Frasa tepat "kurma online" dalam metadata root (description utama 158 aksara · OG · Twitter), "buah online" kekal — bonus luar senarai; *tick Trek A bila papan KURMA 18 Okt di-paste* | +10 | 1 |
+| 27 Okt 2026 | llms.txt kluster kurma — 3 Key pages (/kurma/shop · /kurma · /kurma/korporat) + ayat pengenalan & fakta produk sebut kurma/gift box; *tick Trek A/C bila papan KURMA di-paste* | +20 | 1 |
 | 27 Okt 2026 | Pautan dalaman kedai utama → /kurma/shop & /kurma (homepage · /buah-online · 2 artikel kurma · footer) — kedai kurma & gift box tidak lagi yatim; *tick Trek A/C bila papan KURMA di-paste* | +40 | 1 |
 | 23 Okt 2026 | JSON-LD funnel gift kurma — BreadcrumbList pada /kurma (baru) + /korporat & /borong (URL ikut subdomain via kurmaAbs) · Service "Gift Box Kurma Custom" RM4.50–RM27/kotak, min 50 (dikira dari gift-pricing) · FAQPage sedia ada kekal — bonus luar senarai (skala sama BreadcrumbList produk +40); *tick Trek A/B bila papan KURMA di-paste* | +40 | 1 |
 
