@@ -252,6 +252,7 @@ LP builder (Landing Pages) boleh dihidangkan di subdomain kurma. Sales tulis HTM
    - `{{kurma:galeri|8}}` foto kotak sebenar (nombor = bilangan)
    - `{{kurma:studio|Teks}}` butang ke Studio (letak logo, sebut harga)
    - `{{kurma:fab}}` butang WhatsApp terapung · `{{kurma:footer}}` footer kurma
+   - Sejak 28 Okt 2026, LP **tidak** papar header (logo + Hubungi Kami), butang kongsi WA terapung, dan popup "Tambah ke Skrin Utama" — pelawat iklan fokus pada butang Order. Nak tunjuk semula pada LP tertentu: letak `{{lp:header}}` (header) atau `{{lp:share}}` (butang kongsi) di mana-mana dalam HTML LP itu.
 5. **Tracking Ads:** Meta Pixel per LP seperti biasa. Lead WhatsApp dari tag direkod dengan angle `lp-<slug>` (CAPI), jadi setiap LP boleh dibanding.
 6. **Simpan & Kongsi:** butang salin/WhatsApp di senarai dah bagi URL kurma. Lencana "Kurma" tanda LP di subdomain.
 

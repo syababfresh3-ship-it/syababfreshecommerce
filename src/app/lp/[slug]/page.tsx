@@ -215,7 +215,12 @@ export default async function LandingPage({ params }: Props) {
     )
   }
 
-  const htmlContent = normaliseHtml(page.html_content)
+  // Header LP (logo + Hubungi Kami) & butang kongsi WA terapung DISOROK lalai (permintaan team sales 27 Okt: mengganggu,
+  // pelawat iklan patut fokus pada butang Order). Tunjuk semula per LP dengan tag {{lp:header}} / {{lp:share}} dalam HTML.
+  const rawHtml = normaliseHtml(page.html_content)
+  const showLpHeader = rawHtml.includes('{{lp:header}}')
+  const showLpShare = rawHtml.includes('{{lp:share}}')
+  const htmlContent = rawHtml.replace(/\{\{lp:(?:header|share)\}\}/g, '')
 
   // Split on all placeholders: product, checkout (single or multi), lead-form, countdown, video, kurma
   const parts = htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{kurma:[a-z]+(?:\|[^}]*)?\}\})/g)
@@ -269,8 +274,8 @@ export default async function LandingPage({ params }: Props) {
       <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
       <LpTracker slug={slug} />
 
-      {/* Minimal header — no cart link (standalone LP); disorok bila {{kurma:menu}} bawa header sendiri */}
-      {!hasKurmaMenu && (
+      {/* Minimal header — no cart link (standalone LP); lalai DISOROK; tunjuk hanya dengan {{lp:header}} dan bila {{kurma:menu}} tiada */}
+      {showLpHeader && !hasKurmaMenu && (
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center" aria-label="SyababFresh">
           {storeLogoUrl ? (
@@ -385,7 +390,7 @@ export default async function LandingPage({ params }: Props) {
       <LpHtmlScripts />
 
       <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
-      {!hasKurmaFab && <LpWaShare title={page.title} />}
+      {showLpShare && !hasKurmaFab && <LpWaShare title={page.title} />}
     </div>
   )
 }

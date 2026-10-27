@@ -24,7 +24,9 @@ export function PWAInstallBanner() {
   const isKurmaLp = pathname.startsWith('/kurma')
   // Pautan awam sebut harga /q/<token> (klien korporat baca dokumen) — banner pasang app mengganggu.
   const isQuote = pathname.startsWith('/q/')
-  const suppressed = isAdmin || isKurmaLp || isQuote
+  // LP builder /lp/<slug> (iklan → satu butang Order): banner pasang app menutup bar Order & mengganggu — permintaan team sales 27 Okt
+  const isLp = pathname.startsWith('/lp/')
+  const suppressed = isAdmin || isKurmaLp || isQuote || isLp
 
   useEffect(() => {
     if (suppressed) return
