@@ -45,8 +45,15 @@ export async function POST(request: Request) {
     const { data: rp } = await supabase.from('reseller_prices').select('product_id, variant_id, price').eq('reseller_id', reseller_id)
     for (const r of rp ?? []) resellerPrice.set(`${r.product_id}:${r.variant_id ?? ''}`, Number(r.price))
   }
+  // Harga borong LALAI semua pelanggan (wholesale_prices, migration 154) — toleran jadual belum ada.
+  const wholesalePrice = new Map<string, number>()
+  if (isReseller) {
+    const { data: wp } = await supabase.from('wholesale_prices').select('product_id, variant_id, price')
+    for (const r of wp ?? []) wholesalePrice.set(`${r.product_id}:${r.variant_id ?? ''}`, Number(r.price))
+  }
+  // Urutan: harga khas pelanggan → harga borong lalai → runcit.
   const agreedPrice = (pid: string, vid: string | null, retail: number) =>
-    isReseller ? (resellerPrice.get(`${pid}:${vid ?? ''}`) ?? retail) : retail
+    isReseller ? (resellerPrice.get(`${pid}:${vid ?? ''}`) ?? wholesalePrice.get(`${pid}:${vid ?? ''}`) ?? retail) : retail
 
   let subtotal = 0
   const validatedItems: any[] = []

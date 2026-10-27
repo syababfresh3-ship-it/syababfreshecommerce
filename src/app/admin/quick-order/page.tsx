@@ -40,6 +40,7 @@ export default function QuickOrderPage() {
   const [newRs, setNewRs] = useState({ open: false, name: '', phone: '', email: '' })
   const [rsBusy, setRsBusy] = useState(false)
   const [resellerPrices, setResellerPrices] = useState<Map<string, number>>(new Map())
+  const [wholesalePrices, setWholesalePrices] = useState<Map<string, number>>(new Map())   // harga borong lalai semua pelanggan (migration 154)
   // Mod reseller: kos penghantaran dirunding → boleh diubah manual
   const [deliveryOverride, setDeliveryOverride] = useState('')
   const [deliveryTouched, setDeliveryTouched] = useState(false)
@@ -51,6 +52,11 @@ export default function QuickOrderPage() {
   useEffect(() => {
     fetch('/api/admin/landing-pages/products').then(r => r.json()).then(setProducts).catch(() => {})
     fetch('/api/admin/resellers').then(r => r.json()).then(d => setResellers(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch('/api/admin/wholesale-prices').then(r => r.ok ? r.json() : null).then(j => {
+      const m = new Map<string, number>()
+      for (const p of (j?.prices ?? []) as { product_id: string; variant_id: string | null; price: number }[]) m.set(`${p.product_id}:${p.variant_id ?? ''}`, Number(p.price))
+      setWholesalePrices(m)
+    }).catch(() => {})
     fetch('/api/admin/team').then(r => r.ok ? r.json() : null).then(j => {
       const names = ((j?.staff ?? []) as { full_name?: string | null; email?: string | null }[]).map(s => (s.full_name || s.email || '').trim()).filter(Boolean)
       setTeamNames(names)
@@ -92,7 +98,7 @@ export default function QuickOrderPage() {
     } catch { toast.error('Ralat rangkaian') } finally { setRsBusy(false) }
   }
   const priceFor = (productId: string, variantId: string | null, retail: number) =>
-    resellerId ? (resellerPrices.get(`${productId}:${variantId ?? ''}`) ?? retail) : retail
+    resellerId ? (resellerPrices.get(`${productId}:${variantId ?? ''}`) ?? wholesalePrices.get(`${productId}:${variantId ?? ''}`) ?? retail) : retail   // khas pelanggan → borong lalai → runcit
 
   const subtotal = items.reduce((s, i) => s + i.unit_price * i.qty, 0)
   const FREE_MIN = 80
@@ -298,7 +304,7 @@ export default function QuickOrderPage() {
               <option value="">— Bukan borong (order biasa) —</option>
               {resellers.map((r) => <option key={r.id} value={r.id}>{r.customers?.name ?? r.customers?.phone_norm} · {r.status}</option>)}
             </select>
-            {resellerId && <p className="text-[11px] text-violet-600 mt-1">Harga borong dipersetujui digunakan. Produk tanpa harga borong → jatuh ke harga retail (semak sebelum hantar).</p>}
+            {resellerId && <p className="text-[11px] text-violet-600 mt-1">Harga: khas pelanggan → borong lalai (page Borong) → runcit jika tiada (semak sebelum hantar).</p>}
             {newRs.open && (
               <div className="mt-2 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Daftar pelanggan borong baharu</p>

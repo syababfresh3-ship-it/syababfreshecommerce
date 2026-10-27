@@ -49,6 +49,7 @@ const sections: Section[] = [
       // { href: '/admin/fulfillment',        label: 'Fulfillment',      icon: ClipboardList, badge: 'fulfillment' },
       { href: '/admin/quick-order', label: 'Quick Order', icon: MessageSquare },
       { href: '/admin/orders',      label: 'Orders',      icon: ShoppingBag },
+      { href: '/admin/sales-report', label: 'Jualan Sales & Borong', icon: BarChart2 },   // laporan ikut staf sales & pelanggan borong
       { href: '/admin/shipping',    label: 'Shipping',    icon: Truck },
       { href: '/admin/refunds',     label: 'Refund',      icon: RotateCcw, badge: 'refunds' },
       { href: '/admin/wa-outbox',   label: 'WA Outbox',   icon: Send },

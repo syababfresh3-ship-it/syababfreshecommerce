@@ -206,7 +206,8 @@ Untuk team sales yang ambil order customer melalui **WhatsApp / telefon**. Setia
 1. **PILIH NAMA ANDA DULU** — dropdown **"Staff:"** (atas kanan kad Customer Details): **Muhd / Man / Pika / Far**, atau **"Lain-lain…"** untuk taip nama sendiri.
    > ⚠️ Wajib pilih nama — kalau tak, order tak tertag pada sesiapa dan anda tak dapat kredit jualan.
 2. Isi **butiran customer**: Nama, Telefon, Email, Alamat penuh, Poskod.
-3. (Pilihan) **Order untuk reseller** — pilih reseller kalau harga borong; atau biar "Bukan reseller".
+3. (Pilihan) **Order borong** — pilih pelanggan borong (atau **Pelanggan borong baharu** terus di situ) kalau harga karton; atau biar "Bukan borong". Harga ikut urutan: harga khas pelanggan → **harga borong lalai** (Admin → Borong → Harga borong lalai, isi sekali untuk semua) → runcit.
+   Jualan anda & setiap pelanggan borong boleh dilihat di **Admin → Jualan Sales & Borong** (pilih tempoh; nama ikut pilihan Staf).
 4. Pilih **kaedah bayar**: Bank Transfer · Cash On Delivery (COD) · FPX (dah bayar) · E-Wallet (dah bayar).
 5. **Tambah produk** — klik **Add Product**, cari & pilih produk + variasi + kuantiti.
 6. (Pilihan) Isi **Notes** (arahan khas) & diskaun.

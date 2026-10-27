@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { WholesalePrices } from './wholesale-prices'
 import { toast } from 'sonner'
 import { Plus, Search, X, Store, Trash2, Save, BadgeCheck, Tag, MessageCircle, Check } from 'lucide-react'
 
@@ -121,6 +122,9 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
           <Plus className="h-4 w-4" /> Tambah Pelanggan Borong
         </button>
       </div>
+
+      {/* Harga borong lalai (semua pelanggan) — migration 154 */}
+      <WholesalePrices />
 
       {/* Penapis status — permohonan LP borong masuk sebagai 'pending' */}
       <div className="flex items-center gap-1.5 flex-wrap mb-4">
