@@ -237,7 +237,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
                     {(order as any)._isReseller ? (
-                      <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Reseller</span>
+                      <span className="text-[9px] font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Borong</span>
                     ) : (order as any)._isManual ? (
                       <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual{(order as any)._staff ? ` · ${(order as any)._staff}` : ''}</span>
                     ) : (order as any)._isStoreGuest ? (
@@ -330,7 +330,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                         {order.order_number}
                       </Link>
                       {(order as any)._isReseller ? (
-                        <span className="text-xs font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Reseller</span>
+                        <span className="text-xs font-bold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">Borong</span>
                       ) : (order as any)._isManual ? (
                         <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Manual{(order as any)._staff ? ` · ${(order as any)._staff}` : ''}</span>
                       ) : (order as any)._isStoreGuest ? (

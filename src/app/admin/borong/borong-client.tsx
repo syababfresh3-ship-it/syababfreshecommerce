@@ -85,7 +85,7 @@ export function BorongSettingsClient() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Boxes className="h-5 w-5 text-rose-500" /> Harga Borong</h1>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Boxes className="h-5 w-5 text-rose-500" /> Kurma Borong</h1>
           <p className="text-sm text-gray-400 mt-0.5">Harga rujukan & terma untuk LP kurma borong{s.updated ? ` · dikemas kini ${s.updated}` : ''}{!exists ? ' · belum pernah disimpan' : ''}</p>
         </div>
         <div className="flex items-center gap-2">

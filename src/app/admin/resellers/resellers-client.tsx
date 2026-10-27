@@ -70,10 +70,10 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
   }
 
   async function promote(c: Customer) {
-    if (c.is_reseller) { toast.error('Sudah reseller'); return }
+    if (c.is_reseller) { toast.error('Sudah pelanggan borong'); return }
     const res = await fetch('/api/admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customer_id: c.id }) })
     if (!res.ok) { toast.error((await res.json()).error ?? 'Gagal'); return }
-    toast.success(`${c.name ?? c.phone_norm} jadi reseller`)
+    toast.success(`${c.name ?? c.phone_norm} jadi pelanggan borong`)
     setAdding(false); setResults([]); refresh()
   }
 
@@ -84,7 +84,7 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
     const res = await fetch('/api/admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nf) })
     setCreating(false)
     if (!res.ok) { toast.error((await res.json()).error ?? 'Gagal'); return }
-    toast.success(`${nf.name} jadi reseller`)
+    toast.success(`${nf.name} jadi pelanggan borong`)
     closeAdd(); refresh()
   }
 
@@ -100,11 +100,11 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
   async function approve(r: Reseller) {
     const res = await fetch('/api/admin/resellers', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, status: 'active' }) })
     if (!res.ok) { toast.error('Gagal luluskan'); return }
-    toast.success(`${r.customers?.name ?? r.application?.business_name ?? 'Reseller'} diluluskan`); refresh()
+    toast.success(`${r.customers?.name ?? r.application?.business_name ?? 'Pelanggan borong'} diluluskan`); refresh()
   }
 
   async function remove(r: Reseller) {
-    if (!confirm(`Buang status reseller untuk ${r.customers?.name ?? r.customers?.phone_norm}?`)) return
+    if (!confirm(`Buang status pelanggan borong untuk ${r.customers?.name ?? r.customers?.phone_norm}?`)) return
     const res = await fetch('/api/admin/resellers', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id, customer_id: r.customer_id }) })
     if (!res.ok) { toast.error('Gagal'); return }
     toast.success('Dibuang'); refresh()
@@ -114,11 +114,11 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Store className="h-5 w-5 text-rose-500" /> Reseller</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{rows.length} reseller{counts.pending ? ` · ${counts.pending} pending` : ''}</p>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Store className="h-5 w-5 text-rose-500" /> Borong</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{rows.length} pelanggan borong{counts.pending ? ` · ${counts.pending} pending` : ''}</p>
         </div>
         <button onClick={() => setAdding(true)} className="flex items-center gap-1.5 text-sm font-semibold text-white bg-rose-600 px-3.5 py-2 rounded-xl hover:bg-rose-700 shadow-sm">
-          <Plus className="h-4 w-4" /> Tambah Reseller
+          <Plus className="h-4 w-4" /> Tambah Pelanggan Borong
         </button>
       </div>
 
@@ -129,8 +129,8 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
         ))}
       </div>
 
-      {rows.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Belum ada reseller. Klik “Tambah Reseller” untuk promosi customer.</p>}
-      {rows.length > 0 && visible.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Tiada reseller dengan status ini.</p>}
+      {rows.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Belum ada pelanggan borong. Klik “Tambah Pelanggan Borong” untuk promosi customer.</p>}
+      {rows.length > 0 && visible.length === 0 && <p className="text-sm text-gray-400 bg-white border border-gray-100 rounded-2xl p-8 text-center">Tiada pelanggan borong dengan status ini.</p>}
 
       <div className="space-y-3">
         {visible.map(r => {
@@ -210,14 +210,14 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
         <div className="fixed inset-0 bg-black/40 flex items-start justify-center pt-24 z-50 p-4" onClick={closeAdd}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-gray-900">Tambah Reseller</h2>
+              <h2 className="font-bold text-gray-900">Tambah Pelanggan Borong</h2>
               <button onClick={closeAdd} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
             </div>
 
             {/* Toggle: promosi customer sedia ada vs isi details terus */}
             <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
               <button onClick={() => setMode('search')} className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${mode === 'search' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Cari customer</button>
-              <button onClick={() => setMode('new')} className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${mode === 'new' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Reseller baru</button>
+              <button onClick={() => setMode('new')} className={`flex-1 text-xs font-semibold py-1.5 rounded-lg transition-colors ${mode === 'new' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>Pelanggan baru</button>
             </div>
 
             {mode === 'search' ? (
@@ -237,7 +237,7 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
                         <p className="text-xs text-gray-400">{c.phone_norm} · {c.order_count} order · RM{Number(c.total_spend).toFixed(0)}</p>
                       </div>
                       {c.is_reseller
-                        ? <span className="text-[10px] text-rose-500 font-semibold flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5" />Reseller</span>
+                        ? <span className="text-[10px] text-rose-500 font-semibold flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5" />Borong</span>
                         : <Plus className="h-4 w-4 text-rose-500" />}
                     </button>
                   ))}
@@ -245,13 +245,13 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
               </>
             ) : (
               <div className="space-y-2.5">
-                <input autoFocus value={nf.name} onChange={e => setNf(f => ({ ...f, name: e.target.value }))} placeholder="Nama reseller *" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300" />
+                <input autoFocus value={nf.name} onChange={e => setNf(f => ({ ...f, name: e.target.value }))} placeholder="Nama pelanggan / kedai *" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300" />
                 <input value={nf.phone} onChange={e => setNf(f => ({ ...f, phone: e.target.value }))} placeholder="No. telefon *" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300" />
                 <input value={nf.email} onChange={e => setNf(f => ({ ...f, email: e.target.value }))} placeholder="Email (pilihan)" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300" />
                 <textarea value={nf.address} onChange={e => setNf(f => ({ ...f, address: e.target.value }))} placeholder="Alamat (pilihan)" rows={2} className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300 resize-none" />
                 <input value={nf.postcode} onChange={e => setNf(f => ({ ...f, postcode: e.target.value }))} placeholder="Poskod (pilihan)" className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300" />
                 <button onClick={createNew} disabled={creating} className="w-full flex items-center justify-center gap-1.5 text-sm font-semibold text-white bg-rose-600 py-2.5 rounded-xl hover:bg-rose-700 disabled:opacity-50">
-                  <Plus className="h-4 w-4" /> {creating ? 'Menyimpan…' : 'Tambah Reseller'}
+                  <Plus className="h-4 w-4" /> {creating ? 'Menyimpan…' : 'Tambah Pelanggan Borong'}
                 </button>
               </div>
             )}
@@ -306,7 +306,7 @@ function ResellerPrices({ resellerId }: { resellerId: string }) {
     <div>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1"><Tag className="h-3.5 w-3.5" /> Harga Borong</p>
       <div className="space-y-1 mb-3">
-        {prices.length === 0 && <p className="text-xs text-gray-400">Belum ada harga dipersetujui — order reseller akan jatuh ke harga retail.</p>}
+        {prices.length === 0 && <p className="text-xs text-gray-400">Belum ada harga dipersetujui — order borong akan jatuh ke harga retail.</p>}
         {prices.map(p => (
           <div key={p.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-1.5">
             <span className="text-gray-700 truncate">{p.products?.name ?? '—'}{p.product_variants?.name ? ` (${p.product_variants.name})` : ''}</span>

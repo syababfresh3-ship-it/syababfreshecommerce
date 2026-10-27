@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2, Search, Check, MessageCircle, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Search, Check, MessageCircle, RefreshCw, UserPlus, X } from 'lucide-react'
 
 interface Variant { id: string; name: string; price: number; is_active: boolean; sort_order: number }
 interface Product { id: string; name: string; slug: string; price: number; image_url: string | null; product_variants: Variant[] }
@@ -15,7 +15,8 @@ const payOptions = [
   { value: 'ewallet', label: 'E-Wallet (already paid)' },
 ]
 
-// Nama staf untuk dropdown Quick Order. 'Lain-lain' → taip nama sendiri.
+// Nama staf untuk dropdown Quick Order: nama ringkas lama (kekal supaya laporan sumber 'whatsapp-<nama>' tak berubah)
+// + semua ahli Team admin (/api/admin/team — tambah staf di Settings → Team, terus muncul di sini). 'Lain-lain' → taip sendiri.
 const STAFF_NAMES = ['Muhd', 'Man', 'Pika', 'Far']
 
 export default function QuickOrderPage() {
@@ -28,10 +29,16 @@ export default function QuickOrderPage() {
   const [fetchingFee, setFetchingFee] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [staffOther, setStaffOther] = useState(false)
+  const [teamNames, setTeamNames] = useState<string[]>([])
+  const staffOptions = Array.from(new Set([...STAFF_NAMES, ...teamNames]))
   const [success, setSuccess] = useState<{ order_number: string; total: number } | null>(null)
   // Mod reseller: pilih reseller → harga borong dipersetujui + autofill butiran
-  const [resellers, setResellers] = useState<any[]>([])
+  type ResellerRow = { id: string; status: string; customers?: { name?: string | null; phone_norm?: string | null; email?: string | null } | null }
+  const [resellers, setResellers] = useState<ResellerRow[]>([])
   const [resellerId, setResellerId] = useState('')
+  // Daftar reseller baharu terus dari sini (tanpa pergi ke page Resellers) — POST /api/admin/resellers sedia ada
+  const [newRs, setNewRs] = useState({ open: false, name: '', phone: '', email: '' })
+  const [rsBusy, setRsBusy] = useState(false)
   const [resellerPrices, setResellerPrices] = useState<Map<string, number>>(new Map())
   // Mod reseller: kos penghantaran dirunding → boleh diubah manual
   const [deliveryOverride, setDeliveryOverride] = useState('')
@@ -44,20 +51,45 @@ export default function QuickOrderPage() {
   useEffect(() => {
     fetch('/api/admin/landing-pages/products').then(r => r.json()).then(setProducts).catch(() => {})
     fetch('/api/admin/resellers').then(r => r.json()).then(d => setResellers(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch('/api/admin/team').then(r => r.ok ? r.json() : null).then(j => {
+      const names = ((j?.staff ?? []) as { full_name?: string | null; email?: string | null }[]).map(s => (s.full_name || s.email || '').trim()).filter(Boolean)
+      setTeamNames(names)
+    }).catch(() => {})
   }, [])
 
-  async function selectReseller(id: string) {
+  async function selectReseller(id: string, list: ResellerRow[] = resellers) {
     setResellerId(id)
     setItems([])
     setDeliveryOverride(''); setDeliveryTouched(false)
     if (!id) { setResellerPrices(new Map()); return }
-    const r = resellers.find((x: any) => x.id === id)
+    const r = list.find((x) => x.id === id)
     const c = r?.customers
     if (c) setForm(f => ({ ...f, name: c.name ?? f.name, phone: c.phone_norm ?? f.phone, email: c.email ?? f.email }))
     const rows = await fetch(`/api/admin/resellers/${id}/prices`).then(res => res.json()).catch(() => [])
     const m = new Map<string, number>()
     for (const p of Array.isArray(rows) ? rows : []) m.set(`${p.product_id}:${p.variant_id ?? ''}`, Number(p.price))
     setResellerPrices(m)
+  }
+  async function createReseller() {
+    const name = newRs.name.trim(), phone = newRs.phone.trim()
+    if (name.length < 2 || phone.replace(/\D/g, '').length < 9) { toast.error('Nama & telefon pelanggan borong diperlukan'); return }
+    setRsBusy(true)
+    try {
+      const res = await fetch('/api/admin/resellers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, phone, email: newRs.email.trim() || undefined, address: form.address.trim() || undefined, postcode: form.postcode.trim() || undefined }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok && res.status !== 409) { toast.error(j.error || 'Gagal daftar pelanggan borong'); return }
+      // Senarai segar (ada join customers) → pilih reseller baharu / sedia ada (409 = telefon ini sudah reseller)
+      const list = await fetch('/api/admin/resellers').then(r => r.json()).catch(() => [])
+      const arr: ResellerRow[] = Array.isArray(list) ? list : []
+      setResellers(arr)
+      const digits = phone.replace(/\D/g, '')
+      const picked = arr.find((x) => x.id === j.id) ?? arr.find((x) => String(x.customers?.phone_norm ?? '').replace(/\D/g, '').endsWith(digits.slice(-9)))
+      if (!picked) { toast.error('Pelanggan borong didaftar tetapi tidak dijumpai dalam senarai — pilih dari dropdown'); return }
+      await selectReseller(picked.id, arr)
+      setForm(f => ({ ...f, name, phone, email: newRs.email.trim() || f.email }))
+      setNewRs({ open: false, name: '', phone: '', email: '' })
+      toast.success(res.status === 409 ? 'Telefon ini sudah pelanggan borong — dipilih' : `Pelanggan borong ${name} didaftar & dipilih`)
+    } catch { toast.error('Ralat rangkaian') } finally { setRsBusy(false) }
   }
   const priceFor = (productId: string, variantId: string | null, retail: number) =>
     resellerId ? (resellerPrices.get(`${productId}:${variantId ?? ''}`) ?? retail) : retail
@@ -226,7 +258,7 @@ export default function QuickOrderPage() {
                 className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 w-28"
               >
                 <option value="">— Pilih staf —</option>
-                {STAFF_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
+                {staffOptions.map(n => <option key={n} value={n}>{n}</option>)}
                 <option value="__other__">Lain-lain…</option>
               </select>
               {staffOther && (
@@ -254,13 +286,35 @@ export default function QuickOrderPage() {
 
           {/* Mod reseller — harga borong dipersetujui */}
           <div>
-            <label className="text-xs font-semibold text-gray-500 block mb-1">ORDER UNTUK RESELLER (pilihan)</label>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <label className="text-xs font-semibold text-gray-500">ORDER BORONG — HARGA KARTON (pilihan)</label>
+              <button type="button" onClick={() => setNewRs(v => ({ ...v, open: !v.open, name: v.name || form.name, phone: v.phone || form.phone, email: v.email || form.email }))}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900">
+                {newRs.open ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}{newRs.open ? 'Batal' : 'Pelanggan borong baharu'}
+              </button>
+            </div>
             <select value={resellerId} onChange={e => selectReseller(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-300">
-              <option value="">— Bukan reseller (order biasa) —</option>
-              {resellers.map((r: any) => <option key={r.id} value={r.id}>{r.customers?.name ?? r.customers?.phone_norm} · {r.status}</option>)}
+              <option value="">— Bukan borong (order biasa) —</option>
+              {resellers.map((r) => <option key={r.id} value={r.id}>{r.customers?.name ?? r.customers?.phone_norm} · {r.status}</option>)}
             </select>
             {resellerId && <p className="text-[11px] text-violet-600 mt-1">Harga borong dipersetujui digunakan. Produk tanpa harga borong → jatuh ke harga retail (semak sebelum hantar).</p>}
+            {newRs.open && (
+              <div className="mt-2 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Daftar pelanggan borong baharu</p>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <input value={newRs.name} onChange={e => setNewRs(v => ({ ...v, name: e.target.value }))} placeholder="Nama / kedai *" className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                  <input value={newRs.phone} onChange={e => setNewRs(v => ({ ...v, phone: e.target.value }))} placeholder="Telefon *" className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                  <input value={newRs.email} onChange={e => setNewRs(v => ({ ...v, email: e.target.value }))} placeholder="Email (pilihan)" className="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300" />
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={createReseller} disabled={rsBusy} className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50">
+                    {rsBusy ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}Daftar & pilih
+                  </button>
+                  <span className="text-[11px] text-gray-500">Telefon = identiti (kalau sudah ada, pelanggan sedia ada dipilih). Harga karton per produk ditetapkan di page Pelanggan Borong; sementara itu guna item manual atau timpa harga.</span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -326,7 +380,7 @@ export default function QuickOrderPage() {
               {resellerId && (
                 <button type="button" onClick={addManualItem}
                   className="flex items-center gap-1.5 px-3 py-1.5 border border-violet-300 text-violet-700 bg-violet-50 rounded-xl text-xs font-bold hover:bg-violet-100"
-                  title="Item bebas untuk reseller (beli by carton) — tak masuk katalog">
+                  title="Item bebas untuk pelanggan borong (beli by carton) — tak masuk katalog">
                   <Plus className="h-3.5 w-3.5" /> Item manual
                 </button>
               )}

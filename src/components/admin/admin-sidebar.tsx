@@ -86,7 +86,7 @@ const sections: Section[] = [
       { href: '/admin/kurma',         label: 'Enquiry Gift', icon: Gift },   // peti enquiry web (Studio/LP); deal diurus di Pipeline Gift
       { href: '/admin/kurma/catalog', label: 'Gift Catalog', icon: Box },
       { href: '/admin/kurma/costs',   label: 'Kos & Harga',  icon: Calculator },
-      { href: '/admin/borong',        label: 'Harga Borong', icon: Package },
+      { href: '/admin/borong',        label: 'Kurma Borong', icon: Package },
       // LP awam kurma (kurma.syababfresh.my di production; /kurma di dev) — buka tab baharu, bukan page admin.
       { href: kurmaPath('/'),         label: 'Buka LP Kurma', icon: Link2, external: true },
     ],
@@ -114,7 +114,7 @@ const sections: Section[] = [
       { href: '/admin/sop',               label: 'Panduan SOP',      icon: BookOpen },
       { href: '/admin/marketing',         label: 'Ad Tracking',      icon: Megaphone },
       { href: '/admin/settings/whatsapp', label: 'WA Templates',     icon: MessageCircle },
-      { href: '/admin/resellers',         label: 'Reseller',         icon: Store },
+      { href: '/admin/resellers',         label: 'Borong', icon: Store },
       { href: '/admin/tiktok-sync',       label: 'TikTok Customers', icon: ShoppingBag },
     ],
   },
