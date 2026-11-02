@@ -1,100 +1,80 @@
-# 🎯 Papan Pencapaian SEO / AEO / GEO — SyababFresh
+# 🌴 Papan Pencapaian SEO / AEO / GEO — SyababFresh KURMA
 > Fail ini "save file" kita. Task berjadual baca ini setiap pagi untuk tahu setakat mana kita.
 > Bila sesuatu disiapkan, tick kotaknya, tambah mata, kemas kini streak, dan commit.
+> **Reset 18 Okt 2026** — fokus bertukar dari "buah online" ke KURMA atas arahan pemilik.
+> Aset "buah online" (pillar, artikel, schema) KEKAL dalam kod — jangan buang, bina kurma di atasnya.
 
 ## 🏆 SASARAN AKHIR (Boss Level)
-**"buah online" muncul di PAGE 1 (Top 10) Google Malaysia.**
-Ukur guna Google Search Console (Performance → Queries → "buah online" → Average position ≤ 10).
+**"kurma online" DAN "gift kurma" muncul di PAGE 1 (Top 10) Google Malaysia SEBELUM Ramadan 2027.**
+- Ramadan 2027 dijangka bermula ±8 Feb 2027 → **deadline kerja besar: akhir Januari 2027.**
+- Ukur guna Google Search Console, Domain property `syababfresh.my` (Performance → Queries → Average position ≤ 10).
+- Strategi tangga: menang long-tail dulu → naik "beli kurma online" / "kedai kurma online" → akhirnya "kurma online" + "gift kurma".
+- URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 720
+- **Mata:** 750
 - **Level:** 3 — Naik Carta 🚀
-- **Streak:** 1 hari *(23 Okt → jurang 24–26 Okt → reset, sambung 27 Okt; rekod jujur)*
-- **Pencapaian dibuka:** 16 / 17
-- **Kemaskini terakhir:** 27 Okt 2026
+- **Streak:** 1 hari *(putus 28 Okt–1 Nov; sambung 2 Nov — rekod jujur)*
+- **Pencapaian dibuka:** 5 / 20
+- **Kemaskini terakhir:** 2 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (GSC, 2 Nov).
+
+## 📅 Fasa Runway Ramadan 2027
+| Fasa | Tempoh | Fokus |
+|---|---|---|
+| 1 · Asas Kurma | Okt–Nov | Trek A siap, funnel gift ber-schema |
+| 2 · Kandungan | Nov–Dis | Trek C — artikel ditulis Nov/Dis inilah yang ranking menjelang Ramadan (indexing 4–8 minggu) |
+| 3 · Tolakan | Jan | Trek D penuh + pautan/pembaikan akhir; deadline akhir Jan |
+| 4 · Musim | Feb–Mac | STOP SEO besar — konversi, stok, kandungan ringan sahaja |
 
 ---
 
-## ✅ SUDAH SIAP SEBELUM PAPAN INI DIBUAT (21 Julai 2026)
-> Asas yang sudah wujud tetapi tiada kotaknya dalam senarai di bawah. Direkodkan
-> supaya papan ini bermula dari keadaan sebenar, bukan sifar. Tiada mata diberi —
-> ini garis permulaan, bukan pencapaian baharu.
-
-**Infrastruktur teknikal**
-- `robots.txt` — sekat `/api/`, `/admin/`, `/checkout/`, `/cart`, `/profile/`, `/tetapan/`
-- `sitemap.ts` dinamik — 125 URL; produk & kategori auto-masuk; page pendua dan
-  kategori kosong ditapis keluar
-- Canonical kendiri semua page; `metadataBase`; OG penuh (`ms_MY`)
-- Pengesahan Google Search Console + Google Business Profile (aktif)
-- Feed Google Merchant Center `/merchant-feed.xml` (belum disambung ke MC)
-
-**Structured data (JSON-LD)** — 8 jenis
-- Organization, WebSite, GroceryStore/LocalBusiness (semua page)
-- Product + AggregateRating + BreadcrumbList (page produk)
-- Article + FAQPage (artikel panduan)
-- ItemList + BreadcrumbList (page kategori)
-
-**Kandungan**
-- **94 description produk** — sebelum ini 93 daripada 94 kosong dan semua page
-  berkongsi satu ayat fallback yang sama (duplicate content)
-- **33 description kategori**
-- **24 page kategori** `/kategori/[slug]` dengan metadata, H1 dan ItemList sendiri —
-  sebelum ini kategori hanya parameter URL, sifar page
-- 4 artikel panduan
-- `llms.txt` untuk enjin AI (AEO/GEO)
-
-**Titik permulaan Google Search Console (3 bulan hingga 21 Julai 2026)**
-| Metrik | Nilai |
-|---|---|
-| Klik | 53 |
-| Impression | 958 |
-| CTR | 5.5% |
-| Kedudukan purata | 3.1 (tinggi kerana hampir semua query jenama) |
-| Jumlah query | 42 |
-| Klik bukan-jenama | **0** |
-
-> Inilah nombor sebenar yang perlu dikalahkan. 66% klik datang dari orang yang
-> taip nama "syabab fresh" — mereka sudah kenal kedai. Kejayaan bermakna klik
-> bukan-jenama naik dari sifar.
+## ✅ GARIS PERMULAAN (siap sebelum reset 18 Okt — tiada mata, ini bukan pencapaian baharu)
+- Asas teknikal penuh kedai utama: robots, sitemap dinamik (120+ URL), canonical, OG, JSON-LD 8 jenis, 94 description produk, 24 page kategori, pillar /buah-online, 8 artikel (2 kurma: `jenis-kurma-malaysia`, `panduan-kurma-ajwa`), llms.txt, GSC + GBP aktif
+- Funnel kurma sedia wujud: `/kurma` (gift landing + FAQPage), `/kurma/shop` (kedai kering: Ajwa, Safawi, Medjoul, Mariami, Sukkari, serunding, buah kering, kismis, kacang + ItemList), `/kurma/korporat`, `/kurma/borong`, `/kurma/portfolio`, sitemap kurma sendiri
+- Kategori DB jenis kurma: `kurma-ajwa`, `kurma-safawi`, `kurma-medjoul`, `kurma-mariami`, `kurma-sukkari` → page `/kategori/[slug]`
+- Feed Merchant Center `/merchant-feed.xml` — kod siap, BELUM didaftar di MC
 
 ---
 
-## 🏗️ ASAS TEKNIKAL (quick wins — mudah, mula sini)
-- [x] **H1 laman utama** — `src/app/page.tsx` (+30 mata) ✔ 21 Jul
-- [x] **H1 katalog** — `src/components/storev2/sf-catalog.tsx` (+30) ✔ 21 Jul
-- [x] **BreadcrumbList schema** pada halaman produk (+40) ✔ 21 Jul
-- [x] **Pautan panduan dari homepage** — internal linking (+40) ✔ 21 Jul
-- [x] **Semakan kelajuan (Core Web Vitals)** — LCP < 2.5s pada homepage & katalog (+50) ✔ 22 Jul — homepage skor 93 (LCP 1.7s), /products skor 88 (LCP 2.1s); CLS 0, TBT 0ms kedua-dua. Lulus tanpa pembetulan.
+## 🅰️ TREK A — ASAS KURMA (5 pencapaian)
+- [x] **A1 · Frasa "kurma online" dalam metadata root** — `src/app/layout.tsx` (description + OG + Twitter) (+10) ✔ 23 Okt (7d084c3)
+- [x] **A2 · llms.txt kluster kurma** — 3 Key pages (/kurma/shop · /kurma · /kurma/korporat) + ayat pengenalan sebut kurma/gift box (+20) ✔ 27 Okt (490b8a5)
+- [x] **A3 · Pautan dalaman kedai utama → kurma** — homepage, /buah-online, 2 artikel kurma, footer; semua via `kurmaPath()` (+40) ✔ 27 Okt (3ef8f69)
+- [ ] **A4 · FAQ + FAQPage schema pada /kurma/shop** — 6 soalan pembeli (beza jenis, tempoh pos, simpanan, gift, Ramadan); corak: `faqPageSchema` seperti di gift-landing (+40)
+- [x] **A5 · GSC Domain property `syababfresh.my` + submit sitemap kurma** — kurma.syababfresh.my kini dijejak; sitemap kurma Success, 5 pages discovered (+30) ✔ 2 Nov (manual pemilik)
 
-## 📝 KANDUNGAN (AEO / GEO — bawa pembeli & autoriti)
-- [x] **6 artikel panduan** (sekarang 4 → tambah 2) (+60) ✔ 21 Jul — `jenis-kurma-malaysia`, `panduan-kurma-ajwa`
-- [x] **8 artikel panduan** (+60) ✔ 21 Jul — `panduan-anggur-import`, `cara-simpan-buah-peti-sejuk`
-- [x] **FAQ + FAQPage schema pada katalog** (soalan pembeli: "berapa lama sampai", "kawasan hantar") (+40) ✔ 21 Jul — 6 soalan, dipapar + schema
-- [x] **Halaman kluster "Buah Online"** — landing page fokus untuk terma sasaran, paut ke kategori & panduan (+80) ✔ 21 Jul — `/buah-online`, 6 pautan kategori + 6 panduan
-- [x] **Pautan dua hala kluster buah-online** — artikel & indeks panduan → pillar page (+40) ✔ 22 Jul — 4 artikel (anchor variasi: beli buah online / pesan buah segar online / buah import online / panduan lengkap beli buah online) + kad di /panduan
-- [x] **FAQ + FAQPage schema pada pillar /buah-online** (+40) ✔ 27 Jul — 5 soalan (tempat terbaik beli buah online, tempoh sampai, jaminan rosak, campur order, musim ceri) dipapar + schema
-- [x] **Varian kata kunci Klang Valley** dalam kandungan penghantaran (+30) ✔ 27 Jul — "Lembah Klang (Klang Valley)" di faq-penghantaran, /buah-online body + FAQ
-- [x] **Pautan produk → panduan** — 94 page produk paut artikel berkaitan + pillar /buah-online (+40) ✔ 27 Jul — pemetaan ceri/kurma/anggur/harumanis, fallback cara-simpan-buah
-- [x] **llms.txt kemas kini kluster** (+20) ✔ 27 Jul — tambah /buah-online & /panduan di Key pages (enjin AI nampak halaman kluster)
-- [x] **Pautan dalaman kedai utama → kedai kurma & gift box** — /kurma/shop & /kurma tidak lagi yatim (+40) ✔ 27 Okt — homepage (H1 "kurma" + kad gift box), /buah-online (perenggan 2 pautan), 2 artikel kurma (jenis-kurma-malaysia, panduan-kurma-ajwa), footer kedai (Kedai Kurma · Gift Box Kurma); semua via `kurmaPath()` supaya ikut subdomain. *Trek A/C bila papan KURMA 18 Okt di-paste*
-- [x] **llms.txt kluster kurma** (+20) ✔ 27 Okt — Key pages: Beli Kurma Online (/kurma/shop), Gift Box Kurma Custom (/kurma), Gift Kurma Korporat (/kurma/korporat); ayat pengenalan BM/EN & fakta produk utama sebut kurma + gift box (enjin AI nampak kluster kurma). *Trek A/C bila papan KURMA di-paste*
+## 🅱️ TREK B — GIFT / HAMPER KURMA (4 pencapaian)
+- [x] **B1 · JSON-LD funnel gift** — BreadcrumbList /kurma, /korporat, /borong (URL ikut subdomain via `kurmaAbs`) + Service "Gift Box Kurma Custom" RM4.50–RM27/kotak min 50 (+40) ✔ 23 Okt (76b09c4)
+- [ ] **B2 · Produk gift set dalam kedai / feed** — produk gift set yang pemilik sedang bina masuk DB & papar di storefront/feed (status DB — sahkan dengan pemilik, jangan anggap dari kod) (+40)
+- [ ] **B3 · Frasa tepat "gift kurma" dalam H1/metadata funnel gift** — semak /kurma & /korporat: pastikan frasa carian "gift kurma" / "hamper kurma" wujud secara literal, bukan hanya "gift box kurma" (+40)
+- [ ] **B4 · Portfolio gift ber-schema** — /kurma/portfolio dengan ImageObject/Review schema + alt text kaya kata kunci (+30)
 
-## 🔍 RANKING (ukur via Google Search Console)
-- [ ] 🌱 **5 terma long-tail dapat impressions** dalam GSC (dah diindeks & muncul) (+50)
-- [ ] 🥉 **Top 10 untuk 1 terma long-tail** (cth "ceri turki online" / "kurma ajwa online") (+100)
-- [ ] 🥈 **Top 10 untuk 3 terma long-tail** (+150)
-- [ ] 🥇 **"buah online" masuk Top 20** (page 2) (+200)
-- [ ] 🏆 **"buah online" PAGE 1 / Top 10** — BOSS LEVEL (+500)
+## 🅲 TREK C — KANDUNGAN (5 pencapaian)
+- [ ] **C1 · Artikel "Panduan Gift Kurma & Hamper Kurma Korporat"** — sasar "gift kurma", "hamper kurma", "gift kurma raya"; fakta harga dari gift-pricing sebenar; paut /kurma, /korporat, /shop (+60)
+- [ ] **C2 · Artikel kurma #4** — cth "Kurma Medjool vs Ajwa: mana satu untuk anda" atau "Kelebihan kurma untuk berbuka" (+60)
+- [ ] **C3 · Artikel kurma #5 — persediaan Ramadan** — "Bila patut order kurma untuk Ramadan 2027" (timeline, borong vs runcit, gift korporat) (+60)
+- [ ] **C4 · Pautan dua hala artikel kurma ↔ funnel** — semua artikel kurma paut /kurma/shop & /kurma dengan anchor variasi; artikel lama kurma paut artikel baharu (+40)
+- [ ] **C5 · FAQ Ramadan pada funnel gift** — soalan musim (timeline order, deposit 50%, ~2 minggu siap, kuantiti minimum) dalam GIFT_FAQ (+30)
+
+## 🅳 TREK D — JUALAN SEGERA (3 pencapaian — MANUAL pemilik)
+- [ ] **D1 · Merchant Center** — daftar `https://shop.syababfresh.my/merchant-feed.xml` (Products → Feeds → scheduled fetch); produk kurma muncul percuma di tab Shopping (+80)
+- [ ] **D2 · Google Business Profile** — tambah produk kurma/gift box + 1 post kurma di GBP (+40)
+- [ ] **D3 · Saluran segera ketiga** — katalog WhatsApp Business kurma ATAU feed produk ke Meta/TikTok shop (+30)
+
+## 🅴 TREK E — RANKING (3 pencapaian — ukur via GSC Domain property)
+- [ ] **E1 🌱 · 5 terma kurma long-tail dapat impressions** ("kurma ajwa online malaysia", "kurma medjool online", "gift kurma raya", "hamper kurma korporat", "beli kurma online") (+50)
+- [ ] **E2 🥉 · Top 10 untuk 3 terma long-tail kurma** (+150)
+- [ ] **E3 🏆 · "kurma online" + "gift kurma" PAGE 1 / Top 10 — BOSS LEVEL** (+500)
 
 ---
 
 ## 🪜 Tangga Kata Kunci Sasaran
-Menang bawah dulu, naik ke atas:
-1. "buah import online" · "kurma ajwa online malaysia" · "ceri turki online" · "buah segar online klang valley" *(mudah — mula sini)*
-2. "beli buah online malaysia" · "kedai buah online" *(sederhana)*
-3. **"buah online"** *(sasaran akhir)*
+1. "kurma ajwa online malaysia" · "kurma medjool online" · "gift kurma raya" · "hamper kurma korporat" *(mudah — mula sini)*
+2. "beli kurma online" · "kedai kurma online" *(sederhana)*
+3. **"kurma online" + "gift kurma"** *(sasaran akhir — sebelum Ramadan 2027)*
 
 ## 🔥 Streak & Log Harian
 > Setiap hari ada penambahbaikan di-commit = streak +1. Terlepas sehari = streak reset ke 0.
@@ -113,18 +93,21 @@ Menang bawah dulu, naik ke atas:
 | 23 Jul 2026 | Footer 4-lajur (nama syarikat + SSM) · halaman refund & privasi · email kontak — E-E-A-T/trust | +0 | — |
 | 27 Jul 2026 | FAQ + FAQPage pillar /buah-online (+40) · varian Klang Valley (+30) — **naik Level 3** | +70 | 1 |
 | 27 Jul 2026 | Pautan produk → panduan (94 page, +40) · llms.txt kemas kini kluster (+20) | +60 | 1 |
-| 13 Ogos 2026 | Frasa tepat "buah online" dalam metadata homepage (description utama · OG · Twitter) — bonus luar senarai | +10 | 1 |
-| 23 Okt 2026 | Frasa tepat "kurma online" dalam metadata root (description utama 158 aksara · OG · Twitter), "buah online" kekal — bonus luar senarai; *tick Trek A bila papan KURMA 18 Okt di-paste* | +10 | 1 |
-| 27 Okt 2026 | llms.txt kluster kurma — 3 Key pages (/kurma/shop · /kurma · /kurma/korporat) + ayat pengenalan & fakta produk sebut kurma/gift box; *tick Trek A/C bila papan KURMA di-paste* | +20 | 1 |
-| 27 Okt 2026 | Pautan dalaman kedai utama → /kurma/shop & /kurma (homepage · /buah-online · 2 artikel kurma · footer) — kedai kurma & gift box tidak lagi yatim; *tick Trek A/C bila papan KURMA di-paste* | +40 | 1 |
-| 23 Okt 2026 | JSON-LD funnel gift kurma — BreadcrumbList pada /kurma (baru) + /korporat & /borong (URL ikut subdomain via kurmaAbs) · Service "Gift Box Kurma Custom" RM4.50–RM27/kotak, min 50 (dikira dari gift-pricing) · FAQPage sedia ada kekal — bonus luar senarai (skala sama BreadcrumbList produk +40); *tick Trek A/B bila papan KURMA di-paste* | +40 | 1 |
+| 13 Ogos 2026 | Frasa tepat "buah online" dalam metadata homepage — bonus luar senarai | +10 | 1 |
+| 23 Okt 2026 | **A1** Frasa "kurma online" dalam metadata root (7d084c3) | +10 | 1 |
+| 23 Okt 2026 | **B1** JSON-LD funnel gift — Breadcrumb + Service gift box (76b09c4) | +40 | 1 |
+| 27 Okt 2026 | **A2** llms.txt kluster kurma (490b8a5) | +20 | 1 |
+| 27 Okt 2026 | **A3** Pautan dalaman kedai utama → kurma (3ef8f69) | +40 | 1 |
+| 2 Nov 2026 | **A5** GSC Domain property syababfresh.my + submit sitemap kurma (manual pemilik) · papan KURMA menggantikan papan buah-online | +30 | 1 |
 
 ---
 
 ### Cara guna (untuk Claude Code)
 Bila anda siapkan mana-mana item di atas:
-1. Tukar `[ ]` kepada `[x]` pada item tu.
-2. Tambah mata ke "Skor Semasa", kemas kini Level jika lepas ambang.
+1. Tukar `[ ]` kepada `[x]` pada item tu, tambah tarikh & hash commit.
+2. Tambah mata ke "Skor Semasa", kemas kini "Pencapaian dibuka" & Level jika lepas ambang.
 3. Streak +1 (kalau ini penambahbaikan pertama hari ini), kemas kini tarikh.
 4. Tambah satu baris dalam jadual Log Harian.
-5. Commit: `chore(seo): unlock [nama pencapaian] +[mata] mata`
+5. Commit: `chore(seo): unlock [kod item] [nama pencapaian] +[mata] mata`
+Trek D ialah kerja manual pemilik — tick hanya bila pemilik sahkan siap.
+Trek E diukur di GSC sahaja — tick hanya bila pemilik tunjuk data GSC.
