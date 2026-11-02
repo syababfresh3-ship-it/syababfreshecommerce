@@ -3,9 +3,12 @@ import { revalidateStorefront } from '@/lib/revalidate-store'
 import { isMissingColumnError } from '@/lib/promo-rules'
 import { NextResponse } from 'next/server'
 
+// Nama mesti sepadan dengan lajur jadual `banners` (migration 008/032/131):
+// link, link_label, bg_class — bukan link_url/bg_color. Sebelum ini tersalah nama
+// sejak 905dbaa, jadi Link/Label/Warna dibuang senyap masa simpan.
 const BANNER_FIELDS = [
-  'title', 'subtitle', 'image_url', 'link_url', 'is_active',
-  'sort_order', 'bg_color', 'text_color', 'badge_text',
+  'title', 'subtitle', 'image_url', 'link', 'link_label', 'is_active',
+  'sort_order', 'bg_class',
   // Sprint 3H: jadual paparan banner (migration 131)
   'starts_at', 'ends_at',
 ] as const
