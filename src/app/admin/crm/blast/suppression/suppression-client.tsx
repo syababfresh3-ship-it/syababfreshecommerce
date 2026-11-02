@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { PossibleOptOut } from "./possible-optout";
 
 interface Row { id: string; wa_id: string; source: string; note: string | null; created_at: string }
 interface Counts { total: number; replied_stop: number; wa_opt_out: number; manual: number }
@@ -84,6 +85,8 @@ export function SuppressionClient() {
           </div>
         </div>
       )}
+
+      <PossibleOptOut onAdded={load} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">

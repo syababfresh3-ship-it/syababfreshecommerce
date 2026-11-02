@@ -13,6 +13,7 @@ import { sendCapiLeadWhatsApp } from "@/lib/meta-capi";
 import { sendAdminPush } from "@/lib/push";
 import { maybeAiReply } from "@/lib/ai/wa-agent";
 import { downloadWaMedia } from "@/lib/whatsapp-cloud";
+import { isOptOutReply } from "@/lib/wa-optout";
 
 // ---- GET: pengesahan webhook Meta ----
 export async function GET(req: NextRequest) {
@@ -263,10 +264,10 @@ async function handleInbound(sb: Admin, m: WaMessage, name?: string, phoneNumber
     if (mediaId) mediaUrl = await storeWaMedia(sb, mediaId, m.id);
   }
 
-  // Opt-out: customer balas STOP/BERHENTI → tak terima blast lagi
-  if (type === "text" && bodyText) {
-    const t = bodyText.trim().toLowerCase();
-    if (["stop", "unsubscribe", "unsub", "berhenti", "stop promosi"].includes(t)) {
+  // Opt-out: customer balas STOP/BERHENTI (taip atau tekan butang template) → tak terima blast lagi.
+  // isOptOutReply abaikan format WhatsApp & tanda baca, jadi "*STOP*" / "Stop!" pun dikira.
+  if (["text", "button", "interactive"].includes(type) && bodyText) {
+    if (isOptOutReply(bodyText)) {
       await sb.from("wa_contacts").update({ opt_out: true }).eq("id", contactId);
       // Suppression list (sumber: balas STOP) — additive.
       await sb.from("crm_suppressions").upsert({ wa_id: m.from, source: "replied_stop" }, { onConflict: "wa_id" }).then(() => {}, () => {});
