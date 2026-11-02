@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 750
+- **Mata:** 830
 - **Level:** 3 — Naik Carta 🚀
 - **Streak:** 1 hari *(putus 28 Okt–1 Nov; sambung 2 Nov — rekod jujur)*
-- **Pencapaian dibuka:** 5 / 20
+- **Pencapaian dibuka:** 6 / 20
 - **Kemaskini terakhir:** 2 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (GSC, 2 Nov).
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov.
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -35,7 +35,7 @@
 - Asas teknikal penuh kedai utama: robots, sitemap dinamik (120+ URL), canonical, OG, JSON-LD 8 jenis, 94 description produk, 24 page kategori, pillar /buah-online, 8 artikel (2 kurma: `jenis-kurma-malaysia`, `panduan-kurma-ajwa`), llms.txt, GSC + GBP aktif
 - Funnel kurma sedia wujud: `/kurma` (gift landing + FAQPage), `/kurma/shop` (kedai kering: Ajwa, Safawi, Medjoul, Mariami, Sukkari, serunding, buah kering, kismis, kacang + ItemList), `/kurma/korporat`, `/kurma/borong`, `/kurma/portfolio`, sitemap kurma sendiri
 - Kategori DB jenis kurma: `kurma-ajwa`, `kurma-safawi`, `kurma-medjoul`, `kurma-mariami`, `kurma-sukkari` → page `/kategori/[slug]`
-- Feed Merchant Center `/merchant-feed.xml` — kod siap, BELUM didaftar di MC
+- Feed Merchant Center `/merchant-feed.xml` — kod siap DAN sudah didaftar di MC sebagai feed File (URL) "PRODUCTS SOURCE 4", fetch harian (rupanya aktif sebelum reset; direkod rasmi sebagai D1 pada 2 Nov)
 
 ---
 
@@ -60,7 +60,7 @@
 - [ ] **C5 · FAQ Ramadan pada funnel gift** — soalan musim (timeline order, deposit 50%, ~2 minggu siap, kuantiti minimum) dalam GIFT_FAQ (+30)
 
 ## 🅳 TREK D — JUALAN SEGERA (3 pencapaian — MANUAL pemilik)
-- [ ] **D1 · Merchant Center** — daftar `https://shop.syababfresh.my/merchant-feed.xml` (Products → Feeds → scheduled fetch); produk kurma muncul percuma di tab Shopping (+80)
+- [x] **D1 · Merchant Center** — feed File (URL) "PRODUCTS SOURCE 4" aktif di MC: 310 produk, fetch harian (kemas kini terakhir 2 Nov 00:00), 308 approved, 212 klik/28 hari; produk kurma muncul percuma di tab Shopping; sumber Content API lama (36 produk gla_ dari plugin WooCommerce, termasuk produk sampel & domain tak padan) dipadam 2 Nov (+80) ✔ 2 Nov (disahkan pemilik — feed sudah aktif, pembersihan sumber lama kerja 2 Nov)
 - [ ] **D2 · Google Business Profile** — tambah produk kurma/gift box + 1 post kurma di GBP (+40)
 - [ ] **D3 · Saluran segera ketiga** — katalog WhatsApp Business kurma ATAU feed produk ke Meta/TikTok shop (+30)
 
@@ -99,6 +99,7 @@
 | 27 Okt 2026 | **A2** llms.txt kluster kurma (490b8a5) | +20 | 1 |
 | 27 Okt 2026 | **A3** Pautan dalaman kedai utama → kurma (3ef8f69) | +40 | 1 |
 | 2 Nov 2026 | **A5** GSC Domain property syababfresh.my + submit sitemap kurma (manual pemilik) · papan KURMA menggantikan papan buah-online | +30 | 1 |
+| 2 Nov 2026 | **D1** Merchant Center rupanya sudah aktif — feed "PRODUCTS SOURCE 4", 310 produk, 308 approved, 212 klik/28 hari; sumber Content API lama (36 produk gla_ WooCommerce) dipadam (disahkan pemilik) | +80 | 1 |
 
 ---
 
