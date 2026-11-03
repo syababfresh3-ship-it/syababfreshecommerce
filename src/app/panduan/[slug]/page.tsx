@@ -6,6 +6,7 @@ import { ChevronLeft } from 'lucide-react'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { JsonLd } from '@/components/seo/json-ld'
 import { ARTIKEL, getArtikel } from '../artikel'
+import { kurmaPath } from '@/lib/kurma-host'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'
 
@@ -22,8 +23,11 @@ function renderBody(text: string) {
   LINK_RE.lastIndex = 0
   while ((m = LINK_RE.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index))
+    // Pautan /kurma* → kurmaPath: terus ke kurma.syababfresh.my bila subdomain aktif (elak 308 proxy,
+    // "backlink" dalaman ke URL kanonik). Dev/preview tanpa env: kekal /kurma/* seperti dulu.
+    const href = m[2] === '/kurma' || m[2].startsWith('/kurma/') ? kurmaPath(m[2].slice('/kurma'.length) || '/') : m[2]
     out.push(
-      <Link key={`${m.index}`} href={m[2]} className="text-red-600 font-semibold hover:underline">
+      <Link key={`${m.index}`} href={href} className="text-red-600 font-semibold hover:underline">
         {m[1]}
       </Link>,
     )

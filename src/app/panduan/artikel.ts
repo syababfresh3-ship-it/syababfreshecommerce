@@ -639,6 +639,110 @@ export const ARTIKEL: Artikel[] = [
       },
     ],
   },
+  {
+    // C1 (papan SEO KURMA, 3 Nov 2026) — sasaran "gift kurma", "hamper kurma", "gift kurma raya",
+    // "hamper kurma korporat". Harga dari lib/gift-pricing (sheet 2026), deposit/lead time dari
+    // lib/gift & lib/company — kemas kini artikel bila sheet berubah. Pautan /kurma* → kurmaPath (renderer).
+    slug: 'panduan-gift-kurma-hamper-korporat',
+    title: 'Panduan Gift Kurma & Hamper Kurma Korporat: Bila Sesuai, Jenis & Harga',
+    description:
+      'Bila sesuai beri gift kurma Raya, gift Ramadan atau hamper kurma korporat (staff, klien, majlis), jenis kurma yang sesuai untuk hadiah, harga sebenar gift box kurma custom dari RM4.50/kotak (min 50 kotak, ~2 minggu siap) dan timeline tempah untuk Ramadan & Raya 2027.',
+    updated: '2026-11',
+    sections: [
+      {
+        heading: 'Kenapa gift kurma jadi hadiah paling "selamat" di Malaysia',
+        body: [
+          'Ada hadiah yang cantik tetapi menyusahkan penerima: buah segar yang perlu dimakan dalam dua hari, kek yang perlu peti sejuk, barang hiasan yang akhirnya disimpan dalam almari. Gift kurma tidak ada masalah itu. Kurma tahan berbulan pada suhu bilik, diterima oleh semua peringkat umur, tiada isu pantang makanan yang biasa, dan saiznya kecil cukup untuk diletak di atas meja pejabat atau diagih ke seratus kakitangan tanpa perlu lori.',
+          'Lebih penting, kurma ada makna. Ia buah yang paling dikaitkan dengan berbuka puasa dan bulan Ramadan, jadi hamper kurma yang sampai pada minggu pertama Ramadan terasa tepat pada masanya, bukan sekadar "hadiah korporat biasa". Sebab itu permintaan gift kurma di Malaysia memuncak setiap tahun dari pertengahan Januari hingga minggu pertama Ramadan, dan naik semula sedikit menjelang Raya.',
+        ],
+      },
+      {
+        heading: 'Bila sesuai beri gift kurma Raya, Ramadan, korporat atau majlis?',
+        body: [
+          'Ramadan — musim utama. Hadiah kurma dihantar sebelum atau pada minggu pertama puasa supaya sempat dinikmati waktu berbuka. Ramadan 1448H dijangka bermula sekitar 8 Februari 2027, jadi kebanyakan organisasi mahu kotak sampai pada minggu terakhir Januari atau minggu pertama Februari.',
+          'Gift kurma Raya — untuk rumah terbuka, door gift tetamu, atau ucapan Selamat Hari Raya kepada klien dan rakan niaga. Aidilfitri 1448H dijangka awal Mac 2027. Kotak kurma berlogo dengan ucapan Raya ialah pilihan yang kemas berbanding bakul besar yang mahal dan sukar diagih.',
+          'Hamper kurma korporat — penghargaan staff, hadiah kepada klien, agihan ke cawangan atau jabatan, dan cenderamata untuk lawatan rasmi. Untuk organisasi, nilai sebenar gift box kurma ialah logo dan mesej anda berada di atas meja penerima selama beberapa minggu.',
+          'Majlis dan agihan — door gift kenduri atau walimah, kesyukuran, sambutan pulang umrah, program masjid dan surau, atau sumbangan ke rumah anak yatim dan asnaf. Kuantiti selalunya 50 hingga beberapa ratus kotak, dan di sinilah gift box kurma kecil (100g atau 200g) paling berbaloi.',
+        ],
+      },
+      {
+        heading: 'Hamper kurma korporat vs gift box kurma custom: apa bezanya?',
+        body: [
+          'Dua istilah ini sering bercampur, tetapi ia dua produk yang berbeza. Hamper kurma ialah bakul atau kotak besar berisi campuran — beberapa jenis kurma, kacang, buah kering, kadang-kadang madu atau air zamzam — dengan nilai seunit yang lebih tinggi dan kuantiti yang lebih kecil. Sesuai untuk beberapa penerima penting: bos, rakan kongsi, VIP.',
+          'Gift box kurma custom pula ialah kotak berjenama anda (logo, warna, mesej) berisi satu jenis kurma dalam berat tetap 100g, 200g atau 500g, dibuat dalam kuantiti besar dari 50 hingga 2,000+ kotak. Kos seunit jauh lebih rendah, semua penerima dapat kotak yang sama kemas, dan ia mudah diagih. Inilah yang kami buat di [Custom Gift Box Kurma](/kurma): design percuma, kurma sudah termasuk, siap dicetak dan dihantar.',
+          'Mahu hamper campuran yang lebih besar untuk beberapa penerima sahaja? Anda boleh gabungkan sendiri: [beli kurma online](/kurma/shop) mengikut jenis dan berat di kedai kurma kami, tambah kacang dan buah kering dari page yang sama, dan bungkus mengikut citarasa. Untuk 50 kotak ke atas, gift box custom hampir selalu lebih murah seunit dan lebih kemas.',
+        ],
+      },
+      {
+        heading: 'Jenis kurma yang sesuai untuk hadiah',
+        body: [
+          'Ajwa — pilihan paling popular untuk hamper kurma korporat kerana ia kurma Madinah yang paling dikenali dan manisnya halus, tidak memberat. Dalam gift box custom kami ada dua gred: Ajwa AA dan Ajwa AA Premium (saiz dan keseragaman lebih tinggi). Kalau penerima anda klien penting atau agensi kerajaan, Ajwa jarang salah. Baca lebih lanjut dalam [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
+          'Mariami — lembut, berkulit nipis dan mesra semua orang termasuk kanak-kanak dan warga emas. Gred A paling berpatutan untuk kuantiti besar; gred AA lebih besar dan seragam. Pilihan selamat untuk agihan staff dan door gift majlis.',
+          'Safawi — kurma Madinah yang lebih panjang dengan manis pekat dan sedikit nota karamel. Dari segi harga ia paling berbaloi dalam senarai kami, jadi ia pilihan utama bila bajet seunit ketat tetapi anda tetap mahu kurma Madinah di dalam kotak.',
+          'Medjoul dan Sukkari tidak ada dalam sheet gift box custom, tetapi kedua-duanya sedap untuk hamper yang anda susun sendiri. Medjoul besar dan berkaramel, nampak mewah tanpa hiasan; Sukkari keemasan dan paling manis. Keliru beza lima jenis ini? Lihat [panduan jenis kurma di Malaysia](/panduan/jenis-kurma-malaysia) sebelum memilih.',
+        ],
+      },
+      {
+        heading: 'Harga gift kurma: berapa sebenarnya?',
+        body: [
+          'Harga di bawah ialah harga semasa sheet gift box custom kami (2026), per kotak, sudah termasuk kurma dan kotak berlogo anda, tanpa kos penghantaran. Harga seunit turun mengikut tier kuantiti, jadi angka yang anda lihat bergantung pada tiga perkara: jenis kurma, berat, dan berapa kotak.',
+          'Kotak 100g: dari RM4.50 hingga RM14 sekotak. Contoh sebenar: Mariami A pada 50 kotak RM10 sekotak (RM500 kesemuanya); Safawi A pada 500 kotak RM5.50 sekotak (RM2,750); Safawi A pada 2,000 kotak RM4.50 sekotak. Ini saiz paling popular untuk door gift dan agihan staff.',
+          'Kotak 200g: dari RM7 hingga RM20 sekotak. Contoh: Ajwa AA pada 100 kotak RM17 sekotak (RM1,700); Ajwa AA pada 500 kotak RM11 sekotak. Saiz yang paling kerap dipilih untuk hamper kurma korporat kepada klien.',
+          'Kotak 500g: dari RM13 hingga RM27 sekotak, tier bermula 500 kotak. Untuk kuantiti lebih kecil pada berat ini, WhatsApp kami untuk sebut harga manual.',
+          'Yang tidak dikenakan bayaran tambahan: khidmat reka bentuk dan proof design, serta pilihan finishing kotak (Matte, Gloss atau Soft Touch). Kuantiti minimum 50 kotak. Mahu angka tepat untuk kombinasi anda? [Kira harga gift kurma](/kurma/#kira) terus di kalkulator kami tanpa perlu daftar.',
+        ],
+      },
+      {
+        heading: 'Proses tempah dan timeline untuk Ramadan & Raya 2027',
+        body: [
+          'Prosesnya lima langkah: minta sebut harga (borang atau WhatsApp, beritahu kuantiti, tarikh perlu dan logo); terima sebut harga ikut kuantiti, berat dan jenis kurma; sahkan dan bayar deposit 50%, baki selepas kotak siap; semak proof design yang kami sediakan percuma, tiada cetakan sebelum anda setuju; kemudian produksi lebih kurang 2 minggu bekerja dan penghantaran ke satu atau berbilang alamat di seluruh Malaysia.',
+          'Untuk Ramadan 2027, sahkan design dan deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa. Lebih selamat tempah dari Disember atau awal Januari — ada ruang untuk pusingan semakan design, kuantiti besar, dan agihan ke banyak cawangan.',
+          'Untuk gift kurma Raya, kira undur dua minggu bekerja dari tarikh anda mahu kotak sampai, kemudian tambah penampan seminggu untuk semakan design dan penghantaran. Organisasi yang buat kedua-duanya (Ramadan dan Raya) selalunya tempah sekali gus dengan dua design berbeza supaya proses sebut harga dan deposit dibuat sekali sahaja.',
+          'Untuk syarikat, GLC dan agensi kerajaan yang perlukan sebut harga mengikut kuantiti dan proses perolehan yang kemas, mulakan di [gift box kurma korporat](/kurma/korporat). Mahu tengok hasil sebenar dulu? Lihat [portfolio kotak yang pernah kami hasilkan](/kurma/portfolio) untuk organisasi seperti Petronas, FGV, Yayasan Hasanah dan JPJ.',
+        ],
+      },
+      {
+        heading: 'Senarai semak sebelum tempah hamper kurma korporat',
+        body: [
+          'Kuantiti dan bajet seunit — tentukan dulu berapa penerima, kemudian pilih berat mengikut bajet: 100g untuk agihan ramai, 200g untuk klien, 500g untuk penerima terpilih. Ingat minimum 50 kotak.',
+          'Tarikh perlu — kira undur 2 minggu bekerja dan tambah penampan. Musim Ramadan, lebih awal lebih baik.',
+          'Logo dan mesej — sediakan logo dalam fail berkualiti tinggi (vektor paling baik) serta teks ucapan: Salam Ramadan, Selamat Hari Raya, atau mesej penghargaan. Tiada design siap? Hantar rujukan sahaja, pasukan reka bentuk kami yang sediakan.',
+          'Alamat agihan — satu alamat ibu pejabat, atau senarai cawangan dan negeri. Kami boleh hantar ke berbilang alamat; sediakan senarai awal supaya kos penghantaran dapat dikira dalam sebut harga.',
+          'Jenis kurma — kalau tidak pasti, Ajwa AA 200g ialah pilihan paling biasa untuk klien, Mariami A 100g untuk agihan staff dan majlis. Bandingkan jenis dalam [panduan jenis kurma](/panduan/jenis-kurma-malaysia), atau cuba dulu beberapa pek kecil dari [kedai kurma online](/kurma/shop) sebelum membuat keputusan untuk ratusan kotak.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Berapa kuantiti minimum untuk tempah gift kurma?',
+        a: '50 kotak. Harga seunit turun mengikut tier kuantiti (50, 100, 200, 500, 1,000, 2,000 kotak), dan kami pernah hasilkan tempahan 2,000+ kotak untuk agihan organisasi besar.',
+      },
+      {
+        q: 'Harga gift box kurma sudah termasuk kurma?',
+        a: 'Ya. Harga per kotak (dari RM4.50 hingga RM27 mengikut jenis, berat dan kuantiti) sudah termasuk kurma Ajwa, Mariami atau Safawi serta kotak custom berlogo anda. Penghantaran dikira berasingan mengikut alamat.',
+      },
+      {
+        q: 'Perlu bayar deposit? Berapa?',
+        a: 'Deposit 50% selepas sebut harga dan design disahkan, baki selepas kotak siap. Tiada bayaran semasa minta sebut harga atau kira harga di web.',
+      },
+      {
+        q: 'Berapa lama gift kurma siap?',
+        a: 'Lebih kurang 2 minggu bekerja selepas design dan bayaran disahkan, bergantung pada kuantiti. Untuk Ramadan 2027, sahkan sebelum 1 Februari 2027.',
+      },
+      {
+        q: 'Apa beza hamper kurma dengan gift box kurma custom?',
+        a: 'Hamper ialah bakul campuran bernilai tinggi untuk beberapa penerima. Gift box custom ialah kotak berjenama anda berisi satu jenis kurma (100g, 200g atau 500g) dalam kuantiti besar — kos seunit lebih rendah dan semua penerima dapat kotak yang sama kemas.',
+      },
+      {
+        q: 'Boleh letak logo syarikat dan ucapan Raya pada kotak?',
+        a: 'Boleh. Khidmat reka bentuk percuma — hantar logo, warna dan mesej (Salam Ramadan, Selamat Hari Raya, ucapan penghargaan), kami sediakan proof dan anda sahkan dulu sebelum cetak.',
+      },
+      {
+        q: 'Hantar ke seluruh Malaysia dan berbilang alamat?',
+        a: 'Ya. Satu alamat atau berbilang alamat, contohnya agihan ke cawangan di beberapa negeri. Sediakan senarai alamat awal supaya kos penghantaran masuk dalam sebut harga.',
+      },
+    ],
+  },
 ]
 
 export function getArtikel(slug: string) {
