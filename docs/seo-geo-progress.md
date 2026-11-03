@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 830
+- **Mata:** 870
 - **Level:** 3 — Naik Carta 🚀
-- **Streak:** 1 hari *(putus 28 Okt–1 Nov; sambung 2 Nov — rekod jujur)*
-- **Pencapaian dibuka:** 6 / 20
-- **Kemaskini terakhir:** 2 Nov 2026
+- **Streak:** 2 hari *(putus 28 Okt–1 Nov; sambung 2 Nov, 3 Nov — rekod jujur)*
+- **Pencapaian dibuka:** 7 / 20
+- **Kemaskini terakhir:** 3 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov.
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3, 3 Nov).
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -49,7 +49,7 @@
 ## 🅱️ TREK B — GIFT / HAMPER KURMA (4 pencapaian)
 - [x] **B1 · JSON-LD funnel gift** — BreadcrumbList /kurma, /korporat, /borong (URL ikut subdomain via `kurmaAbs`) + Service "Gift Box Kurma Custom" RM4.50–RM27/kotak min 50 (+40) ✔ 23 Okt (76b09c4)
 - [ ] **B2 · Produk gift set dalam kedai / feed** — produk gift set yang pemilik sedang bina masuk DB & papar di storefront/feed (status DB — sahkan dengan pemilik, jangan anggap dari kod) (+40)
-- [ ] **B3 · Frasa tepat "gift kurma" dalam H1/metadata funnel gift** — semak /kurma & /korporat: pastikan frasa carian "gift kurma" / "hamper kurma" wujud secara literal, bukan hanya "gift box kurma" (+40)
+- [x] **B3 · Frasa tepat "gift kurma" dalam H1/metadata funnel gift** — frasa literal "gift kurma" & "hamper kurma" kini dalam metaDesc + sub hero /kurma (varian default), metaDesc /kurma/ramadan ("gift kurma Raya & hamper kurma Ramadan") dan KORPORAT_META.description ("hamper kurma korporat"); H1 & metaTitle tidak diubah (+40) ✔ 3 Nov
 - [ ] **B4 · Portfolio gift ber-schema** — /kurma/portfolio dengan ImageObject/Review schema + alt text kaya kata kunci (+30)
 
 ## 🅲 TREK C — KANDUNGAN (5 pencapaian)
@@ -100,6 +100,7 @@
 | 27 Okt 2026 | **A3** Pautan dalaman kedai utama → kurma (3ef8f69) | +40 | 1 |
 | 2 Nov 2026 | **A5** GSC Domain property syababfresh.my + submit sitemap kurma (manual pemilik) · papan KURMA menggantikan papan buah-online | +30 | 1 |
 | 2 Nov 2026 | **D1** Merchant Center rupanya sudah aktif — feed "PRODUCTS SOURCE 4", 310 produk, 308 approved, 212 klik/28 hari; sumber Content API lama (36 produk gla_ WooCommerce) dipadam (disahkan pemilik) | +80 | 1 |
+| 3 Nov 2026 | **B3** Frasa literal "gift kurma" & "hamper kurma" dalam metaDesc + sub hero /kurma, metaDesc /kurma/ramadan, description /kurma/korporat (gift-copy.ts · korporat-copy.ts) | +40 | 2 |
 
 ---
 

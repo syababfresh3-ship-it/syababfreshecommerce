@@ -18,9 +18,9 @@ export const GIFT_VARIANTS: Record<string, GiftLandingCopy> = {
     eyebrow: 'Custom Gift Box · Ramadan 1448H',
     headlineBefore: 'Hadiah kurma yang buat jenama anda ',
     headlineHighlight: 'diingati.',
-    sub: 'Gift box kurma premium dengan design & logo syarikat anda. Untuk korporat, agensi & individu — termasuk kurma, siap dicetak & dihantar.',
+    sub: 'Gift kurma & hamper kurma premium dengan design & logo syarikat anda. Untuk korporat, agensi & individu — termasuk kurma, siap dicetak & dihantar.',
     metaTitle: 'Gift Box Kurma Custom — Hadiah Ramadan Korporat | SyababFresh',
-    metaDesc: 'Kotak hadiah kurma premium dengan design & logo syarikat anda. Termasuk kurma, siap dicetak & dihantar. Kira harga & terus WhatsApp.',
+    metaDesc: 'Gift kurma & hamper kurma premium dengan design & logo syarikat anda. Termasuk kurma, siap dicetak & dihantar. Kira harga & terus WhatsApp.',
   },
   ramadan: {
     slug: 'ramadan',
@@ -29,7 +29,7 @@ export const GIFT_VARIANTS: Record<string, GiftLandingCopy> = {
     headlineHighlight: 'tak dilupakan.',
     sub: 'Gift box kurma custom dengan nama & logo anda — hadiah Ramadan istimewa untuk pelanggan, staff & rakan niaga. Tempah awal sebelum kehabisan slot.',
     metaTitle: 'Gift Box Kurma Ramadan Custom — Hadiah Raya Berjenama | SyababFresh',
-    metaDesc: 'Hadiah Ramadan kurma custom dengan logo anda. Untuk pelanggan, staff & rakan niaga. Termasuk kurma, siap dihantar. Kira harga & WhatsApp.',
+    metaDesc: 'Gift kurma Raya & hamper kurma Ramadan custom dengan logo anda. Untuk pelanggan, staff & rakan niaga. Termasuk kurma, siap dihantar. Kira harga & WhatsApp.',
   },
   premium: {
     slug: 'premium',

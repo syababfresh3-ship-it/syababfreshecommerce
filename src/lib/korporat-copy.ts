@@ -16,7 +16,7 @@ const finishNames = FINISHES.map(f => f.label.replace(' Lamination', '').replace
 
 export const KORPORAT_META = {
   title: 'Gift Box Kurma Korporat & Agensi Kerajaan | SyababFresh',
-  description: `Gift box kurma berjenama untuk syarikat, GLC & agensi kerajaan — design percuma, kurma premium termasuk, ${minQty}–${maxQty.toLocaleString('en-MY')}+ kotak, hantar seluruh Malaysia. ${COMPANY.legalName}, Bangi.`,
+  description: `Gift box kurma & hamper kurma korporat berjenama untuk syarikat, GLC & agensi kerajaan — design percuma, kurma premium termasuk, ${minQty}–${maxQty.toLocaleString('en-MY')}+ kotak, hantar seluruh Malaysia. ${COMPANY.legalName}, Bangi.`,
 }
 
 /** Teks WhatsApp terus (header/hero/CTA) — lead layakkan diri sendiri; sales tak perlu kejar. */
