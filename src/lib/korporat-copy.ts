@@ -58,9 +58,8 @@ export function steps(): Step[] {
 
 /** FAQ LP korporat = FAQ gift + soalan perolehan (yang bersyarat hanya bila fakta diisi). */
 export function korporatFaq(): { q: string; a: string }[] {
-  const extra: { q: string; a: string }[] = [
-    { q: 'Perlu bayar semasa minta sebut harga?', a: `Tidak. Sebut harga percuma. Deposit ${COMPANY.depositPct}% hanya selepas sebut harga & design disahkan; baki selepas kotak siap.` },
-  ]
+  // Soalan deposit kini dalam GIFT_FAQ (C5, 3 Nov) — jangan ulang di sini, elak 2 soalan sama dalam FAQPage.
+  const extra: { q: string; a: string }[] = []
   if (hasFact('issuesInvoice')) extra.push({ q: 'Ada sebut harga & invois rasmi?', a: `Ya. Sebut harga dan invois dikeluarkan atas nama ${COMPANY.legalName} (${COMPANY.regNo}).` })
   if (hasFact('acceptsLoPo')) extra.push({ q: 'Terima LO / PO agensi kerajaan?', a: 'Ya. Hantar LO/PO selepas sebut harga disahkan — terma bayaran dibincang semasa sebut harga.' })
   if (hasFact('sstRegistered')) extra.push({ q: 'Harga termasuk SST?', a: 'Syarikat berdaftar SST — SST dinyatakan berasingan dalam sebut harga & invois.' })

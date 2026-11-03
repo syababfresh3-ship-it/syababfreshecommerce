@@ -1,3 +1,5 @@
+import { DEFAULT_DEPOSIT_PCT } from '@/lib/gift'
+
 // Copy variants untuk landing page gift box — satu per angle iklan FB (message match).
 // Setiap angle = hero copy berbeza; galeri, calculator, FAQ, testimoni dikongsi.
 
@@ -79,6 +81,9 @@ export const GIFT_FAQ: { q: string; a: string }[] = [
   { q: 'Boleh letak logo & design syarikat saya?', a: 'Boleh. Kami reka design ikut jenama anda (logo, warna, mesej) dan anda sahkan dulu sebelum cetak. Khidmat reka bentuk percuma.' },
   { q: 'Saya tiada design atau idea — boleh tempah?', a: 'Boleh! Tak perlu ada design siap. Hantar sahaja gambar rujukan, logo, atau idea anda — pasukan reka bentuk kami akan realisasikannya jadi design kotak yang kemas. Anda sahkan dulu sebelum cetak.' },
   { q: 'Berapa lama proses sehingga siap?', a: 'Biasanya lebih kurang 2 minggu bekerja selepas design & bayaran disahkan — bergantung pada kuantiti. Tempah awal untuk musim Ramadan amat digalakkan.' },
+  // C5 — soalan musim Ramadan (tarikh ikut RAMADAN.deadline; deposit ikut DEFAULT_DEPOSIT_PCT di lib/gift)
+  { q: 'Bila patut tempah gift kurma untuk Ramadan 2027?', a: 'Ramadan 1448H dijangka bermula sekitar 8 Februari 2027. Sahkan design & deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa (lead time ~2 minggu bekerja). Tempah dari Disember atau awal Januari lebih selamat — ada ruang untuk semakan design, kuantiti besar & agihan ke berbilang alamat.' },
+  { q: 'Perlu bayar deposit? Berapa?', a: `Deposit ${DEFAULT_DEPOSIT_PCT}% selepas sebut harga & design disahkan, baki selepas kotak siap. Tiada bayaran semasa minta sebut harga atau kira harga di web.` },
   { q: 'Hantar ke seluruh Malaysia?', a: 'Ya, kami hantar ke seluruh Malaysia. Boleh hantar ke satu alamat atau berbilang alamat (cth agihan ke cawangan).' },
   { q: 'Boleh custom saiz atau jenis kurma lain?', a: 'Boleh. Jika pilihan kurma atau saiz yang anda mahu tiada dalam senarai, WhatsApp kami — kami bantu sesuaikan.' },
 ]

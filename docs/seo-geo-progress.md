@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 910
+- **Mata:** 940
 - **Level:** 3 — Naik Carta 🚀
 - **Streak:** 2 hari *(putus 28 Okt–1 Nov; sambung 2 Nov, 3 Nov — rekod jujur)*
-- **Pencapaian dibuka:** 8 / 20
+- **Pencapaian dibuka:** 9 / 20
 - **Kemaskini terakhir:** 3 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4), kedua-dua 3 Nov. **Trek A SIAP 5/5.**
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4) + 30 (C5), ketiga-tiga 3 Nov. **Trek A SIAP 5/5.**
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -43,13 +43,13 @@
 - [x] **A1 · Frasa "kurma online" dalam metadata root** — `src/app/layout.tsx` (description + OG + Twitter) (+10) ✔ 23 Okt (7d084c3)
 - [x] **A2 · llms.txt kluster kurma** — 3 Key pages (/kurma/shop · /kurma · /kurma/korporat) + ayat pengenalan sebut kurma/gift box (+20) ✔ 27 Okt (490b8a5)
 - [x] **A3 · Pautan dalaman kedai utama → kurma** — homepage, /buah-online, 2 artikel kurma, footer; semua via `kurmaPath()` (+40) ✔ 27 Okt (3ef8f69)
-- [x] **A4 · FAQ + FAQPage schema pada /kurma/shop** — 6 soalan pembeli (beza 5 jenis, tempoh pos, simpanan, gift → /kurma, Ramadan 2027, borong → /kurma/borong) dipapar dalam UI + `faqPageSchema`; data `SHOP_FAQ` di lib/kurma-shop.ts (+40) ✔ 3 Nov — **Trek A SIAP**
+- [x] **A4 · FAQ + FAQPage schema pada /kurma/shop** — 6 soalan pembeli (beza 5 jenis, tempoh pos, simpanan, gift → /kurma, Ramadan 2027, borong → /kurma/borong) dipapar dalam UI + `faqPageSchema`; data `SHOP_FAQ` di lib/kurma-shop.ts (+40) ✔ 3 Nov (ba9bbf6) — **Trek A SIAP**
 - [x] **A5 · GSC Domain property `syababfresh.my` + submit sitemap kurma** — kurma.syababfresh.my kini dijejak; sitemap kurma Success, 5 pages discovered (+30) ✔ 2 Nov (manual pemilik)
 
 ## 🅱️ TREK B — GIFT / HAMPER KURMA (4 pencapaian)
 - [x] **B1 · JSON-LD funnel gift** — BreadcrumbList /kurma, /korporat, /borong (URL ikut subdomain via `kurmaAbs`) + Service "Gift Box Kurma Custom" RM4.50–RM27/kotak min 50 (+40) ✔ 23 Okt (76b09c4)
 - [ ] **B2 · Produk gift set dalam kedai / feed** — produk gift set yang pemilik sedang bina masuk DB & papar di storefront/feed (status DB — sahkan dengan pemilik, jangan anggap dari kod) (+40)
-- [x] **B3 · Frasa tepat "gift kurma" dalam H1/metadata funnel gift** — frasa literal "gift kurma" & "hamper kurma" kini dalam metaDesc + sub hero /kurma (varian default), metaDesc /kurma/ramadan ("gift kurma Raya & hamper kurma Ramadan") dan KORPORAT_META.description ("hamper kurma korporat"); H1 & metaTitle tidak diubah (+40) ✔ 3 Nov
+- [x] **B3 · Frasa tepat "gift kurma" dalam H1/metadata funnel gift** — frasa literal "gift kurma" & "hamper kurma" kini dalam metaDesc + sub hero /kurma (varian default), metaDesc /kurma/ramadan ("gift kurma Raya & hamper kurma Ramadan") dan KORPORAT_META.description ("hamper kurma korporat"); H1 & metaTitle tidak diubah (+40) ✔ 3 Nov (383ab63)
 - [ ] **B4 · Portfolio gift ber-schema** — /kurma/portfolio dengan ImageObject/Review schema + alt text kaya kata kunci (+30)
 
 ## 🅲 TREK C — KANDUNGAN (5 pencapaian)
@@ -57,7 +57,7 @@
 - [ ] **C2 · Artikel kurma #4** — cth "Kurma Medjool vs Ajwa: mana satu untuk anda" atau "Kelebihan kurma untuk berbuka" (+60)
 - [ ] **C3 · Artikel kurma #5 — persediaan Ramadan** — "Bila patut order kurma untuk Ramadan 2027" (timeline, borong vs runcit, gift korporat) (+60)
 - [ ] **C4 · Pautan dua hala artikel kurma ↔ funnel** — semua artikel kurma paut /kurma/shop & /kurma dengan anchor variasi; artikel lama kurma paut artikel baharu (+40)
-- [ ] **C5 · FAQ Ramadan pada funnel gift** — soalan musim (timeline order, deposit 50%, ~2 minggu siap, kuantiti minimum) dalam GIFT_FAQ (+30)
+- [x] **C5 · FAQ Ramadan pada funnel gift** — GIFT_FAQ kini 9 soalan: +"Bila patut tempah gift kurma untuk Ramadan 2027?" (Ramadan ±8 Feb 2027, sahkan design & deposit sebelum 1 Feb, lead time ~2 minggu) + "Perlu bayar deposit? Berapa?" (50% ikut `DEFAULT_DEPOSIT_PCT`); kuantiti minimum & ~2 minggu sedia ada; auto masuk FAQPage /kurma, /kurma/ramadan & /kurma/korporat (soalan deposit pendua di korporat dibuang) (+30) ✔ 3 Nov
 
 ## 🅳 TREK D — JUALAN SEGERA (3 pencapaian — MANUAL pemilik)
 - [x] **D1 · Merchant Center** — feed File (URL) "PRODUCTS SOURCE 4" aktif di MC: 310 produk, fetch harian (kemas kini terakhir 2 Nov 00:00), 308 approved, 212 klik/28 hari; produk kurma muncul percuma di tab Shopping; sumber Content API lama (36 produk gla_ dari plugin WooCommerce, termasuk produk sampel & domain tak padan) dipadam 2 Nov (+80) ✔ 2 Nov (disahkan pemilik — feed sudah aktif, pembersihan sumber lama kerja 2 Nov)
@@ -100,8 +100,9 @@
 | 27 Okt 2026 | **A3** Pautan dalaman kedai utama → kurma (3ef8f69) | +40 | 1 |
 | 2 Nov 2026 | **A5** GSC Domain property syababfresh.my + submit sitemap kurma (manual pemilik) · papan KURMA menggantikan papan buah-online | +30 | 1 |
 | 2 Nov 2026 | **D1** Merchant Center rupanya sudah aktif — feed "PRODUCTS SOURCE 4", 310 produk, 308 approved, 212 klik/28 hari; sumber Content API lama (36 produk gla_ WooCommerce) dipadam (disahkan pemilik) | +80 | 1 |
-| 3 Nov 2026 | **B3** Frasa literal "gift kurma" & "hamper kurma" dalam metaDesc + sub hero /kurma, metaDesc /kurma/ramadan, description /kurma/korporat (gift-copy.ts · korporat-copy.ts) | +40 | 2 |
-| 3 Nov 2026 | **A4** FAQ 6 soalan + FAQPage JSON-LD pada /kurma/shop (SHOP_FAQ, pautan ke /kurma & /kurma/borong) — **Trek A SIAP 5/5** | +40 | 2 |
+| 3 Nov 2026 | **B3** Frasa literal "gift kurma" & "hamper kurma" dalam metaDesc + sub hero /kurma, metaDesc /kurma/ramadan, description /kurma/korporat (gift-copy.ts · korporat-copy.ts) (383ab63) | +40 | 2 |
+| 3 Nov 2026 | **A4** FAQ 6 soalan + FAQPage JSON-LD pada /kurma/shop (SHOP_FAQ, pautan ke /kurma & /kurma/borong) — **Trek A SIAP 5/5** (ba9bbf6) | +40 | 2 |
+| 3 Nov 2026 | **C5** FAQ Ramadan pada funnel gift — 2 soalan musim (timeline tempah Ramadan 2027 · deposit 50%) dalam GIFT_FAQ → FAQPage /kurma, /ramadan, /korporat | +30 | 2 |
 
 ---
 
