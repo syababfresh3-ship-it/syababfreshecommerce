@@ -6,10 +6,10 @@ import { KurmaFooter } from '@/components/kurma/kurma-footer'
 import { TrustBar } from '@/components/kurma/korporat/trust-bar'
 import { ShopCard } from '@/components/kurma/shop/shop-card'
 import { ShopCartBar } from '@/components/kurma/shop/shop-cart-bar'
-import { JsonLd, breadcrumbSchema, itemListSchema } from '@/components/seo/json-ld'
-import { SHOP_META, SHOP_WA_TEXT } from '@/lib/kurma-shop'
+import { JsonLd, breadcrumbSchema, itemListSchema, faqPageSchema } from '@/components/seo/json-ld'
+import { SHOP_META, SHOP_WA_TEXT, SHOP_FAQ } from '@/lib/kurma-shop'
 import { getKurmaShop } from '@/lib/kurma-shop-data'
-import { kurmaAbs, kurmaPath } from '@/lib/kurma-host'
+import { kurmaAbs, kurmaPath, shopPath } from '@/lib/kurma-host'
 
 // Kedai kurma satu page — kurma.syababfresh.my/shop (proxy rewrite → /kurma/shop).
 // Beli terus: kad → troli kedai → /cart → /checkout (guest/COD/FPX sedia ada, tiada logik order baru).
@@ -99,6 +99,28 @@ export default async function KurmaShopPage() {
                 <span className="inline-flex items-center gap-0.5 text-[12px] font-bold mt-1.5" style={{ color: RED }}>Kurma Borong <ChevronRight className="h-3.5 w-3.5" /></span>
               </span>
             </Link>
+          </div>
+        </section>
+
+        {/* FAQ pembeli kurma — teks nampak + FAQPage JSON-LD (corak gift-landing; schema tanpa teks = berisiko) */}
+        <section className="max-w-3xl mx-auto px-4 pt-12">
+          <JsonLd data={faqPageSchema(SHOP_FAQ)} />
+          <h2 className="text-2xl font-black text-gray-900 text-center mb-6">Soalan lazim pembeli kurma</h2>
+          <div className="space-y-2.5">
+            {SHOP_FAQ.map((f, i) => (
+              <details key={i} className="group rounded-2xl border border-gray-200 bg-white px-4 py-3.5 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex items-center justify-between gap-3 cursor-pointer list-none font-bold text-gray-900 text-[15px]">
+                  {f.q}
+                  <ChevronRight className="h-5 w-5 text-gray-400 transition-transform group-open:rotate-90 shrink-0" />
+                </summary>
+                <p className="text-sm text-gray-500 mt-2.5 leading-relaxed">{f.a}</p>
+                {f.link && (
+                  <Link href={f.link.host === 'shop' ? shopPath(f.link.path) : kurmaPath(f.link.path)} className="inline-flex items-center gap-0.5 text-[13px] font-bold mt-2" style={{ color: RED }}>
+                    {f.link.label} <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                )}
+              </details>
+            ))}
           </div>
         </section>
       </main>

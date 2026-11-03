@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 870
+- **Mata:** 910
 - **Level:** 3 — Naik Carta 🚀
 - **Streak:** 2 hari *(putus 28 Okt–1 Nov; sambung 2 Nov, 3 Nov — rekod jujur)*
-- **Pencapaian dibuka:** 7 / 20
+- **Pencapaian dibuka:** 8 / 20
 - **Kemaskini terakhir:** 3 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3, 3 Nov).
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4), kedua-dua 3 Nov. **Trek A SIAP 5/5.**
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -43,7 +43,7 @@
 - [x] **A1 · Frasa "kurma online" dalam metadata root** — `src/app/layout.tsx` (description + OG + Twitter) (+10) ✔ 23 Okt (7d084c3)
 - [x] **A2 · llms.txt kluster kurma** — 3 Key pages (/kurma/shop · /kurma · /kurma/korporat) + ayat pengenalan sebut kurma/gift box (+20) ✔ 27 Okt (490b8a5)
 - [x] **A3 · Pautan dalaman kedai utama → kurma** — homepage, /buah-online, 2 artikel kurma, footer; semua via `kurmaPath()` (+40) ✔ 27 Okt (3ef8f69)
-- [ ] **A4 · FAQ + FAQPage schema pada /kurma/shop** — 6 soalan pembeli (beza jenis, tempoh pos, simpanan, gift, Ramadan); corak: `faqPageSchema` seperti di gift-landing (+40)
+- [x] **A4 · FAQ + FAQPage schema pada /kurma/shop** — 6 soalan pembeli (beza 5 jenis, tempoh pos, simpanan, gift → /kurma, Ramadan 2027, borong → /kurma/borong) dipapar dalam UI + `faqPageSchema`; data `SHOP_FAQ` di lib/kurma-shop.ts (+40) ✔ 3 Nov — **Trek A SIAP**
 - [x] **A5 · GSC Domain property `syababfresh.my` + submit sitemap kurma** — kurma.syababfresh.my kini dijejak; sitemap kurma Success, 5 pages discovered (+30) ✔ 2 Nov (manual pemilik)
 
 ## 🅱️ TREK B — GIFT / HAMPER KURMA (4 pencapaian)
@@ -101,6 +101,7 @@
 | 2 Nov 2026 | **A5** GSC Domain property syababfresh.my + submit sitemap kurma (manual pemilik) · papan KURMA menggantikan papan buah-online | +30 | 1 |
 | 2 Nov 2026 | **D1** Merchant Center rupanya sudah aktif — feed "PRODUCTS SOURCE 4", 310 produk, 308 approved, 212 klik/28 hari; sumber Content API lama (36 produk gla_ WooCommerce) dipadam (disahkan pemilik) | +80 | 1 |
 | 3 Nov 2026 | **B3** Frasa literal "gift kurma" & "hamper kurma" dalam metaDesc + sub hero /kurma, metaDesc /kurma/ramadan, description /kurma/korporat (gift-copy.ts · korporat-copy.ts) | +40 | 2 |
+| 3 Nov 2026 | **A4** FAQ 6 soalan + FAQPage JSON-LD pada /kurma/shop (SHOP_FAQ, pautan ke /kurma & /kurma/borong) — **Trek A SIAP 5/5** | +40 | 2 |
 
 ---
 
