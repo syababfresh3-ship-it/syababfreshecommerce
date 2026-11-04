@@ -290,6 +290,20 @@ export const PRODUCT_PHOTOS: string[] = [
   'https://lbbhlgqimswtbupcxtda.supabase.co/storage/v1/object/public/brand-assets/gift/photos/img_9744-1791443421.webp',
 ]
 
+// Alt text & kapsyen foto portfolio — deskriptif berkata-kunci, dipusingkan supaya tak berulang (B4, 4 Nov 2026).
+// Dikongsi grid PhotoGallery (alt) & JSON-LD ImageObject /kurma/portfolio (name/caption) supaya sepadan.
+export const GIFT_PHOTO_ALTS = [
+  'Gift box kurma custom korporat',
+  'Hamper kurma untuk cenderahati',
+  'Kotak hadiah kurma dengan jenama syarikat',
+  'Gift box kurma berlogo untuk agensi kerajaan',
+  'Kotak kurma custom untuk hadiah Ramadan',
+  'Gift kurma korporat siap dihantar',
+] as const
+export function giftPhotoAlt(i: number): string {
+  return `${GIFT_PHOTO_ALTS[i % GIFT_PHOTO_ALTS.length]} ${i + 1}`
+}
+
 
 
 export interface GiftBox {

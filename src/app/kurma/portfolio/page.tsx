@@ -1,17 +1,20 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ChevronRight } from 'lucide-react'
-import { PRODUCT_PHOTOS } from '@/lib/gift'
+import { PRODUCT_PHOTOS, GIFT_PHOTO_ALTS, giftPhotoAlt, thumbUrl } from '@/lib/gift'
 import { GIFT_CLIENTS, GIFT_WA_TEXT } from '@/lib/gift-copy'
 import { PhotoGallery } from '@/components/kurma/photo-gallery'
 import { KurmaNav } from '@/components/kurma/kurma-nav'
 import { KurmaFooter } from '@/components/kurma/kurma-footer'
-import { kurmaPath } from '@/lib/kurma-host'
+import { kurmaAbs, kurmaPath } from '@/lib/kurma-host'
+import { JsonLd, breadcrumbSchema, imageGallerySchema } from '@/components/seo/json-ld'
+
+const PORTFOLIO_DESC = 'Koleksi kotak hadiah kurma custom yang telah kami hasilkan untuk korporat, agensi kerajaan & individu.'
 
 export const metadata: Metadata = {
   // absolute: elak template root tambah "| SyababFresh" sekali lagi (pendua)
   title: { absolute: 'Portfolio — Custom Gift Box Kurma | SyababFresh' },
-  description: 'Koleksi kotak hadiah kurma custom yang telah kami hasilkan untuk korporat, agensi kerajaan & individu.',
+  description: PORTFOLIO_DESC,
   alternates: { canonical: kurmaPath('/portfolio') },
 }
 
@@ -23,6 +26,20 @@ export default function PortfolioPage() {
 
   return (
     <>
+    {/* B4 — JSON-LD sahaja, UI tak berubah: BreadcrumbList (corak B1 /korporat, URL kurmaAbs) +
+        CollectionPage/ImageGallery dengan ImageObject setiap foto PRODUCT_PHOTOS (name = alt grid). */}
+    <JsonLd data={breadcrumbSchema([{ name: 'SyababFresh', path: '/' }, { name: 'Gift Box Kurma', url: kurmaAbs('/') }, { name: 'Portfolio', url: kurmaAbs('/portfolio') }])} />
+    <JsonLd data={imageGallerySchema({
+      name: 'Portfolio Gift Box Kurma Custom — SyababFresh',
+      description: PORTFOLIO_DESC,
+      url: kurmaAbs('/portfolio'),
+      images: PRODUCT_PHOTOS.map((url, i) => ({
+        url,
+        thumbnailUrl: thumbUrl(url),
+        name: giftPhotoAlt(i),
+        caption: `${GIFT_PHOTO_ALTS[i % GIFT_PHOTO_ALTS.length]} — dihasilkan & dihantar oleh SyababFresh (Syabab Dates)`,
+      })),
+    })} />
     <KurmaNav current="portfolio" wa={{ label: 'portfolio-header', text: GIFT_WA_TEXT }} cta={{ href: kurmaPath('/#kira'), label: 'Kira harga' }} />
     <main className="min-h-screen bg-white">
       {/* Hero */}

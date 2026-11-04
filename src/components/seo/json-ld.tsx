@@ -257,3 +257,40 @@ export function itemListSchema(
     })),
   }
 }
+
+// Galeri imej — CollectionPage + ImageGallery/ImageObject (cth /kurma/portfolio, B4).
+// URL mesti absolute (kurmaAbs bila subdomain aktif). name/caption berkata-kunci = alt grid (giftPhotoAlt).
+// thumbnailUrl = derivatif 400px sedia ada (thumbUrl), bukan Supabase image transformation.
+export function imageGallerySchema(g: {
+  name: string
+  description: string
+  url: string
+  images: { url: string; thumbnailUrl?: string; name: string; caption: string }[]
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: g.name,
+    description: g.description,
+    url: g.url,
+    inLanguage: 'ms',
+    publisher: { '@id': `${BASE_URL}/#organization` },
+    mainEntity: {
+      '@type': 'ImageGallery',
+      name: g.name,
+      description: g.description,
+      url: g.url,
+      creator: { '@id': `${BASE_URL}/#organization` },
+      creditText: COMPANY.brand,
+      copyrightNotice: `© ${COMPANY.legalName}`,
+      associatedMedia: g.images.map((im, i) => ({
+        '@type': 'ImageObject',
+        contentUrl: im.url,
+        ...(im.thumbnailUrl ? { thumbnailUrl: im.thumbnailUrl } : {}),
+        name: im.name,
+        caption: im.caption,
+        ...(i === 0 ? { representativeOfPage: true } : {}),
+      })),
+    },
+  }
+}

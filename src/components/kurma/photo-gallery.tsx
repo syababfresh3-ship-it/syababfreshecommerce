@@ -5,7 +5,7 @@
 // Dialog modal (fokus masuk/pulih, ESC/arrow, body overflow) kini dalam ./lightbox — dikongsi
 // dengan grid klien LP korporat. API komponen ini tidak berubah.
 import { useState, useCallback } from 'react'
-import { thumbUrl } from '@/lib/gift'
+import { thumbUrl, giftPhotoAlt } from '@/lib/gift'
 import { Lightbox } from './lightbox'
 
 export function PhotoGallery({ photos }: { photos: string[] }) {
@@ -23,7 +23,7 @@ export function PhotoGallery({ photos }: { photos: string[] }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={thumbUrl(url)}
-              alt={`Gift box kurma ${i + 1}`}
+              alt={giftPhotoAlt(i)}
               loading="lazy"
               decoding="async"
               // Thumbnail tiada (upload gagal/baru) → jatuh balik ke imej penuh, bukan kotak kosong
