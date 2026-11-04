@@ -282,7 +282,7 @@ export const ARTIKEL: Artikel[] = [
           'Digelar raja kurma, dan sebaik anda pegang sebiji anda akan faham kenapa. Medjoul jauh lebih besar daripada kurma biasa, isinya sangat tebal dan lembap, dan rasanya paling hampir kepada karamel atau gula perang antara semua jenis.',
           'Kerana saiznya, satu biji Medjoul sudah cukup mengenyangkan sebagai snek. Ia juga kurma yang paling sesuai dibelah dan diisi dengan badam, keju atau mentega kacang — sesuatu yang sukar dibuat dengan kurma yang lebih kecil.',
           'Medjoul yang sampai ke Malaysia banyak datang dari Palestin. Ia digredkan Large, Jumbo dan Super Jumbo, dan harganya naik ketara mengikut saiz.',
-          'Pilih Medjoul kalau: anda mahu kurma yang terasa mewah, untuk dihidang kepada tetamu penting atau dijadikan hadiah tanpa perlu apa-apa hiasan tambahan. [Lihat pilihan Medjoul](/kategori/kurma-medjoul).',
+          'Pilih Medjoul kalau: anda mahu kurma yang terasa mewah, untuk dihidang kepada tetamu penting atau dijadikan hadiah tanpa perlu apa-apa hiasan tambahan. [Lihat pilihan Medjoul](/kategori/kurma-medjoul). Masih timbang antara dua kurma premium ini? Baca [Medjool vs Ajwa: mana satu untuk anda](/panduan/kurma-medjool-vs-ajwa).',
         ],
       },
       {
@@ -314,7 +314,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Untuk makan setiap hari tanpa rasa memberat — Ajwa atau Mariami.',
           'Untuk hidangan tetamu yang nampak menarik di dulang — Safawi Jumbo atau Medjoul.',
-          'Untuk hadiah dan bingkisan — Medjoul Super Jumbo, Ajwa gred besar, atau mana-mana pilihan kotak siap bungkus.',
+          'Untuk hadiah dan bingkisan — Medjoul Super Jumbo, Ajwa gred besar, atau mana-mana pilihan kotak siap bungkus. Kalau hadiah itu untuk staff, klien atau majlis dalam kuantiti besar, baca [panduan gift kurma & hamper korporat](/panduan/panduan-gift-kurma-hamper-korporat) untuk harga kotak custom dan timeline tempahan Ramadan.',
           'Untuk yang memang suka manis — Sukkari.',
           'Untuk yang tak suka kurma lembik — Deglet Noor Tunisia atau Mabroom.',
           'Kalau anda betul-betul tidak pasti, mula dengan pek 100g beberapa jenis berbeza. Lebih murah daripada membeli sekilo kurma yang akhirnya tidak menepati selera anda. [Lihat semua kurma](/kategori/kurma). Mahu cepat? [Beli kurma online](/kurma/shop) terus di kedai kurma kami, atau tempah [hamper dan gift kurma](/kurma) untuk hadiah.',
@@ -373,7 +373,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Ajwa ialah kultivar kurma yang ditanam di sekitar Madinah, Arab Saudi. Ia mudah dikenali daripada rupanya: warna hitam kelam hampir seragam, permukaan berkedut halus, dan bentuk yang lebih bulat serta padat berbanding kurma panjang seperti Safawi atau Mabroom.',
           'Yang paling membezakan Ajwa bukan rupanya, tetapi rasanya. Antara semua kurma popular, Ajwa mempunyai manis yang paling halus — tidak menyengat tekak, tiada rasa karamel pekat seperti Medjoul. Sebab itulah ramai yang boleh makan beberapa biji berturut-turut tanpa rasa muak.',
-          'Di Malaysia, Ajwa adalah antara kurma paling dicari, terutamanya menjelang Ramadan dan musim perayaan. Ia juga kurma yang paling kerap dipilih sebagai hadiah dan buah tangan. [Lihat semua gred Ajwa](/kategori/kurma-ajwa).',
+          'Di Malaysia, Ajwa adalah antara kurma paling dicari, terutamanya menjelang Ramadan dan musim perayaan. Ia juga kurma yang paling kerap dipilih sebagai hadiah dan buah tangan. [Lihat semua gred Ajwa](/kategori/kurma-ajwa). Keliru antara Ajwa dan Medjool? Baca [perbandingan Medjool vs Ajwa](/panduan/kurma-medjool-vs-ajwa).',
         ],
       },
       {
@@ -390,7 +390,7 @@ export const ARTIKEL: Artikel[] = [
           'Untuk makan harian dan bekalan berterusan — Medium. Ia memberi rasa Ajwa yang sama pada harga paling rendah, jadi anda boleh simpan stok tanpa fikir panjang.',
           'Untuk hidangan tetamu yang singgah — Large. Saiznya sudah cukup cantik untuk dihidang, tetapi masih berpatutan untuk dibeli kerap.',
           'Untuk majlis, jamuan dan dulang buka puasa — Jumbo. Saiz besar menyerlah bila disusun dalam bekas kaca atau dulang.',
-          'Untuk hadiah dan bingkisan — Super Jumbo VIP atau pilihan kotak siap bungkus. Kalau anda mahu sesuatu yang nampak berkelas tanpa perlu bungkusan tambahan, di sinilah tempatnya.',
+          'Untuk hadiah dan bingkisan — Super Jumbo VIP atau pilihan kotak siap bungkus. Kalau anda mahu sesuatu yang nampak berkelas tanpa perlu bungkusan tambahan, di sinilah tempatnya. Untuk hadiah syarikat atau agensi dalam kuantiti besar, Ajwa dalam kotak berjenama biasanya lebih praktikal — lihat panduan [hamper kurma korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
           'Ada juga pilihan Aliyah Mix — saiz bercampur dalam satu pek. Kerana tidak disaring ketat pada satu saiz, harganya lebih berpatutan. Sesuai bila anda mementingkan rasa dan kuantiti berbanding keseragaman rupa, seperti untuk agihan atau bekalan surau.',
         ],
       },
@@ -796,7 +796,7 @@ export const ARTIKEL: Artikel[] = [
         body: [
           'Bila kurma itu untuk orang lain, pertimbangannya bertukar. Di atas dulang hidangan, Medjool Jumbo atau Super Jumbo adalah kurma yang paling cepat menarik perhatian — besar, berkilat, dan terasa mewah walaupun tanpa hiasan. Kalau anda hidang kurma kepada tetamu penting, rakan niaga, atau pada majlis di mana rupa hidangan itu penting, Medjool jarang mengecewakan.',
           'Ajwa pula menang dari segi makna. Untuk hadiah kepada ibu bapa, guru, jiran yang baru pulang dari umrah, atau mana-mana penerima yang menghargai kurma Madinah, Ajwa gred Jumbo atau Super Jumbo dalam kotak yang kemas membawa mesej yang Medjool tidak dapat sampaikan. Sebab itu Ajwa adalah pilihan paling kerap untuk hamper kurma Ramadan dan buah tangan.',
-          'Untuk hadiah korporat dalam kuantiti besar — staff, klien, agensi — pilihan biasanya jatuh kepada Ajwa dalam kotak berjenama kerana kosnya lebih terkawal seunit dan maknanya lebih universal. Kalau itu yang anda cari, lihat [gift box kurma custom dengan logo anda](/kurma), yang sudah termasuk kurma, design percuma dan penghantaran seluruh Malaysia.',
+          'Untuk hadiah korporat dalam kuantiti besar — staff, klien, agensi — pilihan biasanya jatuh kepada Ajwa dalam kotak berjenama kerana kosnya lebih terkawal seunit dan maknanya lebih universal. Kalau itu yang anda cari, lihat [gift box kurma custom dengan logo anda](/kurma), yang sudah termasuk kurma, design percuma dan penghantaran seluruh Malaysia. Butiran harga, kuantiti minimum dan timeline Ramadan ada dalam [panduan gift kurma & hamper kurma korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
         ],
       },
       {

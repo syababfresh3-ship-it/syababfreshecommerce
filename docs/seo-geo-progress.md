@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 1060
+- **Mata:** 1100
 - **Level:** 4 — Juara Carian 🏆 *(naik 4 Nov 2026)*
 - **Streak:** 3 hari *(putus 28 Okt–1 Nov; sambung 2 Nov, 3 Nov, 4 Nov — rekod jujur)*
-- **Pencapaian dibuka:** 11 / 20
+- **Pencapaian dibuka:** 12 / 20
 - **Kemaskini terakhir:** 4 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4) + 30 (C5) + 60 (C1), keempat-empat 3 Nov + 60 (C2) 4 Nov. **Trek A SIAP 5/5. NAIK LEVEL 4 🏆 pada 4 Nov (1060 mata).** Seterusnya: C3 artikel Ramadan, C4 pautan dua hala, B2/B4, D2–D3 manual pemilik.
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4) + 30 (C5) + 60 (C1), keempat-empat 3 Nov + 60 (C2) + 40 (C4), kedua-dua 4 Nov. **Trek A SIAP 5/5. NAIK LEVEL 4 🏆 pada 4 Nov (1060 mata), kini 1100.** Seterusnya: C3 artikel Ramadan, B2/B4, D2–D3 manual pemilik.
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -54,9 +54,9 @@
 
 ## 🅲 TREK C — KANDUNGAN (5 pencapaian)
 - [x] **C1 · Artikel "Panduan Gift Kurma & Hamper Kurma Korporat"** — `/panduan/panduan-gift-kurma-hamper-korporat` (~1,100 patah, 7 seksyen + 7 FAQ, Article + FAQPage schema auto); 4 frasa sasaran dalam title/description/subheading; harga dari sheet gift-pricing (RM4.50–RM27, min 50, deposit 50%, ~2 minggu, design & finishing percuma); paut /kurma, /kurma/#kira, /kurma/korporat, /kurma/shop, /kurma/portfolio + artikel jenis-kurma & kurma-ajwa; renderer artikel kini hantar pautan /kurma* melalui `kurmaPath` (terus ke subdomain); sitemap auto; llms.txt 8→9 artikel (+60) ✔ 3 Nov (0628b8a)
-- [x] **C2 · Artikel "Kurma Medjool vs Ajwa: Mana Satu Untuk Anda?"** — `/panduan/kurma-medjool-vs-ajwa` (~1,250 patah badan, 8 seksyen + 6 FAQ, Article + FAQPage schema auto); 3 frasa sasaran ("kurma medjool online", "kurma ajwa online malaysia", "beli kurma online") dalam description + subheading; asal (Madinah vs Lembah Jordan/Palestin), saiz/tekstur/manis, harga sebenar ikut gred dari DB kedai (Ajwa RM12/100g Medium → RM89/kg Super Jumbo; Medjoul Palestin RM79–RM99/kg), harian vs tetamu vs hadiah, cara simpan; paut /kategori/kurma-medjoul, /kategori/kurma-ajwa, /kurma/shop, /kurma (gift) + artikel jenis-kurma & kurma-ajwa; sitemap & senarai /panduan auto; llms.txt 9→10 artikel (+60) ✔ 4 Nov — **NAIK LEVEL 4** (hash: isi pada unlock seterusnya)
+- [x] **C2 · Artikel "Kurma Medjool vs Ajwa: Mana Satu Untuk Anda?"** — `/panduan/kurma-medjool-vs-ajwa` (~1,250 patah badan, 8 seksyen + 6 FAQ, Article + FAQPage schema auto); 3 frasa sasaran ("kurma medjool online", "kurma ajwa online malaysia", "beli kurma online") dalam description + subheading; asal (Madinah vs Lembah Jordan/Palestin), saiz/tekstur/manis, harga sebenar ikut gred dari DB kedai (Ajwa RM12/100g Medium → RM89/kg Super Jumbo; Medjoul Palestin RM79–RM99/kg), harian vs tetamu vs hadiah, cara simpan; paut /kategori/kurma-medjoul, /kategori/kurma-ajwa, /kurma/shop, /kurma (gift) + artikel jenis-kurma & kurma-ajwa; sitemap & senarai /panduan auto; llms.txt 9→10 artikel (+60) ✔ 4 Nov (05fc234) — **NAIK LEVEL 4**
 - [ ] **C3 · Artikel kurma #5 — persediaan Ramadan** — "Bila patut order kurma untuk Ramadan 2027" (timeline, borong vs runcit, gift korporat) (+60)
-- [ ] **C4 · Pautan dua hala artikel kurma ↔ funnel** — semua artikel kurma paut /kurma/shop & /kurma dengan anchor variasi; artikel lama kurma paut artikel baharu (+40)
+- [x] **C4 · Pautan dua hala artikel kurma ↔ funnel** — semua 4 artikel kurma paut /kurma/shop & /kurma (anchor: "beli kurma online" · "kedai kurma online kami" · "hamper/gift kurma" · "gift box kurma custom" · "Custom Gift Box"); artikel lama paut artikel baharu: jenis-kurma-malaysia → gift ("panduan gift kurma & hamper korporat") + C2 ("Medjool vs Ajwa"); panduan-kurma-ajwa → gift ("hamper kurma korporat") + C2 ("perbandingan Medjool vs Ajwa"); C2 → gift ("panduan gift kurma & hamper kurma korporat"); gift sudah paut 2 artikel lama (tak diubah). Semua via renderer [slug]/page.tsx (kurmaPath untuk /kurma*) (+40) ✔ 4 Nov (hash: isi pada unlock seterusnya)
 - [x] **C5 · FAQ Ramadan pada funnel gift** — GIFT_FAQ kini 9 soalan: +"Bila patut tempah gift kurma untuk Ramadan 2027?" (Ramadan ±8 Feb 2027, sahkan design & deposit sebelum 1 Feb, lead time ~2 minggu) + "Perlu bayar deposit? Berapa?" (50% ikut `DEFAULT_DEPOSIT_PCT`); kuantiti minimum & ~2 minggu sedia ada; auto masuk FAQPage /kurma, /kurma/ramadan & /kurma/korporat (soalan deposit pendua di korporat dibuang) (+30) ✔ 3 Nov (fdfe7f1)
 
 ## 🅳 TREK D — JUALAN SEGERA (3 pencapaian — MANUAL pemilik)
@@ -104,7 +104,8 @@
 | 3 Nov 2026 | **A4** FAQ 6 soalan + FAQPage JSON-LD pada /kurma/shop (SHOP_FAQ, pautan ke /kurma & /kurma/borong) — **Trek A SIAP 5/5** (ba9bbf6) | +40 | 2 |
 | 3 Nov 2026 | **C5** FAQ Ramadan pada funnel gift — 2 soalan musim (timeline tempah Ramadan 2027 · deposit 50%) dalam GIFT_FAQ → FAQPage /kurma, /ramadan, /korporat (fdfe7f1) | +30 | 2 |
 | 3 Nov 2026 | **C1** Artikel panduan gift kurma & hamper kurma korporat (/panduan/panduan-gift-kurma-hamper-korporat) — harga sheet sebenar, timeline Ramadan/Raya 2027, pautan ke funnel kurma via kurmaPath — **1000 mata** (0628b8a) | +60 | 2 |
-| 4 Nov 2026 | **C2** Artikel "Kurma Medjool vs Ajwa: Mana Satu Untuk Anda?" (/panduan/kurma-medjool-vs-ajwa) — asal, saiz/tekstur/manis, harga ikut gred dari DB, harian/tetamu/hadiah, simpanan; 6 pautan dalaman ke kategori, /kurma/shop, /kurma & 2 artikel kurma; llms.txt 9→10 — **1060 mata · NAIK LEVEL 4 🏆** | +60 | 3 |
+| 4 Nov 2026 | **C2** Artikel "Kurma Medjool vs Ajwa: Mana Satu Untuk Anda?" (/panduan/kurma-medjool-vs-ajwa) — asal, saiz/tekstur/manis, harga ikut gred dari DB, harian/tetamu/hadiah, simpanan; 6 pautan dalaman ke kategori, /kurma/shop, /kurma & 2 artikel kurma; llms.txt 9→10 — **1060 mata · NAIK LEVEL 4 🏆** (05fc234) | +60 | 3 |
+| 4 Nov 2026 | **C4** Pautan dua hala artikel kurma ↔ funnel — 5 pautan kontekstual baharu dalam artikel.ts (jenis-kurma & panduan-ajwa → artikel gift + C2; C2 → artikel gift); semua 4 artikel kurma kini paut /kurma/shop & /kurma — **1100 mata** | +40 | 3 |
 
 ---
 
