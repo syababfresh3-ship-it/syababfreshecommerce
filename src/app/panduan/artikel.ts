@@ -743,6 +743,104 @@ export const ARTIKEL: Artikel[] = [
       },
     ],
   },
+  {
+    // C2 (4 Nov 2026) — frasa sasaran: "kurma medjool online", "kurma ajwa online malaysia", "beli kurma online".
+    // Harga = harga semasa kedai (DB products/variants, 4 Nov 2026); kemas kini bila harga berubah ketara.
+    slug: 'kurma-medjool-vs-ajwa',
+    title: 'Kurma Medjool vs Ajwa: Mana Satu Untuk Anda?',
+    description:
+      'Nak beli kurma online tapi keliru antara Medjool dan Ajwa? Bandingkan asal-usul (Lembah Jordan & Palestin vs Madinah), saiz, tekstur, manis, harga ikut gred, dan mana sesuai untuk makan harian, tetamu atau hadiah — sebelum anda order kurma Medjool online atau kurma Ajwa online Malaysia.',
+    updated: '2026-11',
+    sections: [
+      {
+        heading: 'Dua kurma paling dicari, dua dunia yang berbeza',
+        body: [
+          'Kalau anda taip "beli kurma online" dan tengok apa yang orang Malaysia paling kerap cari, dua nama ini sentiasa di atas: Medjool dan Ajwa. Kedua-duanya kurma premium, kedua-duanya kerap jadi hadiah, tetapi dari segi rasa, saiz dan harga mereka hampir bertentangan. Memilih yang salah bukan bermakna anda dapat kurma yang tak sedap — cuma anda bayar untuk sesuatu yang bukan selera anda.',
+          'Panduan ini bandingkan kedua-duanya secara terus: dari mana asalnya, apa beza di mulut, berapa harga ikut gred, dan untuk tujuan apa setiap satu paling sesuai. Kalau anda mahu gambaran lebih luas tentang Safawi, Mariami dan Sukkari sekali, baca dulu [panduan jenis kurma di Malaysia](/panduan/jenis-kurma-malaysia).',
+        ],
+      },
+      {
+        heading: 'Asal-usul: Madinah lawan Lembah Jordan dan Palestin',
+        body: [
+          'Ajwa hanya satu tempat asalnya: Madinah, Arab Saudi. Pokoknya ditanam di sekitar kota itu sejak berabad lamanya, dan sebab itulah Ajwa membawa nilai yang lebih daripada sekadar buah — ia kurma Madinah yang disebut dalam hadis, dan ramai yang membelinya untuk sedekah, buah tangan dari umrah, atau juadah berbuka pertama. Pasaran Malaysia sangat biasa dengan Ajwa; ia jenis kurma yang paling kerap diminta menjelang Ramadan.',
+          'Medjool (juga dieja Medjoul) pula ada cerita yang lebih jauh. Kultivar ini asalnya dari Tafilalet, Maghribi, kemudian dibawa dan ditanam secara besar-besaran di Lembah Jordan — merangkumi Jordan dan Palestin — serta California. Tanah dan cuaca Lembah Jordan menghasilkan Medjool yang paling besar dan paling lembap, dan inilah yang paling banyak sampai ke Malaysia. Medjool yang kami jual datang dari Palestin. [Lihat kurma Medjool Palestin](/kategori/kurma-medjoul).',
+          'Jadi secara ringkas: Ajwa ialah kurma tradisi dengan satu sumber, Medjool ialah kurma moden yang dipilih kerana saiz dan kemewahannya. Perbezaan asal ini menjelaskan hampir semua perbezaan lain di bawah.',
+        ],
+      },
+      {
+        heading: 'Beza saiz, tekstur dan manis',
+        body: [
+          'Saiz ialah beza yang paling ketara. Sebiji Medjool gred Jumbo boleh sebesar ibu jari orang dewasa, dengan isi yang tebal dan biji yang kecil berbanding isinya. Ajwa pula bulat, padat dan jauh lebih kecil — dua hingga tiga biji Ajwa lebih kurang sama berat dengan sebiji Medjool. Kalau anda letak kedua-duanya atas satu dulang, Medjool yang akan menarik mata dahulu.',
+          'Tekstur pula berbeza arah. Medjool lembap dan berisi, kadangkala hampir seperti gula-gula lembut; bila dibelah, isinya berkilat dan melekit sedikit di jari. Ajwa lembut juga, tetapi lebih kering dan lebih kenyal, dengan kulit nipis berkedut halus yang tidak melekit. Sebab itu Ajwa lebih senang dimakan sambil berjalan atau dibawa dalam beg, manakala Medjool lebih sesuai dihidang dan dinikmati perlahan-lahan.',
+          'Manis ialah paksi yang paling penting untuk selera. Medjool paling hampir kepada karamel atau gula perang — pekat, kaya, dan sebiji sudah cukup untuk hilangkan rasa nak makan manis. Ajwa pula manisnya paling halus antara kurma popular; ia tidak menyengat tekak walaupun dimakan lima enam biji berturut-turut. Kalau anda rasa kebanyakan kurma terlalu manis, Ajwa ialah jawapannya. Kalau anda mahu kurma yang terasa seperti pencuci mulut, pilih Medjool.',
+        ],
+      },
+      {
+        heading: 'Harga dan gred: apa yang anda bayar sebenarnya',
+        body: [
+          'Kedua-dua kurma ini digredkan ikut saiz biji, bukan ikut rasa — Large, Jumbo dan Super Jumbo untuk Medjool; Medium, Large, Jumbo dan Super Jumbo untuk Ajwa. Rasa asas dalam satu kultivar lebih kurang sama; yang naik bersama gred ialah saiz, keseragaman dan rupa di atas dulang. Jadi kalau kurma itu untuk dimakan sendiri, gred rendah bukan pilihan yang salah.',
+          'Di kedai kami pada masa artikel ini ditulis, Ajwa bermula sekitar RM12 untuk pek 100g gred Medium, dan sekilo gred Large sekitar RM69, Jumbo RM79, Super Jumbo RM89. Medjool Palestin sekilo pula sekitar RM79 untuk Large, RM89 Jumbo dan RM99 Super Jumbo, dengan pek 100g sekitar RM15 hingga RM17 untuk mencuba. Harga boleh berubah ikut kiriman dan musim, jadi semak harga semasa pada page produk sebelum order.',
+          'Dua perkara yang mengubah nilai sebenar: pertama, sekilo Medjool mengandungi lebih sedikit biji berbanding sekilo Ajwa kerana saiznya, jadi harga per biji Medjool lebih tinggi. Kedua, Ajwa gred tinggi dan Medjool gred tinggi sebenarnya berada dalam julat harga yang hampir sama — apa yang anda pilih antara keduanya lebih bergantung pada tujuan daripada bajet. [Lihat semua gred Ajwa](/kategori/kurma-ajwa), dan untuk pecahan gred yang lebih terperinci baca [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
+        ],
+      },
+      {
+        heading: 'Untuk makan harian: Ajwa lebih mesra, Medjool lebih mengenyangkan',
+        body: [
+          'Untuk kurma yang anda makan setiap pagi atau setiap kali berbuka, Ajwa biasanya pilihan yang lebih praktikal. Manisnya sederhana, ia tidak memberat, senang disimpan pada suhu bilik dalam bekas kedap udara, dan gred Medium atau Large sudah lebih daripada cukup untuk kegunaan sendiri. Ramai yang kekalkan stok Ajwa sepanjang tahun atas sebab inilah.',
+          'Medjool pula lebih sesuai sebagai snek yang berdiri sendiri. Sebiji selepas senaman, sebiji dibelah dan diisi dengan badam atau mentega kacang, atau sebiji sebagai pengganti pencuci mulut selepas makan malam. Kerana saiz dan kandungan gulanya, sebiji Medjool sudah mengenyangkan seperti dua tiga biji kurma biasa — jadi ia kurma untuk dinikmati perlahan, bukan dikunyah sedozen tanpa sedar.',
+          'Untuk kanak-kanak dan warga emas, kedua-duanya boleh; cuma Medjool perlu dibelah dan dibuang biji dahulu kerana saiz dan kelekitannya, manakala Ajwa lebih senang dimakan terus.',
+        ],
+      },
+      {
+        heading: 'Untuk tetamu dan hadiah: Medjool nampak mewah, Ajwa bermakna',
+        body: [
+          'Bila kurma itu untuk orang lain, pertimbangannya bertukar. Di atas dulang hidangan, Medjool Jumbo atau Super Jumbo adalah kurma yang paling cepat menarik perhatian — besar, berkilat, dan terasa mewah walaupun tanpa hiasan. Kalau anda hidang kurma kepada tetamu penting, rakan niaga, atau pada majlis di mana rupa hidangan itu penting, Medjool jarang mengecewakan.',
+          'Ajwa pula menang dari segi makna. Untuk hadiah kepada ibu bapa, guru, jiran yang baru pulang dari umrah, atau mana-mana penerima yang menghargai kurma Madinah, Ajwa gred Jumbo atau Super Jumbo dalam kotak yang kemas membawa mesej yang Medjool tidak dapat sampaikan. Sebab itu Ajwa adalah pilihan paling kerap untuk hamper kurma Ramadan dan buah tangan.',
+          'Untuk hadiah korporat dalam kuantiti besar — staff, klien, agensi — pilihan biasanya jatuh kepada Ajwa dalam kotak berjenama kerana kosnya lebih terkawal seunit dan maknanya lebih universal. Kalau itu yang anda cari, lihat [gift box kurma custom dengan logo anda](/kurma), yang sudah termasuk kurma, design percuma dan penghantaran seluruh Malaysia.',
+        ],
+      },
+      {
+        heading: 'Beli kurma online: apa perlu semak sebelum order Medjool atau Ajwa',
+        body: [
+          'Sama ada anda mahu kurma Medjool online atau kurma Ajwa online Malaysia, tiga perkara yang patut anda semak sebelum tekan bayar. Pertama, gred dinyatakan dengan jelas — "Ajwa" tanpa gred biasanya bermaksud Medium, dan harga patut mencerminkannya. Kedua, negara asal disebut; Medjool dari Lembah Jordan atau Palestin, Ajwa dari Madinah. Ketiga, berat bersih dan tarikh pembungkusan, kerana kurma yang terlalu lama di rak akan mengeras walaupun belum tamat tempoh.',
+          'Kalau anda belum pasti yang mana lebih kena dengan selera, cara paling murah ialah beli pek 100g kedua-duanya dahulu — kosnya kurang daripada RM35 untuk dua pek, jauh lebih jimat daripada membeli sekilo kurma yang akhirnya tidak habis. Semua pilihan Medjool, Ajwa dan kurma lain ada dalam satu page di [kedai kurma online kami](/kurma/shop); pilih saiz, tambah ke troli, bayar online dan kami pos terus ke rumah.',
+        ],
+      },
+      {
+        heading: 'Cara simpan Medjool dan Ajwa supaya tahan lama',
+        body: [
+          'Kedua-duanya tahan lama, tetapi Medjool lebih cerewet kerana kandungan airnya lebih tinggi. Dalam cuaca Malaysia, simpan Medjool dalam bekas kedap udara di dalam peti sejuk — ia kekal lembap dan berkilat berbulan-bulan, dan rasanya lebih sedap dimakan sejuk. Dibiarkan pada suhu bilik dalam bungkusan terbuka, permukaannya boleh mula bergula dan mengeras dalam beberapa minggu.',
+          'Ajwa lebih stabil. Bekas kedap udara di tempat sejuk dan gelap sudah memadai untuk kegunaan harian, dan peti sejuk untuk simpanan lebih lama, terutama gred besar yang lebih lembap. Untuk kedua-duanya, elakkan membiarkan bungkusan terbuka — udara, bukan masa, yang membuat kurma mengeras. Kalau ia sudah mengeras, kukus sebentar atau simpan semalaman bersama sekeping roti dalam bekas tertutup; kurma akan menyerap semula sedikit lembapan dan masih selamat dimakan.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Medjool atau Ajwa, mana lebih manis?',
+        a: 'Medjool. Rasanya pekat seperti karamel atau gula perang. Ajwa manisnya paling halus antara kurma popular, jadi lebih sesuai untuk orang yang rasa kurma lain terlalu manis.',
+      },
+      {
+        q: 'Kenapa Medjool lebih mahal per biji berbanding Ajwa?',
+        a: 'Saiznya dua hingga tiga kali lebih besar, jadi sekilo Medjool mengandungi lebih sedikit biji. Harga sekilo Medjool dan Ajwa gred tinggi sebenarnya hampir sama; yang berbeza ialah harga per biji.',
+      },
+      {
+        q: 'Medjool dari mana sebenarnya?',
+        a: 'Kultivar Medjool berasal dari Maghribi, tetapi yang paling banyak sampai ke Malaysia ditanam di Lembah Jordan, iaitu Jordan dan Palestin. Medjool di kedai kami datang dari Palestin.',
+      },
+      {
+        q: 'Kurma mana lebih sesuai untuk hadiah?',
+        a: 'Medjool Jumbo atau Super Jumbo kalau anda mahu hadiah yang nampak mewah di atas dulang. Ajwa gred besar kalau penerima menghargai kurma Madinah dan maknanya. Untuk hadiah korporat kuantiti besar, Ajwa dalam kotak berjenama biasanya pilihan paling praktikal.',
+      },
+      {
+        q: 'Boleh beli kurma Medjool online dan Ajwa online dalam satu order?',
+        a: 'Boleh. Kedua-duanya ada di kedai kurma online kami di /kurma/shop bersama Safawi, Mariami dan Sukkari — pilih saiz, tambah ke troli dan bayar sekali. Pek 100g sesuai untuk mencuba sebelum beli sekilo.',
+      },
+      {
+        q: 'Medjool kena simpan dalam peti sejuk ke?',
+        a: 'Ya, untuk cuaca Malaysia. Medjool lebih lembap daripada Ajwa, jadi bekas kedap udara di dalam peti sejuk mengekalkan teksturnya berbulan-bulan. Ajwa boleh disimpan pada suhu bilik dalam bekas kedap udara untuk kegunaan harian.',
+      },
+    ],
+  },
 ]
 
 export function getArtikel(slug: string) {
