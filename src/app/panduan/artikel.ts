@@ -263,7 +263,7 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Ajwa — hitam, lembut, manis halus',
         body: [
-          'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
+          'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan; gred besar selalunya habis dahulu, jadi lihat [panduan bila patut order kurma Ramadan](/panduan/bila-order-kurma-ramadan-2027) sebelum musim tiba. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
           'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — Medium, Large, Jumbo dan Super Jumbo — jadi harga banyak bergantung pada saiz, bukan rasa.',
           'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah. [Lihat semua kurma Ajwa](/kategori/kurma-ajwa).',
         ],
@@ -696,7 +696,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Proses tempah dan timeline untuk Ramadan & Raya 2027',
         body: [
           'Prosesnya lima langkah: minta sebut harga (borang atau WhatsApp, beritahu kuantiti, tarikh perlu dan logo); terima sebut harga ikut kuantiti, berat dan jenis kurma; sahkan dan bayar deposit 50%, baki selepas kotak siap; semak proof design yang kami sediakan percuma, tiada cetakan sebelum anda setuju; kemudian produksi lebih kurang 2 minggu bekerja dan penghantaran ke satu atau berbilang alamat di seluruh Malaysia.',
-          'Untuk Ramadan 2027, sahkan design dan deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa. Lebih selamat tempah dari Disember atau awal Januari — ada ruang untuk pusingan semakan design, kuantiti besar, dan agihan ke banyak cawangan.',
+          'Untuk Ramadan 2027, sahkan design dan deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa. Lebih selamat tempah dari Disember atau awal Januari — ada ruang untuk pusingan semakan design, kuantiti besar, dan agihan ke banyak cawangan. Timeline penuh bulan demi bulan, termasuk tarikh akhir untuk runcit dan borong, ada dalam [timeline order kurma Ramadan 2027](/panduan/bila-order-kurma-ramadan-2027).',
           'Untuk gift kurma Raya, kira undur dua minggu bekerja dari tarikh anda mahu kotak sampai, kemudian tambah penampan seminggu untuk semakan design dan penghantaran. Organisasi yang buat kedua-duanya (Ramadan dan Raya) selalunya tempah sekali gus dengan dua design berbeza supaya proses sebut harga dan deposit dibuat sekali sahaja.',
           'Untuk syarikat, GLC dan agensi kerajaan yang perlukan sebut harga mengikut kuantiti dan proses perolehan yang kemas, mulakan di [gift box kurma korporat](/kurma/korporat). Mahu tengok hasil sebenar dulu? Lihat [portfolio kotak yang pernah kami hasilkan](/kurma/portfolio) untuk organisasi seperti Petronas, FGV, Yayasan Hasanah dan JPJ.',
         ],
@@ -803,7 +803,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Beli kurma online: apa perlu semak sebelum order Medjool atau Ajwa',
         body: [
           'Sama ada anda mahu kurma Medjool online atau kurma Ajwa online Malaysia, tiga perkara yang patut anda semak sebelum tekan bayar. Pertama, gred dinyatakan dengan jelas — "Ajwa" tanpa gred biasanya bermaksud Medium, dan harga patut mencerminkannya. Kedua, negara asal disebut; Medjool dari Lembah Jordan atau Palestin, Ajwa dari Madinah. Ketiga, berat bersih dan tarikh pembungkusan, kerana kurma yang terlalu lama di rak akan mengeras walaupun belum tamat tempoh.',
-          'Kalau anda belum pasti yang mana lebih kena dengan selera, cara paling murah ialah beli pek 100g kedua-duanya dahulu — kosnya kurang daripada RM35 untuk dua pek, jauh lebih jimat daripada membeli sekilo kurma yang akhirnya tidak habis. Semua pilihan Medjool, Ajwa dan kurma lain ada dalam satu page di [kedai kurma online kami](/kurma/shop); pilih saiz, tambah ke troli, bayar online dan kami pos terus ke rumah.',
+          'Kalau anda belum pasti yang mana lebih kena dengan selera, cara paling murah ialah beli pek 100g kedua-duanya dahulu — kosnya kurang daripada RM35 untuk dua pek, jauh lebih jimat daripada membeli sekilo kurma yang akhirnya tidak habis. Semua pilihan Medjool, Ajwa dan kurma lain ada dalam satu page di [kedai kurma online kami](/kurma/shop); pilih saiz, tambah ke troli, bayar online dan kami pos terus ke rumah. Kalau belian ini untuk Ramadan, semak dulu [bila patut order untuk Ramadan 2027](/panduan/bila-order-kurma-ramadan-2027) supaya bungkusan sampai sebelum hari pertama puasa.',
         ],
       },
       {
@@ -838,6 +838,101 @@ export const ARTIKEL: Artikel[] = [
       {
         q: 'Medjool kena simpan dalam peti sejuk ke?',
         a: 'Ya, untuk cuaca Malaysia. Medjool lebih lembap daripada Ajwa, jadi bekas kedap udara di dalam peti sejuk mengekalkan teksturnya berbulan-bulan. Ajwa boleh disimpan pada suhu bilik dalam bekas kedap udara untuk kegunaan harian.',
+      },
+    ],
+  },
+  {
+    // C3 (5 Nov 2026) — frasa sasaran: "beli kurma online", "gift kurma", "hamper kurma korporat".
+    // Tarikh & angka dari sumber sedia ada: Ramadan ±8 Feb 2027 & deadline gift 1 Feb 2027 (GIFT_FAQ/RAMADAN di lib/gift-copy),
+    // deposit 50% (DEFAULT_DEPOSIT_PCT), lead time ~2 minggu, min 50 kotak; kurier 24j Lembah Klang / 1–3 hari bekerja & COD
+    // (faq-penghantaran, SHOP_FAQ); karton borong 3–5kg (SHOP_FAQ/borong-copy). Kemas kini bila tarikh rasmi/deadline berubah.
+    slug: 'bila-order-kurma-ramadan-2027',
+    title: 'Bila Patut Order Kurma untuk Ramadan 2027? (Timeline Lengkap)',
+    description:
+      'Ramadan 1448H dijangka bermula 8 Februari 2027. Timeline lengkap bila patut beli kurma online untuk rumah, bila peniaga perlu order borong, tarikh akhir sahkan gift kurma dan hamper kurma korporat (1 Februari 2027), dan cara simpan stok supaya tahan hingga Syawal.',
+    updated: '2026-11',
+    sections: [
+      {
+        heading: 'Ramadan 2027 dijangka bermula 8 Februari: kenapa tarikh order anda penting',
+        body: [
+          'Ramadan 1448H dijangka bermula sekitar 8 Februari 2027, tertakluk kepada pengumuman rasmi. Bagi kebanyakan rumah di Malaysia, kurma ialah barang pertama yang dicari bila Ramadan menghampiri, dan setiap tahun corak yang sama berulang: pembeli yang order awal dapat gred dan saiz yang mereka mahu, pembeli yang order pada minggu terakhir terpaksa ambil apa yang tinggal.',
+          'Sebabnya mudah. Ajwa, Medjoul dan Safawi bukan ditanam di sini; ia diimport dalam kiriman bermusim, dan gred besar yang paling dicari untuk hadiah dan tetamu selalunya habis dahulu. Pada masa sama, kurier seluruh Malaysia menerima lonjakan bungkusan pada minggu terakhir sebelum puasa, jadi tempoh penghantaran yang biasanya 1–3 hari bekerja boleh menjadi lebih lama.',
+          'Artikel ini menyusun timeline undur yang praktikal untuk rumah, peniaga dan syarikat, berpandukan proses sebenar kedai kami dan tempoh kurier biasa, bukan andaian.',
+        ],
+      },
+      {
+        heading: 'Timeline undur: November hingga minggu pertama Ramadan',
+        body: [
+          'November hingga Disember 2026: fasa survey dan order awal. Ini masa terbaik untuk mencuba jenis kurma yang anda belum biasa; pek 100g Ajwa atau Medjoul cukup untuk rasa sebelum beli sekilo. Kalau anda sudah tahu apa yang anda mahu, order terus; kurma tahan berbulan-bulan dalam bekas kedap udara, jadi tiada rugi menyimpan awal.',
+          'Awal hingga pertengahan Januari 2027: tetingkap paling selamat untuk order runcit dan borong. Stok Ramadan sudah masuk, pilihan masih lengkap, dan kurier belum sesak. Pesanan yang disahkan dalam tempoh ini sampai ke Lembah Klang dalam 24 jam dan ke negeri lain, termasuk Sabah dan Sarawak, dalam 1–3 hari bekerja.',
+          'Akhir Januari 2027: panggilan terakhir untuk penghantaran pos dan kurier. Pesanan yang dibuat sebelum 31 Januari masih selamat sampai sebelum 8 Februari ke hampir semua alamat, dengan 1–3 hari bekerja kurier ditambah penampan musim. Selepas itu, Sabah, Sarawak dan kawasan pedalaman menjadi tidak pasti.',
+          'Februari 2027: minggu-minggu terakhir, bergantung lokasi. Lembah Klang masih boleh dihantar dalam 24 jam, dan COD tersedia untuk kawasan tertentu. Untuk kawasan lain, pilihan paling selamat ialah ambil sendiri di premis kami di Bandar Baru Bangi; WhatsApp dahulu untuk sahkan stok dan masa. Jangan harapkan pos untuk pesanan yang dibuat pada minggu pertama Ramadan.',
+        ],
+      },
+      {
+        heading: 'Gift kurma dan hamper kurma korporat: sahkan sebelum 1 Februari',
+        body: [
+          'Gift box kurma custom mengikut jadual yang berbeza daripada beli kurma untuk rumah, kerana ada proses design, cetakan dan pembungkusan sebelum kotak boleh dihantar. Ikut proses sebenar kami: design dan deposit 50% perlu disahkan dahulu, kemudian produksi mengambil lebih kurang 2 minggu bekerja, bergantung pada kuantiti.',
+          'Oleh itu tarikh akhir untuk gift kurma Ramadan 2027 ialah 1 Februari 2027. Sahkan design dan deposit selewat-lewatnya pada tarikh itu supaya kotak siap sebelum hari pertama puasa. Mula dari Disember atau awal Januari kalau kuantiti besar, perlu beberapa pusingan semakan design, atau agihan ke berbilang alamat seperti cawangan.',
+          'Untuk syarikat, GLC dan agensi kerajaan, hamper kurma korporat bermula serendah 50 kotak dan boleh sehingga 2,000 kotak lebih, dengan harga sudah termasuk kurma (Ajwa, Mariami atau Safawi) dan khidmat reka bentuk percuma. Kira harga ikut kuantiti di page [gift kurma custom](/kurma), atau terus ke page [hamper kurma korporat](/kurma/korporat) untuk sebut harga rasmi. Panduan penuh harga dan proses ada dalam [panduan gift kurma & hamper korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
+        ],
+      },
+      {
+        heading: 'Borong atau runcit: bila masing-masing patut order',
+        body: [
+          'Runcit sesuai untuk rumah, hadiah individu dan majlis kecil: anda pilih jenis dan saiz, bayar sekali, dan bungkusan dihantar terus ke alamat. Tetingkap terbaik ialah awal hingga pertengahan Januari, tetapi tiada halangan untuk [beli kurma online](/kurma/shop) lebih awal kalau anda mahu kunci gred yang anda suka.',
+          'Borong ialah untuk peniaga: kedai runcit dan kafe, peniaga bazar Ramadan, ejen dan stokis, serta masjid, NGO dan jawatankuasa iftar. Kurma borong dijual ikut karton 3–5kg (5kg sekarton untuk kebanyakan jenis, Sukkari 3kg) dengan harga mengikut kuantiti. Peniaga bazar patut order paling awal sekali, kerana stok perlu diterima, disusun semula dan dilabel sebelum bazar mula pada hari pertama Ramadan.',
+          'Cadangan kami untuk borong: mohon senarai harga dari November atau Disember, sahkan kuantiti karton dalam Januari, dan pastikan penghantaran pertama diterima sebelum akhir Januari. Pra-tempah Ramadan, bila dibuka, dipaparkan di page [kurma borong](/kurma/borong); mohon senarai harga di sana atau WhatsApp pasukan borong.',
+        ],
+      },
+      {
+        heading: 'Jenis kurma mana untuk Ramadan?',
+        body: [
+          'Ajwa dari Madinah ialah kurma yang paling dicari menjelang Ramadan: hitam, lembut, manis halus, dan selalu dipilih untuk berbuka dan hadiah yang bermakna. Safawi juga dari Madinah, hitam memanjang dengan sedikit nota karamel, dan lebih berpatutan untuk stok harian sebulan. Medjoul paling besar dan berisi, rasa paling berkaramel, sesuai untuk dulang tetamu dan hadiah yang nampak mewah.',
+          'Mariami ialah kurma harian yang lembut berkulit nipis, mesra kanak-kanak dan warga emas, dan biasanya pilihan paling praktikal untuk keluarga besar. Sukkari dari Arab Saudi berwarna keemasan dan paling manis, ada versi kering dan Rotab yang lembut.',
+          'Campuran yang praktikal: satu kurma harian (Mariami atau Safawi) untuk berbuka setiap hari dan satu kurma istimewa (Ajwa atau Medjoul) untuk tetamu. Panduan penuh setiap jenis ada dalam [jenis kurma di Malaysia](/panduan/jenis-kurma-malaysia), dan kalau pilihan anda antara dua yang paling popular, baca [Medjool vs Ajwa: mana satu untuk anda](/panduan/kurma-medjool-vs-ajwa).',
+        ],
+      },
+      {
+        heading: 'Simpan stok kurma Ramadan supaya tahan sampai Syawal',
+        body: [
+          'Sebab utama kurma mengeras bukan tempoh simpanan, tetapi udara. Pek yang dibiarkan terbuka hilang lembapan dalam beberapa hari. Sebaik pek dibuka, pindahkan ke bekas kedap udara dan simpan di tempat sejuk dan gelap, jauh dari cahaya matahari terus.',
+          'Dalam cuaca Malaysia, peti sejuk lebih selamat untuk kurma lembap seperti Medjoul dan Ajwa gred besar; dalam bekas kedap udara, teksturnya kekal berbulan-bulan. Ajwa dan Safawi gred biasa boleh disimpan pada suhu bilik dalam bekas tertutup. Rotab dan kurma muda disimpan sejuk beku dan dikeluarkan sedikit demi sedikit.',
+          'Untuk stok sebulan, bahagikan kepada bekas kecil mengikut minggu supaya bekas utama tidak kerap dibuka. Kurma yang sudah mengeras masih boleh dimakan: kukus sebentar atau simpan semalaman bersama sekeping roti dalam bekas tertutup. Dengan cara ini, kurma yang dibeli pada Januari masih elok hingga Syawal.',
+        ],
+      },
+      {
+        heading: 'Senarai semak ringkas sebelum anda order',
+        body: [
+          'Rumah dan hadiah individu: tetapkan jenis dan saiz pada November atau Disember, order sebelum pertengahan Januari, dan simpan dalam bekas kedap udara. Peniaga: mohon harga borong dari November, terima karton pertama sebelum akhir Januari. Syarikat dan agensi: sahkan design dan deposit gift box sebelum 1 Februari 2027, lebih awal untuk kuantiti besar atau berbilang alamat.',
+          'Pengumuman rasmi tarikh Ramadan boleh berbeza sehari dua; kalau ragu, order lebih awal. Kurma tidak rosak kerana disimpan tiga minggu lebih awal, tetapi stok yang habis dan kurier yang lewat tidak boleh diundur.',
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: 'Bila tarikh akhir order kurma supaya sampai sebelum Ramadan 2027?',
+        a: 'Untuk penghantaran kurier ke seluruh Malaysia, order sebelum 31 Januari 2027 adalah selamat (1–3 hari bekerja ditambah penampan musim). Lembah Klang lebih longgar kerana penghantaran 24 jam. Untuk gift box custom, tarikh akhir sahkan design dan deposit ialah 1 Februari 2027.',
+      },
+      {
+        q: 'Boleh pre-order kurma awal untuk Ramadan?',
+        a: 'Boleh, dan digalakkan. Runcit: order di kedai kurma online kami bila-bila masa; pesanan dihantar terus dan kurma tahan berbulan-bulan dalam bekas kedap udara. Borong: pra-tempah Ramadan melalui page kurma borong atau WhatsApp. Gift box: tempah dari Disember atau awal Januari.',
+      },
+      {
+        q: 'Berapa lama kurma tahan disimpan?',
+        a: 'Dalam bekas kedap udara di tempat sejuk dan gelap, kurma kering seperti Ajwa dan Safawi tahan berbulan-bulan. Medjoul dan Ajwa gred besar paling elok dalam peti sejuk dan kekal berbulan-bulan juga. Stok yang dibeli pada Januari mudah bertahan hingga Syawal; musuhnya ialah udara dan haba, bukan masa.',
+      },
+      {
+        q: 'Bila tarikh akhir untuk gift kurma dan hamper kurma korporat?',
+        a: 'Sahkan design dan deposit 50% selewat-lewatnya 1 Februari 2027. Produksi mengambil lebih kurang 2 minggu bekerja selepas itu. Kuantiti besar atau agihan ke berbilang alamat patut dimulakan dari Disember.',
+      },
+      {
+        q: 'Peniaga bazar patut order borong bila?',
+        a: 'Mohon senarai harga dari November atau Disember, sahkan kuantiti karton dalam Januari, dan terima penghantaran pertama sebelum akhir Januari supaya ada masa untuk susun semula pek sebelum bazar mula. Kurma borong dijual ikut karton 3–5kg.',
+      },
+      {
+        q: 'Terlepas tarikh, masih boleh dapat kurma sebelum Ramadan?',
+        a: 'Bergantung lokasi. Lembah Klang masih boleh menerima penghantaran dalam 24 jam dan COD di kawasan tertentu sehingga hari-hari terakhir. Untuk kawasan lain, WhatsApp kami untuk sahkan stok dan pilihan ambil sendiri di Bandar Baru Bangi; penghantaran pos pada minggu pertama Ramadan tidak dijamin sampai sebelum puasa bermula.',
       },
     ],
   },
