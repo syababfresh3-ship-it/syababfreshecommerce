@@ -125,6 +125,10 @@ export async function POST(request: Request) {
 
   const { data: orderNumber } = await supabase.rpc('generate_lp_order_number')
   const first = validatedItems[0]
+  // Pilihan "FPX / E-Wallet (already paid)" = staf sahkan duit dah masuk. Order ini tiada bil CHIP,
+  // jadi tiada webhook yang akan tanda bayar — tanpa ini ia kekal 'unpaid' dan disorok dari Orders,
+  // export penghantaran & Lalamove (semua tapis online-belum-bayar). Bank transfer/COD kekal lalai.
+  const paidUpfront = payment_method === 'fpx' || payment_method === 'ewallet'
 
   const { data: order, error } = await supabase.from('lp_guest_orders').insert({
     order_number: orderNumber,
@@ -132,7 +136,8 @@ export async function POST(request: Request) {
     name: name.trim(),
     phone: phone.trim(),
     email: email?.trim() || null,
-    address: isPickup ? (address?.trim() || null) : address.trim(),
+    // Lajur address NOT NULL — pickup tanpa alamat dulu gagal simpan (null). Isi teks pickup (sama dgn e-mel).
+    address: isPickup ? (address?.trim() || 'Ambil sendiri di kedai (Pickup)') : address.trim(),
     postcode: isPickup ? null : (postcode?.trim() || null),
     delivery_method: isPickup ? 'pickup' : 'delivery',
     pickup_date: isPickup ? (pickup_date || null) : null,
@@ -147,6 +152,7 @@ export async function POST(request: Request) {
     discount: appliedDiscount,
     total,
     payment_method: payment_method ?? 'bank_transfer',
+    ...(paidUpfront ? { payment_status: 'paid' } : {}),
     source: isReseller ? 'reseller' : source,
     reseller_id: isReseller ? reseller_id : null,
     items: validatedItems,

@@ -9,6 +9,7 @@ import { LpCustomerEdit } from './lp-customer-edit'
 import { ReceiptActions } from '../../receipt-actions'
 import { ResellerInvoiceActions } from './reseller-invoice-actions'
 import { ResellerDeliveryEdit } from './reseller-delivery-edit'
+import { PaymentDropdown } from '../../order-dropdowns'
 
 const statusCls: Record<string, string> = {
   pending:    'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -38,7 +39,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
     ? order.items
     : [{ product_name: order.product_name, variant_name: order.variant_name, quantity: order.quantity, unit_price: order.unit_price }]
 
-  const isPaid = ['fpx', 'ewallet'].includes(order.payment_method) && order.payment_status === 'paid'
+  // Ikut payment_status sahaja — dulu terhad FPX/e-wallet, jadi bank transfer/COD yang dah ditanda bayar
+  // masih tertulis "Pending payment".
+  const isPaid = order.payment_status === 'paid'
   const lpTitle = (order.landing_pages as any)?.title ?? 'LP'
 
   return (
@@ -109,11 +112,16 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                 <span className="text-gray-500">Method</span>
                 <span className="font-medium">{payLabel[order.payment_method] ?? order.payment_method}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-gray-500">Status</span>
-                <span className={`font-semibold ${isPaid ? 'text-green-600' : 'text-amber-600'}`}>
-                  {isPaid ? '✓ Paid' : 'Pending payment'}
-                </span>
+                {order.source === 'reseller' ? (
+                  // Order borong dikeyin staf (tiada webhook CHIP) → bayaran ditanda manual di sini / page Borong.
+                  <PaymentDropdown orderId={order.id} currentStatus={order.payment_status ?? 'unpaid'} paymentMethod={order.payment_method} isLp allowManual />
+                ) : (
+                  <span className={`font-semibold ${isPaid ? 'text-green-600' : 'text-amber-600'}`}>
+                    {isPaid ? '✓ Paid' : 'Pending payment'}
+                  </span>
+                )}
               </div>
               {order.source === 'reseller' ? (
                 <ResellerDeliveryEdit orderId={order.id} deliveryFee={Number(order.delivery_fee ?? 0)} />

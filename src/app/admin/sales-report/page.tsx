@@ -1,12 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 // Jualan Sales & Borong — laporan ikut tempoh: ringkasan sumber (Web · LP/Iklan · Sales WhatsApp · Borong · Gift),
-// jadual ikut staf sales (source 'whatsapp-<nama>') dan ikut pelanggan borong (reseller_id). Baca sahaja — tiada migration.
+// jadual ikut staf sales (source 'whatsapp-<nama>') dan ikut pelanggan borong (reseller_id). Tiada migration.
+// Laporan baca sahaja, KECUALI senarai order borong di bawah: status & bayaran boleh ditukar terus (dropdown sama seperti page Borong).
 // Tidak bertindih: Analytics (trafik/produk), P&L (kos iklan/ROAS), Orders (senarai), Borong (jumlah seumur hidup ikut telefon).
 import Link from 'next/link'
 import { BarChart2, Users, Store, Package } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { classifyLpSource } from '@/lib/admin-order-filters'
+import { StatusDropdown, PaymentDropdown } from '../orders/order-dropdowns'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -45,7 +47,7 @@ async function getData(from: string, to: string) {
   const sb = createAdminClient()
   const start = `${from}T00:00:00+08:00`, end = `${to}T23:59:59+08:00`
   const [lp, web, gift, rs] = await Promise.all([
-    sb.from('lp_guest_orders').select('id, order_number, name, phone, total, source, reseller_id, status, payment_status, created_at, product_name, quantity').gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(5000),
+    sb.from('lp_guest_orders').select('id, order_number, name, phone, total, source, reseller_id, status, payment_status, payment_method, created_at, product_name, quantity').gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(5000),
     sb.from('orders').select('id, total, status, created_at').gte('created_at', start).lte('created_at', end).limit(5000),
     sb.from('gift_deals').select('id, amount, stage, created_at').gte('created_at', start).lte('created_at', end).limit(2000),
     sb.from('resellers').select('id, customers(name, phone_norm)'),
@@ -184,18 +186,19 @@ export default async function SalesReportPage({ searchParams }: { searchParams: 
               {d.borongOrders.map((o: Row) => (
                 <tr key={o.id}>
                   <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtD(o.created_at)}</td>
-                  <td className="px-3 py-2 font-mono text-gray-700"><Link href={`/admin/orders?q=${encodeURIComponent(o.order_number)}`} className="hover:underline">{o.order_number}</Link></td>
+                  <td className="px-3 py-2 font-mono text-gray-700"><Link href={`/admin/orders/lp/${o.id}`} className="hover:underline">{o.order_number}</Link></td>
                   <td className="px-3 py-2 text-gray-900">{d.resellerName.get(o.reseller_id) ?? o.name}</td>
                   <td className="px-3 py-2 text-gray-600 max-w-[22rem] truncate">{o.product_name}{o.quantity > 1 ? ` ×${o.quantity}` : ''}</td>
                   <td className="px-3 py-2 text-right font-mono text-gray-900">{rm(o.total)}</td>
-                  <td className="px-3 py-2 text-xs text-gray-600">{o.status}</td>
-                  <td className="px-3 py-2 text-xs">{o.payment_status === 'paid' ? <span className="font-semibold text-gray-900">paid</span> : <span className="text-amber-700">{o.payment_status}</span>}</td>
+                  <td className="px-3 py-1.5"><StatusDropdown orderId={o.id} currentStatus={o.status} isLp /></td>
+                  <td className="px-3 py-1.5"><PaymentDropdown orderId={o.id} currentStatus={o.payment_status ?? 'unpaid'} paymentMethod={o.payment_method} isLp allowManual /></td>
                 </tr>
               ))}
               {d.borongOrders.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">Tiada order borong dalam tempoh ini.</td></tr>}
             </tbody>
           </table>
         </div>
+        <p className="text-[11px] text-gray-400 mt-1">Status &amp; bayaran boleh ditukar terus di sini. Semua order borong (tanpa had tempoh) + invois ada di <Link href="/admin/resellers" className="underline">Borong</Link>.</p>
       </section>
     </div>
   )

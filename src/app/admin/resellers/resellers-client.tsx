@@ -29,7 +29,8 @@ const STATUS_STYLE: Record<string, string> = {
   suspended: 'bg-red-100 text-red-600 border-red-200',
 }
 
-export function ResellersClient({ initial, initialFilter = 'all' }: { initial: Reseller[]; initialFilter?: string }) {
+// ordersSlot = panel Order Borong (dirender server di page.tsx) — diletak selepas tajuk supaya order nampak dahulu.
+export function ResellersClient({ initial, initialFilter = 'all', ordersSlot }: { initial: Reseller[]; initialFilter?: string; ordersSlot?: React.ReactNode }) {
   const [rows, setRows] = useState<Reseller[]>(initial)
   const [filter, setFilter] = useState<string>(initialFilter)   // all | pending | active | suspended
   const counts = rows.reduce<Record<string, number>>((m, r) => { m[r.status] = (m[r.status] ?? 0) + 1; return m }, {})
@@ -122,6 +123,8 @@ export function ResellersClient({ initial, initialFilter = 'all' }: { initial: R
           <Plus className="h-4 w-4" /> Tambah Pelanggan Borong
         </button>
       </div>
+
+      {ordersSlot}
 
       {/* Harga borong lalai (semua pelanggan) — migration 154 */}
       <WholesalePrices />

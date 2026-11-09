@@ -74,18 +74,22 @@ export function PaymentDropdown({
   paymentMethod,
   isLp,
   onUpdate,
+  allowManual,
 }: {
   orderId: string
   currentStatus: string
   paymentMethod: string
   isLp?: boolean
   onUpdate?: () => void
+  // Order dikeyin staf (borong / Quick Order) tiada bil CHIP → tiada webhook yang akan tanda bayar,
+  // jadi FPX/e-wallet pun perlu boleh ditanda manual. Lalai false = kelakuan asal (Auto).
+  allowManual?: boolean
 }) {
   const [status, setStatus] = useState(currentStatus)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const isAuto = paymentMethod === 'fpx' || paymentMethod === 'ewallet'
+  const isAuto = !allowManual && (paymentMethod === 'fpx' || paymentMethod === 'ewallet')
   const isRefunded = currentStatus === 'refunded'
 
   async function handleChange(next: string) {
