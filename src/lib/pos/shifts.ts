@@ -64,8 +64,8 @@ export async function loadLastClosedShift(sb: SB, registerId: string): Promise<P
   return num(data as PosShiftRow)
 }
 
-/** Ambil semua baris melepasi had 1000 PostgREST (shift bazar sibuk). */
-async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>): Promise<T[]> {
+/** Ambil semua baris melepasi had 1000 PostgREST (shift bazar sibuk / laporan julat). */
+export async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = []
   for (let page = 0; page < 20; page++) {
     const { data, error } = await build(page * 1000, page * 1000 + 999)
