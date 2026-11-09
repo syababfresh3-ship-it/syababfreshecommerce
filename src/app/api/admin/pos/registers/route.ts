@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
 
 // Register/terminal POS (admin). GET senarai · POST { code, name, location } · PATCH { id, code?, name?, location?, is_active? }
+// DELETE ?id= → padam HANYA jika tiada sejarah (jualan / shift). Ada sejarah → 409: nyahaktifkan sahaja (laporan lama
+// merujuk register ini; memadamnya akan merosakkan rekod).
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
@@ -53,4 +55,23 @@ export async function PATCH(request: Request) {
   const { data, error } = await supabase!.from('pos_registers').update(patch).eq('id', b.id).select('*').single()
   if (error) return NextResponse.json({ error: error.code === '23505' ? 'Register code already exists' : error.message }, { status: 400 })
   return NextResponse.json({ register: data })
+}
+
+export async function DELETE(request: Request) {
+  const { supabase, forbidden } = await requireAdmin()
+  if (forbidden) return forbidden
+  const id = new URL(request.url).searchParams.get('id') ?? ''
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  const sb = supabase!
+  const [sales, shifts] = await Promise.all([
+    sb.from('pos_sales').select('id', { count: 'exact', head: true }).eq('register_id', id),
+    sb.from('pos_shifts').select('id', { count: 'exact', head: true }).eq('register_id', id),
+  ])
+  const nSales = sales.count ?? 0, nShifts = shifts.count ?? 0
+  if (nSales > 0 || nShifts > 0) {
+    return NextResponse.json({ error: `This register has ${nSales} sale${nSales === 1 ? '' : 's'} and ${nShifts} shift${nShifts === 1 ? '' : 's'} on record, so it cannot be deleted. Set it to Inactive to hide it from the POS.` }, { status: 409 })
+  }
+  const { error } = await sb.from('pos_registers').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.code === '23503' ? 'This register is still referenced by other records. Set it to Inactive instead.' : error.message }, { status: error.code === '23503' ? 409 : 400 })
+  return NextResponse.json({ ok: true })
 }

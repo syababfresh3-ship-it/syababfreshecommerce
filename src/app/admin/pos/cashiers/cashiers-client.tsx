@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { Plus, KeyRound, Lock, UserRound, Trash2, Unlock, Pencil, Check, X } from 'lucide-react'
 
-// Tiga bahagian: Register (terminal) — tambah / edit kod, nama, lokasi, senarai harga (migration 156) / aktif;
+// Tiga bahagian: Register (terminal) — tambah / edit kod, nama, lokasi, senarai harga (migration 156) / aktif / padam;
+// Padam register & kasyer hanya dibenarkan bila tiada sejarah (server 409 bila ada) — yang bersejarah dinyahaktifkan.
 // Kasyer + PIN; Akses akaun peranti (pos_staff).
 // UI dalam Bahasa Inggeris (keputusan pemilik 9 Nov 2026 — seluruh seksyen admin POS).
 interface Register { id: string; code: string; name: string; location: string | null; is_active: boolean; price_list_id?: string | null; outlet_id?: string | null }
@@ -86,6 +87,7 @@ export function PosCashiersClient() {
                 <button type="button" onClick={() => { const pin = prompt(`New PIN for ${c.name} (4–6 digits):`); if (pin) run(() => api('/api/admin/pos/cashiers', { method: 'PATCH', body: JSON.stringify({ id: c.id, pin }) }), 'PIN reset') }} className={BTN}><KeyRound className="h-3.5 w-3.5" /> Reset PIN</button>
                 {locked && <button type="button" onClick={() => run(() => api('/api/admin/pos/cashiers', { method: 'PATCH', body: JSON.stringify({ id: c.id, unlock: true }) }), 'Unlocked')} className={BTN}><Unlock className="h-3.5 w-3.5" /> Unlock</button>}
                 <button type="button" onClick={() => run(() => api('/api/admin/pos/cashiers', { method: 'PATCH', body: JSON.stringify({ id: c.id, is_active: !c.is_active }) }), 'Updated')} className={toggleCls(c.is_active)}>{c.is_active ? 'Active' : 'Inactive'}</button>
+                <button type="button" onClick={() => { if (confirm(`Delete cashier ${c.name}? This cannot be undone.`)) run(() => api(`/api/admin/pos/cashiers?id=${c.id}`, { method: 'DELETE' }), 'Cashier deleted') }} className="h-8 w-8 grid place-items-center rounded-md hover:bg-red-50 text-red-700" aria-label="Delete cashier" title="Delete"><Trash2 className="h-4 w-4" /></button>
               </li>
             )
           })}
@@ -169,6 +171,8 @@ function RegisterRow({ r, run, lists, outlets }: { r: Register; run: (fn: () => 
       <span className="flex-1">{r.name}<span className="text-gray-400">{r.location ? ` · ${r.location}` : ''}</span><span className="block text-xs text-gray-400">Prices: {listName ?? 'Store (default)'}{outlets.length > 0 ? <> · Outlet: {outlet ? `${outlet.code} ${outlet.name}` : 'none'}</> : null}</span></span>
       <button type="button" onClick={start} className={BTN}><Pencil className="h-3.5 w-3.5" /> Edit</button>
       <button type="button" onClick={() => run(() => api('/api/admin/pos/registers', { method: 'PATCH', body: JSON.stringify({ id: r.id, is_active: !r.is_active }) }), 'Updated')} className={toggleCls(r.is_active)}>{r.is_active ? 'Active' : 'Inactive'}</button>
+      {/* Padam: hanya register tanpa jualan/shift; yang ada sejarah ditolak server (409) → guna Inactive */}
+      <button type="button" onClick={() => { if (confirm(`Delete register ${r.code} · ${r.name}? This cannot be undone.`)) run(() => api(`/api/admin/pos/registers?id=${r.id}`, { method: 'DELETE' }), 'Register deleted') }} className="h-8 w-8 grid place-items-center rounded-md hover:bg-red-50 text-red-700" aria-label="Delete register" title="Delete"><Trash2 className="h-4 w-4" /></button>
     </li>
   )
 }
