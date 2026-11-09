@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { CHIP_METHODS } from '@/lib/chip-methods'
 import { confirmLpGuestOrder, confirmStorefrontOrder } from '@/lib/order-confirm'
 import { stampHeartbeat } from '@/lib/cron-heartbeat'
+import { expireUnpaidOnlineOrders, type ExpireSummary } from '@/lib/expire-unpaid-orders'
 
 // Audit §0.6: dulu hanya ['fpx','ewallet'] — kad/DuitNow/FPX B2B (migration 116/117) terlepas
 const CHIP_METHOD_LIST = Array.from(CHIP_METHODS)
@@ -23,6 +24,9 @@ const FAILED_STATUSES = ['cancelled', 'expired']
 //      reference + chip purchase id are read straight from the raw payload and
 //      re-verified against CHIP before confirming (so it's safe even though the
 //      original webhook failed signature verification).
+//   3) Auto-batal order online yang masih tak dibayar selepas 7 hari (lib/expire-unpaid-orders) —
+//      dijalankan SELEPAS pass 1–2 supaya apa-apa yang sebenarnya dah bayar disahkan dahulu.
+//      `?only=expire` = Pass 3 sahaja · `?dry=1` = Pass 3 lapor tanpa menulis (semakan manual).
 // Authorize via `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron sends this).
 export async function GET(req: Request) {
   const auth = req.headers.get('authorization')
@@ -33,6 +37,11 @@ export async function GET(req: Request) {
   if (!secret) return Response.json({ ok: false, error: 'CHIP_SECRET_KEY missing' }, { status: 503 })
 
   const supabase = createAdminClient()
+  const qs = new URL(req.url).searchParams
+  const dryExpire = qs.get('dry') === '1'
+  if (qs.get('only') === 'expire') {
+    return Response.json({ ok: true, expired: await expireUnpaidOnlineOrders(supabase, secret, { dryRun: dryExpire }) })
+  }
   // Reconcile orders created in the last 14 days, but skip the most recent 2 min
   // so we don't race a payment that is still mid-flight at the gateway.
   const windowStart = new Date(Date.now() - 14 * 864e5).toISOString()
@@ -178,7 +187,7 @@ export async function GET(req: Request) {
     // Only do work if the order is still unconfirmed — cheap DB check first.
     const { data: ord } = await supabase
       .from('orders')
-      .select('id, payment_ref, payment_status')
+      .select('id, payment_ref, payment_status, status')
       .eq('id', ref)
       .maybeSingle()
 
@@ -187,6 +196,12 @@ export async function GET(req: Request) {
       summary.replay.scanned++
       if (await chipStatus(chipId) !== 'paid') continue
       if (!ord.payment_ref) await supabase.from('orders').update({ payment_ref: chipId }).eq('id', ref)
+      // Dibatal sebagai tak-berbayar (auto-luput 7 hari / expired → 'failed') tapi pelanggan bayar juga:
+      // set semula 'unpaid' supaya confirmStorefrontOrder (guard payment_status='unpaid') boleh sahkan.
+      // Pass 1c hanya liputi order dicipta ≤14 hari; di sini ikut tarikh BAYARAN (log webhook).
+      if (ord.status === 'cancelled' && ord.payment_status === 'failed') {
+        await supabase.from('orders').update({ payment_status: 'unpaid' }).eq('id', ref).eq('status', 'cancelled').eq('payment_status', 'failed')
+      }
       const r = await confirmStorefrontOrder(supabase, ref)
       if (r === 'confirmed') summary.replay.confirmed++
       continue
@@ -194,19 +209,34 @@ export async function GET(req: Request) {
 
     const { data: lp } = await supabase
       .from('lp_guest_orders')
-      .select('id, payment_ref, status')
+      .select('id, payment_ref, status, payment_status')
       .eq('id', ref)
       .maybeSingle()
     if (lp) {
-      if (lp.status !== 'pending') continue
+      // Dibatal sebagai tak-berbayar (auto-luput 7 hari / expired) tapi ada webhook 'paid' → boleh dibuka semula.
+      // Order yang dah 'paid'/'refunded' lalu dibatalkan staf TIDAK disentuh.
+      const revivable = lp.status === 'cancelled' && lp.payment_status !== 'paid' && lp.payment_status !== 'refunded'
+      if (lp.status !== 'pending' && !revivable) continue
       summary.replay.scanned++
       if (await chipStatus(chipId) !== 'paid') continue
       if (!lp.payment_ref) await supabase.from('lp_guest_orders').update({ payment_ref: chipId }).eq('id', ref)
+      // Buka semula ke pending supaya confirmLpGuestOrder (guard status='pending') sahkan penuh — sama dgn Pass 1c.
+      if (revivable) await supabase.from('lp_guest_orders').update({ status: 'pending' }).eq('id', ref).eq('status', 'cancelled')
       const r = await confirmLpGuestOrder(supabase, ref)
       if (r === 'confirmed') summary.replay.confirmed++
     }
   }
 
+  // ── Pass 3: auto-batal order online tak dibayar > 7 hari ────────────
+  // Gagal di sini tak boleh jejaskan pass 1–2 yang dah siap (heartbeat tetap dicap).
+  let expired: ExpireSummary | { error: string }
+  try {
+    expired = await expireUnpaidOnlineOrders(supabase, secret, { dryRun: dryExpire })
+  } catch (e) {
+    console.error('[reconcile-payments] pass 3 (auto-batal) gagal', e)
+    expired = { error: e instanceof Error ? e.message : 'unknown' }
+  }
+
   await stampHeartbeat(supabase, 'reconcile-payments')
-  return Response.json({ ok: true, ...summary })
+  return Response.json({ ok: true, ...summary, expired })
 }

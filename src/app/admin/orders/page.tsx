@@ -203,7 +203,11 @@ export default async function AdminOrdersPage({
   // LP / iklan). Order dari Quick Order (source 'whatsapp'*) atau Inbox WA / CRM
   // (source 'crm'/'manual') diuruskan team sale sendiri — COD sudah disahkan dengan
   // customer — jadi JANGAN muncul di sini (kekal boleh dilihat via tab Pending).
-  const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending' && !isTeamManagedSrc(o.source))
+  // isPaidOrOffline: di tab Pending senarai ini termasuk FPX/e-wallet BELUM bayar (showAllPending). Dulu semuanya
+  // masuk seksyen ini sebagai kad dengan butang Confirm (ratusan — nampak macam COD menunggu), dan menekannya
+  // mengesahkan order tak berbayar lalu ia hilang dari semua senarai. Yang menunggu pengesahan staf hanyalah
+  // COD / bank transfer (atau online yang dah bayar); belum-bayar kekal dalam jadual di bawah ("Awaiting payment").
+  const lpOrders = allLpOrders.filter((o: any) => o.status === 'pending' && isPaidOrOffline(o) && !isTeamManagedSrc(o.source))
 
   // Transform LP orders to match Order shape for the table.
   // Order Quick Order (source='whatsapp'/'manual') = order MANUAL, bukan LP sebenar →
