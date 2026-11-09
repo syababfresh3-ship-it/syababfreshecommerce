@@ -18,13 +18,16 @@ function NumKey({ k, onPress, disabled, size }: { k: string; onPress: (k: string
   )
 }
 
-export function PosNumpad({ value, onChange, decimal = false, maxLen = 9, onEnter, enterLabel = 'OK', disabled = false, extraKey, size = 'md' }: {
+export function PosNumpad({ value, onChange, decimal = false, maxLen = 9, onEnter, enterLabel = 'OK', disabled = false, extraKey, size = 'md', keepLeadingZero = false }: {
   value: string; onChange: (v: string) => void; decimal?: boolean; maxLen?: number
   onEnter?: () => void; enterLabel?: string; disabled?: boolean
   /** 'lg' = kekunci lebih besar pada skrin lg+ (skrin bayar). */
   size?: NumpadSize
   /** Kekunci tambahan di baris bawah kiri (cth '00'); lalai '.' bila decimal, '00' bila tidak; '' = kosong. */
   extraKey?: string
+  /** Untuk KOD (PIN): '0' di depan dikekalkan. Lalai false = mod jumlah wang, di mana '0' diganti digit seterusnya
+   *  (elak "05"). Tanpa ini PIN bermula 0 tak boleh ditaip — pepijat dilaporkan pemilik 9 Nov. */
+  keepLeadingZero?: boolean
 }) {
   const extra = extraKey ?? (decimal ? '.' : '00')
   const press = (k: string) => {
@@ -33,7 +36,7 @@ export function PosNumpad({ value, onChange, decimal = false, maxLen = 9, onEnte
     if (k === '.') { if (!decimal || value.includes('.')) return; onChange((value || '0') + '.'); return }
     if (k === '00') { if (!value || value === '0') return; if (value.length + 2 > maxLen) return; onChange(value + '00'); return }
     if (value.length >= maxLen) return
-    if (value === '0' && k !== '.') { onChange(k); return }
+    if (!keepLeadingZero && value === '0' && k !== '.') { onChange(k); return }
     if (decimal && value.includes('.') && value.split('.')[1].length >= 3) return
     onChange(value + k)
   }

@@ -23,7 +23,8 @@ export function PinPad({ onDone, mode = 'switch', onlyManager = false, title }: 
   const [busy, setBusy] = useState(false)
 
   const submit = async () => {
-    if (!picked || pin.length < 4) return
+    if (!picked) { toast.error('Choose your name first'); return }
+    if (pin.length < 4) { toast.error('PIN has 4 to 6 digits'); return }
     if (mode === 'verify') { onDone({ cashier: picked, pin }); setPin(''); return }
     setBusy(true)
     try {
@@ -54,7 +55,7 @@ export function PinPad({ onDone, mode = 'switch', onlyManager = false, title }: 
           <span key={i} className={`h-3.5 w-3.5 rounded-full ${i < pin.length ? 'bg-gray-900' : i < 4 ? 'bg-gray-300' : 'bg-gray-200'}`} />
         ))}
       </div>
-      <PosNumpad value={pin} onChange={v => setPin(v.slice(0, 6))} maxLen={6} extraKey="" onEnter={submit} enterLabel={busy ? 'Checking…' : mode === 'verify' ? 'Confirm' : 'Enter'} disabled={busy || !picked} />
+      <PosNumpad value={pin} onChange={v => setPin(v.slice(0, 6))} maxLen={6} extraKey="" keepLeadingZero onEnter={submit} enterLabel={busy ? 'Checking…' : mode === 'verify' ? 'Confirm' : 'Enter'} disabled={busy || !picked} />
     </div>
   )
 }
