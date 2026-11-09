@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
 import { kurmaPath } from '@/lib/kurma-host'
@@ -67,6 +67,7 @@ const sections: Section[] = [
       { href: '/admin/pos/products', label: 'POS Products',      icon: PosScanIcon },
       { href: '/admin/pos/outlets',  label: 'Outlets & Stock',    icon: Store },
       { href: '/admin/pos/transfers', label: 'Delivery Orders',   icon: Truck },
+      { href: '/admin/pos/consignment', label: 'Consignment',     icon: Handshake },
       { href: '/admin/pos/cashiers', label: 'Cashiers & Access', icon: Users },
       { href: '/admin/pos/settings', label: 'POS Settings',      icon: Settings2 },
       { href: POS_HOST ? `https://${POS_HOST}/pos/sell` : '/pos/sell', label: 'Open POS', icon: ExternalLink, external: true },

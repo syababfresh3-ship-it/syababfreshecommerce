@@ -3,6 +3,7 @@ import { klDayWindow } from '@/lib/daily-summary'
 import { round2, round3 } from '@/lib/pos/money'
 import { shiftDateStr } from '@/lib/pos/dates'
 import { fetchAll } from '@/lib/pos/shifts'
+import { consignRangeTotals } from '@/lib/pos/consign'
 import type { PosPayMethod } from '@/lib/pos/types'
 
 // Laporan POS (server): ringkasan satu hari (laporan X di /pos/sales & dashboard admin).
@@ -111,6 +112,8 @@ export interface PosRangeReport {
   byMethod: { method: PosPayMethod; count: number; amount: number }[]
   byRegister: { registerId: string | null; code: string; name: string; outlet: string | null; sales: number; revenue: number }[]
   byCashier: { name: string; sales: number; revenue: number }[]
+  /** Konsainan (migration 158): jualan barang pembekal, jumlah perlu dibayar, komisen kedai. Sifar bila tiada. */
+  consign: { sales: number; payable: number; commission: number; lines: number }
 }
 
 const RANGE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -141,7 +144,7 @@ export async function buildPosRangeReport(sb: SB, from: string, to: string, opts
     throw e
   }
 
-  const [items, pays, prevSales, regsFull] = await Promise.all([
+  const [items, pays, prevSales, regsFull, consign] = await Promise.all([
     fetchAll<ItemRow>((f, t) => {
       let q = sb.from('pos_sale_items').select('name, variant_name, qty, unit, line_total, products(categories(name)), pos_sales!inner(status, sold_at, outlet_id)').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
       if (outlet) q = q.eq('pos_sales.outlet_id', outlet)
@@ -158,6 +161,7 @@ export async function buildPosRangeReport(sb: SB, from: string, to: string, opts
       return q
     }),
     sb.from('pos_registers').select('id, code, name, outlet:pos_outlets!outlet_id(code, name)'),
+    consignRangeTotals(sb, start, end, outlet),
   ])
   const regs = (regsFull.error ? ((await sb.from('pos_registers').select('id, code, name')).data ?? []) : (regsFull.data ?? [])) as RegRow[]
   const regMap = new Map(regs.map(r => [r.id, r]))
@@ -219,5 +223,6 @@ export async function buildPosRangeReport(sb: SB, from: string, to: string, opts
     byMethod: Array.from(methodAgg.values()).sort((a, b) => b.amount - a.amount),
     byRegister: Array.from(regAgg.values()).sort((a, b) => b.revenue - a.revenue),
     byCashier: Array.from(cashAgg.values()).sort((a, b) => b.revenue - a.revenue),
+    consign,
   }
 }

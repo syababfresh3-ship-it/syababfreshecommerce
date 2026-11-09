@@ -4,6 +4,7 @@ import { normalizePhone } from '@/lib/phone'
 import { computeTotals, lineTotal, round2, round3 } from '@/lib/pos/money'
 import { deductPosSaleStock } from '@/lib/pos/stock'
 import { loadOpenShift } from '@/lib/pos/shifts'
+import { stampSaleConsign } from '@/lib/pos/consign'
 import { POS_PAY_METHODS, type PosPaymentInput, type PosSaleDetail, type PosSalePayload, type PosTicketLine } from '@/lib/pos/types'
 
 // Cipta & lengkapkan jualan POS (server). Harga baris dari klien adalah muktamad (pelanggan dah
@@ -131,6 +132,8 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
     throw new PosSaleError(error.message, 500)
   }
   const r = data as { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
+  // Konsainan (migration 158): snapshot pembekal + jumlah perlu dibayar pada baris. Gagal/tiada 158 → jualan tetap sah.
+  if (!r.duplicate) await stampSaleConsign(sb, r.id).catch(e => console.error('[pos-sale] cop konsainan gagal', e instanceof Error ? e.message : e))
   if (!r.duplicate && r.status === 'paid') await afterSalePaid(sb, r.id, { phone: phoneNorm || null, name: payload.customer_name, promoId: promo?.id ?? null })
   return r
 }

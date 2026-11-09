@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, Receipt, ScanBarcode, Users, Settings2, TriangleAlert, Store, Truck, ClipboardList, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
+import { ExternalLink, Receipt, ScanBarcode, Users, Settings2, TriangleAlert, Store, Truck, ClipboardList, ArrowUpRight, ArrowDownRight, Minus, Handshake } from 'lucide-react'
 import { POS_HOST } from '@/lib/pos/host'
 import { fmtQty } from '@/lib/pos/money'
 import { POS_PAY_LABEL } from '@/lib/pos/types'
@@ -22,6 +22,7 @@ const LINKS = [
   { href: '/admin/pos/products', label: 'POS Products', icon: ScanBarcode, d: 'Favourites, weight, barcode, prices' },
   { href: '/admin/pos/outlets', label: 'Outlets & Stock', icon: Store, d: 'Stock per outlet, movements, counts' },
   { href: '/admin/pos/transfers', label: 'Delivery Orders', icon: Truck, d: 'HQ → outlet DO, returns, print' },
+  { href: '/admin/pos/consignment', label: 'Consignment', icon: Handshake, d: 'Suppliers, amounts owed, statements' },
   { href: '/admin/pos/cashiers', label: 'Cashiers & Access', icon: Users, d: 'Registers, cashiers + PIN, device accounts' },
   { href: '/admin/pos/settings', label: 'POS Settings', icon: Settings2, d: 'Receipt, DuitNow QR, discount limit' },
 ]
@@ -136,6 +137,13 @@ export function PosDashboardClient() {
               <StatTile label="Discounts given" value={money(t.discount)} sub={t.revenue > 0 ? `${((t.discount / (t.revenue + t.discount)) * 100).toFixed(1)}% of gross` : undefined} />
               <StatTile label="Voided sales" value={String(t.voids)} sub={t.voids ? `${money(t.voidAmount)} reversed` : t.pending ? `${t.pending} pending` : 'none'} />
             </div>
+
+            {/* Konsainan: sebahagian hasil adalah hak pembekal */}
+            {report.consign && report.consign.lines > 0 && (
+              <Link href="/admin/pos/consignment" className="block rounded-xl border border-gray-200 bg-white p-4 hover:border-gray-300">
+                <p className="text-sm text-gray-700"><span className="font-semibold text-gray-900">Consignment:</span> {money(report.consign.sales)} of this revenue came from suppliers&apos; goods. <span className="font-semibold text-gray-900">{money(report.consign.payable)}</span> is owed to suppliers and {money(report.consign.commission)} is your commission. Your own revenue is <span className="font-semibold text-gray-900">{money(Math.max(0, t.revenue - report.consign.payable))}</span>.</p>
+              </Link>
+            )}
 
             {t.sales === 0 ? (
               <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
