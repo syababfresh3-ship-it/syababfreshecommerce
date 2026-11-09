@@ -3,14 +3,12 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import {
-  LayoutDashboard, Package, ShoppingBag, Users, Tag,
-  BarChart2, Image, MapPin, FolderOpen,
-  LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban,
-} from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
 import { kurmaPath } from '@/lib/kurma-host'
+import { POS_HOST } from '@/lib/pos/host'
+import { ScanBarcode as PosScanIcon, Wallet as PosWalletIcon } from 'lucide-react'
 
 type NavEntry = { href: string; label: string; icon: React.ElementType; badge?: keyof Counts; external?: boolean }
 type Section = { label: string; items: NavEntry[]; collapsible?: boolean }
@@ -57,6 +55,21 @@ const sections: Section[] = [
       // syababfresh-app via raw export (/api/admin/orders-export). Page masih wujud —
       // untuk pulihkan: nyahkomen baris bawah + tambah balik `Route` ke import lucide.
       // { href: '/admin/lalamove-grouping',  label: 'Lalamove Groups',  icon: Route },
+    ],
+  },
+  {
+    // POS kaunter/bazar (docs/plan-pos.md, Nov 2026) — pos.syababfresh.my; jadual pos_* (migration 155)
+    label: 'POS',
+    items: [
+      { href: '/admin/pos',          label: 'POS Dashboard',     icon: PosWalletIcon },
+      { href: '/admin/pos/sales',    label: 'POS Sales',         icon: Receipt },
+      { href: '/admin/pos/shifts',   label: 'Shifts (Open/Close)', icon: ClipboardList },
+      { href: '/admin/pos/products', label: 'POS Products',      icon: PosScanIcon },
+      { href: '/admin/pos/outlets',  label: 'Outlets & Stock',    icon: Store },
+      { href: '/admin/pos/transfers', label: 'Delivery Orders',   icon: Truck },
+      { href: '/admin/pos/cashiers', label: 'Cashiers & Access', icon: Users },
+      { href: '/admin/pos/settings', label: 'POS Settings',      icon: Settings2 },
+      { href: POS_HOST ? `https://${POS_HOST}/pos/sell` : '/pos/sell', label: 'Open POS', icon: ExternalLink, external: true },
     ],
   },
   {

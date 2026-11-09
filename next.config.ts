@@ -94,6 +94,37 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // POS (docs/plan-pos.md): service worker skop /pos/ (Fasa 2) + benarkan kamera untuk imbas
+      // barcode pada laluan /pos/* sahaja. Entri kemudian menimpa Permissions-Policy global di atas
+      // untuk laluan ini; storefront kekal camera=().
+      {
+        source: '/pos-sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/pos/' },
+        ],
+      },
+      {
+        source: '/pos/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=()' },
+        ],
+      },
+      // Admin Produk POS: butang kamera untuk isi barcode (CameraScanner) — laluan /admin/pos/* sahaja.
+      {
+        source: '/admin/pos/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=()' },
+        ],
+      },
+      // Dispatch admin (scan keluar AWB) guna kamera html5-qrcode juga — sebelum ini disekat oleh
+      // header global camera=() di atas tanpa disedari (9 Nov 2026). `:path*` padan laluan asas juga.
+      {
+        source: '/admin/shipping/dispatch/:path*',
+        headers: [
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=(), payment=()' },
+        ],
+      },
     ]
   },
   async redirects() {

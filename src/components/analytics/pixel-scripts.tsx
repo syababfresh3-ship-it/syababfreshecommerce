@@ -1,6 +1,7 @@
 'use client'
 
 import Script from 'next/script'
+import { usePathname } from 'next/navigation'
 
 interface Props {
   metaPixelId: string
@@ -10,6 +11,9 @@ interface Props {
 }
 
 export function PixelScripts({ metaPixelId, googleAdsId, googleAdsLabel, gtmId }: Props) {
+  const pathname = usePathname()
+  // POS kaunter (/pos/*) bukan storefront — jangan rekod PageView/iklan dari peranti kasyer.
+  if (pathname?.startsWith('/pos')) return null
   return (
     <>
       {/* ── Meta Pixel ───────────────────────────────────────── */}

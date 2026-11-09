@@ -1,0 +1,23 @@
+{
+  "name": "SyababFresh POS",
+  "short_name": "SF POS",
+  "description": "SyababFresh point of sale — Bangi store and bazaar counters.",
+  "start_url": "/pos/sell",
+  "display": "standalone",
+  "background_color": "#F4F6F5",
+  "theme_color": "#111827",
+  "orientation": "any",
+  "scope": "/pos/",
+  "icons": [
+    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-384x384.png", "sizes": "384x384", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ],
+  "categories": ["business", "finance"],
+  "lang": "en",
+  "dir": "ltr",
+  "shortcuts": [
+    { "name": "Sell", "short_name": "Sell", "url": "/pos/sell", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] },
+    { "name": "Today's sales", "short_name": "Sales", "url": "/pos/sales", "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }] }
+  ]
+}

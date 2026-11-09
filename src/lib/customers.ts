@@ -14,7 +14,7 @@ import { fetchAll } from '@/lib/supabase/fetch-all'
 //
 // Best-effort: TAK PERNAH throw — kalau gagal (cth table belum dimigrate), senyap.
 
-export type CustomerSource = 'store' | 'lp' | 'lead' | 'tiktok' | 'whatsapp' | 'web' | 'manual'
+export type CustomerSource = 'store' | 'lp' | 'lead' | 'tiktok' | 'whatsapp' | 'web' | 'manual' | 'pos'   // 'pos' = jualan kaunter (155)
 
 export async function upsertCustomer(input: {
   phone: string | null | undefined

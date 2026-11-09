@@ -21,6 +21,32 @@ const META_ASSET = /\/(opengraph|twitter)-image(\/|$|\?)/
 const STORE_FLOW = /^\/(cart|checkout|orders|resit|products|login|daftar|auth|reset-password)(\/|$)/
 const isPassThrough = (p: string) => p.startsWith('/_next') || p.startsWith('/api/') || p.startsWith('/icons/') || (/\.[a-z0-9]{2,5}$/i.test(p) && p !== '/robots.txt' && p !== '/sitemap.xml')
 
+// Hos POS (pos.syababfresh.my) — aktif bila env NEXT_PUBLIC_POS_HOST diset (docs/plan-pos.md).
+// Berbeza dengan kurma: laluan /pos/* DIKEKALKAN (tiada rewrite) supaya URL stabil untuk PWA offline,
+// dan cabang ini TIDAK return awal untuk /pos/* — ia jatuh ke aliran sesi di bawah (gate login +
+// is_admin/pos_staff). Hos POS: '/' & laluan bukan-POS → 308 /pos/sell; /login → /pos/login.
+// Hos lain: /pos/* → 308 ke hos POS. Dev tanpa env: /pos/* berfungsi di localhost seperti biasa.
+const POS_HOST = process.env.NEXT_PUBLIC_POS_HOST ?? ''
+const POS_PUBLIC_FILES = new Set(['/pos-manifest.json', '/pos-sw.js'])
+const isPosPath = (p: string) => p === '/pos' || p.startsWith('/pos/')
+
+function posHostRouting(request: NextRequest): NextResponse | null {
+  if (!POS_HOST) return null
+  const host = (request.headers.get('host') ?? '').split(':')[0].toLowerCase()
+  const url = request.nextUrl
+  const p = url.pathname
+  if (host === POS_HOST) {
+    if (p === '/robots.txt') { const u = url.clone(); u.pathname = '/api/pos/robots'; return NextResponse.rewrite(u) }
+    if (isPassThrough(p) || POS_PUBLIC_FILES.has(p)) return NextResponse.next()
+    if (p === '/login') { const u = url.clone(); u.pathname = '/pos/login'; return NextResponse.redirect(u, 308) }
+    if (isPosPath(p) || p.startsWith('/auth') || p === '/reset-password') return null
+    const u = url.clone(); u.pathname = '/pos/sell'; u.search = ''
+    return NextResponse.redirect(u, 308)
+  }
+  if (isPosPath(p)) return NextResponse.redirect(new URL(`https://${POS_HOST}${p}${url.search}`), 308)
+  return null
+}
+
 function kurmaHostRouting(request: NextRequest): NextResponse | null {
   if (!KURMA_HOST) return null
   const host = (request.headers.get('host') ?? '').split(':')[0].toLowerCase()
@@ -51,6 +77,8 @@ function kurmaHostRouting(request: NextRequest): NextResponse | null {
 export async function proxy(request: NextRequest) {
   const hostRouted = kurmaHostRouting(request)
   if (hostRouted) return hostRouted
+  const posRouted = posHostRouting(request)
+  if (posRouted) return posRouted
 
   let supabaseResponse = NextResponse.next({
     request,
@@ -85,6 +113,35 @@ export async function proxy(request: NextRequest) {
   // Auth callback & reset-password must never be blocked
   if (pathname.startsWith('/auth') || pathname === '/reset-password') {
     return supabaseResponse
+  }
+
+  // ── POS /pos/* — login + (is_admin ATAU pos_staff aktif). Semua respons noindex.
+  // /pos/login & resit awam /pos/resit/<token> dibenarkan tanpa login. API /api/pos/* semak sendiri
+  // via requirePos() (sama seperti amaran /api/admin di bawah).
+  if (isPosPath(pathname)) {
+    const noindex = (res: NextResponse) => { res.headers.set('X-Robots-Tag', 'noindex, nofollow'); return res }
+    if (pathname === '/pos/login' || pathname.startsWith('/pos/resit/')) return noindex(supabaseResponse)
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/pos/login'
+      url.search = ''
+      url.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(url)
+    }
+    const { data: posProfile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).maybeSingle()
+    let posOk = !!posProfile?.is_admin
+    if (!posOk) {
+      const { data: staff } = await supabase.from('pos_staff').select('is_active').eq('profile_id', user.id).maybeSingle()
+      posOk = !!staff?.is_active
+    }
+    if (!posOk) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/pos/login'
+      url.search = ''
+      url.searchParams.set('error', 'no_access')
+      return NextResponse.redirect(url)
+    }
+    return noindex(supabaseResponse)
   }
 
   // Logged-in users shouldn't see login/daftar

@@ -142,7 +142,7 @@ export default async function RootLayout({
             strategy="afterInteractive"
             dangerouslySetInnerHTML={{
               __html: `
-                if ('serviceWorker' in navigator) {
+                if ('serviceWorker' in navigator && !location.pathname.startsWith('/pos')) {
                   window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/sw.js');
                   });

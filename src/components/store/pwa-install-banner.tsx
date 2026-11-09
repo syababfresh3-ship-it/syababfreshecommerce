@@ -26,7 +26,8 @@ export function PWAInstallBanner() {
   const isQuote = pathname.startsWith('/q/')
   // LP builder /lp/<slug> (iklan → satu butang Order): banner pasang app menutup bar Order & mengganggu — permintaan team sales 27 Okt
   const isLp = pathname.startsWith('/lp/')
-  const suppressed = isAdmin || isKurmaLp || isQuote || isLp
+  const isPos = pathname.startsWith('/pos')   // POS kaunter ada manifest/pasang sendiri
+  const suppressed = isAdmin || isKurmaLp || isQuote || isLp || isPos
 
   useEffect(() => {
     if (suppressed) return

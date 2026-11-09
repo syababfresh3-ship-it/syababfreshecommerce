@@ -91,6 +91,8 @@ export interface DailySummaryReport {
   aov: number
   storefront: ChannelStats
   lp: ChannelStats
+  /** POS kaunter/bazar (migration 155) — null bila jadual pos_sales belum wujud. Tidak dicampur ke `revenue` (laporan sedia ada kekal). */
+  pos?: { sales: number; revenue: number } | null
   topProducts: ProductLine[]
   codOutstanding: { count: number; amount: number }   // semua masa
   pendingOrders: { storefront: number; lp: number; total: number }
@@ -242,6 +244,16 @@ export async function buildDailySummary(
 
   // ── Jualan semalam ──
   const productMap = new Map<string, ProductLine>()
+  // POS kaunter (docs/plan-pos.md) — baris berasingan; jadual mungkin belum wujud → langkau senyap
+  let pos: { sales: number; revenue: number } | null = null
+  {
+    const { data: posRows, error: posErr } = await admin.from('pos_sales').select('total, status').gte('sold_at', window.start).lt('sold_at', window.end).limit(2000)
+    if (!posErr) {
+      const paid = ((posRows ?? []) as { total: number | string; status: string }[]).filter(r => r.status === 'paid')
+      pos = { sales: paid.length, revenue: round2(paid.reduce((acc, r) => acc + num(r.total), 0)) }
+    }
+  }
+
   const storefront = tally((sfOrders.data ?? []) as OrderRow[], productMap)
   const lp = tally((lpOrders.data ?? []) as OrderRow[], productMap)
   const revenue = storefront.revenue + lp.revenue
@@ -320,6 +332,7 @@ export async function buildDailySummary(
     aov: paidOrders ? round2(revenue / paidOrders) : 0,
     storefront: roundStats(storefront),
     lp: roundStats(lp),
+    pos,
     topProducts: topProducts.map(p => ({ ...p, revenue: round2(p.revenue) })),
     codOutstanding: { ...codOutstanding, amount: round2(codOutstanding.amount) },
     pendingOrders: {
@@ -366,6 +379,7 @@ function renderText(r: DailySummaryReport, listLines: number): string {
   L.push(`Hasil (dibayar): ${rm(r.revenue)} · ${r.paidOrders} order · AOV ${rm(r.aov)}`)
   L.push(`- Storefront: ${rm(r.storefront.revenue)} (${r.storefront.paidOrders})`)
   L.push(`- LP: ${rm(r.lp.revenue)} (${r.lp.paidOrders})`)
+  if (r.pos) L.push(`- POS kaunter: ${rm(r.pos.revenue)} (${r.pos.sales})`)
   const codY = r.storefront.codUnpaid + r.lp.codUnpaid
   const codYAmt = r.storefront.codUnpaidAmount + r.lp.codUnpaidAmount
   L.push(`COD belum bayar: ${codY} order · ${rm(codYAmt)}`)
@@ -448,6 +462,7 @@ export function formatSummaryHtml(r: DailySummaryReport): string {
       row('AOV', rm(r.aov)) +
       row('Storefront', `${rm(r.storefront.revenue)} (${r.storefront.paidOrders})`) +
       row('Landing page', `${rm(r.lp.revenue)} (${r.lp.paidOrders})`) +
+      (r.pos ? row('POS kaunter', `${rm(r.pos.revenue)} (${r.pos.sales})`) : '') +
       row('COD belum bayar', `${codY} order · ${rm(codYAmt)}`) +
       row('Belum bayar (bukan COD)', String(r.storefront.unpaidOther + r.lp.unpaidOther)) +
       row('Dibatalkan', String(r.storefront.cancelled + r.lp.cancelled)),

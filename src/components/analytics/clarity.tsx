@@ -15,7 +15,7 @@ const CLARITY_ID = 'wz2426yvn0'
 
 export function Clarity() {
   const pathname = usePathname()
-  if (!CLARITY_ID || pathname?.startsWith('/admin')) return null
+  if (!CLARITY_ID || pathname?.startsWith('/admin') || pathname?.startsWith('/pos')) return null   // /pos = POS kaunter (bukan storefront)
   return (
     <Script
       id="ms-clarity"
