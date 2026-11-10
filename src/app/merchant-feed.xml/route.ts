@@ -12,7 +12,24 @@ function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+// Taksonomi rasmi Google Merchant Center (google_product_category) ikut jenis produk.
+// Tulis sebagai teks biasa — esc() tukar & dan > kepada entiti masa render.
+const GPC_FRUIT = 'Food, Beverages & Tobacco > Food Items > Fruits & Vegetables'
+const GPC_DRIED_FRUIT = `${GPC_FRUIT} > Dried Fruits`
+const GPC_GIFT_BASKET = 'Food, Beverages & Tobacco > Food Gift Baskets'
+
+function googleCategory(slug: string | null): string {
+  if (!slug) return GPC_FRUIT
+  // Set/bundle kurma & gift box → Food Gift Baskets (sedia untuk produk gift akan datang / B2)
+  if (slug === 'kurma-set-bundle' || slug.startsWith('gift-box')) return GPC_GIFT_BASKET
+  // Kurma kering (ajwa, mariami, safawi, medjoul, sukkari, lain-lain, parent 'kurma') → Dried Fruits.
+  // kurma-muda-segar ialah buah segar — kekal Fruits & Vegetables bersama buah segar lain.
+  if ((slug === 'kurma' || slug.startsWith('kurma-')) && slug !== 'kurma-muda-segar') return GPC_DRIED_FRUIT
+  return GPC_FRUIT
+}
+
 type Variant = { id: number | string; name: string | null; price: number | string | null; is_active: boolean | null }
+type Category = { slug: string | null }
 type Product = {
   slug: string
   name: string
@@ -21,7 +38,14 @@ type Product = {
   price: number | string | null
   unit: string | null
   is_active: boolean
+  // categories(slug) balik sebagai objek atau array bergantung relationship — handle dua-dua
+  categories: Category | Category[] | null
   product_variants: Variant[] | null
+}
+
+function categorySlug(p: Product): string | null {
+  const c = Array.isArray(p.categories) ? p.categories[0] : p.categories
+  return c?.slug ?? null
 }
 
 function itemXml(p: Product, opts: { id: string; title: string; price: number; groupId?: string }) {
@@ -39,7 +63,7 @@ function itemXml(p: Product, opts: { id: string; title: string; price: number; g
     <g:condition>new</g:condition>
     <g:brand>SyababFresh</g:brand>
     <g:identifier_exists>no</g:identifier_exists>
-    <g:google_product_category>Food, Beverages &amp; Tobacco &gt; Food Items &gt; Fruits &amp; Vegetables</g:google_product_category>
+    <g:google_product_category>${esc(googleCategory(categorySlug(p)))}</g:google_product_category>
     ${opts.groupId ? `<g:item_group_id>${esc(opts.groupId)}</g:item_group_id>` : ''}
   </item>`
 }
@@ -51,7 +75,7 @@ export async function GET() {
   )
   const { data: products } = await supabase
     .from('products')
-    .select('slug, name, description, image_url, price, unit, is_active, product_variants(id, name, price, is_active)')
+    .select('slug, name, description, image_url, price, unit, is_active, categories(slug), product_variants(id, name, price, is_active)')
     .eq('is_active', true)
 
   const items: string[] = []
