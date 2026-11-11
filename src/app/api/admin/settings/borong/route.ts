@@ -14,8 +14,10 @@ async function rowsFor(settings: ReturnType<typeof parseBorongSettings>) {
   const products = await getBorongProducts(BORONG_CATALOG.map(e => e.slug))
   return BORONG_CATALOG.map(e => {
     const p = products.get(e.slug)
-    const retailCtn = p?.variants.find(v => v.name === e.pack)?.price ?? null
-    return { slug: e.slug, name: e.nameOverride ?? p?.name ?? e.slug, group: e.group, grade: e.grade, pack: e.pack, packKg: e.packKg, found: !!p, retailCtn, fileRef: e.refPriceCtn, effective: wholesaleWith(settings, e, retailCtn) }
+    const packVariant = p?.variants.find(v => v.name === e.pack)
+    const retailCtn = packVariant?.price ?? null
+    // productId/packVariantId: untuk butang "Quick Order" panel sheet wholesale (PUT /api/admin/wholesale-prices)
+    return { slug: e.slug, name: e.nameOverride ?? p?.name ?? e.slug, group: e.group, grade: e.grade, pack: e.pack, packKg: e.packKg, found: !!p, retailCtn, fileRef: e.refPriceCtn, effective: wholesaleWith(settings, e, retailCtn), productId: p?.id ?? null, packVariantId: packVariant?.id ?? null, tiers: settings.tiers[e.slug] ?? [] }
   })
 }
 

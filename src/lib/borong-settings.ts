@@ -6,6 +6,9 @@ import { BORONG_CATALOG, BORONG_DISCOUNT, BORONG_GROUPS, BORONG_TERMS, type Boro
 
 export const BORONG_SETTINGS_KEY = 'borong_pricing'
 
+/** Tangga harga borong per karton untuk LP — dari sheet "Harga Wholesale 2027", disimpan bila admin tekan "Guna tier". */
+export interface BorongPriceTier { label: string; minCtn: number; maxCtn: number | null; price: number }
+
 export interface BorongSettingsTerms {
   moqCtn: number | null; mixAllowed: boolean | null; leadTime: string | null
   freeAboveRm: number | null; deliveryNote: string | null; pickup: boolean | null
@@ -20,11 +23,13 @@ export interface BorongSettings {
   byGroup: Partial<Record<BorongGroup, number>>
   /** slug → RM/karton (hanya yang diisi). */
   prices: Record<string, number>
+  /** slug → tangga tier (LP papar cip tier bila ada; kosong = hanya "dari RM"). */
+  tiers: Record<string, BorongPriceTier[]>
   terms: BorongSettingsTerms
 }
 
 export const EMPTY_BORONG_SETTINGS: BorongSettings = {
-  updated: null, defaultPct: null, byGroup: {}, prices: {},
+  updated: null, defaultPct: null, byGroup: {}, prices: {}, tiers: {},
   terms: {
     moqCtn: null, mixAllowed: null, leadTime: null, freeAboveRm: null, deliveryNote: null, pickup: null,
     paymentMethods: [], creditNote: null, returnsNote: null, sampleAvailable: null, sampleNote: null,
@@ -57,11 +62,25 @@ export function normalizeBorongSettings(input: unknown): BorongSettings {
   for (const [slug, v] of Object.entries((i.prices && typeof i.prices === 'object' ? i.prices : {}) as Record<string, unknown>)) {
     const n = num(v, 0.01, 100_000); if (SLUGS.has(slug) && n != null) prices[slug] = Math.round(n * 100) / 100
   }
+  // Tangga tier per slug: label ≤30 aksara, minCtn ≥1, maxCtn null (terbuka) atau ≥ minCtn, harga 0.01–100k; maks 6 tier
+  const tiers: Record<string, BorongPriceTier[]> = {}
+  for (const [slug, arr] of Object.entries((i.tiers && typeof i.tiers === 'object' ? i.tiers : {}) as Record<string, unknown>)) {
+    if (!SLUGS.has(slug) || !Array.isArray(arr)) continue
+    const list: BorongPriceTier[] = []
+    for (const x of (arr as unknown[]).slice(0, 6)) {
+      const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>
+      const minCtn = num(o.minCtn, 1, 10_000), price = num(o.price, 0.01, 100_000), label = str(o.label, 30)
+      const maxCtn = o.maxCtn == null || o.maxCtn === '' ? null : num(o.maxCtn, 1, 10_000)
+      if (minCtn == null || price == null || !label) continue
+      list.push({ label, minCtn: Math.floor(minCtn), maxCtn: maxCtn == null ? null : Math.max(Math.floor(minCtn), Math.floor(maxCtn)), price: Math.round(price * 100) / 100 })
+    }
+    if (list.length) tiers[slug] = list.sort((a, b) => a.minCtn - b.minCtn)
+  }
   const updated = str(i.updated, 10)
   return {
     updated: updated && /^\d{4}-\d{2}-\d{2}$/.test(updated) ? updated : null,
     defaultPct: num(i.defaultPct, 0, 95),
-    byGroup, prices,
+    byGroup, prices, tiers,
     terms: {
       moqCtn: (() => { const n = num(t.moqCtn, 1, 10_000); return n == null ? null : Math.floor(n) })(),
       mixAllowed: bool(t.mixAllowed), leadTime: str(t.leadTime, 160),

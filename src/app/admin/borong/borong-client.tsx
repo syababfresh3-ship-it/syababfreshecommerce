@@ -3,20 +3,26 @@
 // Tetapan Harga Borong — jadual produk (runcit auto dari DB) dgn kolum "Borong RM" + % lalai / % ikut jenis,
 // terma (MOQ, hantar, bayaran, pulangan, sampel) & kalendar Ramadan. Simpan → PATCH /api/admin/settings/borong
 // → LP /kurma/borong terus kemas kini. Kosong = guna nilai lalai fail (lib/borong-pricing.ts) / tak dipapar.
+// Panel "Sheet Harga Wholesale 2027" (app_settings.wholesale_sheet): harga/karton 3 tier dari Google Sheet pemilik;
+// admin padankan SKU sheet (gred supplier) → produk katalog, "Guna tier 1" isi kolum Borong RM (perlu Simpan),
+// "Quick Order" tulis terus harga borong lalai varian karton (jadual wholesale_prices).
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Save, ExternalLink, Boxes } from 'lucide-react'
+import { Loader2, Save, ExternalLink, Boxes, RefreshCw, Table2 } from 'lucide-react'
 import { BORONG_GROUPS, rm, type BorongGroup } from '@/lib/borong-pricing'
-import { EMPTY_BORONG_SETTINGS, type BorongSettings } from '@/lib/borong-settings'
+import { EMPTY_BORONG_SETTINGS, type BorongSettings, type BorongPriceTier } from '@/lib/borong-settings'
+import { WHOLESALE_SHEET_EDIT_URL, suggestCatalogSlug, wholesaleRowKey, wholesaleRowName, type WholesaleSheet, type WholesaleSheetRow } from '@/lib/wholesale-sheet'
 
-interface Row { slug: string; name: string; group: BorongGroup; grade: string; pack: string; packKg: number; found: boolean; retailCtn: number | null; fileRef: number | null; effective: number | null }
+interface Row { slug: string; name: string; group: BorongGroup; grade: string; pack: string; packKg: number; found: boolean; retailCtn: number | null; fileRef: number | null; effective: number | null; productId?: string | null; packVariantId?: string | null; tiers?: BorongPriceTier[] }
 
 const box = 'bg-white border border-gray-200 rounded-2xl p-4'
 const inp = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500'
 const lbl = 'block text-[11px] font-bold text-gray-500 mb-1'
 const TRI = [['', 'Tak tetap'], ['true', 'Ya'], ['false', 'Tidak']] as const
 const today = () => new Date().toISOString().slice(0, 10)
+const fmtDT = (v: string | null | undefined) => v ? new Date(v).toLocaleString('en-MY', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+const MARGIN_CLS = (p: number) => p >= 40 ? 'text-green-700' : p >= 20 ? 'text-amber-700' : 'text-red-700'
 
 export function BorongSettingsClient() {
   const [s, setS] = useState<BorongSettings | null>(null)
@@ -28,6 +34,15 @@ export function BorongSettingsClient() {
   const [pctText, setPctText] = useState<Record<string, string>>({})
   const [defaultPct, setDefaultPct] = useState('')
   const [loadedPriceKey, setLoadedPriceKey] = useState('')
+  // Sheet wholesale 2027 + pilihan padanan SKU sheet → slug katalog (hanya dalam sesi; tidak disimpan)
+  const [sheet, setSheet] = useState<WholesaleSheet | null>(null)
+  const [sheetBusy, setSheetBusy] = useState(false)
+  const [mapSel, setMapSel] = useState<Record<string, string>>({})
+  const [qoBusy, setQoBusy] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/admin/settings/wholesale-sheet').then(r => r.ok ? r.json() : null).then(j => setSheet(j?.sheet ?? null)).catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/settings/borong').then(r => r.json()).then(j => {
@@ -36,7 +51,7 @@ export function BorongSettingsClient() {
       setPriceText(Object.fromEntries(Object.entries(st.prices).map(([k, v]) => [k, String(v)])))
       setPctText(Object.fromEntries(Object.entries(st.byGroup).map(([k, v]) => [k, String(v)])))
       setDefaultPct(st.defaultPct != null ? String(st.defaultPct) : '')
-      setLoadedPriceKey(JSON.stringify([st.prices, st.byGroup, st.defaultPct]))
+      setLoadedPriceKey(JSON.stringify([st.prices, st.byGroup, st.defaultPct, st.tiers]))
     }).catch(() => toast.error('Gagal muat tetapan'))
   }, [])
 
@@ -62,15 +77,52 @@ export function BorongSettingsClient() {
   async function save() {
     if (!draft) return
     setSaving(true)
-    const priceChanged = JSON.stringify([draft.prices, draft.byGroup, draft.defaultPct]) !== loadedPriceKey
+    const priceChanged = JSON.stringify([draft.prices, draft.byGroup, draft.defaultPct, draft.tiers]) !== loadedPriceKey
     const payload: BorongSettings = { ...draft, updated: priceChanged || !draft.updated ? today() : draft.updated }
     const res = await fetch('/api/admin/settings/borong', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: payload }) })
     const j = await res.json().catch(() => ({}))
     setSaving(false)
     if (!res.ok) { toast.error(j.error ?? 'Gagal simpan'); return }
     setS(j.settings); setRows(j.rows ?? rows); setExists(true)
-    setLoadedPriceKey(JSON.stringify([j.settings.prices, j.settings.byGroup, j.settings.defaultPct]))
+    setLoadedPriceKey(JSON.stringify([j.settings.prices, j.settings.byGroup, j.settings.defaultPct, j.settings.tiers]))
     toast.success('Harga borong disimpan — LP dikemas kini')
+  }
+
+  async function pullSheet() {
+    setSheetBusy(true)
+    try {
+      const res = await fetch('/api/admin/settings/wholesale-sheet', { method: 'POST' })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(j.error ?? 'Gagal tarik sheet'); return }
+      setSheet(j.sheet)
+      const d = j.diff ?? {}
+      toast.success(`Sheet ditarik: ${j.sheet?.rows?.length ?? 0} SKU (${d.added ?? 0} baharu, ${d.changed ?? 0} berubah, ${d.removed ?? 0} dibuang)`)
+    } finally { setSheetBusy(false) }
+  }
+  const selFor = (r: WholesaleSheetRow) => mapSel[wholesaleRowKey(r)] ?? suggestCatalogSlug(r) ?? ''
+  /** Isi kolum "Borong RM" (tier 1) + simpan tangga tier produk untuk dipapar di LP — admin tekan Simpan selepas itu. */
+  function applyTiers(r: WholesaleSheetRow) {
+    const slug = selFor(r), t1 = r.tiers[0], row = rows.find(x => x.slug === slug)
+    if (!slug || !t1 || !row) { toast.error('Pilih produk katalog dulu'); return }
+    setPriceText(p => ({ ...p, [slug]: String(t1.price) }))
+    setS(p => (p ? { ...p, tiers: { ...p.tiers, [slug]: r.tiers.map(t => ({ label: t.label, minCtn: t.minCtn, maxCtn: t.maxCtn, price: t.price })) } } : p))
+    toast.success(`${row.name}: Borong RM ← ${rm(t1.price)} + ${r.tiers.length} tier untuk LP. Tekan Simpan.`)
+  }
+  /** Buang tangga tier produk (LP kembali tunjuk "dari RM" sahaja) — perlu Simpan. */
+  const removeTiers = (slug: string) => setS(p => { if (!p) return p; const t = { ...p.tiers }; delete t[slug]; return { ...p, tiers: t } })
+  /** Tulis terus harga borong lalai Quick Order untuk varian karton produk pilihan (jadual wholesale_prices). */
+  async function setQuickOrder(r: WholesaleSheetRow) {
+    const slug = selFor(r), t1 = r.tiers[0], row = rows.find(x => x.slug === slug)
+    if (!slug || !t1 || !row) { toast.error('Pilih produk katalog dulu'); return }
+    if (!row.productId || !row.packVariantId) { toast.error(`Varian ${row.pack} untuk ${row.name} tiada dalam DB`); return }
+    const k = wholesaleRowKey(r)
+    setQoBusy(k)
+    try {
+      const res = await fetch('/api/admin/wholesale-prices', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ product_id: row.productId, variant_id: row.packVariantId, price: t1.price }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(j.error ?? 'Gagal simpan harga Quick Order'); return }
+      toast.success(`Quick Order: ${row.name} ${row.pack} = ${rm(t1.price)}`)
+    } finally { setQoBusy(null) }
   }
 
   const setT = <K extends keyof BorongSettings['terms']>(k: K, v: BorongSettings['terms'][K]) => setS(p => (p ? { ...p, terms: { ...p.terms, [k]: v } } : p))
@@ -106,21 +158,68 @@ export function BorongSettingsClient() {
         <p className="text-[11px] text-gray-400 mt-2">Borong = runcit × (1 − %). Nombor dalam kolum &ldquo;Borong RM&rdquo; di bawah mengatasi peratus. Kosong semua = LP tunjuk &ldquo;ikut kuantiti — tanya&rdquo;.</p>
       </div>
 
+      {/* Sheet harga borong per karton (MASTER HARGA KURMA 2027 › Harga Wholesale 2027) */}
+      <div className={box}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 inline-flex items-center gap-1.5"><Table2 className="h-3.5 w-3.5" />Sheet &quot;Harga Wholesale {sheet?.version ?? '2027'}&quot; — harga/karton ikut tier</p>
+            <p className="text-xs text-gray-500 mt-1">{sheet ? `${sheet.rows.length} SKU · tier ${sheet.tier_labels.join(' / ')} · ditarik ${fmtDT(sheet.fetched_at)}.` : 'Belum ditarik. Tekan butang untuk ambil dari Google Sheet.'} Gred ikut nama supplier — pilih produk katalog yang sepadan, kemudian &ldquo;Guna tier&rdquo; isi kolum Borong RM (tier 1) dan simpan tangga 3 tier untuk dipapar di LP (tekan Simpan selepas itu).</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <a href={WHOLESALE_SHEET_EDIT_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50"><ExternalLink className="h-4 w-4" />Buka Sheet</a>
+            <button type="button" onClick={pullSheet} disabled={sheetBusy} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50">{sheetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Tarik dari Sheet</button>
+          </div>
+        </div>
+        {sheet && (
+          <div className="overflow-x-auto mt-3">
+            <table className="w-full text-xs min-w-[760px]">
+              <thead className="text-gray-500"><tr><th className="text-left font-semibold py-1 pr-2">SKU sheet</th><th className="text-right font-semibold py-1 pr-2">Kos asas</th>{sheet.tier_labels.map(l => <th key={l} className="text-right font-semibold py-1 pr-2 whitespace-nowrap">{l}</th>)}<th className="text-left font-semibold py-1 pr-2">Produk katalog</th><th className="py-1"></th></tr></thead>
+              <tbody>
+                {sheet.rows.map(r => {
+                  const k = wholesaleRowKey(r), sel = selFor(r), t1 = r.tiers[0]
+                  return (
+                    <tr key={k} className="border-t border-gray-50">
+                      <td className="py-1.5 pr-2 font-semibold text-gray-800 whitespace-nowrap">{wholesaleRowName(r)}<div className="text-[10px] font-normal text-gray-400">kos {rm(r.cost_kg)}/kg</div></td>
+                      <td className="py-1.5 pr-2 text-right font-mono text-gray-600">{rm(r.cost_base)}</td>
+                      {r.tiers.map(t => <td key={t.label} className="py-1.5 pr-2 text-right font-mono whitespace-nowrap"><b className="text-gray-900">{rm(t.price)}</b> <span className={`text-[10px] ${MARGIN_CLS(t.margin_pct)}`}>{t.margin_pct.toFixed(0)}%</span></td>)}
+                      <td className="py-1.5 pr-2">
+                        <select value={sel} onChange={e => setMapSel(p => ({ ...p, [k]: e.target.value }))} className={`${inp} py-1 text-xs min-w-[170px]`} aria-label={`Produk katalog untuk ${wholesaleRowName(r)}`}>
+                          <option value="">— pilih —</option>
+                          {rows.map(x => <option key={x.slug} value={x.slug}>{x.name}{x.grade && !x.name.toLowerCase().includes(x.grade.toLowerCase()) ? ` ${x.grade}` : ''} · {x.pack}{x.packKg !== r.ctn_kg ? ' (berat lain)' : ''}</option>)}
+                        </select>
+                      </td>
+                      <td className="py-1.5 whitespace-nowrap">
+                        <button type="button" disabled={!sel || !t1} onClick={() => applyTiers(r)} title="Isi Borong RM dengan tier 1 dan simpan tangga tier untuk LP" className="text-[11px] font-bold text-gray-900 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50 disabled:opacity-40">Guna tier</button>{' '}
+                        <button type="button" disabled={!sel || !t1 || qoBusy === k} onClick={() => setQuickOrder(r)} title="Set harga borong lalai Quick Order (jadual wholesale_prices) untuk varian karton produk ini" className="text-[11px] font-semibold text-gray-600 border border-gray-200 rounded-lg px-2 py-1 hover:bg-gray-50 disabled:opacity-40">{qoBusy === k ? '…' : 'Quick Order'}</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <p className="text-[11px] text-gray-400 mt-2">Tier 1 = harga &ldquo;dari&rdquo; di LP; ketiga-tiga tier dipapar sebagai cip pada baris produk LP selepas Simpan (buang di kolum &ldquo;Tier LP&rdquo; jadual bawah kalau tak mahu). Baris sheet juga muncul sebagai cadangan item sebut harga. Padanan auto hanya bila gred & berat karton sama; selebihnya pilih sendiri. Tiada produk sepadan (cth Mariami karton 6kg) → tambah ke katalog dalam kod.</p>
+          </div>
+        )}
+      </div>
+
       {/* Jadual harga */}
       <div className={`${box} overflow-x-auto`}>
         <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-3">Harga per karton</p>
         <table className="w-full text-sm">
-          <thead className="text-[11px] font-bold uppercase tracking-wide text-gray-400"><tr><th className="text-left py-1.5 pr-2">Produk</th><th className="text-left py-1.5 pr-2">Karton</th><th className="text-right py-1.5 pr-2">Runcit</th><th className="text-right py-1.5 pr-2 w-32">Borong RM</th><th className="text-right py-1.5">Dipapar</th></tr></thead>
+          <thead className="text-[11px] font-bold uppercase tracking-wide text-gray-400"><tr><th className="text-left py-1.5 pr-2">Produk</th><th className="text-left py-1.5 pr-2">Karton</th><th className="text-right py-1.5 pr-2">Runcit</th><th className="text-right py-1.5 pr-2 w-32">Borong RM</th><th className="text-right py-1.5 pr-2">Dipapar</th><th className="text-left py-1.5">Tier LP</th></tr></thead>
           <tbody className="divide-y divide-gray-100">
             {rows.map(r => {
               const eff = preview(r)
+              const tiers = s.tiers[r.slug] ?? []
               return (
                 <tr key={r.slug} className={r.found ? '' : 'opacity-50'}>
-                  <td className="py-2 pr-2"><div className="font-medium text-gray-900">{r.name}{r.grade ? <span className="ml-1.5 text-[10px] font-bold uppercase text-gray-400">{r.grade}</span> : null}</div>{!r.found && <div className="text-[11px] text-amber-600">slug tiada/tak aktif</div>}</td>
+                  <td className="py-2 pr-2"><div className="font-medium text-gray-900">{r.name}{r.grade && !r.name.toLowerCase().includes(r.grade.toLowerCase()) ? <span className="ml-1.5 text-[10px] font-bold uppercase text-gray-400">{r.grade}</span> : null}</div>{!r.found && <div className="text-[11px] text-amber-600">slug tiada/tak aktif</div>}</td>
                   <td className="py-2 pr-2 text-gray-600">{r.pack}</td>
                   <td className="py-2 pr-2 text-right tabular-nums text-gray-600">{r.retailCtn != null ? rm(r.retailCtn) : '—'}</td>
                   <td className="py-2 pr-2 text-right"><input type="number" min="0" step="0.5" value={priceText[r.slug] ?? ''} onChange={e => setPriceText(p => ({ ...p, [r.slug]: e.target.value }))} placeholder={r.fileRef != null ? String(r.fileRef) : '—'} className={`${inp} w-28 text-right font-mono`} /></td>
-                  <td className="py-2 text-right tabular-nums">{eff != null ? <><b className="text-gray-900">{rm(eff)}</b><div className="text-[11px] text-gray-400">≈ {rm(Math.round(eff / r.packKg * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > eff ? ` · −${Math.round((1 - eff / r.retailCtn) * 100)}%` : ''}</div></> : <span className="text-[12px] text-gray-400">tanya</span>}</td>
+                  <td className="py-2 pr-2 text-right tabular-nums">{eff != null ? <><b className="text-gray-900">{rm(eff)}</b><div className="text-[11px] text-gray-400">≈ {rm(Math.round(eff / r.packKg * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > eff ? ` · −${Math.round((1 - eff / r.retailCtn) * 100)}%` : ''}</div></> : <span className="text-[12px] text-gray-400">tanya</span>}</td>
+                  {/* Tangga tier yang akan dipapar di LP (dari "Guna tier" panel sheet); ✕ = buang (perlu Simpan) */}
+                  <td className="py-2">{tiers.length ? <div className="flex flex-wrap items-center gap-1">{tiers.map(t => <span key={t.label} className="text-[11px] tabular-nums bg-gray-50 border border-gray-200 rounded-md px-1.5 py-0.5"><span className="text-gray-400">{t.label}</span> <b>{rm(t.price)}</b></span>)}<button type="button" onClick={() => removeTiers(r.slug)} aria-label={`Buang tier ${r.name}`} className="text-[11px] text-gray-400 hover:text-red-600 px-1">✕</button></div> : <span className="text-[11px] text-gray-300">—</span>}</td>
                 </tr>
               )
             })}

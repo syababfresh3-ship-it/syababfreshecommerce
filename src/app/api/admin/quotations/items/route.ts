@@ -7,8 +7,10 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { loadGiftCostSheet } from '@/lib/gift-cost-sheet-server'
 import { sheetItemName, sheetTiers } from '@/lib/gift-cost-sheet'
+import { loadWholesaleSheet } from '@/lib/wholesale-sheet-server'
+import { wholesaleItemName } from '@/lib/wholesale-sheet'
 
-export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling' | 'gift_sheet'; name: string; description: string | null; rate: number; unit: string }
+export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling' | 'gift_sheet' | 'wholesale_sheet'; name: string; description: string | null; rate: number; unit: string }
 const clean = (q: string) => q.replace(/[,()*\\%]/g, ' ').trim().slice(0, 60)
 const unitFor = (u: string | null | undefined) => {
   const v = (u ?? '').toLowerCase()
@@ -27,27 +29,40 @@ export async function GET(request: Request) {
   const q = clean(new URL(request.url).searchParams.get('q') ?? '')
   if (q.length < 2) return NextResponse.json([])
   const like = `%${q}%`
-  const [prods, vars, boxes, fills, sheet] = await Promise.all([
+  const [prods, vars, boxes, fills, sheet, wsheet] = await Promise.all([
     supabase!.from('products').select('id, name, price, unit, is_active').ilike('name', like).eq('is_active', true).order('name').limit(8),
     supabase!.from('product_variants').select('id, name, price, is_active, products(name, unit)').ilike('name', like).eq('is_active', true).limit(8),
     supabase!.from('gift_boxes').select('id, name, base_price, capacity_label, is_active').ilike('name', like).eq('is_active', true).limit(5),
     supabase!.from('gift_fillings').select('id, name, price, unit, grade, is_active').ilike('name', like).eq('is_active', true).limit(5),
     loadGiftCostSheet(supabase!).catch(() => null),
+    loadWholesaleSheet(supabase!).catch(() => null),
   ])
   const hits: ItemHit[] = []
-  // Sheet GIFT BOX CUSTOM 2026 — satu cadangan per kurma × berat; kadar = tier terkecil, tier lain dalam keterangan
+  // Sheet harga borong per karton — satu cadangan per SKU; kadar = tier 1 (1–2 karton), tier lain dalam keterangan
+  if (wsheet) {
+    const ql = q.toLowerCase()
+    const generic = /borong|karton|ctn|wholesale/.test(ql)
+    for (const r of wsheet.rows) {
+      const name = wholesaleItemName(r)
+      const t1 = r.tiers[0]
+      if (!t1 || (!generic && !name.toLowerCase().includes(ql))) continue
+      const others = r.tiers.slice(1).map(t => `${t.label} RM${t.price.toFixed(2)}`).join(' · ')
+      hits.push({ source: 'wholesale_sheet', name, description: `Sheet ${wsheet.version} borong ${t1.label}: RM${t1.price.toFixed(2)}/karton (kos asas RM${r.cost_base.toFixed(2)}, margin ${t1.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: t1.price, unit: 'ctn' })
+    }
+  }
+  // Sheet harga gift box — satu cadangan per kategori × kurma × berat; kadar = tier terkecil, tier lain dalam keterangan
   if (sheet) {
     const ql = q.toLowerCase()
-    const generic = /gift|kotak|custom|box/.test(ql)
-    const combos = [...new Set(sheet.rows.map(r => `${r.kurma}|${r.weight}`))]
+    const generic = /gift|kotak|custom|box|ready/.test(ql)
+    const combos = [...new Set(sheet.rows.map(r => `${r.category ?? ''}|${r.kurma}|${r.weight}`))]
     for (const c of combos) {
-      const [kurma, weight] = c.split('|')
-      if (!generic && !kurma.toLowerCase().includes(ql) && !weight.includes(ql)) continue
-      const tiers = sheetTiers(sheet, kurma, weight)
+      const [category, kurma, weight] = c.split('|')
+      if (!generic && !kurma.toLowerCase().includes(ql) && !weight.includes(ql) && !category.toLowerCase().includes(ql)) continue
+      const tiers = sheetTiers(sheet, kurma, weight, category)
       if (!tiers.length) continue
       const base = tiers[0]
       const others = tiers.slice(1).map(t => `@${t.qty.toLocaleString('en-MY')} ${t.price.toFixed(2)}`).join(' · ')
-      hits.push({ source: 'gift_sheet', name: sheetItemName(base), description: `Sheet 2026 @${base.qty.toLocaleString('en-MY')}: RM${base.price.toFixed(2)} (kos RM${base.total_cost.toFixed(2)}, margin ${base.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: base.price, unit: 'box' })
+      hits.push({ source: 'gift_sheet', name: sheetItemName(base), description: `Sheet ${sheet.version} @${base.qty.toLocaleString('en-MY')}: RM${base.price.toFixed(2)} (kos RM${base.total_cost.toFixed(2)}, margin ${base.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: base.price, unit: 'box' })
     }
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

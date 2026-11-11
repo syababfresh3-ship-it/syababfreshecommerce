@@ -3,15 +3,17 @@ import type { BorongRow } from '@/lib/borong-data'
 import { CatalogRowActions } from './catalog-row-actions'
 
 // Katalog borong — ikut kumpulan varieti. Dua harga dipapar sebelah-menyebelah (keputusan pemilik):
-// RUNCIT = harga karton DB (sentiasa, berlabel), BORONG = refPriceCtn / diskaun % (fail pemilik) atau "tanya".
+// RUNCIT = harga karton DB (sentiasa, berlabel), BORONG = tetapan admin / refPriceCtn / diskaun % atau "tanya".
+// Tangga tier (1–2 / 3–9 / 10+ karton) dipapar sebagai cip bila admin simpan tier untuk produk itu (pemilik 11 Nov 2026).
 export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: BorongRow[]; terms: BorongTerms; updated: string | null; anyPrice: boolean }) {
   if (!rows.length) return null
+  const anyTiers = rows.some(r => r.tiers.length > 0)
   return (
     <section id="katalog" className="max-w-5xl mx-auto px-4 pb-14 scroll-mt-16 md:scroll-mt-24">
       <div className="flex items-end justify-between gap-3 flex-wrap mb-2">
         <div>
           <h2 className="text-2xl font-black text-gray-900">Katalog borong</h2>
-          <p className="text-sm text-gray-500 mt-1">{anyPrice ? 'Harga runcit vs borong per karton — harga borong muktamad ikut kuantiti & stok semasa.' : 'Harga runcit karton dipapar; harga borong diberi via WhatsApp ikut kuantiti & musim.'}</p>
+          <p className="text-sm text-gray-500 mt-1">{anyTiers ? 'Harga borong per karton ikut kuantiti — lagi banyak karton, lagi rendah seunit. Tertakluk stok semasa.' : anyPrice ? 'Harga runcit vs borong per karton — harga borong muktamad ikut kuantiti & stok semasa.' : 'Harga runcit karton dipapar; harga borong diberi via WhatsApp ikut kuantiti & musim.'}</p>
         </div>
         {updated && <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Dikemas kini {updated}</span>}
       </div>
@@ -41,6 +43,13 @@ export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: Borong
                         <>
                           <div className="font-black text-gray-900 tabular-nums"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>dari {rm(r.wholesaleCtn)}<span className="text-xs font-semibold text-gray-400">/karton</span></div>
                           <div className="text-[11px] text-gray-400 tabular-nums">≈ {rm(Math.round(kg! * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > r.wholesaleCtn ? ` · jimat ${Math.round((1 - r.wholesaleCtn / r.retailCtn) * 100)}%` : ''}</div>
+                          {r.tiers.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap sm:justify-end gap-1" aria-label="Harga ikut kuantiti karton">
+                              {r.tiers.map(t => (
+                                <span key={t.label} className="text-[11px] tabular-nums bg-gray-50 border border-gray-200 rounded-md px-1.5 py-0.5 text-gray-700"><span className="text-gray-400">{t.label}</span> <b className="text-gray-900">{rm(t.price)}</b></span>
+                              ))}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <div className="text-[12px] font-semibold text-gray-700"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>ikut kuantiti — tanya</div>
