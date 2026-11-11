@@ -264,7 +264,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Ajwa — hitam, lembut, manis halus',
         body: [
           'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan; gred besar selalunya habis dahulu, jadi lihat [panduan bila patut order kurma Ramadan](/panduan/bila-order-kurma-ramadan-2027) sebelum musim tiba. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
-          'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — Medium, Large, Jumbo dan Super Jumbo — jadi harga banyak bergantung pada saiz, bukan rasa.',
+          'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — AA, AA Premium, Large, Jumbo dan VIP — jadi harga banyak bergantung pada saiz, bukan rasa.',
           'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah. [Lihat semua kurma Ajwa](/kategori/kurma-ajwa).',
         ],
       },
@@ -365,7 +365,7 @@ export const ARTIKEL: Artikel[] = [
     slug: 'panduan-kurma-ajwa',
     title: 'Panduan Kurma Ajwa: Beza Gred Medium, Large, Jumbo & Cara Simpan',
     description:
-      'Semua yang perlu anda tahu tentang kurma Ajwa Madinah — apa beza gred Medium, Large, Jumbo dan Super Jumbo, gred mana untuk tujuan apa, ciri Ajwa yang biasa, dan cara simpan supaya kekal lembut.',
+      'Semua yang perlu anda tahu tentang kurma Ajwa Madinah — apa beza gred AA, AA Premium, Large, Jumbo dan VIP, gred mana untuk tujuan apa, ciri Ajwa yang biasa, dan cara simpan supaya kekal lembut.',
     updated: '2026-07',
     sections: [
       {
@@ -379,8 +379,8 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Gred Ajwa: apa sebenarnya yang berbeza?',
         body: [
-          'Ini soalan paling kerap ditanya, dan jawapannya lebih mudah daripada yang disangka: gred Ajwa ialah gred SAIZ, bukan gred rasa. Ajwa Medium dan Ajwa Super Jumbo datang dari kultivar yang sama dengan profil rasa yang sama. Yang berbeza ialah saiz biji dan keseragaman bentuk.',
-          'Medium ialah saiz asas — muat sekali suap dan paling menjimatkan. Large lebih berisi dan padat. Jumbo ketara lebih besar dengan isi yang lebih tebal. Super Jumbo VIP pula disaring pada saiz paling besar dan bentuk paling seragam, jadi ia yang paling menonjol bila disusun dalam bekas atau dulang.',
+          'Ini soalan paling kerap ditanya, dan jawapannya lebih mudah daripada yang disangka: gred Ajwa ialah gred SAIZ, bukan gred rasa. Ajwa AA dan Ajwa VIP datang dari kultivar yang sama dengan profil rasa yang sama. Yang berbeza ialah saiz biji dan keseragaman bentuk.',
+          'AA ialah saiz asas — muat sekali suap dan paling menjimatkan. AA Premium satu tingkat lebih berisi dan seragam. Large lebih padat. Jumbo ketara lebih besar dengan isi yang lebih tebal. VIP pula disaring pada saiz paling besar dan bentuk paling seragam, jadi ia yang paling menonjol bila disusun dalam bekas atau dulang.',
           'Kerana rasa asasnya sama, memilih gred sebenarnya soal tujuan dan bajet — bukan soal mana lebih sedap.',
         ],
       },
@@ -390,7 +390,7 @@ export const ARTIKEL: Artikel[] = [
           'Untuk makan harian dan bekalan berterusan — Medium. Ia memberi rasa Ajwa yang sama pada harga paling rendah, jadi anda boleh simpan stok tanpa fikir panjang.',
           'Untuk hidangan tetamu yang singgah — Large. Saiznya sudah cukup cantik untuk dihidang, tetapi masih berpatutan untuk dibeli kerap.',
           'Untuk majlis, jamuan dan dulang buka puasa — Jumbo. Saiz besar menyerlah bila disusun dalam bekas kaca atau dulang.',
-          'Untuk hadiah dan bingkisan — Super Jumbo VIP atau pilihan kotak siap bungkus. Kalau anda mahu sesuatu yang nampak berkelas tanpa perlu bungkusan tambahan, di sinilah tempatnya. Untuk hadiah syarikat atau agensi dalam kuantiti besar, Ajwa dalam kotak berjenama biasanya lebih praktikal — lihat panduan [hamper kurma korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
+          'Untuk hadiah dan bingkisan — gred VIP atau pilihan kotak siap bungkus. Kalau anda mahu sesuatu yang nampak berkelas tanpa perlu bungkusan tambahan, di sinilah tempatnya. Untuk hadiah syarikat atau agensi dalam kuantiti besar, Ajwa dalam kotak berjenama biasanya lebih praktikal — lihat panduan [hamper kurma korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
           'Ada juga pilihan Aliyah Mix — saiz bercampur dalam satu pek. Kerana tidak disaring ketat pada satu saiz, harganya lebih berpatutan. Sesuai bila anda mementingkan rasa dan kuantiti berbanding keseragaman rupa, seperti untuk agihan atau bekalan surau.',
         ],
       },
@@ -422,15 +422,15 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Bila masa terbaik untuk beli?',
         body: [
-          'Permintaan kurma melonjak menjelang Ramadan, dan itu memberi kesan kepada dua perkara: harga dan ketersediaan gred besar. Gred Jumbo dan Super Jumbo biasanya yang paling cepat habis.',
+          'Permintaan kurma melonjak menjelang Ramadan, dan itu memberi kesan kepada dua perkara: harga dan ketersediaan gred besar. Gred Jumbo dan VIP biasanya yang paling cepat habis.',
           'Kalau anda merancang untuk majlis atau hadiah semasa Ramadan atau Aidilfitri, membeli awal memberi anda pilihan gred yang lebih luas. Membeli di luar musim pula selalunya lebih tenang dan stok lebih stabil.',
         ],
       },
     ],
     faq: [
       {
-        q: 'Apa beza Ajwa Medium, Large, Jumbo dan Super Jumbo?',
-        a: 'Semuanya kurma Ajwa yang sama dengan rasa yang sama — yang berbeza hanya saiz biji dan keseragaman bentuk. Medium paling kecil dan paling menjimatkan; Super Jumbo VIP disaring pada saiz paling besar dan paling seragam.',
+        q: 'Apa beza Ajwa AA, AA Premium, Large, Jumbo dan VIP?',
+        a: 'Semuanya kurma Ajwa yang sama dengan rasa yang sama — yang berbeza hanya saiz biji dan keseragaman bentuk. AA paling kecil dan paling menjimatkan; VIP disaring pada saiz paling besar dan paling seragam.',
       },
       {
         q: 'Ajwa gred besar lebih sedap ke?',
@@ -641,12 +641,12 @@ export const ARTIKEL: Artikel[] = [
   },
   {
     // C1 (papan SEO KURMA, 3 Nov 2026) — sasaran "gift kurma", "hamper kurma", "gift kurma raya",
-    // "hamper kurma korporat". Harga dari lib/gift-pricing (sheet 2026), deposit/lead time dari
+    // "hamper kurma korporat". Harga dari lib/gift-pricing (sheet 2027), deposit/lead time dari
     // lib/gift & lib/company — kemas kini artikel bila sheet berubah. Pautan /kurma* → kurmaPath (renderer).
     slug: 'panduan-gift-kurma-hamper-korporat',
     title: 'Panduan Gift Kurma & Hamper Kurma Korporat: Bila Sesuai, Jenis & Harga',
     description:
-      'Bila sesuai beri gift kurma Raya, gift Ramadan atau hamper kurma korporat (staff, klien, majlis), jenis kurma yang sesuai untuk hadiah, harga sebenar gift box kurma custom dari RM4.50/kotak (min 50 kotak, ~2 minggu siap) dan timeline tempah untuk Ramadan & Raya 2027.',
+      'Bila sesuai beri gift kurma Raya, gift Ramadan atau hamper kurma korporat (staff, klien, majlis), jenis kurma yang sesuai untuk hadiah, harga sebenar gift box kurma custom dari RM4.90/kotak (min 50 kotak, ~2 minggu siap) dan timeline tempah untuk Ramadan & Raya 2027.',
     updated: '2026-11',
     sections: [
       {
@@ -676,7 +676,7 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Jenis kurma yang sesuai untuk hadiah',
         body: [
-          'Ajwa — pilihan paling popular untuk hamper kurma korporat kerana ia kurma Madinah yang paling dikenali dan manisnya halus, tidak memberat. Dalam gift box custom kami ada dua gred: Ajwa AA dan Ajwa AA Premium (saiz dan keseragaman lebih tinggi). Kalau penerima anda klien penting atau agensi kerajaan, Ajwa jarang salah. Baca lebih lanjut dalam [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
+          'Ajwa — pilihan paling popular untuk hamper kurma korporat kerana ia kurma Madinah yang paling dikenali dan manisnya halus, tidak memberat. Dalam gift box custom kami ada tiga gred: Ajwa AA, Ajwa Large (saiz lebih besar dan seragam) dan Ajwa VIP untuk tempahan pukal. Kalau penerima anda klien penting atau agensi kerajaan, Ajwa jarang salah. Baca lebih lanjut dalam [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
           'Mariami — lembut, berkulit nipis dan mesra semua orang termasuk kanak-kanak dan warga emas. Gred A paling berpatutan untuk kuantiti besar; gred AA lebih besar dan seragam. Pilihan selamat untuk agihan staff dan door gift majlis.',
           'Safawi — kurma Madinah yang lebih panjang dengan manis pekat dan sedikit nota karamel. Dari segi harga ia paling berbaloi dalam senarai kami, jadi ia pilihan utama bila bajet seunit ketat tetapi anda tetap mahu kurma Madinah di dalam kotak.',
           'Medjoul dan Sukkari tidak ada dalam sheet gift box custom, tetapi kedua-duanya sedap untuk hamper yang anda susun sendiri. Medjoul besar dan berkaramel, nampak mewah tanpa hiasan; Sukkari keemasan dan paling manis. Keliru beza lima jenis ini? Lihat [panduan jenis kurma di Malaysia](/panduan/jenis-kurma-malaysia) sebelum memilih.',
@@ -685,10 +685,10 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Harga gift kurma: berapa sebenarnya?',
         body: [
-          'Harga di bawah ialah harga semasa sheet gift box custom kami (2026), per kotak, sudah termasuk kurma dan kotak berlogo anda, tanpa kos penghantaran. Harga seunit turun mengikut tier kuantiti, jadi angka yang anda lihat bergantung pada tiga perkara: jenis kurma, berat, dan berapa kotak.',
-          'Kotak 100g: dari RM4.50 hingga RM14 sekotak. Contoh sebenar: Mariami A pada 50 kotak RM10 sekotak (RM500 kesemuanya); Safawi A pada 500 kotak RM5.50 sekotak (RM2,750); Safawi A pada 2,000 kotak RM4.50 sekotak. Ini saiz paling popular untuk door gift dan agihan staff.',
-          'Kotak 200g: dari RM7 hingga RM20 sekotak. Contoh: Ajwa AA pada 100 kotak RM17 sekotak (RM1,700); Ajwa AA pada 500 kotak RM11 sekotak. Saiz yang paling kerap dipilih untuk hamper kurma korporat kepada klien.',
-          'Kotak 500g: dari RM13 hingga RM27 sekotak, tier bermula 500 kotak. Untuk kuantiti lebih kecil pada berat ini, WhatsApp kami untuk sebut harga manual.',
+          'Harga di bawah ialah harga semasa sheet gift box custom kami (2027), per kotak, sudah termasuk kurma dan kotak berlogo anda, tanpa kos penghantaran. Harga seunit turun mengikut tier kuantiti, jadi angka yang anda lihat bergantung pada tiga perkara: jenis kurma, berat, dan berapa kotak.',
+          'Kotak 100g: dari RM4.90 hingga RM17 sekotak. Contoh sebenar (harga 2027): Mariami A pada 50 kotak RM11 sekotak (RM550 kesemuanya); Safawi A pada 500 kotak RM6.50 sekotak (RM3,250); Libya/Tunisia pada 2,000 kotak RM4.90 sekotak. Ini saiz paling popular untuk door gift dan agihan staff.',
+          'Kotak 200g: dari RM6 hingga RM24 sekotak. Contoh: Ajwa AA pada 100 kotak RM19 sekotak (RM1,900); Ajwa AA pada 500 kotak RM12 sekotak. Saiz yang paling kerap dipilih untuk hamper kurma korporat kepada klien.',
+          'Kotak 500g: dari RM11 hingga RM40 sekotak (Medjoul paling tinggi); kebanyakan jenis bermula 500 kotak, Libya/Tunisia boleh dari 50 kotak. Untuk kuantiti lebih kecil pada berat ini, WhatsApp kami untuk sebut harga manual.',
           'Yang tidak dikenakan bayaran tambahan: khidmat reka bentuk dan proof design, serta pilihan finishing kotak (Matte, Gloss atau Soft Touch). Kuantiti minimum 50 kotak. Mahu angka tepat untuk kombinasi anda? [Kira harga gift kurma](/kurma/#kira) terus di kalkulator kami tanpa perlu daftar.',
         ],
       },
@@ -719,7 +719,7 @@ export const ARTIKEL: Artikel[] = [
       },
       {
         q: 'Harga gift box kurma sudah termasuk kurma?',
-        a: 'Ya. Harga per kotak (dari RM4.50 hingga RM27 mengikut jenis, berat dan kuantiti) sudah termasuk kurma Ajwa, Mariami atau Safawi serta kotak custom berlogo anda. Penghantaran dikira berasingan mengikut alamat.',
+        a: 'Ya. Harga per kotak (dari RM4.90 hingga RM40 mengikut jenis, berat dan kuantiti) sudah termasuk kurma Ajwa, Mariami, Safawi, Medjoul atau Libya/Tunisia serta kotak custom berlogo anda. Penghantaran dikira berasingan mengikut alamat.',
       },
       {
         q: 'Perlu bayar deposit? Berapa?',
@@ -778,8 +778,8 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Harga dan gred: apa yang anda bayar sebenarnya',
         body: [
-          'Kedua-dua kurma ini digredkan ikut saiz biji, bukan ikut rasa — Large, Jumbo dan Super Jumbo untuk Medjool; Medium, Large, Jumbo dan Super Jumbo untuk Ajwa. Rasa asas dalam satu kultivar lebih kurang sama; yang naik bersama gred ialah saiz, keseragaman dan rupa di atas dulang. Jadi kalau kurma itu untuk dimakan sendiri, gred rendah bukan pilihan yang salah.',
-          'Di kedai kami pada masa artikel ini ditulis, Ajwa bermula sekitar RM12 untuk pek 100g gred Medium, dan sekilo gred Large sekitar RM69, Jumbo RM79, Super Jumbo RM89. Medjool Palestin sekilo pula sekitar RM79 untuk Large, RM89 Jumbo dan RM99 Super Jumbo, dengan pek 100g sekitar RM15 hingga RM17 untuk mencuba. Harga boleh berubah ikut kiriman dan musim, jadi semak harga semasa pada page produk sebelum order.',
+          'Kedua-dua kurma ini digredkan ikut saiz biji, bukan ikut rasa — Large, Jumbo dan Super Jumbo untuk Medjool; AA, AA Premium, Large, Jumbo dan VIP untuk Ajwa. Rasa asas dalam satu kultivar lebih kurang sama; yang naik bersama gred ialah saiz, keseragaman dan rupa di atas dulang. Jadi kalau kurma itu untuk dimakan sendiri, gred rendah bukan pilihan yang salah.',
+          'Di kedai kami pada masa artikel ini ditulis, Ajwa bermula sekitar RM12 untuk pek 100g gred AA, dan sekilo gred Large sekitar RM72, Jumbo RM83, VIP RM99. Medjool Palestin sekilo pula sekitar RM79 untuk Large, RM89 Jumbo dan RM99 Super Jumbo, dengan pek 100g sekitar RM15 hingga RM17 untuk mencuba. Harga boleh berubah ikut kiriman dan musim, jadi semak harga semasa pada page produk sebelum order.',
           'Dua perkara yang mengubah nilai sebenar: pertama, sekilo Medjool mengandungi lebih sedikit biji berbanding sekilo Ajwa kerana saiznya, jadi harga per biji Medjool lebih tinggi. Kedua, Ajwa gred tinggi dan Medjool gred tinggi sebenarnya berada dalam julat harga yang hampir sama — apa yang anda pilih antara keduanya lebih bergantung pada tujuan daripada bajet. [Lihat semua gred Ajwa](/kategori/kurma-ajwa), dan untuk pecahan gred yang lebih terperinci baca [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
         ],
       },
@@ -795,7 +795,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Untuk tetamu dan hadiah: Medjool nampak mewah, Ajwa bermakna',
         body: [
           'Bila kurma itu untuk orang lain, pertimbangannya bertukar. Di atas dulang hidangan, Medjool Jumbo atau Super Jumbo adalah kurma yang paling cepat menarik perhatian — besar, berkilat, dan terasa mewah walaupun tanpa hiasan. Kalau anda hidang kurma kepada tetamu penting, rakan niaga, atau pada majlis di mana rupa hidangan itu penting, Medjool jarang mengecewakan.',
-          'Ajwa pula menang dari segi makna. Untuk hadiah kepada ibu bapa, guru, jiran yang baru pulang dari umrah, atau mana-mana penerima yang menghargai kurma Madinah, Ajwa gred Jumbo atau Super Jumbo dalam kotak yang kemas membawa mesej yang Medjool tidak dapat sampaikan. Sebab itu Ajwa adalah pilihan paling kerap untuk hamper kurma Ramadan dan buah tangan.',
+          'Ajwa pula menang dari segi makna. Untuk hadiah kepada ibu bapa, guru, jiran yang baru pulang dari umrah, atau mana-mana penerima yang menghargai kurma Madinah, Ajwa gred Jumbo atau VIP dalam kotak yang kemas membawa mesej yang Medjool tidak dapat sampaikan. Sebab itu Ajwa adalah pilihan paling kerap untuk hamper kurma Ramadan dan buah tangan.',
           'Untuk hadiah korporat dalam kuantiti besar — staff, klien, agensi — pilihan biasanya jatuh kepada Ajwa dalam kotak berjenama kerana kosnya lebih terkawal seunit dan maknanya lebih universal. Kalau itu yang anda cari, lihat [gift box kurma custom dengan logo anda](/kurma), yang sudah termasuk kurma, design percuma dan penghantaran seluruh Malaysia. Butiran harga, kuantiti minimum dan timeline Ramadan ada dalam [panduan gift kurma & hamper kurma korporat](/panduan/panduan-gift-kurma-hamper-korporat).',
         ],
       },

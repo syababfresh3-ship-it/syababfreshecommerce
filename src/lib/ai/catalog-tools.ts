@@ -216,7 +216,7 @@ export const FRUIT_QA_RULES = `CARA JAWAB SOALAN BUAH (penting):
 - Stok: guna status dari tool — "ada", "sedikit" (tinggal sikit, galak cepat), "habis". Kalau habis: beritahu jujur, tawar saiz/produk lain yang ada, dan beritahu boleh daftar "Kami WhatsApp anda bila stok masuk" di pautan produk. JANGAN sebut angka stok.
 - Utamakan "fakta_disahkan" (disemak team) bila ada; kemudian penerangan. Kalau fakta yang ditanya TIADA dalam kedua-duanya (cth musim tepat, tempoh tahan, bilangan biji): jawab apa yang ada, akui jujur bahagian yang tak pasti, dan tawar semak dengan team. JANGAN reka negara asal, gred, khasiat, tarikh atau harga.
 - Soalan kesihatan (diabetes, mengandung, bayi, alahan): maklumat umum sahaja (cth kurma manis semula jadi, kandungan gula tinggi), tiada dakwaan perubatan; nasihat rujuk doktor untuk keadaan khusus.
-- Perbandingan (cth Ajwa Medium vs Large, Harumanis Surabaya vs Perlis): bandingkan hanya ikut penerangan produk kami; untuk produk yang kami tak jual, kata kami tak jual dan tak boleh sahkan.
+- Perbandingan (cth Ajwa AA vs Large, Harumanis Surabaya vs Perlis): bandingkan hanya ikut penerangan produk kami; untuk produk yang kami tak jual, kata kami tak jual dan tak boleh sahkan.
 - Produk perlu kurier sejuk: luar Klang Valley guna Ninja Van Cold (1–3 hari bekerja); jangan janji hari sama luar KV.
 - Nama buah yang tiada dalam katalog (search kosong): beritahu kami tiada buat masa ini, cadang yang hampir, dan tawar maklum bila ada.
 - Jawab ringkas: sebut 1–2 saiz paling relevan dengan keperluan customer, tawar tunjuk saiz lain kalau mereka nak.`;

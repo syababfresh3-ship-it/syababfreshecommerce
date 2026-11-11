@@ -1,0 +1,658 @@
+[
+ {
+  "id": "9c5d7bec-16a4-4705-ad14-1af1ec29187a",
+  "name": "AJWA Aliyah",
+  "slug": "ajwa-aliyah-mix",
+  "price": 13,
+  "product_variants": [
+   {
+    "id": "479ec62a-d6e0-4984-8873-37ea60c66d12",
+    "name": "100g",
+    "price": 13,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "0e66605b-39e1-46ba-a94f-93e0b44a0262",
+    "name": "300g",
+    "price": 23,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "0b813984-4466-48c5-984e-2a2d766f5c4f",
+    "name": "500g",
+    "price": 35,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "513eac03-d370-4178-a344-3f8b08cbaf69",
+    "name": "1kg",
+    "price": 49,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "c19f1439-f920-44f2-9cae-263e6f9777aa",
+    "name": "2kg",
+    "price": 109,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "f02167dd-3ab0-4bfe-b62f-e7c6d9f4d555",
+    "name": "5kg/ctn",
+    "price": 239,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "75a63698-85f0-4de8-9042-fc1f942108df",
+  "name": "AJWA Jumbo",
+  "slug": "ajwa-jumbo",
+  "price": 15,
+  "product_variants": [
+   {
+    "id": "fcb1e7f5-0e0a-4028-b966-02959c99d95e",
+    "name": "100g",
+    "price": 15,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "b86fa885-355b-4771-9393-0328d11f5c79",
+    "name": "300g",
+    "price": 29,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "06bdbb67-8d58-405c-aae7-fafb6d58c85f",
+    "name": "500g",
+    "price": 49,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "00778741-60c4-4506-85fa-5e9702238f63",
+    "name": "1kg",
+    "price": 79,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "0b02261d-8940-453b-985f-505ba2ac584f",
+    "name": "2kg",
+    "price": 150,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "cc606153-5547-4a53-8067-eedca9540449",
+    "name": "5kg/ctn",
+    "price": 269,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "eb9c020c-9ee4-46b0-af95-19ce12ac9f22",
+  "name": "AJWA Large",
+  "slug": "ajwa-large",
+  "price": 14,
+  "product_variants": [
+   {
+    "id": "6e65fb61-4e26-45e4-9adb-3588b1090b43",
+    "name": "5kg/ctn",
+    "price": 249,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   },
+   {
+    "id": "1fd5e124-6594-4142-87a2-c30dbde5c11a",
+    "name": "300g",
+    "price": 27,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "d6eb6dad-f430-4450-b912-7b902e6cdefc",
+    "name": "500g",
+    "price": 43,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "479a0fd3-ec35-4e4d-86b4-5a4c2e7ebe81",
+    "name": "1kg",
+    "price": 69,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "1b3db881-c23a-4984-9f9c-05e56243aa31",
+    "name": "2kg",
+    "price": 129,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "0d0c399f-544c-46d6-8cee-9fb27264c4b0",
+    "name": "100g",
+    "price": 14,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   }
+  ]
+ },
+ {
+  "id": "a2edb912-0f83-4ba9-ad2f-8f5a14d9c68a",
+  "name": "AJWA AA",
+  "slug": "ajwa-medium",
+  "price": 12,
+  "product_variants": [
+   {
+    "id": "cad2c506-e2a6-4145-92fd-2218c85411da",
+    "name": "300g",
+    "price": 21,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "c0c0cb58-908a-4473-b4c3-f0ac031dd466",
+    "name": "1kg",
+    "price": 30,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "e6dbf2b4-97ba-4606-9f5b-92c583da40cd",
+    "name": "100g",
+    "price": 12,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "3e7634d6-14c4-4cf5-9a6e-7562a9c4a646",
+    "name": "500g",
+    "price": 29,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "23a33d1e-324f-45e9-9213-fa0716fd4be2",
+    "name": "2kg",
+    "price": 79,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "5a10f0e3-35d6-411b-aa9a-7b4ebfcd09b5",
+    "name": "5kg/ctn",
+    "price": 199,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "7def979e-8cef-4587-9942-c5a8829158e6",
+  "name": "AJWA VIP",
+  "slug": "ajwa-super-jumbo-vip",
+  "price": 16,
+  "product_variants": [
+   {
+    "id": "73d49f5a-35de-47b8-8e43-41d530e1a120",
+    "name": "100g",
+    "price": 16,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "a6ec5173-18fb-4e5a-85a9-f64c6570a7b7",
+    "name": "300g",
+    "price": 31,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "2ca5d0f2-b2cd-4a9e-8d8e-5ca5ca7e496e",
+    "name": "500g",
+    "price": 49,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "882182cd-43ec-48d1-8124-67d2976cbc00",
+    "name": "1kg",
+    "price": 89,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "9cdac552-5f6d-4c84-abd5-66fb0ebdbdf6",
+    "name": "2kg",
+    "price": 139,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "62127ec0-f5c3-49f6-beb3-aa2b689f8e98",
+    "name": "5kg/ctn",
+    "price": 309,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "dfdc3d31-11b9-4c53-8ff6-ae7fe774c2c0",
+  "name": "Kurma Libya Gred 1",
+  "slug": "kurma-libya-gred-1",
+  "price": 15,
+  "product_variants": [
+   {
+    "id": "49940a94-af44-4471-9bb7-41aa0e56ae09",
+    "name": "500g",
+    "price": 15,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "2855bd70-441f-498a-9ae0-49336798b244",
+    "name": "1kg",
+    "price": 29,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "9d59c36d-e905-4b1b-b085-17d52c096b5b",
+    "name": "2kg",
+    "price": 39,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "d4561ec3-a14f-40ba-bff4-72d3a939ada0",
+    "name": "5kg",
+    "price": 89,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   }
+  ]
+ },
+ {
+  "id": "922b1e33-e385-4df9-bfaf-07d9b81faaba",
+  "name": "MARIAMI A",
+  "slug": "mariami-a",
+  "price": 13,
+  "product_variants": [
+   {
+    "id": "db19d5d5-743f-4310-abaf-aa7f7e4a7440",
+    "name": "100g",
+    "price": 13,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "f43b921e-8499-4f03-9079-5b03356a2e39",
+    "name": "300g",
+    "price": 19,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "0a4d65dc-2424-468b-8921-ab293a724546",
+    "name": "500g",
+    "price": 27,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "7be8add6-b5a4-4879-bc36-0ab0e6b5566f",
+    "name": "1kg",
+    "price": 29,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "ff37053b-20cb-47be-8cda-7589d275382f",
+    "name": "2kg",
+    "price": 75,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "944268b9-4062-4889-8b32-4e148ca8ed3b",
+    "name": "5kg/ctn",
+    "price": 179,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "f7135695-42c3-4072-8f80-ae8e1811306b",
+  "name": "Mariami AA",
+  "slug": "mariami-aa",
+  "price": 12,
+  "product_variants": [
+   {
+    "id": "85d5d4b6-e4f6-4130-82a0-e4d471f30dc3",
+    "name": "100g",
+    "price": 12,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "e3347dee-d2a8-4cee-baee-263ef18cdcbc",
+    "name": "300g",
+    "price": 19,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "ef757ba8-ab93-4c5b-9e08-0f85b861806e",
+    "name": "500g",
+    "price": 27,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "602c07d0-ce84-4114-9a1c-08867b0dc102",
+    "name": "1kg",
+    "price": 45,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "a464bcbb-64d7-400c-b4b8-fc22390402ab",
+    "name": "2kg",
+    "price": 85,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "99f71b2f-d6a6-4a12-b925-ae04810dfffb",
+    "name": "5kg/ctn",
+    "price": 185,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "e0bcb93d-6693-4c71-9658-73009e537db1",
+  "name": "Mariami AAA",
+  "slug": "mariami-aaa",
+  "price": 13,
+  "product_variants": [
+   {
+    "id": "2da5df30-fe5e-46f9-938f-411c947ba956",
+    "name": "100g",
+    "price": 13,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "cd8cfeeb-2cbb-4d1b-ba90-0d0218988382",
+    "name": "300g",
+    "price": 25,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "f9728f24-4e53-4ea4-8df4-a1baf9f36f4a",
+    "name": "500g",
+    "price": 32,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "ee5de59e-184f-4de9-a7b2-d05b3710c2c8",
+    "name": "1kg",
+    "price": 55,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "8470a211-8761-4f9f-98c2-310311a10437",
+    "name": "2kg",
+    "price": 99,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "1d663961-f48e-443c-858a-b8ac66d320e6",
+    "name": "5kg/ctn",
+    "price": 239,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "e6d4bd2e-23a4-43b6-8e4b-a47cd4483c59",
+  "name": "SAFAWI Jumbo",
+  "slug": "safawi-jumbo",
+  "price": 13,
+  "product_variants": [
+   {
+    "id": "e9e03560-0132-4308-902a-388f56bafa97",
+    "name": "100g",
+    "price": 13,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "dd96a201-76e9-472e-8f86-2f341f2379ac",
+    "name": "300g",
+    "price": 20,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "cd50f22d-40ef-4492-a1d2-d106877a1235",
+    "name": "500g",
+    "price": 30,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "0e70e8cb-95c7-437e-9419-75e5a7afba13",
+    "name": "1kg",
+    "price": 55,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "08dc1511-ae06-43d5-bc14-ac6ee6051b82",
+    "name": "2kg",
+    "price": 99,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "f3cc11b0-f150-49f9-bfd2-2607be3655e3",
+    "name": "5kg",
+    "price": 229,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ },
+ {
+  "id": "bf0eb815-94a8-4d1a-9a8b-b5c3bfd64082",
+  "name": "SAFAWI AA",
+  "slug": "safawi-large",
+  "price": 12,
+  "product_variants": [
+   {
+    "id": "3250fd99-37c7-4392-8d1f-d6709e87667d",
+    "name": "100g",
+    "price": 12,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "2160773b-7417-402f-8a37-1928602e28b7",
+    "name": "300g",
+    "price": 19,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "567f6624-b340-4161-8e79-4d7ad46b402c",
+    "name": "500g",
+    "price": 27,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "c6f54a57-2260-498c-851a-7d4f29c5d366",
+    "name": "2kg",
+    "price": 89,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "4c8e3cd9-7df3-4eef-bebc-a92e666c8ae8",
+    "name": "5kg",
+    "price": 209,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   },
+   {
+    "id": "e397989f-eeeb-451d-a083-23e0caae9c19",
+    "name": "1kg",
+    "price": 39,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   }
+  ]
+ },
+ {
+  "id": "837e5489-1489-40b7-b47d-d703a1a819bc",
+  "name": "SAFAWI A",
+  "slug": "safawi-medium",
+  "price": 11,
+  "product_variants": [
+   {
+    "id": "67292e73-585b-4b90-854c-91f462c30016",
+    "name": "100g",
+    "price": 11,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 1
+   },
+   {
+    "id": "6155406d-40d7-422f-9201-d089def1a1a9",
+    "name": "300g",
+    "price": 18,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 2
+   },
+   {
+    "id": "3067eaa6-39de-4653-ae94-27df018506bb",
+    "name": "500g",
+    "price": 29,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 3
+   },
+   {
+    "id": "99e5b5eb-2109-4092-be40-061d6c95e8a1",
+    "name": "1kg",
+    "price": 35,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 4
+   },
+   {
+    "id": "fbaeaa0b-fee4-4c39-8d34-b0ad3d81b722",
+    "name": "2kg",
+    "price": 75,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 5
+   },
+   {
+    "id": "78efb303-061a-4bf3-a56b-bc96dd3791f6",
+    "name": "5kg",
+    "price": 169,
+    "is_active": true,
+    "deleted_at": null,
+    "sort_order": 6
+   }
+  ]
+ }
+]

@@ -400,7 +400,7 @@ export function PipelineClient({ initialDealId }: { initialDealId: string | null
                       <p className="text-[11px] text-gray-400 mt-1">{detail.packer ? `Ditugaskan ${fmtDT(detail.packer_assigned_at ?? null)}. Beritahu packer sendiri (WhatsApp/lisan) — packer bukan pengguna admin, tiada notifikasi automatik.` : packersWarn ?? (packers.length ? 'Tetapkan sebaik deposit masuk, kemudian beritahu packer sendiri.' : 'Tiada packer lagi — tambah melalui butang Packer di atas papan.')}</p>
                     </div>
                     <div><label className={lbl}>Pek siap (sedia hantar)</label><input type="date" value={form.packed_at ?? ''} onChange={e => f('packed_at', e.target.value)} className={inp} /></div>
-                    <div className="sm:col-span-2"><label className={lbl}>Arahan pek untuk PIC</label><textarea value={form.pack_notes ?? ''} onChange={e => f('pack_notes', e.target.value)} rows={2} className={inp} placeholder="cth. 120 kotak · Ajwa Medium 250g · finishing matte · label logo klien atas · susun 10 per karton" /></div>
+                    <div className="sm:col-span-2"><label className={lbl}>Arahan pek untuk PIC</label><textarea value={form.pack_notes ?? ''} onChange={e => f('pack_notes', e.target.value)} rows={2} className={inp} placeholder="cth. 120 kotak · Ajwa AA 250g · finishing matte · label logo klien atas · susun 10 per karton" /></div>
                   </div>
                 </div>
 

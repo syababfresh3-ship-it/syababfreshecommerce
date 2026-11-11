@@ -31,7 +31,7 @@ export const EVAL_MAX_QUESTIONS = 1;
 export const EVAL_CASES: EvalCase[] = [
   // ── Produk & fakta ────────────────────────────────────────────────────
   { id: "shine-muscat-asal", group: "produk", q: "anggur shine muscat tu dari mana? ada biji tak?", tools: ["get_product_details"], include: [["jepun"], ["tiada biji", "tanpa biji", "tak ada biji"]], reference: "Shine Muscat: anggur hijau dari Jepun, tiada biji, kulit nipis boleh dimakan terus, aroma muscat, sangat manis." },
-  { id: "ajwa-medium-harga", group: "produk", q: "kurma ajwa medium 1kg berapa?", tools: ["search_products", "get_product_details"], include: [["rm"]], exclude: ["**"], live: true, reference: "Harga mesti dari katalog live (saiz 1kg), bukan direka." },
+  { id: "ajwa-medium-harga", group: "produk", q: "kurma ajwa AA 1kg berapa?", tools: ["search_products", "get_product_details"], include: [["rm"]], exclude: ["**"], live: true, reference: "Harga mesti dari katalog live (saiz 1kg), bukan direka." },
   { id: "beza-ajwa", group: "produk", q: "beza ajwa medium dengan ajwa large apa?", maxChars: 450, tools: ["get_product_details", "search_products"], include: [["medium"], ["large"]], reference: "Large = biji lebih besar & berisi berbanding Medium; rasa Ajwa sama (lembut, manis sederhana)." },
   { id: "buah-potong", group: "produk", q: "ada buah potong siap makan tak?", tools: ["search_products"], include: [["cubits", "fresh-cut", "potong"]] },
   { id: "oren-sinonim", group: "produk", q: "oren ada apa je?", tools: ["search_products"], include: [["navel", "mandarin", "limau", "orange"]], note: "Sinonim BM → EN." },

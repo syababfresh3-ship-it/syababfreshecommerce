@@ -48,18 +48,24 @@ export interface BorongCatalogEntry {
 }
 
 export const BORONG_CATALOG: BorongCatalogEntry[] = [
-  { slug: 'ajwa-medium', group: 'ajwa', grade: 'Medium', pack: '5kg/ctn', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
+  // Gred Ajwa diseragamkan ikut gred supplier 2027 (11 Nov): AA · AA Premium · Large · Jumbo · VIP (slug lama kekal untuk URL)
+  { slug: 'ajwa-medium', group: 'ajwa', grade: 'AA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
+  { slug: 'ajwa-aa-premium', group: 'ajwa', grade: 'AA Premium', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'ajwa-large', group: 'ajwa', grade: 'Large', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
+  { slug: 'ajwa-aliyah-mix', group: 'ajwa', grade: 'Aliyah', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'ajwa-jumbo', group: 'ajwa', grade: 'Jumbo', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
-  { slug: 'ajwa-super-jumbo-vip', group: 'ajwa', grade: 'Super Jumbo VIP', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
+  { slug: 'ajwa-super-jumbo-vip', group: 'ajwa', grade: 'VIP', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'mariami-a', group: 'mariami', grade: 'A', pack: '5kg/ctn', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
   { slug: 'mariami-aa', group: 'mariami', grade: 'AA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'mariami-aaa', group: 'mariami', grade: 'AAA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
-  { slug: 'safawi-medium', group: 'safawi', grade: 'Medium', pack: '5kg', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
-  { slug: 'safawi-large', group: 'safawi', grade: 'Large', pack: '5kg', packKg: 5, refPriceCtn: null },
+  // Gred Safawi diseragamkan ikut sheet 2027 (11 Nov): A · AA · Jumbo (slug lama kekal)
+  { slug: 'safawi-medium', group: 'safawi', grade: 'A', pack: '5kg', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
+  { slug: 'safawi-large', group: 'safawi', grade: 'AA', pack: '5kg', packKg: 5, refPriceCtn: null },
   { slug: 'safawi-jumbo', group: 'safawi', grade: 'Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null },
   { slug: 'medjoul-palestine-large', group: 'medjoul', grade: 'Large', pack: '5kg', packKg: 5, refPriceCtn: null },
   { slug: 'medjoul-palestine-jumbo', group: 'medjoul', grade: 'Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null },
+  // SKU borong sheet 2027 "Medjoul · Mix Large–Jumbo" (produk baharu 11 Nov, draf sehingga pemilik aktifkan)
+  { slug: 'medjoul-mix-large-jumbo', group: 'medjoul', grade: 'Mix Large–Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null },
   { slug: 'dry-sukkari', group: 'sukkari', grade: 'Dry', pack: '3kg/ctn', packKg: 3, refPriceCtn: null },
   { slug: 'rotab-sukkari', group: 'sukkari', grade: 'Rotab', pack: '3kg/ctn', packKg: 3, refPriceCtn: null },
   { slug: 'kurma-tunisia', group: 'tunisia', grade: '', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
