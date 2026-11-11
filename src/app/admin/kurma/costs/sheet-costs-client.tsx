@@ -1,8 +1,8 @@
 'use client'
 
-// Rujukan kos & harga gift box dari Google Sheet "GIFT BOX CUSTOM 2026" (pemilik 25 Okt 2026:
-// team sale ubah di sheet sahaja). Butang "Tarik dari Sheet" → simpan ke app_settings; jadual
-// ikut kurma → berat → tier qty: kos/kotak, harga, untung, margin. Dipakai cadangan item sebut harga.
+// Rujukan kos & harga gift box dari Google Sheet pemilik — kini "MASTER HARGA KURMA 2027" › "Harga Giftbox 2027"
+// (pemilik 25 Okt 2026: team sale ubah di sheet sahaja). Butang "Tarik dari Sheet" → simpan ke app_settings;
+// jadual ikut kategori → kurma → berat → tier qty: kos/kotak, harga, untung, margin. Dipakai cadangan item sebut harga.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, RefreshCw, ExternalLink, Table2 } from 'lucide-react'
@@ -38,17 +38,22 @@ export function SheetCostsClient() {
     } finally { setBusy(false) }
   }
 
+  // Kumpulan: kategori (2027) → kurma. Sheet 2026 tanpa kategori → satu kumpulan '' → kurma sahaja.
   const groups = useMemo(() => {
     if (!sheet) return []
-    return sheet.kurma.map(k => ({ kurma: k, rows: sheet.rows.filter(r => r.kurma === k) }))
+    const cats = sheet.categories?.length ? sheet.categories : ['']
+    return cats.flatMap(c => {
+      const inCat = sheet.rows.filter(r => (r.category ?? '') === c)
+      return [...new Set(inCat.map(r => r.kurma))].map(k => ({ key: `${c}|${k}`, category: c, kurma: k, rows: inCat.filter(r => r.kurma === k) }))
+    })
   }, [sheet])
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500 inline-flex items-center gap-1.5"><Table2 className="h-3.5 w-3.5" />Sheet &quot;GIFT BOX CUSTOM 2026&quot; — rujukan harga team sale</p>
-          <p className="text-xs text-gray-500 mt-1">{loading ? 'Memuat…' : sheet ? `${sheet.rows.length} baris · ${sheet.kurma.length} jenis kurma · ditarik ${fmtDT(sheet.fetched_at)}` : 'Belum ditarik. Tekan butang untuk ambil dari Google Sheet.'} Ubah angka di Sheet, kemudian tarik semula di sini.</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500 inline-flex items-center gap-1.5"><Table2 className="h-3.5 w-3.5" />Sheet &quot;Harga Giftbox {sheet?.version ?? '2027'}&quot; — rujukan harga team sale</p>
+          <p className="text-xs text-gray-500 mt-1">{loading ? 'Memuat…' : sheet ? `${sheet.rows.length} baris · ${sheet.kurma.length} jenis kurma${sheet.categories?.length ? ` · ${sheet.categories.length} kategori` : ''} · ditarik ${fmtDT(sheet.fetched_at)}` : 'Belum ditarik. Tekan butang untuk ambil dari Google Sheet.'} Ubah angka di Sheet, kemudian tarik semula di sini.</p>
         </div>
         <div className="flex items-center gap-2">
           <a href={GIFT_COST_SHEET_EDIT_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50"><ExternalLink className="h-4 w-4" />Buka Sheet</a>
@@ -72,11 +77,11 @@ export function SheetCostsClient() {
       {sheet && (
         <div className="mt-3 divide-y divide-gray-100 border-t border-gray-100">
           {groups.map(g => {
-            const isOpen = open === g.kurma || open === '*'
+            const isOpen = open === g.key || open === '*'
             return (
-              <div key={g.kurma}>
-                <button type="button" onClick={() => setOpen(isOpen && open !== '*' ? null : g.kurma)} className="w-full flex items-center justify-between py-2.5 text-left">
-                  <span className="text-sm font-bold text-gray-900">{g.kurma}</span>
+              <div key={g.key}>
+                <button type="button" onClick={() => setOpen(isOpen && open !== '*' ? null : g.key)} className="w-full flex items-center justify-between py-2.5 text-left">
+                  <span className="text-sm font-bold text-gray-900">{g.category && <span className="text-[11px] font-semibold text-gray-500 mr-2">{g.category}</span>}{g.kurma}</span>
                   <span className="text-xs text-gray-500">{[...new Set(g.rows.map(r => r.weight))].join(' · ')} · {g.rows.length} tier</span>
                 </button>
                 {isOpen && (

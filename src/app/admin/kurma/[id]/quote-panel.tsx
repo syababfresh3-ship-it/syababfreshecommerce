@@ -1,7 +1,7 @@
 'use client'
 
 // Panel sebut harga untuk order dari Studio (config.source === 'sheet') — 3 lajur sebelah-menyebelah:
-// Harga senarai (sheet 2026) | Kos (app_settings.gift_cost_config) | Harga anda (RM/kotak) →
+// Harga senarai (sheet 2027) | Kos (app_settings.gift_cost_config) | Harga anda (RM/kotak) →
 // untung/margin live + cadangan @ margin sasaran. Simpan → PATCH /api/admin/kurma/orders/[id]
 // (unit_price → subtotal/total dikira semula + snapshot list/cost/margin, migration 143).
 // Order lama (katalog/manual) kekal guna panel "Quote & payment" asal — panel ini tak dipakai.

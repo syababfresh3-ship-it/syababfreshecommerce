@@ -86,7 +86,7 @@ export function CostsClient() {
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Gift Studio — Kos & Harga</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Kos sebenar per kotak untuk kira margin dalam sebut harga. Harga jual (senarai) kekal dari sheet 2026 di <code className="bg-gray-100 px-1 rounded">lib/gift-pricing.ts</code>.</p>
+        <p className="text-sm text-gray-500 mt-0.5">Kos sebenar per kotak untuk kira margin dalam sebut harga. Harga jual (senarai) kekal dari sheet 2027 di <code className="bg-gray-100 px-1 rounded">lib/gift-pricing.ts</code>.</p>
       </div>
 
       {!exists && (

@@ -1,7 +1,11 @@
 import { DEFAULT_DEPOSIT_PCT } from '@/lib/gift'
+import { rm, sheetPriceRange } from '@/lib/gift-pricing'
 
 // Copy variants untuk landing page gift box — satu per angle iklan FB (message match).
 // Setiap angle = hero copy berbeza; galeri, calculator, FAQ, testimoni dikongsi.
+
+// Harga "serendah RM__" ikut tier terendah sheet semasa (lib/gift-pricing.ts) — dulu hardcode RM4.50 (sheet 2026)
+const FROM_PRICE = rm(sheetPriceRange().low)
 
 export interface GiftLandingCopy {
   slug: string          // route: /kurma/<slug> (kecuali 'default' → /kurma)
@@ -46,11 +50,11 @@ export const GIFT_VARIANTS: Record<string, GiftLandingCopy> = {
     slug: 'jimat',
     eyebrow: 'Harga Terbaik',
     headlineBefore: 'Gift box kurma custom serendah ',
-    headlineHighlight: 'RM4.50',
+    headlineHighlight: FROM_PRICE,
     headlineAfter: ' sekotak.',
     sub: 'Termasuk kurma + kotak berjenama anda. Lagi banyak kuantiti, lagi murah seunit. Mula dari 50 kotak sahaja — kira harga anda di bawah.',
-    metaTitle: 'Gift Box Kurma Custom Murah — Dari RM4.50/Kotak | SyababFresh',
-    metaDesc: 'Gift box kurma custom termasuk kurma, dari RM4.50/kotak. Lagi banyak lagi murah. Min 50 kotak. Kira harga & WhatsApp.',
+    metaTitle: `Gift Box Kurma Custom Murah — Dari ${FROM_PRICE}/Kotak | SyababFresh`,
+    metaDesc: `Gift box kurma custom termasuk kurma, dari ${FROM_PRICE}/kotak. Lagi banyak lagi murah. Min 50 kotak. Kira harga & WhatsApp.`,
   },
 }
 

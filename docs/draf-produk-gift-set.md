@@ -4,6 +4,12 @@
 insert sendiri. B2 (+40) pada `docs/seo-geo-progress.md` hanya ditick bila pemilik sahkan
 produk live di storefront/feed.
 
+> **Kemas kini 11 Nov:** pemilik dah ada harga **Ready-made rasmi** dalam sheet *MASTER HARGA KURMA
+> 2027 › Harga Giftbox 2027* (kategori "Ready-made": 7 kurma + Royal Dates × 100g/200g/500g/1kg × tier
+> 1/10/50/100/300, lengkap dengan kos). Bila masukkan produk, **guna harga sheet itu**, bukan anggaran di
+> bawah — kos PLACEHOLDER (Medjoul RM45/kg, Ajwa Large RM27/kg, kotak 500g RM4, dll.) kini ada dalam
+> sheet. Sheet itu juga dipapar di `/admin/kurma/costs` (kategori Ready-made) selepas "Tarik dari Sheet".
+
 Semakan 10 Nov: **0 produk** dalam `kurma-set-bundle`, `gift-box`, `gift-box-set` (aktif atau
 tidak). Yang paling hampir ialah 3 produk kurma tunggal "Premium (Kotak)" — jadi anchor harga
 kotak sedia ada:

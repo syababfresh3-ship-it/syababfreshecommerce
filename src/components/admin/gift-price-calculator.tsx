@@ -1,9 +1,10 @@
 'use client'
 
-// Kalkulator harga gift box untuk team sale — data dari Sheet "GIFT BOX CUSTOM 2026"
-// (app_settings.gift_cost_sheet). Pilih kurma · berat · kuantiti → kos/kotak & harga Sheet (tier ikut
-// kuantiti) → main margin (%) atau harga sendiri → untung/kotak, jumlah untung & jualan, banding
-// panduan margin. `onUse` (pilihan) → tambah sebagai item sebut harga. Tiada tulisan ke pelayan.
+// Kalkulator harga gift box untuk team sale — data dari Sheet harga gift box (app_settings.gift_cost_sheet;
+// 2027 "Harga Giftbox 2027" dengan kategori Ready-made / Custom kecil / Custom pukal, atau 2026 lama tanpa kategori).
+// Pilih kategori · kurma · berat · kuantiti → kos/kotak & harga Sheet (tier ikut kuantiti) → main margin (%)
+// atau harga sendiri → untung/kotak, jumlah untung & jualan, banding panduan margin. `onUse` (pilihan) →
+// tambah sebagai item sebut harga. Tiada tulisan ke pelayan.
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, Calculator, Plus, RefreshCw } from 'lucide-react'
 import { findSheetRow, marginPct, r2, sheetItemName, sheetTiers, type GiftCostSheet } from '@/lib/gift-cost-sheet'
@@ -29,6 +30,7 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
 }) {
   const [sheet, setSheet] = useState<GiftCostSheet | null>(null)
   const [loading, setLoading] = useState(true)
+  const [category, setCategory] = useState('')   // '' bila sheet tiada kategori (2026)
   const [kurma, setKurma] = useState('')
   const [weight, setWeight] = useState('')
   const [qty, setQty] = useState(String(defaultQty))
@@ -43,17 +45,29 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
       if (!alive) return
       const s: GiftCostSheet | null = j?.sheet ?? null
       setSheet(s); setLoading(false)
-      if (s?.kurma?.[0]) { setKurma(k => k || s.kurma[0]); const w = s.rows.find(r => r.kurma === s.kurma[0])?.weight; setWeight(x => x || w || '') }
+      if (!s) return
+      // Lalai: kategori "Custom pukal" (quote korporat) bila sheet ada kategori; kurma & berat pertama dalam kategori itu
+      const cats = s.categories ?? []
+      const c0 = cats.find(c => /pukal/i.test(c)) ?? cats[0] ?? ''
+      const inC0 = (r: GiftCostSheet['rows'][number]) => !cats.length || (r.category ?? '') === c0
+      const k0 = s.rows.find(inC0)?.kurma
+      setCategory(c => c || c0)
+      if (k0) { setKurma(k => k || k0); const w = s.rows.find(r => inC0(r) && r.kurma === k0)?.weight; setWeight(x => x || w || '') }
     }).catch(() => setLoading(false))
     return () => { alive = false }
   }, [])
 
-  const weights = useMemo(() => sheet ? [...new Set(sheet.rows.filter(r => r.kurma === kurma).map(r => r.weight))] : [], [sheet, kurma])
-  // Berat berkesan diterbitkan (bukan setState dalam effect): jika pilihan tak wujud untuk kurma ini → berat pertama
+  // Kategori/kurma/berat berkesan diterbitkan (bukan setState dalam effect): pilihan yang tak wujud → yang pertama
+  const cats = useMemo(() => sheet?.categories ?? [], [sheet])
+  const effCat = cats.includes(category) ? category : (cats[0] ?? '')
+  const catArg = cats.length ? effCat : undefined   // undefined = sheet 2026 tanpa kategori → abaikan
+  const kurmas = useMemo(() => sheet ? [...new Set(sheet.rows.filter(r => catArg === undefined || (r.category ?? '') === catArg).map(r => r.kurma))] : [], [sheet, catArg])
+  const effKurma = kurmas.includes(kurma) ? kurma : (kurmas[0] ?? '')
+  const weights = useMemo(() => sheet ? [...new Set(sheet.rows.filter(r => (catArg === undefined || (r.category ?? '') === catArg) && r.kurma === effKurma).map(r => r.weight))] : [], [sheet, catArg, effKurma])
   const effWeight = weights.includes(weight) ? weight : (weights[0] ?? '')
   const q = Math.max(1, Math.floor(Number(qty) || 0))
-  const row = useMemo(() => findSheetRow(sheet, kurma, effWeight, q), [sheet, kurma, effWeight, q])
-  const tiers = useMemo(() => sheetTiers(sheet, kurma, effWeight), [sheet, kurma, effWeight])
+  const row = useMemo(() => findSheetRow(sheet, effKurma, effWeight, q, catArg), [sheet, effKurma, effWeight, q, catArg])
+  const tiers = useMemo(() => sheetTiers(sheet, effKurma, effWeight, catArg), [sheet, effKurma, effWeight, catArg])
   const band = sheet && q ? bandFor(sheet, q) : null
 
   // Pecahan kos: nilai Sheet sebagai asas, override pengguna menang. Komisyen = 2% harga (auto) kecuali diubah.
@@ -66,7 +80,8 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
   const comp = (k: keyof GiftCostSheet['rows'][number]['cost']) => vals[k] !== undefined && vals[k] !== '' && Number.isFinite(Number(vals[k])) ? Number(vals[k]) : (row?.cost[k] ?? 0)
   const costExKom = r2(COMPONENTS.reduce((t, c) => t + comp(c.k), 0))
   const komOverride = vals.komisyen !== undefined && vals.komisyen !== '' && Number.isFinite(Number(vals.komisyen)) ? Number(vals.komisyen) : null
-  const KOM_RATE = 0.02
+  // Sheet 2026 ada lajur komisyen (2% harga); sheet 2027 tiada → 0 (masih boleh diisi manual)
+  const KOM_RATE = sheet?.has_komisyen === false ? 0 : 0.02
   // Harga akhir: harga anda > margin sasaran > harga Sheet. Komisyen auto 2% harga → selesaikan secara algebra dalam mod margin.
   let finalPrice: number
   if (price !== '' && Number(price) > 0) finalPrice = r2(Number(price))
@@ -85,8 +100,9 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
 
   return (
     <div className={compact ? '' : 'space-y-3'}>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div><label className={lbl}>Kurma</label><select value={kurma} onChange={e => { setKurma(e.target.value); setWeight('') }} className={inp}>{sheet.kurma.map(k => <option key={k} value={k}>{k}</option>)}</select></div>
+      <div className={`grid grid-cols-2 gap-2 ${cats.length ? 'sm:grid-cols-5' : 'sm:grid-cols-4'}`}>
+        {cats.length > 0 && <div><label className={lbl}>Kategori</label><select value={effCat} onChange={e => { setCategory(e.target.value); setKurma(''); setWeight('') }} className={inp}>{cats.map(c => <option key={c} value={c}>{c}</option>)}</select></div>}
+        <div><label className={lbl}>Kurma</label><select value={effKurma} onChange={e => { setKurma(e.target.value); setWeight('') }} className={inp}>{kurmas.map(k => <option key={k} value={k}>{k}</option>)}</select></div>
         <div><label className={lbl}>Berat</label><select value={effWeight} onChange={e => setWeight(e.target.value)} className={inp}>{weights.map(w => <option key={w} value={w}>{w}</option>)}</select></div>
         <div><label className={lbl}>Kuantiti (kotak)</label><input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className={`${inp} font-mono`} /></div>
         <div><label className={lbl}>Margin sasaran %</label><input type="number" min="0" max="95" step="1" value={margin} onChange={e => { setMargin(e.target.value); setPrice('') }} placeholder={row ? String(row.margin_pct) : '—'} className={`${inp} font-mono`} /></div>
@@ -108,7 +124,7 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
               <div>
                 <label className="block text-[10px] font-semibold text-gray-600 mb-0.5 truncate">Kos komisyen</label>
                 <input type="number" min="0" step="0.01" value={vals.komisyen ?? ''} onChange={e => setVal('komisyen', e.target.value)} placeholder={komisyen.toFixed(2)} className={`${inp} font-mono text-right px-2 ${vals.komisyen ? 'border-gray-900' : ''}`} aria-label="Kos komisyen" />
-                <p className="text-[10px] text-gray-400 text-right mt-0.5">{komOverride !== null ? `Sheet ${row.cost.komisyen.toFixed(2)}` : '2% harga'}</p>
+                <p className="text-[10px] text-gray-400 text-right mt-0.5">{komOverride !== null ? `Sheet ${row.cost.komisyen.toFixed(2)}` : KOM_RATE ? '2% harga' : 'tiada dalam Sheet'}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2 text-sm mt-3 pt-3 border-t border-gray-200">
@@ -125,7 +141,7 @@ export function GiftPriceCalculator({ onUse, defaultQty = 500, compact = false }
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-gray-500">
               <span>Tier Sheet: {tiers.map(t => `@${t.qty.toLocaleString('en-MY')} ${rm(t.price)}`).join(' · ')}</span>
               {band && <span className={finalMargin < Number(band.margin_label.match(/\d+/)?.[0] ?? 0) ? 'text-amber-700 font-semibold' : ''}>Panduan {band.qty_label}: margin {band.margin_label}</span>}
-              <span>Kos = jumlah pecahan di atas; komisyen 2% dari harga ikut Sheet. Ubah mana-mana kos untuk cuba senario (kotak lebih murah, upah lain).</span>
+              <span>Kos = jumlah pecahan di atas{KOM_RATE ? '; komisyen 2% dari harga ikut Sheet' : ''}. Ubah mana-mana kos untuk cuba senario (kotak lebih murah, upah lain).</span>
             </div>
           </div>
           <div className="flex sm:flex-col gap-2">

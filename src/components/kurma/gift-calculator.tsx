@@ -1,7 +1,7 @@
 'use client'
 
 // Calculator harga Custom Gift Box Kurma → WhatsApp.
-// Harga dari SATU sumber: lib/gift-pricing.ts (sheet 2026) — sama dengan API enquiry (kira semula
+// Harga dari SATU sumber: lib/gift-pricing.ts (sheet 2027) — sama dengan API enquiry (kira semula
 // server) & admin quote tool. Prop tambahan (additive, pemanggil `angle`-sahaja tak berubah):
 //   onChange(sel) — studio hot-lead dapat pilihan + quote untuk disimpan dalam enquiry
 //   hideCta       — studio guna borang enquiry sendiri; sorok butang WA + baris bantuan sahaja

@@ -5,7 +5,7 @@
 // kos KURMA RM/kg ikut gred (auto kira ikut berat), packing & delivery rata per kotak,
 // margin sasaran %. Bentuk output mencermin lib/pricing/costing.ts (untung/margin/status/
 // cadangan) tanpa memaksa medan produk kedai.
-import { KURMA, SHEET_WEIGHTS, gramsOf, priceFor, type SheetWeight, type Tiers } from '@/lib/gift-pricing'
+import { KURMA, LEGACY_KURMA_IDS, SHEET_WEIGHTS, gramsOf, priceFor, type SheetWeight, type Tiers } from '@/lib/gift-pricing'
 
 export const GIFT_COST_KEY = 'gift_cost_config'
 
@@ -29,7 +29,8 @@ const num0 = (v: unknown): number => {
   return Number.isFinite(n) && n >= 0 ? n : 0
 }
 const round2 = (n: number) => Math.round(n * 100) / 100
-const KURMA_IDS = new Set(KURMA.map(k => k.id))
+// ID lama (sheet 2026) kekal diterima supaya kos RM/kg yang dah disimpan tak hilang masa parse
+const KURMA_IDS = new Set([...KURMA.map(k => k.id), ...Object.keys(LEGACY_KURMA_IDS)])
 
 /** Parse toleran (tak pernah throw): nilai pelik dibuang, tier bukan nombor ≥1 diabai. */
 export function parseGiftCostConfig(raw: string | null | undefined): GiftCostConfig {

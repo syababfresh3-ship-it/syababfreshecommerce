@@ -3,7 +3,7 @@
 // Fasa 3 docs/plan-ai-chatbot-cerdik.md. SEMUA fakta dari sumber awam sedia ada (tiada rekaan):
 //  • GIFT_FAQ, GIFT_CLIENTS, GIFT_WA_TEXT  (lib/gift-copy.ts — dipapar di LP)
 //  • COMPANY.depositPct / leadTimeWeeks     (lib/company.ts)
-//  • FINISHES, KURMA sheet 2026 + sheetQuote (lib/gift.ts, lib/gift-pricing.ts — kalkulator awam Studio)
+//  • FINISHES, KURMA sheet 2027 + sheetQuote (lib/gift.ts, lib/gift-pricing.ts — kalkulator awam Studio)
 // Tool: gift_price_estimate (anggaran = harga senarai kalkulator awam) · flag_gift_enquiry (→ gift_orders
 // status 'enquiry', config.source='wa-ai' → peti Enquiry Gift → team sales buat sebut harga).
 // ============================================================
@@ -11,7 +11,7 @@ import type { AiToolDef } from "./tools";
 import { GIFT_FAQ, GIFT_CLIENTS } from "@/lib/gift-copy";
 import { COMPANY } from "@/lib/company";
 import { FINISHES, DEFAULT_DEPOSIT_PCT } from "@/lib/gift";
-import { KURMA, SHEET_WEIGHTS, sheetPriceRange, sheetQuote, type SheetWeight } from "@/lib/gift-pricing";
+import { KURMA, SHEET_VERSION, SHEET_WEIGHTS, sheetPriceRange, sheetQuote, type SheetWeight } from "@/lib/gift-pricing";
 import { kurmaAbs } from "@/lib/kurma-host";
 import { sendAdminPush } from "@/lib/push";
 
@@ -56,11 +56,11 @@ export const GIFT_TOOLS: AiToolDef[] = [
   {
     name: "gift_price_estimate",
     description:
-      "ANGGARAN harga senarai Custom Gift Box Kurma (sama seperti kalkulator awam Studio, sheet 2026): pilih kurma (Ajwa AA / Ajwa AA Premium / Mariami A / Mariami AA / Safawi A), berat isi (100g/200g/500g) dan kuantiti kotak. Pulang harga per kotak & jumlah (termasuk kurma + kotak berlogo, TANPA penghantaran) + tier minimum. Sentiasa beritahu customer ini anggaran; harga rasmi dari sebut harga team sales.",
+      `ANGGARAN harga senarai Custom Gift Box Kurma (sama seperti kalkulator awam Studio, sheet ${SHEET_VERSION}): pilih kurma (Ajwa AA / Ajwa Large / Ajwa VIP / Mariami A / Mariami AA / Safawi A / Medjoul / Libya-Tunisia; Ajwa VIP & Medjoul untuk pukal 500+ sahaja), berat isi (100g/200g/500g) dan kuantiti kotak. Pulang harga per kotak & jumlah (termasuk kurma + kotak berlogo, TANPA penghantaran) + tier minimum. Sentiasa beritahu customer ini anggaran; harga rasmi dari sebut harga team sales.`,
     parameters: {
       type: "object",
       properties: {
-        kurma: { type: "string", description: 'Jenis kurma, cth "ajwa", "ajwa premium", "mariami", "mariami aa", "safawi". Kosong = Ajwa AA.' },
+        kurma: { type: "string", description: 'Jenis kurma, cth "ajwa", "ajwa large", "ajwa vip", "mariami", "mariami aa", "safawi", "medjoul", "libya". Kosong = Ajwa AA.' },
         weight: { type: "string", enum: ["100g", "200g", "500g"], description: "Berat isi kurma per kotak." },
         qty: { type: "integer", description: "Bilangan kotak (minimum biasanya 50; 500g bermula 500)." },
       },
@@ -94,11 +94,14 @@ const norm = (s: unknown) => String(s ?? "").toLowerCase().trim();
 function kurmaIdFor(input: unknown): string {
   const t = norm(input);
   if (!t) return "ajwa-aa";
-  if (t.includes("ajwa") && t.includes("premium")) return "ajwa-aa-premium";
+  if (t.includes("ajwa") && t.includes("vip")) return "ajwa-vip";
+  if (t.includes("ajwa") && (t.includes("large") || t.includes("premium") || t.includes("besar"))) return "ajwa-large";
   if (t.includes("ajwa")) return "ajwa-aa";
   if (t.includes("mariami") && /\baa\b/.test(t)) return "mariami-aa";
   if (t.includes("mariami")) return "mariami-a";
   if (t.includes("safawi")) return "safawi-a";
+  if (t.includes("medjoul") || t.includes("medjool")) return "medjoul";
+  if (t.includes("libya") || t.includes("tunisia")) return "libya-tunisia";
   return "";
 }
 const rm = (n: number) => `RM${n.toFixed(2)}`;
@@ -115,7 +118,7 @@ export function giftPriceEstimate(input: Record<string, unknown>): string {
     anggaran_per_kotak: rm(q.perBox), anggaran_jumlah: rm(q.total),
     termasuk: "kurma + kotak custom berlogo (design percuma)", tidak_termasuk: "penghantaran",
     deposit: `${DEFAULT_DEPOSIT_PCT}% selepas sebut harga & design disahkan`,
-    nota: "ANGGARAN harga senarai kalkulator awam (sheet 2026). Harga rasmi dalam sebut harga team sales — boleh berbeza ikut design, finishing & penghantaran.",
+    nota: `ANGGARAN harga senarai kalkulator awam (sheet ${SHEET_VERSION}). Harga rasmi dalam sebut harga team sales — boleh berbeza ikut design, finishing & penghantaran.`,
     studio: GIFT_LINKS.studio,
   });
 }
