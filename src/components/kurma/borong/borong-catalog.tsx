@@ -32,7 +32,7 @@ export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: Borong
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {r.product.image_url ? <img src={r.product.image_url} alt={r.displayName} loading="lazy" decoding="async" className="h-14 w-14 rounded-lg object-cover bg-[#F4F6F5] border border-gray-100" /> : <div className="h-14 w-14 rounded-lg bg-[#F4F6F5]" />}
                     <div className="min-w-0">
-                      <div className="font-bold text-gray-900 text-[15px] leading-snug flex items-center gap-2 flex-wrap">{r.displayName}{r.grade && <span className="text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{r.grade}</span>}</div>
+                      <div className="font-bold text-gray-900 text-[15px] leading-snug flex items-center gap-2 flex-wrap">{r.displayName}{r.grade && !r.displayName.toLowerCase().includes(r.grade.toLowerCase()) && <span className="text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{r.grade}</span>}</div>
                       <div className="text-[12px] text-gray-500 mt-0.5">Karton {r.pack}{moq != null ? ` · min ${moq} karton` : ''}{r.note ? ` · ${r.note}` : ''}</div>
                     </div>
                     <div className="col-start-2 sm:col-start-3 sm:text-right">
@@ -41,7 +41,7 @@ export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: Borong
                       )}
                       {r.wholesaleCtn != null ? (
                         <>
-                          <div className="font-black text-gray-900 tabular-nums"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>dari {rm(r.wholesaleCtn)}<span className="text-xs font-semibold text-gray-400">/karton</span></div>
+                          <div className="font-black text-gray-900 tabular-nums"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>dari {rm(r.wholesaleCtn)}<span className="text-xs font-semibold text-gray-400">/karton{r.tiers.length > 0 ? ` · ${(r.tiers.find(t => t.price === r.wholesaleCtn) ?? r.tiers[r.tiers.length - 1]).label}` : ''}</span></div>
                           <div className="text-[11px] text-gray-400 tabular-nums">≈ {rm(Math.round(kg! * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > r.wholesaleCtn ? ` · jimat ${Math.round((1 - r.wholesaleCtn / r.retailCtn) * 100)}%` : ''}</div>
                           {r.tiers.length > 0 && (
                             <div className="mt-1.5 flex flex-wrap sm:justify-end gap-1" aria-label="Harga ikut kuantiti karton">

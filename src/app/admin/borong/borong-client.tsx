@@ -100,13 +100,15 @@ export function BorongSettingsClient() {
     } finally { setSheetBusy(false) }
   }
   const selFor = (r: WholesaleSheetRow) => mapSel[wholesaleRowKey(r)] ?? suggestCatalogSlug(r) ?? ''
-  /** Isi kolum "Borong RM" (tier 1) + simpan tangga tier produk untuk dipapar di LP — admin tekan Simpan selepas itu. */
+  /** Isi kolum "Borong RM" dengan tier TERENDAH (harga "dari" di LP, cth 10+ karton) + simpan tangga tier produk untuk
+   *  dipapar di LP — admin tekan Simpan selepas itu. (Quick Order pula guna tier 1 — kuantiti kecil.) */
   function applyTiers(r: WholesaleSheetRow) {
-    const slug = selFor(r), t1 = r.tiers[0], row = rows.find(x => x.slug === slug)
-    if (!slug || !t1 || !row) { toast.error('Pilih produk katalog dulu'); return }
-    setPriceText(p => ({ ...p, [slug]: String(t1.price) }))
+    const slug = selFor(r), row = rows.find(x => x.slug === slug)
+    const low = r.tiers.length ? r.tiers.reduce((a, t) => (t.price < a.price ? t : a)) : null
+    if (!slug || !low || !row) { toast.error('Pilih produk katalog dulu'); return }
+    setPriceText(p => ({ ...p, [slug]: String(low.price) }))
     setS(p => (p ? { ...p, tiers: { ...p.tiers, [slug]: r.tiers.map(t => ({ label: t.label, minCtn: t.minCtn, maxCtn: t.maxCtn, price: t.price })) } } : p))
-    toast.success(`${row.name}: Borong RM ← ${rm(t1.price)} + ${r.tiers.length} tier untuk LP. Tekan Simpan.`)
+    toast.success(`${row.name}: Borong dari ${rm(low.price)} (${low.label}) + ${r.tiers.length} tier untuk LP. Tekan Simpan.`)
   }
   /** Buang tangga tier produk (LP kembali tunjuk "dari RM" sahaja) — perlu Simpan. */
   const removeTiers = (slug: string) => setS(p => { if (!p) return p; const t = { ...p.tiers }; delete t[slug]; return { ...p, tiers: t } })
@@ -163,7 +165,7 @@ export function BorongSettingsClient() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 inline-flex items-center gap-1.5"><Table2 className="h-3.5 w-3.5" />Sheet &quot;Harga Wholesale {sheet?.version ?? '2027'}&quot; — harga/karton ikut tier</p>
-            <p className="text-xs text-gray-500 mt-1">{sheet ? `${sheet.rows.length} SKU · tier ${sheet.tier_labels.join(' / ')} · ditarik ${fmtDT(sheet.fetched_at)}.` : 'Belum ditarik. Tekan butang untuk ambil dari Google Sheet.'} Gred ikut nama supplier — pilih produk katalog yang sepadan, kemudian &ldquo;Guna tier&rdquo; isi kolum Borong RM (tier 1) dan simpan tangga 3 tier untuk dipapar di LP (tekan Simpan selepas itu).</p>
+            <p className="text-xs text-gray-500 mt-1">{sheet ? `${sheet.rows.length} SKU · tier ${sheet.tier_labels.join(' / ')} · ditarik ${fmtDT(sheet.fetched_at)}.` : 'Belum ditarik. Tekan butang untuk ambil dari Google Sheet.'} Gred ikut nama supplier — pilih produk katalog yang sepadan, kemudian &ldquo;Guna tier&rdquo; isi kolum Borong RM dengan tier terendah (harga &ldquo;dari&rdquo; di LP) dan simpan tangga 3 tier untuk dipapar (tekan Simpan selepas itu).</p>
           </div>
           <div className="flex items-center gap-2">
             <a href={WHOLESALE_SHEET_EDIT_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50"><ExternalLink className="h-4 w-4" />Buka Sheet</a>
@@ -197,7 +199,7 @@ export function BorongSettingsClient() {
                 })}
               </tbody>
             </table>
-            <p className="text-[11px] text-gray-400 mt-2">Tier 1 = harga &ldquo;dari&rdquo; di LP; ketiga-tiga tier dipapar sebagai cip pada baris produk LP selepas Simpan (buang di kolum &ldquo;Tier LP&rdquo; jadual bawah kalau tak mahu). Baris sheet juga muncul sebagai cadangan item sebut harga. Padanan auto hanya bila gred & berat karton sama; selebihnya pilih sendiri. Tiada produk sepadan (cth Mariami karton 6kg) → tambah ke katalog dalam kod.</p>
+            <p className="text-[11px] text-gray-400 mt-2">Tier terendah = harga &ldquo;dari&rdquo; di LP; ketiga-tiga tier dipapar sebagai cip pada baris produk LP selepas Simpan (buang di kolum &ldquo;Tier LP&rdquo; jadual bawah kalau tak mahu). Baris sheet juga muncul sebagai cadangan item sebut harga. Padanan auto hanya bila gred & berat karton sama; selebihnya pilih sendiri. Tiada produk sepadan (cth Mariami karton 6kg) → tambah ke katalog dalam kod.</p>
           </div>
         )}
       </div>
