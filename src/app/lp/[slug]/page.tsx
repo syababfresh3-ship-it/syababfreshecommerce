@@ -14,6 +14,7 @@ import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
 import { LpCountdown } from './lp-countdown'
+import { LpFlashBar } from './lp-flash-bar'
 import { LpVideo } from './lp-video'
 import { LpLive, type LiveReview, type LiveViewerComment } from './lp-live'
 import { normalizeLiveConfig, shortReviewerName } from '@/lib/lp-live'
@@ -197,6 +198,8 @@ export default async function LandingPage({ params }: Props) {
       <>
         <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
         <LpTracker slug={slug} />
+        {/* Tawaran masa terhad (migration 159) — hanya muncul bila LP ini ada flash_offer aktif */}
+        <LpFlashBar slug={slug} fixed />
         <LpLive
           slug={slug}
           title={page.title}
@@ -273,6 +276,8 @@ export default async function LandingPage({ params }: Props) {
     <div className="min-h-screen bg-white">
       <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
       <LpTracker slug={slug} />
+      {/* Tawaran masa terhad (migration 159) — sticky atas; hanya muncul bila LP ini ada flash_offer aktif */}
+      <LpFlashBar slug={slug} />
 
       {/* Minimal header — no cart link (standalone LP); lalai DISOROK; tunjuk hanya dengan {{lp:header}} dan bila {{kurma:menu}} tiada */}
       {showLpHeader && !hasKurmaMenu && (

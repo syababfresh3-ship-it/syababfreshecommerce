@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { ShoppingBag, X, Minus, Plus, User, Phone, Mail, MapPin, Hash, ChevronRight, CheckCircle, MessageCircle, Trash2 } from 'lucide-react'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
+import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 
 // hideBar: template Live guna butang sendiri; drawer dibuka melalui event 'lp-cart:open'
@@ -59,11 +60,14 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
   const freeOn = freeDeliveryActive(FREE_MIN)  // toggle "Penghantaran Percuma" aktif?
   const sub = subtotal()
   const discount = promoDiscount(appliedPromo, sub)
+  // Tawaran masa terhad (migration 159) — paparan sahaja; pelayan kira semula & boleh tolak (409 flash_reason)
+  const flash = useLpFlash()
+  const flashDisc = flashDiscountNow(flash, sub, !!appliedPromo)
   const hasFreeShip = items.some(i => i.freeShip)  // variasi free_shipping (migration 141) → percuma, abai had
   const fee = isPickup || hasFreeShip ? 0 : (deliveryFee ?? 0)
-  const redeemable = Math.max(0, sub + fee - discount)
+  const redeemable = Math.max(0, sub + fee - discount - flashDisc)
   const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
-  const total = Math.max(0, sub + fee - discount - ptsDiscount)
+  const total = Math.max(0, sub + fee - discount - flashDisc - ptsDiscount)
 
   // variant_ids troli → server tahu kalau ada variasi free_shipping (migration 141)
   const variantIdsCsv = items.map(i => i.variantId).filter(Boolean).join(',')
@@ -144,6 +148,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
           delivery_method: deliveryMethod,
           pickup_date: isPickup ? pickupDate : null,
           promo_code: appliedPromo?.code ?? null,
+          flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
           source,
           items: items.map(i => ({
@@ -157,7 +162,10 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
         }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Gagal buat pesanan'); return }
+      if (!res.ok) {
+        if (data.flash_reason) flash.setInactive(data.flash_reason)   // pelayan tolak diskaun flash → UI jujur
+        toast.error(data.error ?? 'Gagal buat pesanan'); return
+      }
       setOrderResult(data)
       setStep('done')
       clear()
@@ -357,6 +365,12 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                       <div className="flex justify-between text-green-600 font-medium">
                         <span>Diskaun ({appliedPromo.code})</span>
                         <span>−RM{discount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {flashDisc > 0 && (
+                      <div className="flex justify-between text-[#E11D2A] font-medium">
+                        <span>Tawaran masa terhad</span>
+                        <span>−RM{flashDisc.toFixed(2)}</span>
                       </div>
                     )}
                     {ptsDiscount > 0 && (

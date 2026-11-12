@@ -7,6 +7,7 @@ import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag } from 'luci
 import type { Product, ProductVariant } from '@/types'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
+import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 import { HoneypotField } from '@/components/honeypot-field'
 
@@ -64,9 +65,12 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   // Item untuk skop promo (Sprint 3H) — kod boleh dihadkan pada produk/kategori.
   const promoItems = [{ product_id: product.id, category_id: product.category_id ?? null, line_total: subtotal }]
   const discount = promoDiscount(appliedPromo, subtotal, fee, promoItems)
-  const redeemable = Math.max(0, subtotal + fee - discount)
+  // Tawaran masa terhad (migration 159) — paparan sahaja; pelayan kira semula & boleh tolak (409 flash_reason)
+  const flash = useLpFlash()
+  const flashDisc = flashDiscountNow(flash, subtotal, !!appliedPromo)
+  const redeemable = Math.max(0, subtotal + fee - discount - flashDisc)
   const ptsDiscount = pointsDiscountFor(loyalty.loggedIn && usePoints, loyalty.points, redeemable)
-  const total = Math.max(0, subtotal + fee - discount - ptsDiscount)
+  const total = Math.max(0, subtotal + fee - discount - flashDisc - ptsDiscount)
   const savedAmt = comparePrice && Number(comparePrice) > displayPrice ? (Number(comparePrice) - displayPrice) * qty : 0
 
   useEffect(() => {
@@ -134,6 +138,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
           promo_code: appliedPromo?.code ?? null,
+          flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
           items: [{ product_id: product.id, variant_id: selectedVariant?.id ?? null,
             product_name: product.name, variant_name: selectedVariant?.name ?? null,
@@ -141,7 +146,10 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
         }),
       })
       const data = await res.json()
-      if (!res.ok) { toast.error(data.error ?? 'Gagal buat pesanan'); return }
+      if (!res.ok) {
+        if (data.flash_reason) flash.setInactive(data.flash_reason)   // pelayan tolak diskaun flash → UI jujur
+        toast.error(data.error ?? 'Gagal buat pesanan'); return
+      }
       if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return }
       setResult({ order_number: data.order_number, total: data.total, payment_method: paymentMethod, needs_approval: !!data.needs_approval })
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -417,13 +425,16 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                 <button type="button" onClick={() => { setAppliedPromo(null); setPromoInput('') }} style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}>Buang</button>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...inputStyle, flex: 1 }} type="text" value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())} placeholder="Kod promosi (pilihan)" />
-                <button type="button" onClick={applyPromo} disabled={promoLoading || !promoInput.trim()}
-                  style={{ padding: '0 18px', borderRadius: 12, border: 'none', background: v('--cherry','#9C0F30'), color: '#fff', fontWeight: 800, fontSize: 13, cursor: promoLoading || !promoInput.trim() ? 'not-allowed' : 'pointer', opacity: promoLoading || !promoInput.trim() ? 0.5 : 1 }}>
-                  {promoLoading ? '...' : 'Guna'}
-                </button>
-              </div>
+              <>
+                {flashDisc > 0 && <p style={{ fontSize: 11, color: '#9ca3af', marginBottom: 6 }}>Kod promo tak boleh digabung dengan tawaran masa terhad — guna kod akan gantikan tawaran.</p>}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...inputStyle, flex: 1 }} type="text" value={promoInput} onChange={e => setPromoInput(e.target.value.toUpperCase())} placeholder="Kod promosi (pilihan)" />
+                  <button type="button" onClick={applyPromo} disabled={promoLoading || !promoInput.trim()}
+                    style={{ padding: '0 18px', borderRadius: 12, border: 'none', background: v('--cherry','#9C0F30'), color: '#fff', fontWeight: 800, fontSize: 13, cursor: promoLoading || !promoInput.trim() ? 'not-allowed' : 'pointer', opacity: promoLoading || !promoInput.trim() ? 0.5 : 1 }}>
+                    {promoLoading ? '...' : 'Guna'}
+                  </button>
+                </div>
+              </>
             )}
           </div>
 
@@ -463,6 +474,12 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16a34a', marginBottom: 8 }}>
                   <span>Diskaun ({appliedPromo.code})</span>
                   <span style={{ fontWeight: 700 }}>−RM{discount.toFixed(2)}</span>
+                </div>
+              )}
+              {flashDisc > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#E11D2A', marginBottom: 8 }}>
+                  <span>Tawaran masa terhad</span>
+                  <span style={{ fontWeight: 700 }}>−RM{flashDisc.toFixed(2)}</span>
                 </div>
               )}
               {ptsDiscount > 0 && (

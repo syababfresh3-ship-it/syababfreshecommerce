@@ -11,6 +11,8 @@ import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
 import { lpPaymentMethods, lpOrderNeedsApproval } from '@/lib/lp-payment'
 import { sendCapiPurchase } from '@/lib/meta-capi'
+import { flashCookieName, flashDiscountFor, flashRejectMessage, flashWindow, type FlashState } from '@/lib/lp-flash'
+import { hasRecentFlashClaim, loadFlashOffer, readCookie, recordFlashClaim, verifyFlashToken } from '@/lib/lp-flash-server'
 import { NextResponse } from 'next/server'
 
 // Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
@@ -306,6 +308,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     promoCodeId = promo!.id
   }
 
+  // ── Tawaran masa terhad (flash offer, migration 159) — kuat kuasa PELAYAN ──
+  // Mod visitor: masa mula dari cookie HMAC (/api/lp/[slug]/flash) + tiada tuntutan telefon ini dalam
+  // cooldown. Mod scheduled: dalam tetingkap starts_at–ends_at. Tak digabung dengan kod promo (kod menang).
+  // Klien hantar flash_expected=true bila ia PAPAR diskaun — kalau pelayan tak setuju, tolak dengan
+  // sebab yang jujur (409) daripada caj lebih daripada yang pelanggan nampak.
+  let flashDiscount = 0
+  let flashVisitorMode = false
+  if (!promoCodeId) {
+    const { offer: flashOffer } = await loadFlashOffer(supabase, slug)
+    if (flashOffer?.enabled) {
+      const now = Date.now()
+      let st: FlashState
+      if (flashOffer.mode === 'visitor') {
+        flashVisitorMode = true
+        const startedAt = verifyFlashToken(readCookie(cookieHeader, flashCookieName(slug)))
+        st = flashWindow(flashOffer, { startedAt, now })
+        if (st.active && await hasRecentFlashClaim(supabase, page.id, phone, flashOffer.cooldown_hours)) st = { ...st, active: false, reason: 'claimed' }
+      } else {
+        st = flashWindow(flashOffer, { now })
+      }
+      if (st.active) flashDiscount = flashDiscountFor(flashOffer, subtotal)
+      else if (body.flash_expected === true) {
+        return NextResponse.json({ error: flashRejectMessage(st.reason), flash_reason: st.reason }, { status: 409 })
+      }
+    }
+  } else if (body.flash_expected === true) {
+    // Klien tak patut jangka kedua-duanya; kod promo menang — beritahu supaya UI betulkan jumlah
+    return NextResponse.json({ error: 'Kod promo tidak boleh digabung dengan tawaran masa terhad. Buang kod promo atau teruskan tanpa tawaran.', flash_reason: 'off' }, { status: 409 })
+  }
+  discount += flashDiscount
+
   // ── Loyalty redemption (logged-in sahaja; baki mata dibaca server-side) ──
   let pointsUsed = 0
   let pointsDiscount = 0
@@ -337,7 +370,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       delivery_method: isPickup ? 'pickup' : 'delivery',
       pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
       promo_code_id: promoCodeId,
-      discount,
+      discount,                           // promo + flash (paparan admin sedia ada kekal betul)
+      flash_discount: flashDiscount,      // migration 159 — laporan; dibuang bila lajur belum wujud
       user_id: userId,
       points_used: pointsUsed,
       points_discount: pointsDiscount,
@@ -376,10 +410,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     delete orderRow.fbc
     delete orderRow.fbp
     delete orderRow.user_agent
+    delete orderRow.flash_discount
     ;({ data: order, error } = await insertOrder())
   }
 
   if (error || !order) return NextResponse.json({ error: error?.message ?? 'Gagal cipta pesanan' }, { status: 500 })
+
+  // Tuntutan flash (mod visitor) direkod SEKARANG — sebelum bayaran/kelulusan — supaya nombor telefon ini
+  // tak boleh tuntut semula dalam cooldown walau cookie dipadam. Best-effort, tak block order.
+  if (flashDiscount > 0 && flashVisitorMode) {
+    recordFlashClaim(supabase, { pageId: page.id, phone: phone.trim(), orderId: order.id, discount: flashDiscount }).catch(() => {})
+  }
 
   // CRM master — daftar/segar kenalan ikut phone (best-effort, tak block order)
   upsertCustomer({

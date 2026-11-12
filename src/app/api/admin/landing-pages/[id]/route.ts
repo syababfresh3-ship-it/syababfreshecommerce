@@ -4,6 +4,7 @@ import { revalidateTag } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
 import { normalizeLpHost } from '@/lib/lp-host'
+import { normalizeFlashOffer } from '@/lib/lp-flash'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const { supabase, forbidden } = await requireAdmin()
@@ -66,9 +67,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   // Domain awam (migration 145)
   if ('host' in body) update.host = normalizeLpHost(body.host)
+  // Tawaran masa terhad (migration 159) — null = tiada; objek dinormalkan (had munasabah)
+  if ('flash_offer' in body) update.flash_offer = body.flash_offer ? normalizeFlashOffer(body.flash_offer) : null
 
   let { data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single()
   let warning: string | undefined
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && 'flash_offer' in update) {
+    delete update.flash_offer
+    warning = 'Lajur flash_offer belum wujud — jalankan migration 159. Tawaran masa terhad tidak disimpan.'
+    ;({ data, error } = await supabase!.from('landing_pages').update(update).eq('id', id).select('slug').single())
+  }
   if (error && (error.code === '42703' || error.code === 'PGRST204') && 'host' in update) {
     delete update.host
     warning = 'Lajur host belum wujud — jalankan migration 145. Domain LP tidak disimpan (kekal kedai).'

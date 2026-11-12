@@ -1,4 +1,13 @@
 'use client'
+import { Timer as FlashTimerIcon } from 'lucide-react'
+import { DEFAULT_FLASH_OFFER, normalizeFlashOffer, flashLabel, type FlashOffer } from '@/lib/lp-flash'
+// Tawaran masa terhad (migration 159): ISO ↔ <input type="datetime-local"> (masa tempatan pelayar admin)
+const flashToLocal = (iso: string | null) => {
+  if (!iso) return ''
+  const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
+}
+const flashFromLocal = (v: string) => (v ? new Date(v).toISOString() : null)
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
@@ -134,6 +143,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     live_config: DEFAULT_LIVE_CONFIG as LpLiveConfig,
     // migration 132 — kosong = ikut tetapan global (payment_methods.is_active)
     payment_methods: [] as string[],
+    // migration 159 — tawaran masa terhad (enabled=false = tiada)
+    flash_offer: DEFAULT_FLASH_OFFER as FlashOffer,
   })
   // Kaedah bayaran (migration 132)
   const [pmMode, setPmMode] = useState<'global' | 'custom'>('global')   // senarai kosong tak dapat bezakan dua mod ini
@@ -498,7 +509,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', host: 'shop', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [] })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', host: 'shop', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [], flash_offer: DEFAULT_FLASH_OFFER })
     setPmMode('global')
     loadPmCatalog()
     setSections([])
@@ -518,6 +529,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       host: normalizeLpHost(page.host),
       live_config: DEFAULT_LIVE_CONFIG,
       payment_methods: pmOverrides[page.id] ?? [],
+      flash_offer: DEFAULT_FLASH_OFFER,
     })
     setPmMode((pmOverrides[page.id] ?? []).length > 0 ? 'custom' : 'global')
     loadPmCatalog()
@@ -534,6 +546,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           host: d.host !== undefined ? normalizeLpHost(d.host) : f.host,
           live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
           payment_methods: pm,
+          flash_offer: normalizeFlashOffer(d.flash_offer) ?? DEFAULT_FLASH_OFFER,
         }))
         setPmMode(pm.length > 0 ? 'custom' : 'global')
       })
@@ -1272,6 +1285,82 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     />
                     <p className="text-[11px] text-gray-400 mt-1">Dari Google Ads atau Google Analytics</p>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Tawaran masa terhad (flash offer, migration 159) ─────────────
+                Mod per pelawat: timer N minit dari kunjungan pertama, layak semula selepas cooldown (kuat
+                kuasa pelayan + rekod telefon). Mod berjadual: satu tetingkap untuk semua. Copy LP jujur. */}
+            <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50">
+                <span className="flex items-center gap-2"><FlashTimerIcon className="h-4 w-4 text-gray-400" /><span className="text-xs font-bold text-gray-600">Tawaran masa terhad</span></span>
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-gray-700">
+                  <input type="checkbox" checked={form.flash_offer.enabled} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, enabled: e.target.checked } }))} className="w-4 h-4 rounded accent-gray-800 cursor-pointer" />
+                  Aktif
+                </label>
+              </div>
+              {form.flash_offer.enabled && (
+                <div className="px-4 py-4 border-t border-gray-100 space-y-3">
+                  <div className="space-y-1.5">
+                    {([
+                      ['visitor', 'Per pelawat — timer bermula bila pelawat buka LP; layak semula selepas tempoh cooldown'],
+                      ['scheduled', 'Berjadual — satu tarikh/masa mula–tamat, sama untuk semua pelawat'],
+                    ] as const).map(([val, label]) => (
+                      <label key={val} className="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input type="radio" name="lp-flash-mode" checked={form.flash_offer.mode === val} onChange={() => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, mode: val } }))} className="w-4 h-4 mt-0.5 accent-gray-800 cursor-pointer" />
+                        <span className={`text-sm ${form.flash_offer.mode === val ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Jenis</label>
+                      <select value={form.flash_offer.discount_type} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, discount_type: e.target.value as FlashOffer['discount_type'] } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+                        <option value="fixed">RM tetap</option><option value="percent">Peratus</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">{form.flash_offer.discount_type === 'percent' ? 'Diskaun %' : 'Diskaun RM'}</label>
+                      <input type="number" min="0.5" step="0.5" value={form.flash_offer.amount} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, amount: Number(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Min subtotal RM</label>
+                      <input type="number" min="0" step="1" value={form.flash_offer.min_subtotal ?? ''} placeholder="tiada" onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, min_subtotal: e.target.value === '' ? null : Number(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono" />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 mb-1">Label bar</label>
+                      <input type="text" maxLength={60} value={form.flash_offer.label} placeholder={flashLabel(form.flash_offer)} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, label: e.target.value } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  {form.flash_offer.mode === 'visitor' ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Tempoh timer (minit)</label>
+                        <input type="number" min="1" max="1440" value={form.flash_offer.window_minutes} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, window_minutes: Number(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Layak semula selepas (jam)</label>
+                        <input type="number" min="1" max="2160" value={form.flash_offer.cooldown_hours} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, cooldown_hours: Number(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-mono" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Mula</label>
+                        <input type="datetime-local" value={flashToLocal(form.flash_offer.starts_at)} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, starts_at: flashFromLocal(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-500 mb-1">Tamat</label>
+                        <input type="datetime-local" value={flashToLocal(form.flash_offer.ends_at)} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, ends_at: flashFromLocal(e.target.value) } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm" />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    Pratonton bar: <span className="font-semibold text-gray-800">{flashLabel(form.flash_offer)}{form.flash_offer.mode === 'visitor' ? ` untuk anda · tamat dalam ${String(form.flash_offer.window_minutes - 1).padStart(2, '0')}:59 · sekali setiap ${form.flash_offer.cooldown_hours} jam` : ' · tamat HH:MM:SS'}</span>.
+                    Diskaun dikuatkuasa di pelayan — tamat = harga asal; nombor telefon yang dah tuntut tak layak semula dalam tempoh cooldown; tak boleh digabung dengan kod promo.
+                    Jangan tulis &ldquo;stok terhad&rdquo; atau &ldquo;untuk semua&rdquo; dalam HTML LP kalau mod per pelawat — tawaran ini peribadi dan berulang.
+                  </p>
                 </div>
               )}
             </div>
