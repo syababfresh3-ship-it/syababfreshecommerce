@@ -10,11 +10,13 @@ import { LpPixels } from './lp-pixels'
 import { LpTracker } from './lp-tracker'
 import { LpHtmlScripts } from './lp-html-scripts'
 import { parseCheckoutSlugs } from '@/lib/lp-required'
+import { balanceLpParts } from '@/lib/lp-html'
 import { LpLeadForm } from './lp-lead-form'
 import { LpWaShare } from './lp-wa-share'
 import { LpCartBar } from './lp-cart-bar'
 import { LpCountdown } from './lp-countdown'
 import { LpFlashBar } from './lp-flash-bar'
+import { LpFlashPrice } from './lp-flash-price'
 import { LpVideo } from './lp-video'
 import { LpLive, type LiveReview, type LiveViewerComment } from './lp-live'
 import { normalizeLiveConfig, shortReviewerName } from '@/lib/lp-live'
@@ -212,8 +214,8 @@ export default async function LandingPage({ params }: Props) {
       <>
         <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
         <LpTracker slug={slug} />
-        {/* Tawaran masa terhad (migration 159) — hanya muncul bila LP ini ada flash_offer aktif */}
-        <LpFlashBar slug={slug} fixed />
+        {/* Tawaran masa terhad (migration 159) — atas untuk template live (kawalan beli di bawah) */}
+        <LpFlashBar slug={slug} position="top" />
         <LpLive
           slug={slug}
           title={page.title}
@@ -239,8 +241,10 @@ export default async function LandingPage({ params }: Props) {
   const showLpShare = rawHtml.includes('{{lp:share}}')
   const htmlContent = rawHtml.replace(/\{\{lp:(?:header|share)\}\}/g, '')
 
-  // Split on all placeholders: product, checkout (single or multi), lead-form, countdown, video, kurma
-  const parts = htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{kurma:[a-z]+(?:\|[^}]*)?\}\})/g)
+  // Split on all placeholders: product, checkout (single or multi), lead-form, countdown, video, kurma.
+  // balanceLpParts: placeholder yang diletak DALAM kotak pembalut (<div>{{checkout:…}}</div>) tak lagi
+  // pecahkan struktur DOM → hydration mismatch (lib/lp-html.ts, 12 Nov 2026)
+  const parts = balanceLpParts(htmlContent.split(/(\{\{product:[a-zA-Z0-9-]+\}\}|\{\{checkout:[a-zA-Z0-9,\-*]+\}\}|\{\{lead-form(?::[^}]*)?\}\}|\{\{countdown:[^}]+\}\}|\{\{video:[^}]+\}\}|\{\{kurma:[a-z]+(?:\|[^}]*)?\}\})/g))
   // {{kurma:menu}} bawa header sendiri (KurmaNav) — jangan tindih dengan header minimal LP
   const hasKurmaMenu = parts.includes('{{kurma:menu}}')
   // {{kurma:fab}} = butang WhatsApp terapung — sorok butang kongsi LP supaya tak bertindih di bawah kanan
@@ -290,8 +294,8 @@ export default async function LandingPage({ params }: Props) {
     <div className="min-h-screen bg-white">
       <LpPixels metaPixelId={page.meta_pixel_id} googleTagId={page.google_tag_id} />
       <LpTracker slug={slug} />
-      {/* Tawaran masa terhad (migration 159) — sticky atas; hanya muncul bila LP ini ada flash_offer aktif */}
-      <LpFlashBar slug={slug} />
+      {/* Tawaran masa terhad (migration 159) — melekat BAWAH (pemilik 12 Nov); hanya bila LP ini ada flash_offer aktif */}
+      <LpFlashBar slug={slug} position="bottom" />
 
       {/* Minimal header — no cart link (standalone LP); lalai DISOROK; tunjuk hanya dengan {{lp:header}} dan bila {{kurma:menu}} tiada */}
       {showLpHeader && !hasKurmaMenu && (
@@ -308,8 +312,8 @@ export default async function LandingPage({ params }: Props) {
       </header>
       )}
 
-      {/* Rendered HTML + injected product cards */}
-      <div className="max-w-2xl mx-auto px-4 pb-56">
+      {/* Rendered HTML + injected product cards. mb-[--lp-flash-h] = ruang untuk bar flash bawah bila aktif */}
+      <div className="max-w-2xl mx-auto px-4 pb-56 mb-[var(--lp-flash-h,0px)]">
         {parts.map((part: string, i: number) => {
           if (i % 2 === 0) {
             if (!part.trim()) return null
@@ -393,12 +397,8 @@ export default async function LandingPage({ params }: Props) {
             <div key={i} className="my-4 rounded-2xl overflow-hidden" style={{ background: 'var(--cream, #fff)', border: '2px solid var(--cherry-border, #e5e7eb)', boxShadow: '0 4px 24px rgba(156,15,48,0.10)' }}>
               <div className="p-5">
                 <h3 className="font-bold text-lg leading-tight" style={{ color: 'var(--text, #1f2937)' }}>{product.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xl font-black" style={{ color: 'var(--cherry, #9C0F30)' }}>RM{Number(product.price).toFixed(2)}</span>
-                  {product.compare_price && Number(product.compare_price) > Number(product.price) && (
-                    <span className="text-sm text-gray-400 line-through">RM{Number(product.compare_price).toFixed(2)}</span>
-                  )}
-                </div>
+                {/* Harga sedar tawaran masa terhad: asal dicoret bila aktif (lp-flash-price.tsx); tanpa tawaran = paparan lama */}
+                <LpFlashPrice price={Number(product.price)} compare={product.compare_price != null ? Number(product.compare_price) : null} />
                 <LpAddToCartBtn product={product as any} stock={stock} variants={(product as any).product_variants ?? []} />
               </div>
             </div>

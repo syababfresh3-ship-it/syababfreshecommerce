@@ -11,10 +11,13 @@
 
 export type FlashMode = 'visitor' | 'scheduled'
 export type FlashDiscountType = 'fixed' | 'percent'
+/** Mod visitor: timer bermula bila buka page ('visit') atau bila pelawat tekan "Tuntut" ('claim', gaya baucar TikTok). */
+export type FlashStart = 'visit' | 'claim'
 
 export interface FlashOffer {
   enabled: boolean
   mode: FlashMode
+  start: FlashStart
   discount_type: FlashDiscountType
   /** RM (fixed) atau % (percent). */
   amount: number
@@ -31,7 +34,7 @@ export interface FlashOffer {
 }
 
 export const DEFAULT_FLASH_OFFER: FlashOffer = {
-  enabled: false, mode: 'visitor', discount_type: 'fixed', amount: 5,
+  enabled: false, mode: 'visitor', start: 'visit', discount_type: 'fixed', amount: 5,
   window_minutes: 15, cooldown_hours: 48, starts_at: null, ends_at: null, min_subtotal: null, label: '',
 }
 
@@ -66,6 +69,7 @@ export function normalizeFlashOffer(raw: unknown): FlashOffer | null {
   return {
     enabled: o.enabled === true || o.enabled === 'true',
     mode,
+    start: o.start === 'claim' ? 'claim' : 'visit',
     discount_type,
     amount: discount_type === 'percent' ? num(o.amount, 1, 90, 10) : num(o.amount, 0.5, 1000, 5),
     window_minutes: Math.round(num(o.window_minutes, 1, 24 * 60, 15)),
@@ -127,7 +131,7 @@ export function flashRejectMessage(reason: FlashReason): string {
 /** Bidang yang selamat dihantar ke pelayar (tiada rahsia pun, tapi kekal minimum). */
 export function publicFlashOffer(offer: FlashOffer) {
   return {
-    mode: offer.mode, discount_type: offer.discount_type, amount: offer.amount,
+    mode: offer.mode, start: offer.start, discount_type: offer.discount_type, amount: offer.amount,
     window_minutes: offer.window_minutes, cooldown_hours: offer.cooldown_hours,
     min_subtotal: offer.min_subtotal, label: offer.label,
   }

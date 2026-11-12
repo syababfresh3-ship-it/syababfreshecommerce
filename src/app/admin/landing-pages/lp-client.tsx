@@ -1339,6 +1339,20 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                       <input type="text" maxLength={60} value={form.flash_offer.label} placeholder={flashLabel(form.flash_offer)} onChange={e => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, label: e.target.value } }))} className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm" />
                     </div>
                   </div>
+                  {form.flash_offer.mode === 'visitor' && (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-bold text-gray-500">Timer bermula</p>
+                      {([
+                        ['visit', 'Bila pelawat buka page (automatik)'],
+                        ['claim', 'Bila pelawat tekan butang "Tuntut" (gaya baucar TikTok — lebih jujur, pelawat pilih sendiri)'],
+                      ] as const).map(([val, label]) => (
+                        <label key={val} className="flex items-start gap-2.5 cursor-pointer select-none">
+                          <input type="radio" name="lp-flash-start" checked={form.flash_offer.start === val} onChange={() => setForm(f => ({ ...f, flash_offer: { ...f.flash_offer, start: val } }))} className="w-4 h-4 mt-0.5 accent-gray-800 cursor-pointer" />
+                          <span className={`text-sm ${form.flash_offer.start === val ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                   {form.flash_offer.mode === 'visitor' ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>

@@ -457,7 +457,11 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
           {activeSelections.length > 0 && (
             <div style={{ background: '#f9fafb', borderRadius: 12, padding: '10px 14px', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 600 }}>{activeSelections.length} produk dipilih</span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: cv('--cherry', '#9C0F30') }}>RM{subtotal.toFixed(2)}</span>
+              {/* Tawaran masa terhad aktif → subtotal asal dicoret, harga selepas potongan menonjol (gaya TikTok) */}
+              <span style={{ fontSize: 16, fontWeight: 900, color: cv('--cherry', '#9C0F30') }}>
+                {flashDisc > 0 && <span style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', textDecoration: 'line-through', marginRight: 6 }}>RM{subtotal.toFixed(2)}</span>}
+                RM{(subtotal - flashDisc).toFixed(2)}
+              </span>
             </div>
           )}
         </div>

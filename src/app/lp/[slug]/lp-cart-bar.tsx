@@ -198,7 +198,8 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
     <>
       {/* Floating cart bar */}
       {!hideBar && (
-      <div className="fixed bottom-4 left-4 right-4 z-40 max-w-2xl mx-auto">
+      // bottom = 1rem + tinggi bar flash (CSS var dari LpFlashBar) supaya tak bertindih bila tawaran aktif
+      <div className="fixed left-4 right-4 z-40 max-w-2xl mx-auto" style={{ bottom: 'calc(1rem + var(--lp-flash-h, 0px))' }}>
         <button
           onClick={openDrawer}
           className="w-full flex items-center justify-between bg-green-500 text-white px-5 py-4 rounded-2xl shadow-[0_8px_32px_rgba(34,197,94,0.5)] active:scale-[0.98] transition-all"
@@ -212,7 +213,11 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
             </div>
             <div className="text-left">
               <p className="text-xs font-semibold opacity-90">{count()} item dipilih</p>
-              <p className="text-base font-black">RM{sub.toFixed(2)}</p>
+              {/* Tawaran masa terhad aktif → subtotal asal dicoret, harga selepas potongan menonjol */}
+              <p className="text-base font-black">
+                {flashDisc > 0 && <span className="text-xs font-semibold line-through opacity-75 mr-1.5">RM{sub.toFixed(2)}</span>}
+                RM{(sub - flashDisc).toFixed(2)}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1 bg-white/20 rounded-xl px-3 py-1.5">

@@ -21,14 +21,21 @@ async function handle(request: Request, slug: string, setCookie: boolean) {
     return NextResponse.json({ enabled: true, offer: publicFlashOffer(offer), state: flashWindow(offer, { now }) }, { headers: noStore })
   }
 
-  // Mod visitor: token cookie = masa mula. Tiada/rosak/lebih lama dari cooldown → timer baharu (POST sahaja).
+  // Mod visitor: token cookie = masa mula. Tiada/rosak/lebih lama dari cooldown → timer baharu.
+  // start 'visit' → POST biasa mulakan timer; start 'claim' → hanya POST ?claim=1 (pelawat tekan "Tuntut").
   const name = flashCookieName(slug)
   let startedAt = verifyFlashToken(readCookie(request.headers.get('cookie'), name))
   if (startedAt != null && now - startedAt > offer.cooldown_hours * 3_600_000) startedAt = null
+  const claiming = new URL(request.url).searchParams.get('claim') === '1'
+  const mayStart = setCookie && (offer.start === 'visit' || claiming)
   let fresh = false
-  if (startedAt == null && setCookie) { startedAt = now; fresh = true }
+  if (startedAt == null && mayStart) { startedAt = now; fresh = true }
 
-  const res = NextResponse.json({ enabled: true, offer: publicFlashOffer(offer), state: flashWindow(offer, { startedAt, now }), started: startedAt != null }, { headers: noStore })
+  const res = NextResponse.json({
+    enabled: true, offer: publicFlashOffer(offer), state: flashWindow(offer, { startedAt, now }),
+    started: startedAt != null,
+    claimable: offer.start === 'claim' && startedAt == null,   // bar papar butang "Tuntut"
+  }, { headers: noStore })
   if (fresh && startedAt != null) {
     res.cookies.set(name, signFlashToken(startedAt), {
       httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',

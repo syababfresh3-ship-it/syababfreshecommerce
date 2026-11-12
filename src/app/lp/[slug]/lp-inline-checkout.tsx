@@ -257,8 +257,11 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           <p style={{ fontFamily: "'DM Serif Display', serif", fontSize: 18, color: '#fff', lineHeight: 1.2 }}>{product.name}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 22, fontWeight: 900, color: v('--gold-light','#F5BC2F'), lineHeight: 1 }}>RM{(displayPrice * qty).toFixed(2)}</p>
-          {comparePrice && Number(comparePrice) > displayPrice && (
+          {/* Tawaran masa terhad aktif → harga selepas potongan menonjol, asal dicoret (gaya TikTok) */}
+          <p style={{ fontSize: 22, fontWeight: 900, color: v('--gold-light','#F5BC2F'), lineHeight: 1 }}>RM{(displayPrice * qty - flashDisc).toFixed(2)}</p>
+          {flashDisc > 0 ? (
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}><span style={{ textDecoration: 'line-through' }}>RM{(displayPrice * qty).toFixed(2)}</span> · tawaran masa terhad</p>
+          ) : comparePrice && Number(comparePrice) > displayPrice && (
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textDecoration: 'line-through', marginTop: 2 }}>RM{(Number(comparePrice) * qty).toFixed(2)}</p>
           )}
         </div>
