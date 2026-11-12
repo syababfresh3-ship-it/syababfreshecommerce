@@ -15,6 +15,8 @@ export interface LpPromoRules {
   postcodes: string[]
   /** Caj hantar rata (RM). null = ikut zon/kurier biasa. */
   flat_fee: number | null
+  /** Caj ikut poskod (RM) — menggantikan flat_fee untuk poskod itu sahaja (cth. Kajang 43000 → 8, Bangi kekal rata). */
+  fees: Record<string, number>
   /** Subtotal minimum untuk PENGHANTARAN (ambil sendiri tiada minimum). null = tiada. */
   min_subtotal: number | null
   /** Subtotal untuk hantar percuma (dengan caj rata). null = ikut had percuma kedai. */
@@ -35,7 +37,7 @@ export interface LpPromoRules {
 }
 
 export const DEFAULT_LP_PROMO_RULES: LpPromoRules = {
-  enabled: false, postcodes: [], flat_fee: null, min_subtotal: null, free_min: null, slots: [],
+  enabled: false, postcodes: [], flat_fee: null, fees: {}, min_subtotal: null, free_min: null, slots: [],
   gift_pickup: '', gift_min: null, gift_min_label: '', prices: {}, quotas: {}, max_qty: null,
 }
 
@@ -61,6 +63,13 @@ function numMap(raw: unknown, int: boolean): Record<string, number> {
   return out
 }
 
+/** Peta poskod (5 digit) → RM. Kunci lain dibuang senyap. */
+function postcodeMap(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [k, v] of Object.entries(numMap(raw, false))) if (/^\d{5}$/.test(k)) out[k] = v
+  return out
+}
+
 /** Kunci dinormalkan: slug huruf kecil, nama variasi kekal (dipadan tanpa kira huruf besar/kecil). */
 export function normKey(k: string): string {
   const s = String(k ?? '').trim()
@@ -83,6 +92,7 @@ export function normalizeLpPromoRules(raw: unknown): LpPromoRules | null {
     enabled: o.enabled === true || o.enabled === 'true',
     postcodes,
     flat_fee: money(o.flat_fee),
+    fees: postcodeMap(o.fees),
     min_subtotal: money(o.min_subtotal) || null,
     free_min: money(o.free_min) || null,
     slots,
@@ -163,12 +173,14 @@ export function promoDelivery(rules: LpPromoRules | null, opts: { postcode?: str
   if (rules.postcodes.length > 0 && /^\d{5}$/.test(pc) && !rules.postcodes.includes(pc)) {
     return { handled: true, available: false, error: 'Maaf, promo ini untuk kawasan terpilih sahaja. Pilih "Ambil Sendiri" atau hubungi kami.' }
   }
-  if (rules.flat_fee == null) return { handled: false }
+  // Caj ikut poskod menang atas caj rata (cth. Kajang RM8, Bangi RM5); poskod belum diisi → caj rata
+  const flat = (pc ? rules.fees[pc] : undefined) ?? rules.flat_fee
+  if (flat == null) return { handled: false }
   const belowMin = rules.min_subtotal != null && opts.subtotal < rules.min_subtotal ? r2(rules.min_subtotal - opts.subtotal) : null
   // free_min kosong → ikut had percuma kedai (bila diberi)
   const freeAt = rules.free_min ?? opts.defaultFreeMin ?? null
   const free = freeAt != null && opts.subtotal >= freeAt
-  return { handled: true, available: true, fee: free ? 0 : rules.flat_fee, belowMin }
+  return { handled: true, available: true, fee: free ? 0 : flat, belowMin }
 }
 
 /** Hadiah yang layak (teks), atau null. */
@@ -240,6 +252,7 @@ export interface LpPromoDraft {
   enabled: boolean
   postcodes: string      // dipisah koma / ruang / baris
   flat_fee: string
+  fees: string           // "43000 = 8" satu baris satu
   min_subtotal: string
   free_min: string
   slots: string          // dipisah koma
@@ -252,7 +265,7 @@ export interface LpPromoDraft {
 }
 
 export const EMPTY_LP_PROMO_DRAFT: LpPromoDraft = {
-  enabled: false, postcodes: '', flat_fee: '', min_subtotal: '', free_min: '', slots: '',
+  enabled: false, postcodes: '', flat_fee: '', fees: '', min_subtotal: '', free_min: '', slots: '',
   gift_pickup: '', gift_min: '', gift_min_label: '', prices: '', quotas: '', max_qty: '',
 }
 
@@ -261,7 +274,7 @@ export function draftFromRules(raw: unknown): LpPromoDraft {
   const r = normalizeLpPromoRules(raw)
   if (!r) return EMPTY_LP_PROMO_DRAFT
   return {
-    enabled: r.enabled, postcodes: r.postcodes.join(', '), flat_fee: s(r.flat_fee), min_subtotal: s(r.min_subtotal),
+    enabled: r.enabled, postcodes: r.postcodes.join(', '), flat_fee: s(r.flat_fee), fees: mapToLines(r.fees), min_subtotal: s(r.min_subtotal),
     free_min: s(r.free_min), slots: r.slots.join(', '), gift_pickup: r.gift_pickup, gift_min: s(r.gift_min),
     gift_min_label: r.gift_min_label, prices: mapToLines(r.prices), quotas: mapToLines(r.quotas), max_qty: s(r.max_qty),
   }
@@ -274,7 +287,7 @@ export function rulesFromDraft(d: LpPromoDraft): LpPromoRules | null {
   return normalizeLpPromoRules({
     enabled: d.enabled,
     postcodes: d.postcodes.split(/[\s,;]+/).filter(Boolean),
-    flat_fee: d.flat_fee, min_subtotal: d.min_subtotal, free_min: d.free_min,
+    flat_fee: d.flat_fee, fees: linesToMap(d.fees), min_subtotal: d.min_subtotal, free_min: d.free_min,
     slots: d.slots.split(',').map(x => x.trim()).filter(Boolean),
     gift_pickup: d.gift_pickup, gift_min: d.gift_min, gift_min_label: d.gift_min_label,
     prices: linesToMap(d.prices), quotas: linesToMap(d.quotas), max_qty: d.max_qty,

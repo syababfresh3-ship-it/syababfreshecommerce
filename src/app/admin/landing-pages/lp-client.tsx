@@ -1423,6 +1423,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                         </div>
                       </div>
                       <div>
+                        <label className={lbl}>Caj ikut poskod (pilihan — ganti caj rata untuk poskod itu sahaja; satu baris satu)</label>
+                        <textarea rows={2} value={pr.fees} onChange={e => setPr({ fees: e.target.value })} placeholder={'43000 = 8'} className={`${inp} font-mono text-xs`} />
+                      </div>
+                      <div>
                         <label className={lbl}>Slot penghantaran (dipisah koma; kosong = tiada)</label>
                         <input type="text" value={pr.slots} onChange={e => setPr({ slots: e.target.value })} placeholder="11:00 pagi, 4:00 petang" className={inp} />
                       </div>
