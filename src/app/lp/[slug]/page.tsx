@@ -20,6 +20,8 @@ import { LpLive, type LiveReview, type LiveViewerComment } from './lp-live'
 import { normalizeLiveConfig, shortReviewerName } from '@/lib/lp-live'
 import { HUMAN_WA } from '@/lib/support/constants'
 import type { Metadata } from 'next'
+import { activeRules, applyPromoPrices, toPublicRules } from '@/lib/lp-promo-rules'
+import { quotaRemaining } from '@/lib/lp-promo-rules-server'
 // LP hos 'kurma' (migration 145, lib/lp-host.ts): blok funnel gift box via tag {{kurma:...}}
 import { normalizeLpHost, lpPublicPath } from '@/lib/lp-host'
 import { parseKurmaTag } from '@/lib/lp-kurma-tags'
@@ -174,10 +176,22 @@ export default async function LandingPage({ params }: Props) {
   const storeLogoUrl = appSettings.store_logo_url || null
 
   if (!data) notFound()
-  const { page, products, stock } = data
+  const { page, stock } = data
+
+  // Promo setempat (migration 160): harga khas LP (harga asal jadi harga potong) + baki kuota
+  const promoRules = activeRules((page as { promo_rules?: unknown }).promo_rules)
+  const products = applyPromoPrices(promoRules, data.products)
+  const promo = toPublicRules(promoRules, promoRules ? await quotaRemaining(createAdminClient(), page.id, promoRules) : {})
+  // Had hantar percuma: promo dengan caj rata guna free_min sendiri (selari dengan /api/lp/[slug]/order)
+  const lpFreeMin = promo?.flat_fee != null ? (promo.free_min ?? freeMin) : freeMin
 
   const productsBySlug = new Map(products.map(p => [p.slug, p]))
   const stockByProductId = new Map(stock.map(s => [s.product_id, s.available_stock]))
+  // Kuota promo → paparan stok guna baki kuota bila lebih kecil (UI "Tinggal X" sedia ada ikut)
+  for (const [pid, left] of Object.entries(promo?.remaining ?? {})) {
+    const cur = stockByProductId.get(pid)
+    stockByProductId.set(pid, cur == null ? left : Math.min(Number(cur), left))
+  }
 
   // LP hos 'kurma' (lib/lp-host.ts): WhatsApp header = nombor gift box, tag {{kurma:...}} aktif
   const lpHost = normalizeLpHost((page as { host?: unknown }).host)
@@ -208,12 +222,12 @@ export default async function LandingPage({ params }: Props) {
           stocks={liveStocks}
           reviews={data.reviews}
           viewerComments={data.viewerComments}
-          freeMin={freeMin}
+          freeMin={lpFreeMin}
           waNumber={data.live.wa_number || waNumber}
           storeLogo={appSettings.store_logo_url ?? ''}
         />
         {/* Checkout sedia ada (borang → FPX/e-wallet/COD); bar disembunyi, dibuka via event */}
-        <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} hideBar />
+        <LpCartBar slug={slug} freeMin={lpFreeMin} pickupEnabled={pickupEnabled} promo={promo} hideBar />
       </>
     )
   }
@@ -356,13 +370,13 @@ export default async function LandingPage({ params }: Props) {
                 .filter(s => s.required)
                 .map(s => productsBySlug.get(s.slug)?.id)
                 .filter((id): id is string => !!id)
-              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} requiredIds={requiredIds} />
+              return <LpMultiCheckout key={i} products={checkoutProducts as any[]} stocks={stocks} slug={slug} freeMin={lpFreeMin} pickupEnabled={pickupEnabled} requiredIds={requiredIds} promo={promo} />
             }
 
             // Single product
             const checkoutProduct = checkoutProducts[0]!
             const checkoutStock = stockByProductId.get(checkoutProduct.id) ?? null
-            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
+            return <LpInlineCheckout key={i} product={checkoutProduct as any} stock={checkoutStock} slug={slug} freeMin={lpFreeMin} pickupEnabled={pickupEnabled} promo={promo} />
           }
 
           // {{kurma:...}} — blok funnel gift box (LP hos kurma)
@@ -394,7 +408,7 @@ export default async function LandingPage({ params }: Props) {
       {/* Jalankan <script> inline dalam html_content (React tak execute via innerHTML) */}
       <LpHtmlScripts />
 
-      <LpCartBar slug={slug} freeMin={freeMin} pickupEnabled={pickupEnabled} />
+      <LpCartBar slug={slug} freeMin={lpFreeMin} pickupEnabled={pickupEnabled} promo={promo} />
       {showLpShare && !hasKurmaFab && <LpWaShare title={page.title} />}
     </div>
   )

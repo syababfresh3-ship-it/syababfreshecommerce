@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { normalizeLiveConfig, validateLiveConfig } from '@/lib/lp-live'
 import { normalizeLpHost } from '@/lib/lp-host'
 import { normalizeFlashOffer } from '@/lib/lp-flash'
+import { normalizeLpPromoRules } from '@/lib/lp-promo-rules'
 
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
@@ -79,10 +80,17 @@ export async function POST(request: Request) {
   if ('host' in body) insertData.host = normalizeLpHost(body.host)
   // Tawaran masa terhad (migration 159)
   if ('flash_offer' in body) insertData.flash_offer = body.flash_offer ? normalizeFlashOffer(body.flash_offer) : null
+  // Promo setempat (migration 160) — harga khas LP, poskod, caj rata, slot, hadiah, kuota
+  if ('promo_rules' in body) insertData.promo_rules = body.promo_rules ? normalizeLpPromoRules(body.promo_rules) : null
 
   let { data, error } = await supabase!.from('landing_pages').insert(insertData).select().single()
   // Lajur host/flash_offer belum wujud → simpan tanpa lajur itu dan beritahu admin, bukan gagal.
   let warning: string | undefined
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && 'promo_rules' in insertData) {
+    delete insertData.promo_rules
+    warning = 'Lajur promo_rules belum wujud — jalankan migration 160. Peraturan promo tidak disimpan.'
+    ;({ data, error } = await supabase!.from('landing_pages').insert(insertData).select().single())
+  }
   if (error && (error.code === '42703' || error.code === 'PGRST204') && 'flash_offer' in insertData) {
     delete insertData.flash_offer
     warning = 'Lajur flash_offer belum wujud — jalankan migration 159. Tawaran masa terhad tidak disimpan.'

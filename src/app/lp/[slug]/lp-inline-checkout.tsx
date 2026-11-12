@@ -10,6 +10,8 @@ import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 import { HoneypotField } from '@/components/honeypot-field'
+import { promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
+import { LpPromoFields } from './lp-promo-fields'
 
 interface Props {
   product: Product & { product_variants?: ProductVariant[] }
@@ -17,13 +19,15 @@ interface Props {
   slug: string
   freeMin?: number
   pickupEnabled?: boolean
+  /** Promo setempat LP (migration 160) — slot, minimum, hadiah. */
+  promo?: LpPromoPublic | null
 }
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
 const v = (name: string, fallback: string) => `var(${name}, ${fallback})`
 
-export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEnabled = false }: Props) {
+export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEnabled = false, promo = null }: Props) {
   const activeVariants = (product.product_variants ?? [])
     .filter(v => v.is_active)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -45,6 +49,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
   // Penghantaran vs ambil sendiri (pickup)
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
+  const [deliverySlot, setDeliverySlot] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
   const pickupMinDate = new Date().toISOString().split('T')[0]
   // Kod promosi
@@ -122,6 +127,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
     } else if (!/^\d{5}$/.test(form.postcode.trim())) {
       toast.error('Sila masukkan poskod (5 digit)'); return
     }
+    const promoBlock = promoBlockReason(promo, { subtotal, isPickup, slot: deliverySlot })
+    if (promoBlock) { toast.error(promoBlock); return }
     if (!paymentMethod) { toast.error('Sila pilih kaedah bayaran'); return }
 
     const params = new URLSearchParams(window.location.search)
@@ -137,6 +144,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           address: isPickup ? '' : form.address.trim(), postcode: isPickup ? null : (form.postcode.trim() || null),
           notes: form.notes.trim() || null, payment_method: paymentMethod, source,
           delivery_method: deliveryMethod, pickup_date: isPickup ? pickupDate : null,
+          delivery_slot: isPickup ? null : (deliverySlot || null),
           promo_code: appliedPromo?.code ?? null,
           flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
@@ -388,6 +396,8 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
                 </div>
               </>
             )}
+
+            <LpPromoFields promo={promo} isPickup={isPickup} subtotal={subtotal} slot={deliverySlot} onSlot={setDeliverySlot} />
           </div>
         </div>
 

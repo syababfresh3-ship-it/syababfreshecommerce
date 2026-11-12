@@ -1,6 +1,7 @@
 'use client'
 import { Timer as FlashTimerIcon } from 'lucide-react'
 import { DEFAULT_FLASH_OFFER, normalizeFlashOffer, flashLabel, type FlashOffer } from '@/lib/lp-flash'
+import { EMPTY_LP_PROMO_DRAFT, draftFromRules, rulesFromDraft, type LpPromoDraft } from '@/lib/lp-promo-rules'
 // Tawaran masa terhad (migration 159): ISO ↔ <input type="datetime-local"> (masa tempatan pelayar admin)
 const flashToLocal = (iso: string | null) => {
   if (!iso) return ''
@@ -145,6 +146,8 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
     payment_methods: [] as string[],
     // migration 159 — tawaran masa terhad (enabled=false = tiada)
     flash_offer: DEFAULT_FLASH_OFFER as FlashOffer,
+    // migration 160 — promo setempat (harga khas, poskod, caj rata, slot, hadiah, kuota)
+    promo_rules: EMPTY_LP_PROMO_DRAFT as LpPromoDraft,
   })
   // Kaedah bayaran (migration 132)
   const [pmMode, setPmMode] = useState<'global' | 'custom'>('global')   // senarai kosong tak dapat bezakan dua mod ini
@@ -509,7 +512,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
 
   function openCreate() {
     // Pixel default diisi auto — tak perlu ingat. Boleh edit/kosongkan kalau LP ini tak perlu.
-    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', host: 'shop', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [], flash_offer: DEFAULT_FLASH_OFFER })
+    setForm({ title: '', slug: '', html_content: '', is_active: true, meta_pixel_id: DEFAULT_META_PIXEL_ID, google_tag_id: '', template: 'classic', host: 'shop', live_config: DEFAULT_LIVE_CONFIG, payment_methods: [], flash_offer: DEFAULT_FLASH_OFFER, promo_rules: EMPTY_LP_PROMO_DRAFT })
     setPmMode('global')
     loadPmCatalog()
     setSections([])
@@ -530,6 +533,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
       live_config: DEFAULT_LIVE_CONFIG,
       payment_methods: pmOverrides[page.id] ?? [],
       flash_offer: DEFAULT_FLASH_OFFER,
+      promo_rules: EMPTY_LP_PROMO_DRAFT,
     })
     setPmMode((pmOverrides[page.id] ?? []).length > 0 ? 'custom' : 'global')
     loadPmCatalog()
@@ -547,6 +551,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           live_config: { ...DEFAULT_LIVE_CONFIG, ...(d.live_config ?? {}) },
           payment_methods: pm,
           flash_offer: normalizeFlashOffer(d.flash_offer) ?? DEFAULT_FLASH_OFFER,
+          promo_rules: draftFromRules(d.promo_rules),
         }))
         setPmMode(pm.length > 0 ? 'custom' : 'global')
       })
@@ -604,6 +609,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
           meta_pixel_id: form.meta_pixel_id.trim() || null,
           google_tag_id: form.google_tag_id.trim() || null,
           live_config: form.template === 'live' ? form.live_config : null,
+          promo_rules: rulesFromDraft(form.promo_rules),
         }),
       })
 
@@ -1364,6 +1370,82 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                 </div>
               )}
             </div>
+
+            {/* ── Promo setempat (migration 160) ─────────────────────────────
+                Harga khas LP SAHAJA (kedai utama tak berubah), kawasan poskod, caj hantar rata,
+                minimum, slot, hadiah auto & kuota. Dikuat kuasa di /api/lp/[slug]/order. */}
+            {(() => {
+              const pr = form.promo_rules
+              const setPr = (patch: Partial<LpPromoDraft>) => setForm(f => ({ ...f, promo_rules: { ...f.promo_rules, ...patch } }))
+              const inp = 'w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm'
+              const lbl = 'block text-[11px] font-bold text-gray-500 mb-1'
+              return (
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 px-4 py-3 bg-gray-50">
+                    <span className="text-xs font-bold text-gray-600">📍 Promo setempat (kawasan, harga khas, slot, hadiah, kuota)</span>
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-gray-700">
+                      <input type="checkbox" checked={pr.enabled} onChange={e => setPr({ enabled: e.target.checked })} className="w-4 h-4 rounded accent-gray-800 cursor-pointer" />
+                      Aktif
+                    </label>
+                  </div>
+                  {pr.enabled && (
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <label className={lbl}>Poskod dibenarkan untuk penghantaran (kosong = semua)</label>
+                        <textarea rows={2} value={pr.postcodes} onChange={e => setPr({ postcodes: e.target.value })} placeholder="43000, 43650, 43600" className={`${inp} font-mono`} />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className={lbl}>Caj hantar rata RM</label>
+                          <input type="number" min="0" step="0.5" value={pr.flat_fee} onChange={e => setPr({ flat_fee: e.target.value })} placeholder="ikut zon" className={`${inp} font-mono`} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Min. order hantar RM</label>
+                          <input type="number" min="0" step="1" value={pr.min_subtotal} onChange={e => setPr({ min_subtotal: e.target.value })} placeholder="tiada" className={`${inp} font-mono`} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Percuma dari RM</label>
+                          <input type="number" min="0" step="1" value={pr.free_min} onChange={e => setPr({ free_min: e.target.value })} placeholder="ikut kedai" className={`${inp} font-mono`} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={lbl}>Slot penghantaran (dipisah koma; kosong = tiada)</label>
+                        <input type="text" value={pr.slots} onChange={e => setPr({ slots: e.target.value })} placeholder="11:00 pagi, 4:00 petang" className={inp} />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className={lbl}>Hadiah ambil sendiri</label>
+                          <input type="text" value={pr.gift_pickup} onChange={e => setPr({ gift_pickup: e.target.value })} placeholder="3 biji persimmon" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Hadiah bila order ≥ RM</label>
+                          <input type="number" min="0" step="1" value={pr.gift_min} onChange={e => setPr({ gift_min: e.target.value })} placeholder="60" className={`${inp} font-mono`} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Hadiah itu</label>
+                          <input type="text" value={pr.gift_min_label} onChange={e => setPr({ gift_min_label: e.target.value })} placeholder="5 biji persimmon" className={inp} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className={lbl}>Harga khas LP (slug = RM, atau slug:Variasi = RM)</label>
+                          <textarea rows={5} value={pr.prices} onChange={e => setPr({ prices: e.target.value })} placeholder={'mata-kucing:2kg = 10\npersimmon:12 biji = 12'} className={`${inp} font-mono text-xs`} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Kuota unit (slug = unit)</label>
+                          <textarea rows={5} value={pr.quotas} onChange={e => setPr({ quotas: e.target.value })} placeholder={'kotak-buah-keluarga = 50'} className={`${inp} font-mono text-xs`} />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">
+                        Harga khas hanya untuk order melalui LP ini — harga di kedai utama tak berubah, dan harga asal dipapar sebagai harga potong.
+                        Ambil sendiri sentiasa RM0 tanpa minimum. Slot &amp; hadiah tercatat di awal nota order ([Slot: …] [🎁 Hadiah: …]).
+                        Kuota kira semua order LP ini kecuali yang dibatalkan; stok yang dipapar ikut baki kuota.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* ── Kaedah bayaran (migration 132) ───────────────────────────
                 Kosong = ikut payment_methods.is_active sejagat.

@@ -9,14 +9,16 @@ import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
+import { promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
+import { LpPromoFields } from './lp-promo-fields'
 
 // hideBar: template Live guna butang sendiri; drawer dibuka melalui event 'lp-cart:open'
-interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean; hideBar?: boolean }
+interface Props { slug: string; freeMin?: number; pickupEnabled?: boolean; hideBar?: boolean; promo?: LpPromoPublic | null }
 type Step = 'form' | 'done'
 
 interface PaymentMethod { id: string; label: string; sublabel: string }
 
-export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar = false }: Props) {
+export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar = false, promo = null }: Props) {
   const items = useLpCart(s => s.items)
   const removeItem = useLpCart(s => s.removeItem)
   const updateQty = useLpCart(s => s.updateQty)
@@ -36,6 +38,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
   // Penghantaran vs ambil sendiri (pickup)
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery')
   const [pickupDate, setPickupDate] = useState('')
+  const [deliverySlot, setDeliverySlot] = useState('')
   const isPickup = pickupEnabled && deliveryMethod === 'pickup'
   const pickupMinDate = new Date().toISOString().split('T')[0]
   // Kod promosi
@@ -127,6 +130,8 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
     } else if (!form.address.trim() || form.address.trim().length < 10) {
       toast.error('Sila masukkan alamat lengkap'); return
     }
+    const promoBlock = promoBlockReason(promo, { subtotal: sub, isPickup, slot: deliverySlot })
+    if (promoBlock) { toast.error(promoBlock); return }
     if (!form.payment_method) { toast.error('Sila pilih kaedah bayaran'); return }
 
     const params = new URLSearchParams(window.location.search)
@@ -147,6 +152,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
           payment_method: form.payment_method,
           delivery_method: deliveryMethod,
           pickup_date: isPickup ? pickupDate : null,
+          delivery_slot: isPickup ? null : (deliverySlot || null),
           promo_code: appliedPromo?.code ?? null,
           flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
@@ -311,6 +317,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                       </div>
                     </>
                   )}
+                  <LpPromoFields promo={promo} isPickup={isPickup} subtotal={sub} slot={deliverySlot} onSlot={setDeliverySlot} />
                   <input type="text" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Nota tambahan (pilihan)" className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
 
                   {/* Payment */}

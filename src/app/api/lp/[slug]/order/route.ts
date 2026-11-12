@@ -13,6 +13,8 @@ import { lpPaymentMethods, lpOrderNeedsApproval } from '@/lib/lp-payment'
 import { sendCapiPurchase } from '@/lib/meta-capi'
 import { flashCookieName, flashDiscountFor, flashRejectMessage, flashWindow, type FlashState } from '@/lib/lp-flash'
 import { hasRecentFlashClaim, loadFlashOffer, readCookie, recordFlashClaim, verifyFlashToken } from '@/lib/lp-flash-server'
+import { promoDelivery, promoGift, promoPriceFor } from '@/lib/lp-promo-rules'
+import { loadPromoRules, quotaRemaining } from '@/lib/lp-promo-rules-server'
 import { NextResponse } from 'next/server'
 
 // Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
@@ -30,6 +32,13 @@ function isEastMalaysiaPostcode(postcode: string | null | undefined) {
   if (!postcode || !/^\d{5}$/.test(postcode)) return false
   const p = parseInt(postcode.slice(0, 2), 10)
   return p === 87 || (p >= 88 && p <= 91) || (p >= 93 && p <= 98)
+}
+
+// Slot & hadiah promo LP direkod di awal nota supaya team packing nampak terus (migration 160).
+function promoNotes(notes: unknown, slot: string | null, gift: string | null): string | null {
+  const parts = [slot ? `[Slot: ${slot}]` : '', gift ? `[🎁 Hadiah: ${gift}]` : '', typeof notes === 'string' ? notes.trim() : '']
+  const s = parts.filter(Boolean).join(' ')
+  return s || null
 }
 
 function getAppUrl() {
@@ -73,7 +82,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ ok: true, order_number: fakeOrderNumber(), total: 0, delivery_fee: 0, payment_method: body?.payment_method ?? 'cod' })
   }
 
-  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email } = body
+  const { name, phone, address, postcode, notes, payment_method = 'cod', source, items, delivery_method, pickup_date, promo_code, use_points, email, delivery_slot } = body
 
   const isPickup = delivery_method === 'pickup'
   const PICKUP_ADDRESS = 'Ambil Sendiri — SyababFresh, Bangi'
@@ -129,6 +138,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     .single()
   if (!page) return NextResponse.json({ error: 'Halaman tidak dijumpai' }, { status: 404 })
 
+  // Promo setempat LP (migration 160): harga khas, kawasan, caj rata, slot, hadiah, kuota. null = tiada.
+  const promoRules = await loadPromoRules(supabase, slug)
+
   // Kaedah bayaran mesti dibenarkan untuk LP INI (senarai khas LP, atau tetapan
   // sejagat bila tiada). Menutup lubang POST terus — borang menyembunyikan pilihan
   // yang dimatikan, tetapi dahulu pelayan tetap menerimanya.
@@ -145,10 +157,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const [productsRes, variantsRes] = await Promise.all([
     productIds.length > 0
-      ? supabase.from('products').select('id, name, price, is_active, weight_grams, category_id').in('id', productIds)
+      ? supabase.from('products').select('id, name, slug, price, is_active, weight_grams, category_id').in('id', productIds)
       : Promise.resolve({ data: [] }),
     variantIds.length > 0
-      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, free_shipping, is_active, products(id, name, is_active, category_id)').in('id', variantIds)
+      ? supabase.from('product_variants').select('id, product_id, name, price, weight_grams, free_shipping, is_active, products(id, name, slug, is_active, category_id)').in('id', variantIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -173,15 +185,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       if (!variant || !variant.is_active) return NextResponse.json({ error: `Variant tidak tersedia` }, { status: 400 })
       const prod = (variant.products as any)
       if (!prod || !prod.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
-      const unitPrice = Number(variant.price)
+      const unitPrice = promoPriceFor(promoRules, prod.slug, variant.name) ?? Number(variant.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: prod.name, variant_name: variant.name, unit_price: unitPrice })
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
-      const unitPrice = Number(product.price)
+      const unitPrice = promoPriceFor(promoRules, (product as { slug?: string }).slug) ?? Number(product.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: product.name, unit_price: unitPrice })
+    }
+  }
+
+  // ── Kuota promo LP ("50 kotak pertama", migration 160) ──────────────
+  if (promoRules && Object.keys(promoRules.quotas).length > 0) {
+    const remaining = await quotaRemaining(supabase, page.id, promoRules)
+    const wanted = new Map<string, number>()
+    for (const i of validatedItems) {
+      const pid = i.variant_id ? ((variantMap.get(i.variant_id)?.products as unknown as { id?: string } | null)?.id ?? i.product_id) : i.product_id
+      wanted.set(pid, (wanted.get(pid) ?? 0) + i.quantity)
+    }
+    for (const [pid, qty] of wanted) {
+      if (!(pid in remaining)) continue
+      if (qty > remaining[pid]) {
+        const nm = validatedItems.find(i => i.product_id === pid)?.product_name ?? 'Produk'
+        return NextResponse.json({ error: remaining[pid] > 0 ? `${nm}: tinggal ${remaining[pid]} unit sahaja untuk promo ini` : `${nm}: kuota promo dah habis` }, { status: 400 })
+      }
     }
   }
 
@@ -241,9 +270,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!isPickup && isEastMalaysiaPostcode(postcode))
     return NextResponse.json({ error: 'Maaf, kami tidak menghantar ke Sabah, Sarawak dan Labuan' }, { status: 400 })
 
+  // Promo setempat: poskod terhad + caj rata + minimum (ambil sendiri: RM0 tanpa minimum)
+  const promoQ = promoDelivery(promoRules, { postcode, subtotal, isPickup, defaultFreeMin: FREE_MIN })
+  if (promoQ.handled && !promoQ.available)
+    return NextResponse.json({ error: promoQ.error }, { status: 400 })
+  if (promoQ.handled && promoQ.available && promoQ.belowMin != null)
+    return NextResponse.json({ error: `Minimum RM${promoRules!.min_subtotal} untuk penghantaran — tambah RM${promoQ.belowMin.toFixed(2)} lagi atau pilih Ambil Sendiri` }, { status: 400 })
+  const slot = typeof delivery_slot === 'string' ? delivery_slot.trim() : ''
+  if (!isPickup && promoRules && promoRules.slots.length > 0 && !promoRules.slots.includes(slot))
+    return NextResponse.json({ error: 'Sila pilih slot penghantaran' }, { status: 400 })
+
   if (isPickup) {
     deliveryFee = 0   // ambil sendiri — tiada caj penghantaran
-  } else if (hasFreeShipVariant || subtotal >= FREE_MIN) {
+  } else if (hasFreeShipVariant) {
+    deliveryFee = 0
+  } else if (promoQ.handled && promoQ.available) {
+    deliveryFee = promoQ.fee
+  } else if (subtotal >= FREE_MIN) {
     deliveryFee = 0
   } else if (postcode && /^\d{5}$/.test(postcode)) {
     const { data: zone } = await supabase.from('delivery_zones').select('delivery_fee, state, is_active').eq('postcode', postcode).maybeSingle()
@@ -366,7 +409,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       phone: phone.trim(),
       address: isPickup ? PICKUP_ADDRESS : address.trim(),
       postcode: isPickup ? null : (postcode?.trim() || null),
-      notes: notes?.trim() || null,
+      notes: promoNotes(notes, !isPickup && slot ? slot : null, promoGift(promoRules, { subtotal, isPickup })),
       delivery_method: isPickup ? 'pickup' : 'delivery',
       pickup_date: isPickup && typeof pickup_date === 'string' && pickup_date ? pickup_date : null,
       promo_code_id: promoCodeId,
@@ -561,12 +604,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 }
 
 // Delivery fee preview (GET)
-export async function GET(request: Request) {
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   const url = new URL(request.url)
   const postcode = url.searchParams.get('postcode') ?? ''
   const subtotal = parseFloat(url.searchParams.get('subtotal') ?? '0')
 
   if (isEastMalaysiaPostcode(postcode)) return NextResponse.json({ available: false, fee: null })
+
+  // Promo setempat LP (migration 160) — poskod terhad / caj rata menggantikan zon biasa
+  if (slug && /^[a-z0-9-]+$/.test(slug)) {
+    const rules = await loadPromoRules(createAdminClient(), slug)
+    const freeMinSetting = rules ? Number((await getAppSettings()).free_delivery_min ?? 80) : undefined
+    const q = promoDelivery(rules, { postcode, subtotal: Number.isFinite(subtotal) ? subtotal : 0, isPickup: false, defaultFreeMin: freeMinSetting })
+    if (q.handled && !q.available) return NextResponse.json({ available: false, fee: null, error: q.error })
+    if (q.handled && q.available && /^\d{5}$/.test(postcode)) return NextResponse.json({ available: true, fee: q.fee, below_min: q.belowMin })
+  }
 
   // Free shipping per-variasi (migration 141): kalau troli ada variasi free_shipping
   // → seluruh order percuma, abai poskod & had basket.
