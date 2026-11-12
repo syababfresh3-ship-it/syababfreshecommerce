@@ -434,16 +434,19 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                   )}
                   {/* Gambar produk — keluar bila produk dipilih, supaya pelanggan
                       nampak rupa buah sebelum bayar. object-fit: contain supaya
-                      gambar produk (biasanya latar putih) tak terpotong. */}
+                      gambar produk (biasanya latar putih) tak terpotong.
+                      Tinggi ikut nisbah gambar (had 360px) — poster segi empat sama
+                      (cth. Kotak Buah Keluarga) dapat lebar penuh kad & teksnya boleh
+                      dibaca; gambar melebar kekal ±200px seperti dulu. */}
                   {isActive && productImage && (
                     <div style={{ padding: '0 14px 14px' }}>
-                      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', maxHeight: 360, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <img
                           src={productImage}
                           alt={sel.product.name}
                           decoding="async"
                           onError={e => { const box = e.currentTarget.parentElement?.parentElement; if (box) box.style.display = 'none' }}
-                          style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                          style={{ width: '100%', height: 'auto', maxHeight: 360, objectFit: 'contain', display: 'block' }}
                         />
                       </div>
                     </div>
