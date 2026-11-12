@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Package, Calendar } from 'lucide-react'
+import { ArrowLeft, Package, Calendar, Gift, Clock } from 'lucide-react'
+import { parsePromoNotes } from '@/lib/lp-promo-rules'
 import { LpOrderActions } from './lp-order-actions'
 import { LpShipmentPanel } from './lp-shipment-panel'
 import { LpCustomerEdit } from './lp-customer-edit'
@@ -153,13 +154,37 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
           {/* Invois (download + email) — semua LP order */}
           <ResellerInvoiceActions orderId={order.id} />
 
-          {/* Delivery slot / notes */}
-          {order.notes && (
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-              <p className="text-xs font-bold text-amber-600 mb-1">Customer Note</p>
-              <p className="text-sm text-amber-800">{order.notes}</p>
-            </div>
-          )}
+          {/* Hadiah & slot promo LP (ditulis di awal nota oleh /api/lp/[slug]/order) dipisahkan
+              dari nota pelanggan supaya team packing nampak hadiah sebagai item, bukan teks tersorok */}
+          {(() => {
+            const note = parsePromoNotes(order.notes)
+            if (!note.gift && !note.slot && !note.rest) return null
+            return (
+              <div className="space-y-2">
+                {note.gift && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+                    <Gift className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-emerald-700 mb-0.5">Hadiah percuma — sertakan dalam bungkusan</p>
+                      <p className="text-sm font-semibold text-emerald-900">{note.gift}</p>
+                    </div>
+                  </div>
+                )}
+                {note.slot && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-gray-600 shrink-0" />
+                    <p className="text-sm text-gray-800"><span className="font-semibold">Slot penghantaran:</span> {note.slot}</p>
+                  </div>
+                )}
+                {note.rest && (
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
+                    <p className="text-xs font-bold text-amber-600 mb-1">Customer Note</p>
+                    <p className="text-sm text-amber-800">{note.rest}</p>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* WA */}
           <a

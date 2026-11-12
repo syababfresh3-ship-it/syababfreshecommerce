@@ -180,6 +180,29 @@ export function promoGift(rules: LpPromoRules | null, opts: { subtotal: number; 
   return gifts.length ? gifts.join(' + ') : null
 }
 
+// ── Nota order LP ──────────────────────────────────────────────────────────────
+// Slot & hadiah promo direkod di AWAL nota order (satu lajur `notes` sedia ada, tiada migration)
+// dalam format tetap "[Slot: …] [🎁 Hadiah: …] nota pelanggan". format/parse disimpan sebelah-
+// menyebelah supaya admin & emel boleh pecahkan semula tanpa meneka.
+const SLOT_RE = /\[Slot:\s*([^\]]+)\]/
+const GIFT_RE = /\[(?:🎁\s*)?Hadiah:\s*([^\]]+)\]/
+
+/** Bina nota order: slot & hadiah di depan, nota pelanggan di belakang. null bila semuanya kosong. */
+export function formatPromoNotes(notes: unknown, slot: string | null, gift: string | null): string | null {
+  const parts = [slot ? `[Slot: ${slot}]` : '', gift ? `[🎁 Hadiah: ${gift}]` : '', typeof notes === 'string' ? notes.trim() : '']
+  const s = parts.filter(Boolean).join(' ')
+  return s || null
+}
+
+/** Pecahkan nota order kepada slot / hadiah / nota pelanggan asal. Nota tanpa tag → semuanya `rest`. */
+export function parsePromoNotes(notes: string | null | undefined): { slot: string | null; gift: string | null; rest: string } {
+  const s = typeof notes === 'string' ? notes : ''
+  const slot = s.match(SLOT_RE)?.[1]?.trim() ?? null
+  const gift = s.match(GIFT_RE)?.[1]?.trim() ?? null
+  const rest = s.replace(SLOT_RE, '').replace(GIFT_RE, '').replace(/\s+/g, ' ').trim()
+  return { slot, gift, rest }
+}
+
 /** Subset selamat untuk dihantar ke pelayar (tiada senarai poskod penuh / harga dalaman). */
 export interface LpPromoPublic {
   slots: string[]

@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { Phone, MessageCircle, Pencil, X, Check } from 'lucide-react'
+import { Phone, MessageCircle, Pencil, X, Check, Gift, Clock } from 'lucide-react'
 import { isChipMethod } from '@/lib/chip-methods'
+import { parsePromoNotes } from '@/lib/lp-promo-rules'
 
 interface LpOrder {
   id: string
@@ -186,7 +187,7 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
                   {items.length > 2 && <p className="text-[10px] text-gray-400">+{items.length - 2} more</p>}
                 </div>
 
-                {lp.notes && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1">📝 {lp.notes}</p>}
+                <LpNoteBadges notes={lp.notes} />
 
                 <p className="text-[10px] text-gray-400">
                   {new Date(lp.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -228,5 +229,27 @@ export function LpOrdersSection({ lpOrders, onUpdate }: { lpOrders: LpOrder[]; o
         />
       )}
     </>
+  )
+}
+
+// Nota order LP = "[Slot: …] [🎁 Hadiah: …] nota pelanggan" (ditulis /api/lp/[slug]/order).
+// Hadiah dipapar sebagai lencana sendiri supaya team packing tak terlepas; baki = nota pelanggan.
+function LpNoteBadges({ notes }: { notes?: string | null }) {
+  const note = parsePromoNotes(notes)
+  if (!note.gift && !note.slot && !note.rest) return null
+  return (
+    <div className="space-y-1">
+      {note.gift && (
+        <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 flex items-center gap-1.5">
+          <Gift className="h-3.5 w-3.5 shrink-0" />Hadiah: {note.gift}
+        </p>
+      )}
+      {note.slot && (
+        <p className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 flex items-center gap-1.5">
+          <Clock className="h-3.5 w-3.5 shrink-0" />Slot: {note.slot}
+        </p>
+      )}
+      {note.rest && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1">Nota: {note.rest}</p>}
+    </div>
   )
 }

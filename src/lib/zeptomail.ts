@@ -115,6 +115,16 @@ async function send(opts: {
   }
 }
 
+// Kotak hadiah promo LP (migration 160) — pelanggan dapat bukti bertulis apa yang dijanjikan,
+// team packing pula nampak benda yang sama di admin (parsePromoNotes). Kosong → tiada apa-apa.
+function giftBox(gift: string | null | undefined): string {
+  if (!gift) return ''
+  return `
+    <div style="margin-top:12px;padding:12px 16px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+      <p style="margin:0;font-size:13px;color:#166534;line-height:1.5;"><strong>Hadiah percuma:</strong> ${gift} — disertakan bersama pesanan anda.</p>
+    </div>`
+}
+
 // ─── email 1: order confirmation (COD / bank transfer) ────────────────────────
 
 export async function sendOrderConfirmationEmail(params: {
@@ -127,6 +137,8 @@ export async function sendOrderConfirmationEmail(params: {
   deliverySlot: string | null
   paymentMethod: string
   notes: string | null
+  /** Hadiah promo LP (cth. "5 biji persimmon") — kotak hijau berasingan, bukan dalam nota. */
+  gift?: string | null
 }) {
   const paymentLabel: Record<string, string> = {
     fpx: 'FPX', ewallet: 'E-Wallet', cod: 'COD (Bayar Semasa Terima)',
@@ -165,6 +177,7 @@ export async function sendOrderConfirmationEmail(params: {
       ${params.deliverySlot ? `<p style="margin:6px 0 0;font-size:12px;color:#16a34a;font-weight:600;">🕐 Slot: ${params.deliverySlot}</p>` : ''}
     </div>` : ''}
 
+    ${giftBox(params.gift)}
     ${params.notes ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">📝 Nota: ${params.notes}</p>` : ''}
 
     <div style="margin-top:24px;padding:14px 16px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a;">
@@ -199,6 +212,8 @@ export async function sendPaymentConfirmedEmail(params: {
   deliverySlot: string | null
   notes: string | null
   receiptUrl?: string   // optional link to the official receipt page
+  /** Hadiah promo LP — lihat sendOrderConfirmationEmail. */
+  gift?: string | null
 }) {
   const html = layout('Pembayaran Disahkan', `
     <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">Hai, <strong>${params.customerName}</strong>!</p>
@@ -233,6 +248,7 @@ export async function sendPaymentConfirmedEmail(params: {
       ${params.deliverySlot ? `<p style="margin:6px 0 0;font-size:12px;color:#16a34a;font-weight:600;">🕐 Slot: ${params.deliverySlot}</p>` : ''}
     </div>` : ''}
 
+    ${giftBox(params.gift)}
     ${params.notes ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">📝 Nota: ${params.notes}</p>` : ''}
 
     ${params.receiptUrl ? `

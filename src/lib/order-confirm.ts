@@ -4,6 +4,7 @@ import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
 import { sendCapiPurchaseWhatsApp } from '@/lib/meta-capi'
+import { parsePromoNotes } from '@/lib/lp-promo-rules'
 
 // CHIP's RSA public key may be stored as a single line (no newlines) in the
 // environment — Node's crypto.verify needs a properly wrapped PEM. Rebuild it.
@@ -77,8 +78,10 @@ export async function confirmLpGuestOrder(
       items: ((order.items as any[]) ?? []).map((i: any) => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
       total: Number(order.total),
       deliveryAddress: order.address ?? null,
-      deliverySlot: null,
+      // Slot & hadiah promo LP disimpan di awal nota order (lib/lp-promo-rules formatPromoNotes)
+      deliverySlot: parsePromoNotes(order.notes).slot,
       notes: null,
+      gift: parsePromoNotes(order.notes).gift,
       receiptUrl: `${appUrl}/resit/${order.id}`,
     }).catch(() => {})
   }

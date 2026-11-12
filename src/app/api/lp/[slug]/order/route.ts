@@ -13,7 +13,7 @@ import { lpPaymentMethods, lpOrderNeedsApproval } from '@/lib/lp-payment'
 import { sendCapiPurchase } from '@/lib/meta-capi'
 import { flashCookieName, flashDiscountFor, flashRejectMessage, flashWindow, type FlashState } from '@/lib/lp-flash'
 import { hasRecentFlashClaim, loadFlashOffer, readCookie, recordFlashClaim, verifyFlashToken } from '@/lib/lp-flash-server'
-import { promoDelivery, promoGift, promoPriceFor } from '@/lib/lp-promo-rules'
+import { formatPromoNotes, promoDelivery, promoGift, promoPriceFor } from '@/lib/lp-promo-rules'
 import { loadPromoRules, quotaRemaining } from '@/lib/lp-promo-rules-server'
 import { NextResponse } from 'next/server'
 
@@ -35,10 +35,9 @@ function isEastMalaysiaPostcode(postcode: string | null | undefined) {
 }
 
 // Slot & hadiah promo LP direkod di awal nota supaya team packing nampak terus (migration 160).
+// Format dikongsi dengan parsePromoNotes (admin & emel pecahkan semula) — jangan ubah di sini sahaja.
 function promoNotes(notes: unknown, slot: string | null, gift: string | null): string | null {
-  const parts = [slot ? `[Slot: ${slot}]` : '', gift ? `[🎁 Hadiah: ${gift}]` : '', typeof notes === 'string' ? notes.trim() : '']
-  const s = parts.filter(Boolean).join(' ')
-  return s || null
+  return formatPromoNotes(notes, slot, gift)
 }
 
 function getAppUrl() {
@@ -601,9 +600,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       items: validatedItems.map(i => ({ name: i.product_name, quantity: i.quantity, unit_price: Number(i.unit_price), variant_name: i.variant_name ?? null })),
       total: Number(order.total),
       deliveryAddress: isPickup ? PICKUP_ADDRESS : address.trim(),
-      deliverySlot: null,
+      deliverySlot: !isPickup && slot ? slot : null,
       paymentMethod: payment_method,
       notes: notes?.trim() || null,
+      // Hadiah promo LP (migration 160) — pelanggan dapat bukti bertulis, sama dengan nota order
+      gift: promoGift(promoRules, { subtotal, isPickup }),
     }).catch(() => {})
   }
 
