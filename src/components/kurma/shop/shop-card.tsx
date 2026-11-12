@@ -7,10 +7,11 @@
 // pautan "Pilih di kedai" ke page produk (hos kurma: proxy lalukan /products).
 import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { Plus, Minus, ChevronDown, ShoppingBag } from 'lucide-react'
+import { Plus, Minus, ChevronDown, ShoppingBag, Gift } from 'lucide-react'
 import { useCartStore } from '@/lib/stores/cart'
 import type { Product, ProductVariant } from '@/types'
 import { rm2, type ShopProduct } from '@/lib/kurma-shop'
+import { firstPromoNote } from '@/lib/variant-options'
 
 const RED = '#E11D2A'
 const isOut = (v: ProductVariant) => typeof v.stock === 'number' && v.stock <= 0
@@ -54,6 +55,8 @@ export function ShopCard({ product }: { product: ShopProduct }) {
 
   const minPrice = hasVariants ? Math.min(...variants.map(v => Number(v.price))) : Number(product.price)
   const soldOut = hasVariants ? variants.every(isOut) : false
+  // Badge PROMO — nota promo dalam nama varian (cth "6 biji + FREE 6 biji"); sama corak SfProductCard
+  const promo = hasVariants ? firstPromoNote(variants) : ''
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
@@ -64,7 +67,9 @@ export function ShopCard({ product }: { product: ShopProduct }) {
         ) : (
           <div className="h-full grid place-items-center text-gray-300"><ShoppingBag className="h-8 w-8" /></div>
         )}
-        {soldOut && <span className="absolute top-2 left-2 bg-gray-900/85 text-white text-[10px] font-bold rounded-full px-2.5 py-1">Habis stok</span>}
+        {soldOut
+          ? <span className="absolute top-2 left-2 bg-gray-900/85 text-white text-[10px] font-bold rounded-full px-2.5 py-1">Habis stok</span>
+          : promo ? <span className="absolute top-2 left-2 inline-flex items-center gap-1 text-white text-[10px] font-extrabold rounded-full px-2 py-1 shadow-[0_2px_8px_rgba(225,29,42,0.35)]" style={{ background: RED }} title={promo}><Gift className="h-3 w-3" aria-hidden /> PROMO</span> : null}
         {inCart > 0 && <span className="absolute top-2 right-2 text-white text-[10px] font-bold rounded-full px-2 py-1" style={{ background: RED }}>{inCart} dlm troli</span>}
       </div>
 
@@ -78,7 +83,9 @@ export function ShopCard({ product }: { product: ShopProduct }) {
               {rm2(minPrice)}
             </p>
             {!hasVariants && <p className="text-[10px] text-gray-400 mt-0.5">/{product.unit}</p>}
-            {hasVariants && <p className="text-[10px] text-gray-400 mt-0.5">{variants.length} saiz</p>}
+            {hasVariants && (promo && !soldOut
+              ? <p className="text-[10px] font-bold mt-0.5 truncate" style={{ color: RED }}>+ {promo}</p>
+              : <p className="text-[10px] text-gray-400 mt-0.5">{variants.length} saiz</p>)}
           </div>
 
           {soldOut ? null : hasDims ? (

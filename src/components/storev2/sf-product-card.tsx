@@ -2,8 +2,9 @@
 
 // Redesign v2 — kad produk grid (Zus-style): imej kotak + nama + harga + add.
 import Link from "next/link";
-import { Plus, Minus, Bell } from "lucide-react";
+import { Plus, Minus, Bell, Gift } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
+import { firstPromoNote } from "@/lib/variant-options";
 import type { Product, ProductVariant } from "@/types";
 
 type CardProduct = Product & {
@@ -26,6 +27,8 @@ export function SfProductCard({ product }: { product: CardProduct }) {
   const soldOut = hasVariants
     ? variants.every((v) => v.stock !== undefined && v.stock <= 0)
     : (product.product_stock?.length ?? 0) > 0 && (product.product_stock![0].available_stock ?? 1) <= 0;
+  // Badge PROMO — mana-mana varian aktif ada nota promo dalam nama ("… + Free 1KG Gred C"); pemilik 12 Nov
+  const promo = hasVariants ? firstPromoNote(variants) : "";
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
@@ -37,11 +40,15 @@ export function SfProductCard({ product }: { product: CardProduct }) {
           ) : (
             <div className="h-full grid place-items-center text-3xl">🍎</div>
           )}
-          {soldOut && (
+          {soldOut ? (
             <span className="absolute top-2 left-2 bg-gray-900/85 text-white text-[10px] font-bold rounded-full px-2.5 py-1">
               Habis stok
             </span>
-          )}
+          ) : promo ? (
+            <span className="absolute top-2 left-2 inline-flex items-center gap-1 bg-[#E11D2A] text-white text-[10px] font-extrabold rounded-full px-2 py-1 shadow-[0_2px_8px_rgba(225,29,42,0.35)]" title={promo}>
+              <Gift className="h-3 w-3" aria-hidden /> PROMO
+            </span>
+          ) : null}
         </div>
       </Link>
 
@@ -56,7 +63,10 @@ export function SfProductCard({ product }: { product: CardProduct }) {
               {hasVariants && <span className="text-[10px] font-semibold text-gray-400 mr-0.5">Dari</span>}
               RM{Number(minPrice).toFixed(2)}
             </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">/{product.unit}</p>
+            {/* Nota promo ganti label unit bila ada — customer nampak "apa yang free" tanpa buka page */}
+            {promo && !soldOut
+              ? <p className="text-[10px] font-bold text-[#E11D2A] mt-0.5 truncate">+ {promo}</p>
+              : <p className="text-[10px] text-gray-400 mt-0.5">/{product.unit}</p>}
           </div>
 
           {soldOut ? null : hasVariants ? (

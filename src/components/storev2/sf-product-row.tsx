@@ -3,8 +3,9 @@
 // Redesign v2 — baris produk (Katalog/Home). Thumb + nama + harga + kawalan add.
 // Produk ada variant → "+" ke detail (pilih saiz). Tiada variant → stepper terus.
 import Link from "next/link";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Gift } from "lucide-react";
 import { useCartStore } from "@/lib/stores/cart";
+import { firstPromoNote } from "@/lib/variant-options";
 import type { Product, ProductVariant } from "@/types";
 
 type RowProduct = Product & { product_variants?: ProductVariant[] };
@@ -18,6 +19,8 @@ export function SfProductRow({ product }: { product: RowProduct }) {
 
   const qty = items.find((i) => i.product.id === product.id && !i.variant)?.quantity ?? 0;
   const minPrice = hasVariants ? Math.min(...variants.map((v) => v.price)) : product.price;
+  // Badge PROMO — mana-mana varian aktif ada nota promo dalam nama ("… + Free 1KG Gred C")
+  const promo = hasVariants ? firstPromoNote(variants) : "";
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -39,6 +42,11 @@ export function SfProductRow({ product }: { product: RowProduct }) {
           RM{Number(minPrice).toFixed(2)}
           <span className="text-[11px] font-medium text-gray-400"> /{product.unit}</span>
         </div>
+        {promo && (
+          <div className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] font-extrabold text-[#E11D2A] truncate max-w-full">
+            <Gift className="h-3 w-3 shrink-0" aria-hidden /> PROMO · {promo}
+          </div>
+        )}
       </Link>
 
       {hasVariants ? (

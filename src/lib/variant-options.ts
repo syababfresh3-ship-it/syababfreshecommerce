@@ -137,6 +137,15 @@ export function variantPromoNote(v: { name: string; options?: OptionValues | nul
   return phrase ? trimSep(phrase[1]) : ''
 }
 
+/** Nota promo pertama antara varian aktif (ikut sort_order) — untuk badge "PROMO" pada kad produk. '' = tiada. */
+export function firstPromoNote<V extends { name: string; options?: OptionValues | null; is_active?: boolean; sort_order?: number }>(variants: V[]): string {
+  for (const v of [...variants].filter(v => v.is_active !== false).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))) {
+    const n = variantPromoNote(v)
+    if (n) return n
+  }
+  return ''
+}
+
 /** Nama varian tanpa ekor promo ("Gred A · 3KG + Free 1KG Gred C" → "Gred A · 3KG") — untuk label unit/cip.
  *  Hanya dipotong bila promo di HUJUNG nama; promo di tengah (cth "Pesta (FREE Delivery) — …") → nama penuh. */
 export function variantBaseName(v: { name: string; options?: OptionValues | null }): string {
