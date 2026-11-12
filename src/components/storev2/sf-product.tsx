@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronLeft, Heart, Star, Leaf, Truck, RotateCcw, Plus, Minus, Check, TrendingUp, ShoppingBag,
+  ChevronLeft, Heart, Star, Leaf, Truck, RotateCcw, Plus, Minus, Check, TrendingUp, ShoppingBag, Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -21,7 +21,7 @@ import { SfDeliveryEstimate } from "@/components/storev2/sf-delivery-estimate";
 import { ARTIKEL } from "@/app/panduan/artikel";
 import type { Product, ProductVariant } from "@/types";
 import { VariantOptionPicker } from "@/components/store/variant-option-picker";
-import { defaultSelection, parseVariantOptions, usesDimensions, type OptionValues } from "@/lib/variant-options";
+import { defaultSelection, parseVariantOptions, usesDimensions, variantPromoNote, variantBaseName, type OptionValues } from "@/lib/variant-options";
 
 // Pautan kluster: padan produk (nama + kategori) → artikel panduan berkaitan.
 // Kuatkan pautan dalaman dari 94 page produk ke artikel & pillar /buah-online.
@@ -104,6 +104,8 @@ export function SfProduct({
   const cartCount = cartItems.reduce((n, it) => n + it.quantity, 0);
   const pickVariant = (v: ProductVariant) => { setVariant(v); setAdded(false); };
   const changeQty = (fn: (q: number) => number) => { setQty(fn); setAdded(false); };
+  // Promo dalam nama varian terpilih (cth "Free 1KG Gred C") — dipapar sebagai kotak jelas di bawah harga
+  const promo = variant ? variantPromoNote(variant) : "";
 
   // Wishlist SEBENAR (table wishlists) — sebelum ni useState lokal je, hilang bila refresh.
   useEffect(() => {
@@ -219,12 +221,20 @@ export function SfProduct({
           )}
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-[26px] font-extrabold text-[#E11D2A]">RM{Number(unitPrice).toFixed(2)}</span>
-            {variant && <span className="text-[13px] text-gray-400 font-medium">/{variant.name}</span>}
+            {/* Label unit tanpa ekor promo — promo dipapar besar di bawah (pemilik 12 Nov: "customer tak nampak") */}
+            {variant && <span className="text-[13px] text-gray-400 font-medium">/{variantBaseName(variant)}</span>}
             {!variant && <span className="text-[13px] text-gray-400 font-medium">/{product.unit}</span>}
             {variant?.compare_price && variant.compare_price > unitPrice && (
               <span className="text-[13px] text-gray-400 line-through">RM{Number(variant.compare_price).toFixed(2)}</span>
             )}
           </div>
+          {/* Promo dalam nama varian ("… + Free 1KG Gred C") — kotak jelas, bukan teks kelabu kecil */}
+          {promo && (
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-[#E11D2A]/30 bg-[#FDECEC] px-3 py-1.5 text-[13px] font-extrabold text-[#E11D2A]" data-testid="variant-promo">
+              <Gift className="h-4 w-4 shrink-0" aria-hidden />
+              <span>PROMO: {promo}</span>
+            </div>
+          )}
 
           {/* #5 Stok + #4 jimat (variant terpilih) */}
           <div className="flex items-center gap-2 mt-1.5">
@@ -269,6 +279,7 @@ export function SfProduct({
                   const { count, unit, weight } = parseVariant(v.name);
                   const perUnit = !weight && count > 1 ? v.price / count : null;
                   const vSoldOut = v.stock !== undefined && v.stock <= 0;
+                  const vPromo = variantPromoNote(v);
                   return (
                     <button
                       key={v.id}
@@ -278,8 +289,10 @@ export function SfProduct({
                         on ? "border-[#E11D2A] bg-[#FDECEC]" : "border-gray-200"
                       } ${vSoldOut ? "opacity-40" : ""}`}
                     >
-                      <div className={`text-[13px] font-bold ${on ? "text-[#E11D2A]" : "text-gray-900"}`}>{v.name}</div>
+                      <div className={`text-[13px] font-bold ${on ? "text-[#E11D2A]" : "text-gray-900"}`}>{vPromo ? variantBaseName(v) : v.name}</div>
                       <div className="text-[11px] text-gray-500 mt-0.5">RM{Number(v.price).toFixed(2)}</div>
+                      {/* Tag promo pada cip supaya nampak SEBELUM pilih (cth "+ Free 1KG Gred C") */}
+                      {vPromo && <div className="text-[9.5px] font-extrabold text-[#E11D2A] mt-0.5 leading-tight">+ {vPromo}</div>}
                       {/* #4 harga per-unit untuk bundle → tonjol jimat pukal */}
                       {perUnit && (
                         <div className="text-[9.5px] text-gray-400 mt-0.5">RM{perUnit.toFixed(2)}/{unit}</div>

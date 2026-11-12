@@ -117,3 +117,32 @@ export function defaultSelection<V extends { options?: OptionValues | null; is_a
   for (const d of dims) if (first.options[d.name]) sel[d.name] = first.options[d.name]
   return sel
 }
+
+const trimSep = (s: string) => s.replace(/^[\s+\-–—·,]+|[\s+\-–—·,]+$/g, '').replace(/\s{2,}/g, ' ')
+
+/** Nota promo yang pemilik tulis dalam NAMA varian (cth "Gred A · 3KG + Free 1KG Gred C" → "Free 1KG Gred C",
+ *  "3kg + 1kg Free" → "1kg Free"). Berdimensi: lebihan nama selepas nilai pilihan dibuang; rata: ekor selepas
+ *  "+"/" - " yang mengandungi free/percuma/bonus (fallback: frasa "Free …" sahaja). '' = tiada promo. */
+export function variantPromoNote(v: { name: string; options?: OptionValues | null }): string {
+  const name = v.name ?? ''
+  if (v.options && Object.values(v.options).some(Boolean)) {
+    let rest = name
+    for (const val of Object.values(v.options)) if (val) rest = rest.replace(val, ' ')
+    return trimSep(rest.replace(/·/g, ' '))
+  }
+  // Pemisah " + " / " - " mesti ada ruang — "(150g+)" bukan pemisah promo
+  const tail = name.match(/(?:\s\+\s*|\s[-–—]\s)(.*(?:free|percuma|bonus).*)$/i)
+  if (tail) return trimSep(tail[1])
+  const phrase = name.match(/\b((?:free|percuma)\s+[^()+·\-–—]*)/i)
+  return phrase ? trimSep(phrase[1]) : ''
+}
+
+/** Nama varian tanpa ekor promo ("Gred A · 3KG + Free 1KG Gred C" → "Gred A · 3KG") — untuk label unit/cip.
+ *  Hanya dipotong bila promo di HUJUNG nama; promo di tengah (cth "Pesta (FREE Delivery) — …") → nama penuh. */
+export function variantBaseName(v: { name: string; options?: OptionValues | null }): string {
+  const promo = variantPromoNote(v)
+  if (!promo) return v.name
+  const idx = v.name.indexOf(promo)
+  if (idx < 0 || !/^[\s)+\-–—·,]*$/.test(v.name.slice(idx + promo.length))) return v.name
+  return trimSep(v.name.slice(0, idx)) || v.name
+}

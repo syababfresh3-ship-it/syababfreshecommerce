@@ -7,7 +7,7 @@
 // Dipakai storefront (sf-product) dan borang LP (lp-multi-checkout). Lihat lib/variant-options.ts.
 import { useMemo } from 'react'
 import {
-  findVariant, valueAvailability, type OptionValues, type VariantOption,
+  findVariant, valueAvailability, variantPromoNote, type OptionValues, type VariantOption,
 } from '@/lib/variant-options'
 
 export interface PickerVariant {
@@ -67,9 +67,10 @@ export function VariantOptionPicker({ dims, variants, selection, onChange, accen
                 const on = selection[dim.name] === val
                 const { exists, inStock } = avail[val] ?? { exists: false, inStock: false }
                 // Harga pada pil dimensi terakhir bila dimensi lain dah dipilih (macam TikTok)
-                const priceOf = i === lastIdx && othersChosen
-                  ? findVariant(active, dims, { ...selection, [dim.name]: val })?.price
-                  : undefined
+                const vAt = i === lastIdx && othersChosen ? findVariant(active, dims, { ...selection, [dim.name]: val }) : undefined
+                const priceOf = vAt?.price
+                // Promo dalam nama varian (cth "+ Free 1KG Gred C") — tunjuk pada pil supaya nampak sebelum pilih
+                const promoOf = vAt ? variantPromoNote(vAt) : ''
                 return (
                   <button
                     key={val}
@@ -88,6 +89,11 @@ export function VariantOptionPicker({ dims, variants, selection, onChange, accen
                     {priceOf != null && (
                       <span className={`block font-black ${compact ? 'text-[10.5px]' : 'text-[11px]'} ${on ? 'text-white/85' : 'text-gray-500'}`}>
                         RM{Number(priceOf).toFixed(2)}
+                      </span>
+                    )}
+                    {promoOf && (
+                      <span style={on ? undefined : { color: accent }} className={`block font-extrabold leading-tight ${compact ? 'text-[9px]' : 'text-[9.5px]'} ${on ? 'text-white' : ''}`}>
+                        + {promoOf}
                       </span>
                     )}
                     {exists && !inStock && (
