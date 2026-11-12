@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { CheckCircle, MessageCircle, ChevronRight, Lock, Truck, Tag, PackageX } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
 import { VariantOptionPicker } from '@/components/store/variant-option-picker'
-import { parseVariantOptions, usesDimensions, type OptionValues } from '@/lib/variant-options'
+import { parseVariantOptions, usesDimensions, comboName, type OptionValues } from '@/lib/variant-options'
 import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
@@ -379,6 +379,20 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                           compact
                           onChange={(_s, v) => { if (v) updateSelection(idx, { selectedVariant: v as ProductVariant }) }}
                         />
+                        {/* Nama penuh pakej — cip hanya tunjuk nilai dimensi ("5KG"), jadi tambahan dalam nama
+                            varian (cth "Gred A · 5KG + Free 2KG Gred C") tak nampak. Papar hanya bila nama
+                            varian berbeza dari nama kanonik kombinasi. */}
+                        {(() => {
+                          const v = sel.selectedVariant
+                          if (!v?.name) return null
+                          if (v.name.trim() === comboName(selection, dims)) return null
+                          const isGift = /free|percuma/i.test(v.name)
+                          return (
+                            <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 10, background: isGift ? '#fff7e0' : '#f9fafb', border: `1.5px dashed ${isGift ? '#EBAA1E' : '#e5e7eb'}`, fontSize: 13, fontWeight: 700, color: '#111' }}>
+                              {isGift ? '🎁 ' : ''}Pakej: {v.name}
+                            </div>
+                          )
+                        })()}
                       </div>
                     )
                   })()}
