@@ -30,11 +30,13 @@ export interface LpPromoRules {
   prices: Record<string, number>
   /** Kuota jualan LP ini: kunci "slug-produk" → unit maksimum (order dibatalkan tak dikira). */
   quotas: Record<string, number>
+  /** Had kuantiti setiap produk dalam satu order (cth. 2 pek). null = tiada had. */
+  max_qty: number | null
 }
 
 export const DEFAULT_LP_PROMO_RULES: LpPromoRules = {
   enabled: false, postcodes: [], flat_fee: null, min_subtotal: null, free_min: null, slots: [],
-  gift_pickup: '', gift_min: null, gift_min_label: '', prices: {}, quotas: {},
+  gift_pickup: '', gift_min: null, gift_min_label: '', prices: {}, quotas: {}, max_qty: null,
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -89,6 +91,7 @@ export function normalizeLpPromoRules(raw: unknown): LpPromoRules | null {
     gift_min_label: text(o.gift_min_label, 80),
     prices: numMap(o.prices, false),
     quotas: numMap(o.quotas, true),
+    max_qty: (() => { const n = money(o.max_qty); return n != null && n >= 1 ? Math.min(99, Math.floor(n)) : null })(),
   }
 }
 
@@ -188,12 +191,14 @@ export interface LpPromoPublic {
   gift_min_label: string
   /** product_id → baki kuota (null = tiada kuota). */
   remaining: Record<string, number>
+  /** Had kuantiti setiap produk per order. */
+  max_qty: number | null
 }
 export function toPublicRules(rules: LpPromoRules | null, remaining: Record<string, number> = {}): LpPromoPublic | null {
   if (!rules) return null
   return {
     slots: rules.slots, min_subtotal: rules.min_subtotal, free_min: rules.free_min, flat_fee: rules.flat_fee,
-    gift_pickup: rules.gift_pickup, gift_min: rules.gift_min, gift_min_label: rules.gift_min_label, remaining,
+    gift_pickup: rules.gift_pickup, gift_min: rules.gift_min, gift_min_label: rules.gift_min_label, remaining, max_qty: rules.max_qty,
   }
 }
 
@@ -220,11 +225,12 @@ export interface LpPromoDraft {
   gift_min_label: string
   prices: string         // "slug = 10" satu baris satu
   quotas: string         // "slug = 50" satu baris satu
+  max_qty: string
 }
 
 export const EMPTY_LP_PROMO_DRAFT: LpPromoDraft = {
   enabled: false, postcodes: '', flat_fee: '', min_subtotal: '', free_min: '', slots: '',
-  gift_pickup: '', gift_min: '', gift_min_label: '', prices: '', quotas: '',
+  gift_pickup: '', gift_min: '', gift_min_label: '', prices: '', quotas: '', max_qty: '',
 }
 
 const s = (n: number | null) => (n == null ? '' : String(n))
@@ -234,7 +240,7 @@ export function draftFromRules(raw: unknown): LpPromoDraft {
   return {
     enabled: r.enabled, postcodes: r.postcodes.join(', '), flat_fee: s(r.flat_fee), min_subtotal: s(r.min_subtotal),
     free_min: s(r.free_min), slots: r.slots.join(', '), gift_pickup: r.gift_pickup, gift_min: s(r.gift_min),
-    gift_min_label: r.gift_min_label, prices: mapToLines(r.prices), quotas: mapToLines(r.quotas),
+    gift_min_label: r.gift_min_label, prices: mapToLines(r.prices), quotas: mapToLines(r.quotas), max_qty: s(r.max_qty),
   }
 }
 
@@ -248,6 +254,6 @@ export function rulesFromDraft(d: LpPromoDraft): LpPromoRules | null {
     flat_fee: d.flat_fee, min_subtotal: d.min_subtotal, free_min: d.free_min,
     slots: d.slots.split(',').map(x => x.trim()).filter(Boolean),
     gift_pickup: d.gift_pickup, gift_min: d.gift_min, gift_min_label: d.gift_min_label,
-    prices: linesToMap(d.prices), quotas: linesToMap(d.quotas),
+    prices: linesToMap(d.prices), quotas: linesToMap(d.quotas), max_qty: d.max_qty,
   })
 }

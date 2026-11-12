@@ -1440,6 +1440,10 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                           <input type="text" value={pr.gift_min_label} onChange={e => setPr({ gift_min_label: e.target.value })} placeholder="5 biji persimmon" className={inp} />
                         </div>
                       </div>
+                      <div>
+                        <label className={lbl}>Had kuantiti setiap produk per order (kosong = tiada had)</label>
+                        <input type="number" min="1" max="99" step="1" value={pr.max_qty} onChange={e => setPr({ max_qty: e.target.value })} placeholder="cth. 2" className={`${inp} font-mono w-32`} />
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <label className={lbl}>Harga khas LP (slug = RM, atau slug:Variasi = RM)</label>

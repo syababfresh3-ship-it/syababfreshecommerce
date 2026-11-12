@@ -310,7 +310,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
               <button type="button" onClick={() => setQty(q => Math.max(1, q - 1))}
                 style={{ width: 34, height: 34, borderRadius: 10, border: `1.5px solid #e5e7eb`, background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
               <span style={{ width: 36, textAlign: 'center', fontSize: 16, fontWeight: 900, color: '#111' }}>{qty}</span>
-              <button type="button" onClick={() => setQty(q => stock !== null ? Math.min(stock, q + 1) : q + 1)}
+              <button type="button" onClick={() => setQty(q => Math.min(stock ?? Infinity, promo?.max_qty ?? Infinity, q + 1))}
                 style={{ width: 34, height: 34, borderRadius: 10, border: `1.5px solid ${v('--cherry','#9C0F30')}`, background: v('--cherry','#9C0F30'), fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
             </div>
           </div>

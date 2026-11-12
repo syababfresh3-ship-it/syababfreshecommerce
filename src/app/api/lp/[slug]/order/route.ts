@@ -197,6 +197,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
   }
 
+  // ── Had kuantiti per produk (promo LP, cth. 2 pek seorang) ─────────
+  if (promoRules?.max_qty != null) {
+    const perProduct = new Map<string, { qty: number; name: string }>()
+    for (const i of validatedItems) {
+      const cur = perProduct.get(i.product_id) ?? { qty: 0, name: i.product_name }
+      perProduct.set(i.product_id, { qty: cur.qty + i.quantity, name: cur.name })
+    }
+    for (const { qty, name: nm } of perProduct.values()) {
+      if (qty > promoRules.max_qty)
+        return NextResponse.json({ error: `${nm}: maksimum ${promoRules.max_qty} pek seorang untuk promo ini` }, { status: 400 })
+    }
+  }
+
   // ── Kuota promo LP ("50 kotak pertama", migration 160) ──────────────
   if (promoRules && Object.keys(promoRules.quotas).length > 0) {
     const remaining = await quotaRemaining(supabase, page.id, promoRules)
