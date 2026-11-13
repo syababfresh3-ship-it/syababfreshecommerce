@@ -9,7 +9,7 @@ import { freeDeliveryActive } from '@/lib/shipping'
 import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
-import { promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
+import { maxQtyFor, promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
 import { LpPromoFields } from './lp-promo-fields'
 
 // hideBar: template Live guna butang sendiri; drawer dibuka melalui event 'lp-cart:open'
@@ -261,7 +261,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
                             <Minus className="h-3 w-3 text-gray-500" strokeWidth={2.5} />
                           </button>
                           <span className="w-5 text-center text-xs font-black">{item.qty}</span>
-                          <button type="button" onClick={() => updateQty(item.productId, item.variantId, Math.min(promo?.max_qty ?? Infinity, item.qty + 1))} className="w-6 h-6 flex items-center justify-center">
+                          <button type="button" onClick={() => updateQty(item.productId, item.variantId, Math.min(maxQtyFor(promo, item.productId) ?? Infinity, item.qty + 1))} className="w-6 h-6 flex items-center justify-center">
                             <Plus className="h-3 w-3 text-gray-500" strokeWidth={2.5} />
                           </button>
                         </div>

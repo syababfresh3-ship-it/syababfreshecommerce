@@ -183,7 +183,9 @@ export default async function LandingPage({ params }: Props) {
   // Promo setempat (migration 160): harga khas LP (harga asal jadi harga potong) + baki kuota
   const promoRules = activeRules((page as { promo_rules?: unknown }).promo_rules)
   const products = applyPromoPrices(promoRules, data.products)
-  const promo = toPublicRules(promoRules, promoRules ? await quotaRemaining(createAdminClient(), page.id, promoRules) : {})
+  // max_qty_exempt disimpan sebagai slug; klien kenal produk ikut id → petakan di sini
+  const exemptIds = (promoRules?.max_qty_exempt ?? []).map(sl => products.find(p => p.slug === sl)?.id).filter((id): id is string => !!id)
+  const promo = toPublicRules(promoRules, promoRules ? await quotaRemaining(createAdminClient(), page.id, promoRules) : {}, exemptIds)
   // Had hantar percuma: promo dengan caj rata guna free_min sendiri (selari dengan /api/lp/[slug]/order)
   const lpFreeMin = promo?.flat_fee != null ? (promo.free_min ?? freeMin) : freeMin
 

@@ -12,7 +12,7 @@ import { lookupPromo, promoDiscount, type AppliedPromo } from '@/lib/lp-promo'
 import { useLpLoyalty, pointsDiscountFor } from '@/lib/lp-loyalty-client'
 import { HoneypotField } from '@/components/honeypot-field'
 import { useLpFlash, flashDiscountNow } from '@/lib/stores/lp-flash'
-import { promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
+import { maxQtyFor, promoBlockReason, type LpPromoPublic } from '@/lib/lp-promo-rules'
 import { LpPromoFields } from './lp-promo-fields'
 
 interface ProductWithVariants extends Product {
@@ -375,7 +375,7 @@ export function LpMultiCheckout({ products, stocks, slug, freeMin = 80, pickupEn
                         <button type="button" disabled={isLocked} onClick={() => updateSelection(idx, { qty: Math.max(0, sel.qty - 1) })}
                           style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #e5e7eb', background: '#fff', fontSize: 16, fontWeight: 700, cursor: isLocked ? 'not-allowed' : 'pointer', color: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                         <span style={{ width: 32, textAlign: 'center', fontSize: 15, fontWeight: 900, color: '#111' }}>{sel.qty}</span>
-                        <button type="button" disabled={isLocked} onClick={() => { const cap = Math.min(stock ?? Infinity, promo?.max_qty ?? Infinity); if (sel.qty + 1 > cap && promo?.max_qty != null && sel.qty >= promo.max_qty) toast.error(`Maksimum ${promo.max_qty} pek seorang`); updateSelection(idx, { qty: Math.min(cap, sel.qty + 1) }) }}
+                        <button type="button" disabled={isLocked} onClick={() => { const limit = maxQtyFor(promo, sel.product.id); const cap = Math.min(stock ?? Infinity, limit ?? Infinity); if (limit != null && sel.qty >= limit) toast.error(`Maksimum ${limit} pek seorang`); updateSelection(idx, { qty: Math.min(cap, sel.qty + 1) }) }}
                           style={{ width: 32, height: 32, borderRadius: 8, border: `1.5px solid ${isLocked ? '#d1d5db' : cv('--cherry', '#9C0F30')}`, background: isLocked ? '#d1d5db' : cv('--cherry', '#9C0F30'), fontSize: 16, fontWeight: 700, cursor: isLocked ? 'not-allowed' : 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
                       </div>
                     )}

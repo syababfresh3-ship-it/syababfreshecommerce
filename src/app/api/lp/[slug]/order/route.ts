@@ -177,6 +177,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   let subtotal = 0
   const validatedItems: OrderItem[] = []
+  const slugById = new Map<string, string>()   // untuk pengecualian max_qty (disimpan ikut slug)
 
   for (const item of items as OrderItem[]) {
     if (item.variant_id) {
@@ -187,12 +188,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       const unitPrice = promoPriceFor(promoRules, prod.slug, variant.name) ?? Number(variant.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: prod.name, variant_name: variant.name, unit_price: unitPrice })
+      if (prod.slug) slugById.set(item.product_id, String(prod.slug).toLowerCase())
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
       const unitPrice = promoPriceFor(promoRules, (product as { slug?: string }).slug) ?? Number(product.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: product.name, unit_price: unitPrice })
+      const sl = (product as { slug?: string }).slug
+      if (sl) slugById.set(item.product_id, sl.toLowerCase())
     }
   }
 
@@ -203,7 +207,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       const cur = perProduct.get(i.product_id) ?? { qty: 0, name: i.product_name }
       perProduct.set(i.product_id, { qty: cur.qty + i.quantity, name: cur.name })
     }
-    for (const { qty, name: nm } of perProduct.values()) {
+    for (const [pid, { qty, name: nm }] of perProduct) {
+      if (promoRules.max_qty_exempt.includes(slugById.get(pid) ?? '')) continue   // cth. produk kedai biasa yang ditumpang
       if (qty > promoRules.max_qty)
         return NextResponse.json({ error: `${nm}: maksimum ${promoRules.max_qty} pek seorang untuk promo ini` }, { status: 400 })
     }

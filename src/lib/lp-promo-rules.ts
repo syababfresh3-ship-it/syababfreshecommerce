@@ -34,11 +34,13 @@ export interface LpPromoRules {
   quotas: Record<string, number>
   /** Had kuantiti setiap produk dalam satu order (cth. 2 pek). null = tiada had. */
   max_qty: number | null
+  /** Slug produk yang DIKECUALIKAN daripada max_qty (cth. produk kedai biasa yang ditumpang dalam LP promo). */
+  max_qty_exempt: string[]
 }
 
 export const DEFAULT_LP_PROMO_RULES: LpPromoRules = {
   enabled: false, postcodes: [], flat_fee: null, fees: {}, min_subtotal: null, free_min: null, slots: [],
-  gift_pickup: '', gift_min: null, gift_min_label: '', prices: {}, quotas: {}, max_qty: null,
+  gift_pickup: '', gift_min: null, gift_min_label: '', prices: {}, quotas: {}, max_qty: null, max_qty_exempt: [],
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -102,6 +104,9 @@ export function normalizeLpPromoRules(raw: unknown): LpPromoRules | null {
     prices: numMap(o.prices, false),
     quotas: numMap(o.quotas, true),
     max_qty: (() => { const n = money(o.max_qty); return n != null && n >= 1 ? Math.min(99, Math.floor(n)) : null })(),
+    max_qty_exempt: Array.isArray(o.max_qty_exempt)
+      ? [...new Set(o.max_qty_exempt.map(s => String(s).trim().toLowerCase()).filter(s => /^[a-z0-9-]+$/.test(s)))].slice(0, 100)
+      : [],
   }
 }
 
@@ -228,13 +233,22 @@ export interface LpPromoPublic {
   remaining: Record<string, number>
   /** Had kuantiti setiap produk per order. */
   max_qty: number | null
+  /** product_id yang dikecualikan daripada max_qty (dipetakan dari slug oleh page LP). */
+  max_qty_exempt_ids: string[]
 }
-export function toPublicRules(rules: LpPromoRules | null, remaining: Record<string, number> = {}): LpPromoPublic | null {
+export function toPublicRules(rules: LpPromoRules | null, remaining: Record<string, number> = {}, exemptIds: string[] = []): LpPromoPublic | null {
   if (!rules) return null
   return {
     slots: rules.slots, min_subtotal: rules.min_subtotal, free_min: rules.free_min, flat_fee: rules.flat_fee,
     gift_pickup: rules.gift_pickup, gift_min: rules.gift_min, gift_min_label: rules.gift_min_label, remaining, max_qty: rules.max_qty,
+    max_qty_exempt_ids: exemptIds,
   }
+}
+
+/** Had kuantiti untuk produk ini di pelayar (null = tiada had / dikecualikan). */
+export function maxQtyFor(pub: LpPromoPublic | null | undefined, productId: string): number | null {
+  if (!pub || pub.max_qty == null) return null
+  return pub.max_qty_exempt_ids.includes(productId) ? null : pub.max_qty
 }
 
 /** Sebab borang tak boleh dihantar (klien), atau null. Pelayan semak semula. */
@@ -262,11 +276,12 @@ export interface LpPromoDraft {
   prices: string         // "slug = 10" satu baris satu
   quotas: string         // "slug = 50" satu baris satu
   max_qty: string
+  max_qty_exempt: string // slug dipisah koma
 }
 
 export const EMPTY_LP_PROMO_DRAFT: LpPromoDraft = {
   enabled: false, postcodes: '', flat_fee: '', fees: '', min_subtotal: '', free_min: '', slots: '',
-  gift_pickup: '', gift_min: '', gift_min_label: '', prices: '', quotas: '', max_qty: '',
+  gift_pickup: '', gift_min: '', gift_min_label: '', prices: '', quotas: '', max_qty: '', max_qty_exempt: '',
 }
 
 const s = (n: number | null) => (n == null ? '' : String(n))
@@ -277,6 +292,7 @@ export function draftFromRules(raw: unknown): LpPromoDraft {
     enabled: r.enabled, postcodes: r.postcodes.join(', '), flat_fee: s(r.flat_fee), fees: mapToLines(r.fees), min_subtotal: s(r.min_subtotal),
     free_min: s(r.free_min), slots: r.slots.join(', '), gift_pickup: r.gift_pickup, gift_min: s(r.gift_min),
     gift_min_label: r.gift_min_label, prices: mapToLines(r.prices), quotas: mapToLines(r.quotas), max_qty: s(r.max_qty),
+    max_qty_exempt: r.max_qty_exempt.join(', '),
   }
 }
 
@@ -291,5 +307,6 @@ export function rulesFromDraft(d: LpPromoDraft): LpPromoRules | null {
     slots: d.slots.split(',').map(x => x.trim()).filter(Boolean),
     gift_pickup: d.gift_pickup, gift_min: d.gift_min, gift_min_label: d.gift_min_label,
     prices: linesToMap(d.prices), quotas: linesToMap(d.quotas), max_qty: d.max_qty,
+    max_qty_exempt: d.max_qty_exempt.split(/[\s,;]+/).filter(Boolean),
   })
 }
