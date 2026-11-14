@@ -5,6 +5,8 @@ import { Plus, Pencil, Search, GripVertical, Star, ImageOff } from 'lucide-react
 import { ProductToggle } from './product-toggle'
 import { FeaturedToggle } from './featured-toggle'
 import { StorefrontToggle } from './storefront-toggle'
+import { PosToggle } from './pos-toggle'
+import { DeleteProductButton } from './delete-product-button'
 import { Pagination } from '@/components/admin/pagination'
 
 const PAGE_SIZE = 20
@@ -30,12 +32,27 @@ async function getProducts(page: number, q?: string, cat?: string, status?: stri
   return { products: data ?? [], total: count ?? 0 }
 }
 
+// Produk yang DISOROK dari POS (pos_product_settings.is_hidden, baris peringkat produk — migration 155).
+// Sumber kebenaran sama dengan Admin › POS Products; toleran jika jadual belum wujud.
+async function getPosHidden(productIds: string[]): Promise<Set<string>> {
+  if (productIds.length === 0) return new Set()
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('pos_product_settings')
+    .select('product_id, is_hidden')
+    .in('product_id', productIds)
+    .is('variant_id', null)
+  if (error) return new Set()
+  return new Set((data ?? []).filter((r: { is_hidden: boolean }) => r.is_hidden).map((r: { product_id: string }) => r.product_id))
+}
+
+// Termasuk kategori TAK AKTIF (cth. "Bangi" — kategori dalaman untuk produk LP yang tak dipapar
+// di kedai) supaya admin masih boleh tapis mengikutnya.
 async function getCategories() {
   const supabase = createClient()
   const { data } = await supabase
     .from('categories')
-    .select('id, name, parent_id')
-    .eq('is_active', true)
+    .select('id, name, parent_id, is_active')
     .order('sort_order')
   return data ?? []
 }
@@ -56,6 +73,7 @@ export default async function AdminProductsPage({
     getCategories(),
   ])
   const activeCat = categories.find(c => c.id === cat)
+  const posHidden = await getPosHidden(products.map((p: { id: string }) => p.id))
 
   return (
     <div className="p-4 md:p-6">
@@ -171,6 +189,7 @@ export default async function AdminProductsPage({
               <div className="flex items-center gap-2 shrink-0">
                 {product.is_featured && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
                 <StorefrontToggle id={product.id} show={product.show_in_storefront !== false} />
+                <PosToggle id={product.id} show={!posHidden.has(product.id)} />
                 <ProductToggle id={product.id} isActive={product.is_active} />
                 <Link
                   href={`/admin/products/${product.id}`}
@@ -178,6 +197,7 @@ export default async function AdminProductsPage({
                 >
                   <Pencil className="h-3 w-3" />
                 </Link>
+                <DeleteProductButton id={product.id} name={product.name} compact />
               </div>
             </div>
           )
@@ -202,13 +222,14 @@ export default async function AdminProductsPage({
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Featured</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Active</th>
               <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">Storefront</th>
+              <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wide">POS</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Tindakan</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
+                <td colSpan={8} className="px-5 py-12 text-center text-gray-400">
                   {q ? `No product sepadan "${q}"` : (
                     <>No product. <Link href="/admin/products/new" className="text-red-600 font-semibold hover:underline">Add sekarang</Link></>
                   )}
@@ -264,6 +285,9 @@ export default async function AdminProductsPage({
                     <td className="px-5 py-3 text-center">
                       <StorefrontToggle id={product.id} show={product.show_in_storefront !== false} />
                     </td>
+                    <td className="px-5 py-3 text-center">
+                      <PosToggle id={product.id} show={!posHidden.has(product.id)} />
+                    </td>
                     <td className="px-5 py-3 text-right">
                       <Link
                         href={`/admin/products/${product.id}`}
@@ -272,6 +296,8 @@ export default async function AdminProductsPage({
                         <Pencil className="h-3 w-3" />
                         Edit
                       </Link>
+                      <span className="inline-block w-1.5" />
+                      <DeleteProductButton id={product.id} name={product.name} />
                     </td>
                   </tr>
                 )

@@ -32,7 +32,7 @@ async function getCategory(slug: string) {
   const sb = createAdminClient()
   const { data: category } = await sb
     .from('categories')
-    .select('id, slug, name, description, parent_id')
+    .select('id, slug, name, description, parent_id, image_url')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -64,15 +64,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const sb = createAdminClient()
-  const { data: c } = await sb
-    .from('categories')
-    .select('name, description, image_url')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
-
-  if (!c) return { title: 'Kategori Tidak Dijumpai' }
+  const data = await getCategory(slug)
+  if (!data) return { title: 'Kategori Tidak Dijumpai' }
+  const c = data.category
 
   const title = `${c.name} — Beli Online`
   const description =
@@ -83,6 +77,10 @@ export async function generateMetadata({
     title,
     description,
     openGraph: { title, description, images: [c.image_url ? { url: c.image_url } : ROOT_OG_IMAGE] },
+    // Kategori tanpa produk kedai (cth. kategori aktif untuk POS sahaja seperti "Bangi", atau
+    // bermusim yang kehabisan stok) → page nipis; jangan index, selari dengan sitemap yang
+    // sudah mengecualikannya. Pautan masih diikuti.
+    ...(data.products.length === 0 ? { robots: { index: false, follow: true } } : {}),
   }
 }
 
