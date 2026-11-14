@@ -90,6 +90,7 @@ export function AnalyticsClient() {
             {Object.keys(data.byModel).length === 0 ? (
               <div className="text-xs text-gray-400">Tiada data lagi.</div>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-xs text-gray-400">
                   <tr>
@@ -110,6 +111,7 @@ export function AnalyticsClient() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 

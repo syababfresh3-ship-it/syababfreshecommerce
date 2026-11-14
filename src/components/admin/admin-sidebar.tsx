@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
@@ -11,7 +11,38 @@ import { POS_HOST } from '@/lib/pos/host'
 import { ScanBarcode as PosScanIcon, Wallet as PosWalletIcon } from 'lucide-react'
 
 type NavEntry = { href: string; label: string; icon: React.ElementType; badge?: keyof Counts; external?: boolean }
-type Section = { label: string; items: NavEntry[]; collapsible?: boolean }
+type Section = { label: string; items: NavEntry[] }
+
+// Setiap kumpulan ialah dropdown (keputusan pemilik 14 Nov 2026 — sidebar dah terlalu panjang: 8 kumpulan, ~45 item).
+// Lalai: hanya kumpulan yang mengandungi page semasa terbuka; klik tajuk untuk buka/tutup. Pilihan disimpan dalam
+// localStorage (sf-admin-nav-open) supaya kekal selepas muat semula; kumpulan page aktif sentiasa dibuka semula bila
+// laluan bertukar ke dalamnya. Tajuk kumpulan yang tertutup papar jumlah lencana (cth Refund pending) supaya tak terlepas.
+//
+// Stor pilihan = useSyncExternalStore atas localStorage (bukan setState dalam effect — ditolak lint react-hooks):
+// snapshot server = {} (semua ikut `inside`), snapshot klien = pilihan tersimpan; React tukar selepas hydration tanpa
+// mismatch. Storan tersekat/privat → kekal dalam memori untuk sesi ini.
+const NAV_OPEN_KEY = 'sf-admin-nav-open'
+type OpenMap = Record<string, boolean>
+const EMPTY_OPEN: OpenMap = {}
+let navOpenState: OpenMap | null = null
+const navOpenListeners = new Set<() => void>()
+function readNavOpen(): OpenMap {
+  if (navOpenState === null) {
+    try { navOpenState = JSON.parse(localStorage.getItem(NAV_OPEN_KEY) || '{}') as OpenMap } catch { navOpenState = {} }
+  }
+  return navOpenState
+}
+function writeNavOpen(next: OpenMap) {
+  navOpenState = next
+  try { localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(next)) } catch {}
+  navOpenListeners.forEach((l) => l())
+}
+function subscribeNavOpen(l: () => void) {
+  navOpenListeners.add(l)
+  const onStorage = (e: StorageEvent) => { if (e.key === NAV_OPEN_KEY) { navOpenState = null; l() } }   // tab lain ubah → baca semula
+  window.addEventListener('storage', onStorage)
+  return () => { navOpenListeners.delete(l); window.removeEventListener('storage', onStorage) }
+}
 
 // Disorok dari nav 2026-09-23 (page masih wujud — boleh dibuka terus via URL).
 // Bukti: tarikh tulis terakhir jadual DB di belakang setiap page.
@@ -34,7 +65,7 @@ const sections: Section[] = [
       { href: '/admin/crm/inbox',     label: 'Inbox WhatsApp',    icon: Inbox },
       { href: '/admin/crm/contacts',  label: 'Contacts',          icon: Users },
       { href: '/admin/database',      label: 'Customer Database', icon: Database },
-      { href: '/admin/crm/blast',     label: 'Blast (Rasmi)',     icon: Megaphone },
+      { href: '/admin/crm/blast',     label: 'Blast',             icon: Megaphone },   // dulu "Blast (Rasmi)" — Murpati broadcast dah disorok, tiada lagi kekeliruan
       { href: '/admin/crm/templates', label: 'Templates',         icon: MessageCircle },
       { href: '/admin/crm/ai',        label: 'AI Chatbot',        icon: Bot },
     ],
@@ -117,10 +148,7 @@ const sections: Section[] = [
     ],
   },
   {
-    // Tetapan yang jarang disentuh — kumpulan ini lipat (collapsed) secara lalai,
-    // terbuka automatik bila salah satu page di dalamnya sedang dibuka.
     label: 'SETTINGS',
-    collapsible: true,
     items: [
       { href: '/admin/settings',          label: 'Store Settings',   icon: Settings2 },
       { href: '/admin/payments',          label: 'Payment Methods',  icon: CreditCard },
@@ -142,7 +170,9 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
   const router = useRouter()
   const clearCart = useCartStore((s) => s.clearCart)
   const [counts, setCounts] = useState<Counts>({ fulfillment: 0, refunds: 0 })
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  // Kumpulan yang pengguna buka/tutup sendiri; tiada rekod → ikut `inside` (kumpulan page semasa terbuka)
+  const openGroups = useSyncExternalStore(subscribeNavOpen, readNavOpen, () => EMPTY_OPEN)
+  const setGroupOpen = (label: string, open: boolean) => writeNavOpen({ ...readNavOpen(), [label]: open })
 
   // Satu item sahaja aktif: padanan href paling panjang (dulu '/admin/settings' dan
   // '/admin/settings/whatsapp' menyala serentak sebab startsWith).
@@ -150,9 +180,15 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
     .flatMap((s) => s.items.map((i) => i.href))
     .filter((h) => pathname === h || pathname.startsWith(h + '/'))
     .sort((a, b) => b.length - a.length)[0]
+  const activeSection = sections.find((s) => s.items.some((i) => i.href === activeHref))?.label ?? null
 
   // Close drawer when navigating on mobile
   useEffect(() => { onClose() }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Masuk ke page dalam kumpulan yang pernah ditutup → buka semula supaya item aktif sentiasa kelihatan
+  useEffect(() => {
+    if (activeSection && readNavOpen()[activeSection] === false) writeNavOpen({ ...readNavOpen(), [activeSection]: true })
+  }, [activeSection])
 
   useEffect(() => {
     const supabase = createClient()
@@ -214,7 +250,7 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
       </Link>
 
       {/* Nav Sections */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-4">
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-2">
         {/* Dashboard — standalone */}
         <NavItem
           href="/admin"
@@ -224,26 +260,31 @@ export function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: ()
         />
 
         {sections.map((section) => {
-          const inside = section.items.some((i) => i.href === activeHref)
-          const open = !section.collapsible || (openGroups[section.label] ?? inside)
+          const inside = section.label === activeSection
+          const open = openGroups[section.label] ?? inside
+          // Lencana kumpulan (jumlah item) — dipapar pada tajuk hanya bila tertutup
+          const groupBadge = section.items.reduce((s, i) => s + getBadge(i.badge), 0)
           return (
             <div key={section.label}>
-              {section.collapsible ? (
-                <button
-                  type="button"
-                  onClick={() => setOpenGroups((g) => ({ ...g, [section.label]: !open }))}
-                  className="w-full flex items-center justify-between px-2 mb-1 text-[10px] font-bold text-gray-600 tracking-widest uppercase hover:text-gray-400 transition-colors"
-                >
+              <button
+                type="button"
+                onClick={() => setGroupOpen(section.label, !open)}
+                aria-expanded={open}
+                // Tajuk kumpulan kini baris menu yang diklik → saiz hampir item (13px), bukan label kecil 10px (pemilik 14 Nov)
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] font-semibold tracking-wide uppercase transition-colors ${
+                  open ? 'text-gray-400 hover:text-gray-200' : inside ? 'text-gray-200 hover:text-white hover:bg-gray-900' : 'text-gray-500 hover:text-gray-200 hover:bg-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-2">
                   {section.label}
-                  <ChevronDown className={`h-3 w-3 transition-transform ${open ? '' : '-rotate-90'}`} />
-                </button>
-              ) : (
-                <p className="px-2 mb-1 text-[10px] font-bold text-gray-600 tracking-widest uppercase">
-                  {section.label}
-                </p>
-              )}
+                  {!open && groupBadge > 0 && (
+                    <span className="tracking-normal text-[10px] font-bold px-1.5 py-px rounded-full bg-brand-red-600 text-white">{groupBadge > 99 ? '99+' : groupBadge}</span>
+                  )}
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${open ? '' : '-rotate-90'}`} />
+              </button>
               {open && (
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 mt-0.5">
                   {section.items.map((item) => (
                     <NavItem
                       key={item.href}

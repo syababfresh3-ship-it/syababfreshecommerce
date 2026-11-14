@@ -285,7 +285,7 @@ function ColumnChart({ data, ariaLabel, table }: { data: ColDatum[]; ariaLabel: 
         </div>
       </div>
       {view === 'table' ? (
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200">
+        <div className="max-h-64 overflow-auto rounded-lg border border-gray-200">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500 sticky top-0"><tr>{table.head.map((c, i) => <th key={c} className={`px-3 py-2 ${i > 0 ? 'text-right' : ''}`}>{c}</th>)}</tr></thead>
             <tbody className="divide-y divide-gray-100">{table.rows.map(r => <tr key={r[0]}>{r.map((c, i) => <td key={i} className={`px-3 py-1.5 tabular-nums ${i > 0 ? 'text-right' : 'text-gray-700'}`}>{c}</td>)}</tr>)}</tbody>

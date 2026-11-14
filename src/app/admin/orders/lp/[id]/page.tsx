@@ -223,6 +223,7 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
               <h2 className="font-bold text-gray-900">Item Orders</h2>
               <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{items.length}</span>
             </div>
+            <div className="overflow-x-auto">{/* 4 lajur + padding → skrol sisi di telefon, bukan limpah page */}
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
@@ -246,6 +247,7 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
 
         </div>

@@ -66,7 +66,7 @@ export function WaitlistClient() {
   async function copyNumbers(g: Group) {
     const nums = g.pending.map((e) => e.phone).join("\n");
     await navigator.clipboard.writeText(nums);
-    window.alert(`${g.pending.length} nombor disalin.\n\nPergi Blast (Rasmi) → New Campaign → Paste numbers → tampal → hantar template restock.\nLepas hantar, tekan "Dah maklum" di sini.`);
+    window.alert(`${g.pending.length} nombor disalin.\n\nPergi CRM → Blast → New Campaign → Paste numbers → tampal → hantar template restock.\nLepas hantar, tekan "Dah maklum" di sini.`);
   }
 
   async function markNotified(g: Group) {

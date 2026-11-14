@@ -233,7 +233,8 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                   onClick={e => e.stopPropagation()}
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-300 shrink-0 cursor-pointer"
                 />
-                <Link href={`/admin/orders/${order.id}`} className="flex-1 min-w-0">
+                {/* Order LP ada page sendiri (/admin/orders/lp/[id]); /admin/orders/[id] → notFound untuk id LP — punca "tekan order di telefon, page tak keluar" (14 Nov) */}
+                <Link href={(order as any)._isLp ? `/admin/orders/lp/${order.id}` : `/admin/orders/${order.id}`} className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-mono text-xs font-bold text-red-600">{order.order_number}</span>
                     {(order as any)._isReseller ? (
@@ -326,7 +327,7 @@ export function OrdersTableClient({ orders, searchQuery }: { orders: any[]; sear
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1.5">
-                      <Link href={`/admin/orders/${order.id}`} className="font-mono text-sm text-red-600 hover:underline font-bold">
+                      <Link href={(order as any)._isLp ? `/admin/orders/lp/${order.id}` : `/admin/orders/${order.id}`} className="font-mono text-sm text-red-600 hover:underline font-bold">
                         {order.order_number}
                       </Link>
                       {(order as any)._isReseller ? (

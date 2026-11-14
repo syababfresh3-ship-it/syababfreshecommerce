@@ -161,6 +161,7 @@ export default async function DispatchReportPage({ searchParams }: { searchParam
 
       {/* Ikut kurier */}
       <Section title="Ikut Kurier" icon={<CheckCircle2 className="h-4 w-4" />}>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-xs text-gray-500 uppercase">
             <tr><th className="text-left py-2">Kurier</th><th className="text-right py-2">Patut</th><th className="text-right py-2">Scan</th><th className="text-right py-2">Belum</th></tr>
@@ -177,6 +178,7 @@ export default async function DispatchReportPage({ searchParams }: { searchParam
             ))}
           </tbody>
         </table>
+        </div>
       </Section>
 
       {/* Ikut produk */}
