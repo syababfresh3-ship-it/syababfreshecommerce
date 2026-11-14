@@ -113,12 +113,15 @@ export async function buildPosCatalog(sb: SB, opts: { registerId?: string | null
       }
     } else {
       const storePrice = n(p.price)
+      // Barcode peringkat produk: bila pemilik tanda produk ini "ikut berat" secara eksplisit, imbasan patut buka pad
+      // timbang (item kg) — jadi item pcs tak bawa barcode (klien padankan item PERTAMA; pcs ditolak dulu). Timbang
+      // global (openWeightAll) sahaja → pcs kekal pemilik barcode seperti biasa.
       items.push({
         key: `${p.id}:`, ...base, variantId: null,
         name: productSetting?.pos_name ?? p.name, variantName: null,
         price: listPrice(p.id, null) ?? (productSetting?.pos_price != null ? n(productSetting.pos_price) : storePrice), storePrice,
         unit: 'pcs', sellByWeight: false,
-        sku: null, barcode: productSetting?.barcode ?? null,
+        sku: null, barcode: productSetting?.sell_by_weight ? null : (productSetting?.barcode ?? null),
         stock: null,
         isQuickKey: !!productSetting?.is_quick_key, quickKeyOrder: productSetting?.quick_key_order ?? 0,
       })

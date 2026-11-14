@@ -62,10 +62,16 @@ export function SellClient() {
     if (navigator.vibrate) navigator.vibrate(10)
   }, [ticket])
 
-  // Imbasan (HID global / kamera): barcode tepat → SKU tepat → tambah; tiada → toast
+  // Imbasan (HID global / kamera): barcode tepat → SKU tepat → tambah; tiada → toast.
+  // Sheet terbuka: pad timbang / PIN → abaikan imbasan dengan amaran (jangan hilangkan input separuh jalan);
+  // sheet lain (edit baris, diskaun, pelanggan, tangguh, item manual, tiket, varian) → tutup dan tambah item.
   const onScan = useCallback((raw: string) => {
     const code = raw.trim()
     if (!code || !catalog) return
+    if (sheet && sheet.type !== 'camera') {
+      if (sheet.type === 'weight' || sheet.type === 'pin') { toast.error(sheet.type === 'weight' ? 'Finish entering the weight first' : 'Enter the PIN first'); return }
+      setSheet(null)
+    }
     const lc = code.toLowerCase()
     const hit = catalog.items.find(i => i.barcode === code) ?? catalog.items.find(i => i.sku && i.sku.toLowerCase() === lc)
     if (!hit) { setLastScan({ code, label: null }); toast.error(`No item with barcode ${code}`); return }
@@ -74,8 +80,9 @@ export function SellClient() {
     if (sheet?.type !== 'camera') toast.success(hit.unit === 'kg' ? `${label} — enter weight` : `Added ${label}`, { duration: 1500 })
     pick(hit)
   }, [catalog, pick, sheet])
-  // Scanner HID aktif hanya di grid tanpa sheet terbuka (kotak carian berfokus dikendalikan onSearchKey)
-  useHidScanner(view === 'grid' && sheet === null && !!catalog && !storeClosed, onScan)
+  // Scanner HID aktif sepanjang paparan grid — termasuk semasa sheet terbuka, supaya Enter dari scanner ditelan
+  // (preventDefault) dan tak "mengklik" butang pad yang kebetulan berfokus (kotak carian berfokus dikendalikan onSearchKey)
+  useHidScanner(view === 'grid' && !!catalog && !storeClosed, onScan)
 
   // Enter dalam carian: satu padanan tepat (barcode/sku/nama) → terus tambah (scanner HID yang menaip ke kotak ini juga)
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {

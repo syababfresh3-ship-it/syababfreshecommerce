@@ -60,6 +60,12 @@ export async function PATCH(request: Request) {
   const res = existing
     ? await supabase!.from('pos_product_settings').update(patch).eq('id', existing.id).select('*').single()
     : await supabase!.from('pos_product_settings').insert({ product_id: productId, variant_id: variantId, ...patch }).select('*').single()
-  if (res.error) return NextResponse.json({ error: res.error.code === '23505' ? 'Barcode is already used by another item' : res.error.message }, { status: 400 })
+  // 23505 boleh datang dari DUA indeks unik: barcode (pos_product_settings_barcode_idx) atau (product_id, variant_id)
+  // bila dua tab simpan item yang sama serentak (select-then-insert berlumba) — bezakan supaya mesej tak mengelirukan
+  if (res.error) {
+    const dupBarcode = res.error.code === '23505' && /barcode/i.test(`${res.error.message} ${res.error.details ?? ''}`)
+    const msg = res.error.code === '23505' ? (dupBarcode ? 'Barcode is already used by another item' : 'This item was saved by someone else at the same time — refresh and try again') : res.error.message
+    return NextResponse.json({ error: msg }, { status: res.error.code === '23505' && !dupBarcode ? 409 : 400 })
+  }
   return NextResponse.json({ setting: res.data })
 }

@@ -130,7 +130,9 @@ function RegisterRow({ r, run, lists, outlets }: { r: Register; run: (fn: () => 
   const [plId, setPlId] = useState(r.price_list_id ?? '')
   const [outId, setOutId] = useState(r.outlet_id ?? '')
   const [saving, setSaving] = useState(false)
-  const listName = lists.find(l => l.id === r.price_list_id)?.name ?? null
+  // Senarai tak aktif → katalog jatuh ke harga kedai (lib/pos/catalog loadRegisterPriceList); tunjuk terus di baris, bukan hanya dalam dropdown Edit
+  const list = lists.find(l => l.id === r.price_list_id) ?? null
+  const listName = list ? `${list.name}${list.is_active ? '' : ' (inactive — store prices apply)'}` : null
   const outlet = outlets.find(o => o.id === r.outlet_id) ?? null
   const start = () => { setCode(r.code); setName(r.name); setLoc(r.location ?? ''); setPlId(r.price_list_id ?? ''); setOutId(r.outlet_id ?? ''); setEditing(true) }
   const save = async (e: React.FormEvent) => {

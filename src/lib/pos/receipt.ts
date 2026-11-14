@@ -27,7 +27,7 @@ export function buildReceiptText(d: PosSaleDetail, settings: PosSettings): strin
   lines.push('')
   if (Number(sale.discount_total) > 0) lines.push(`Discount: -${rm(Number(sale.discount_total))}`)
   if (Number(sale.promo_discount) > 0) lines.push(`Promo ${sale.promo_code ?? ''}: -${rm(Number(sale.promo_discount))}`)
-  if (Number(sale.rounding_adj) !== 0) lines.push(`Rounding: ${Number(sale.rounding_adj) > 0 ? '+' : ''}${rm(Number(sale.rounding_adj))}`)
+  if (Number(sale.rounding_adj) !== 0) lines.push(`Rounding: ${Number(sale.rounding_adj) > 0 ? '+' : '-'}${rm(Math.abs(Number(sale.rounding_adj)))}`)   // -RM0.02, bukan RM-0.02 (sama dengan resit HTML)
   lines.push(`TOTAL: ${rm(Number(sale.total))}`)
   for (const p of payments.filter(p => p.status === 'paid')) {
     const extra = p.method === 'cash' && p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : p.ref ? ` (ref ${p.ref})` : ''

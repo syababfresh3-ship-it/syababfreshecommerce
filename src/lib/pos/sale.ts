@@ -196,14 +196,27 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const status: 'pending' | 'paid' = pendingTotal > 0 ? 'pending' : 'paid'
   const changeGiven = round2(payments.reduce((s, p) => s + (p.change_given ?? 0), 0))
 
-  const soldAt = typeof b.sold_at === 'string' && !Number.isNaN(Date.parse(b.sold_at)) ? new Date(b.sold_at).toISOString() : null
+  // sold_at: jualan dalam talian = masa server (jam peranti salah / badan dipalsukan tak boleh undurkan jualan ke hari
+  // yang dah ditutup); jualan offline (giliran Fasa 2) boleh bawa masa sendiri, dihadkan 7 hari ke belakang / 5 minit ke depan
+  let soldAt: string | null = null
+  if (b.offline === true && typeof b.sold_at === 'string' && !Number.isNaN(Date.parse(b.sold_at))) {
+    const ts = Math.min(Math.max(Date.parse(b.sold_at), Date.now() - 7 * 86_400_000), Date.now() + 5 * 60_000)
+    soldAt = new Date(ts).toISOString()
+  }
+  // customer.id dari tiket yang lama tersimpan mungkin sudah dipadam/digabung di CRM → FK gagal 500. Sahkan dulu;
+  // afterSalePaid tetap pautkan pelanggan ikut telefon selepas bayar.
+  let customerId = customer ? optUuid(customer.id) : null
+  if (customerId) {
+    const { data: c } = await sb.from('customers').select('id').eq('id', customerId).maybeSingle()
+    if (!c) customerId = null
+  }
 
   const payload = {
     client_txn_id: b.client_txn_id,
     local_ref: typeof b.local_ref === 'string' ? b.local_ref.slice(0, 40) : null,
     register_id: registerId, shift_id: shiftId,
     cashier_id: ctx.cashierId, created_by: ctx.userId,
-    customer_id: customer ? optUuid(customer.id) : null,
+    customer_id: customerId,
     customer_phone: phoneNorm || null,
     customer_name: customer && typeof customer.name === 'string' ? customer.name.trim().slice(0, 120) || null : null,
     status,
