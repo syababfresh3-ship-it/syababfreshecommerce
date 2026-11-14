@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Pagination } from '@/components/admin/pagination'
 import { toast } from 'sonner'
-import { Search, Star, Scale, EyeOff, Loader2, ScanLine, X, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Search, Star, Scale, EyeOff, Loader2, ScanLine, X, Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
 import { CameraScanner } from '@/components/pos/camera-scanner'
 
 // Tetapan POS per produk/varian — produk kedai TIDAK diubah; semua di pos_product_settings.
@@ -15,6 +15,8 @@ import { CameraScanner } from '@/components/pos/camera-scanner'
 // Senarai harga (migration 156): pemilih di atas jadual. "Store prices" = lajur harga edit override global;
 // pilih senarai → lajur harga (POS price / RM/kg) edit pos_price_list_items senarai itu, lajur lain kekal global.
 // UI dalam Bahasa Inggeris (seluruh seksyen admin POS, keputusan pemilik 9 Nov 2026).
+// Produk yang disorok (Hide di baris produk): baris dimalapkan & baris varian dilipat — tetapan harga tak
+// relevan bila produk tak keluar di POS (pemilik 14 Nov). "Show settings" buka semula untuk edit tanpa unhide.
 
 interface Variant { id: string; name: string; price: number; sku: string | null; stock: number | null }
 interface Product { id: string; name: string; unit: string | null; price: number; category: string | null; variants: Variant[] }
@@ -219,13 +221,32 @@ function ProductRows({ p, ps, noVariants, get, save, saving, mode, listGet, list
   const li = listGet(p.id, null)
   // Harga/kg lalai (ditunjuk sebagai placeholder dalam mod senarai): tetapan produk → varian 1kg
   const perKgDefault = ps.price_per_kg ?? v1?.price ?? null
+  // Produk disorok → lipat varian (buka semula dengan "Show settings"); sel selain Hide dimalapkan
+  const [expanded, setExpanded] = useState(false)
+  const collapsed = ps.is_hidden && !expanded
+  const dim = ps.is_hidden ? ' opacity-50' : ''
   return (
     <>
       <tr className="bg-gray-50/60">
-        <td className="px-3 py-2 font-semibold text-gray-900">{p.name}<span className="block text-xs font-normal text-gray-400">{p.category ?? '—'}{saving === key(p.id, null) ? ' · saving…' : ''}</span></td>
-        <td className="px-3 py-2 tabular-nums text-gray-600">RM{p.price.toFixed(2)}{p.unit ? `/${p.unit}` : ''}</td>
-        <td className="px-3 py-2"><TextCell value={ps.pos_name ?? ''} placeholder={p.name} onCommit={v => save(p.id, null, { pos_name: v || null })} /></td>
-        <td className="px-3 py-2">
+        <td className={`px-3 py-2 font-semibold text-gray-900${dim}`}>
+          {p.name}
+          <span className="block text-xs font-normal text-gray-400">{p.category ?? '—'}{saving === key(p.id, null) ? ' · saving…' : ''}</span>
+          {ps.is_hidden && (
+            <span className="mt-0.5 flex items-center gap-1 text-xs font-normal text-gray-500">
+              <EyeOff className="h-3 w-3" /> Hidden from POS
+              {p.variants.length > 0 && <>
+                {' · '}
+                <button type="button" onClick={() => setExpanded(x => !x)} className="inline-flex items-center gap-0.5 underline underline-offset-2">
+                  {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  {expanded ? 'Collapse' : `Show settings (${p.variants.length})`}
+                </button>
+              </>}
+            </span>
+          )}
+        </td>
+        <td className={`px-3 py-2 tabular-nums text-gray-600${dim}`}>RM{p.price.toFixed(2)}{p.unit ? `/${p.unit}` : ''}</td>
+        <td className={`px-3 py-2${dim}`}><TextCell value={ps.pos_name ?? ''} placeholder={p.name} onCommit={v => save(p.id, null, { pos_name: v || null })} /></td>
+        <td className={`px-3 py-2${dim}`}>
           {mode === 'store' ? (
             <>
               <label className="inline-flex items-center gap-1.5 text-xs font-medium"><input type="checkbox" checked={ps.sell_by_weight} onChange={e => save(p.id, null, { sell_by_weight: e.target.checked })} /><Scale className="h-3.5 w-3.5" /> by kg</label>
@@ -240,15 +261,15 @@ function ProductRows({ p, ps, noVariants, get, save, saving, mode, listGet, list
             </>
           )}
         </td>
-        <td className="px-3 py-2">{noVariants || ps.sell_by_weight ? <BarcodeCell value={ps.barcode ?? ''} onCommit={v => save(p.id, null, { barcode: v || null })} /> : <span className="text-xs text-gray-300">—</span>}</td>
-        <td className="px-3 py-2">{(noVariants || ps.sell_by_weight) && <QuickCell s={ps} onChange={patch => save(p.id, null, patch)} />}</td>
+        <td className={`px-3 py-2${dim}`}>{noVariants || ps.sell_by_weight ? <BarcodeCell value={ps.barcode ?? ''} onCommit={v => save(p.id, null, { barcode: v || null })} /> : <span className="text-xs text-gray-300">—</span>}</td>
+        <td className={`px-3 py-2${dim}`}>{(noVariants || ps.sell_by_weight) && <QuickCell s={ps} onChange={patch => save(p.id, null, patch)} />}</td>
         <td className="px-3 py-2"><label className="inline-flex items-center gap-1 text-xs"><input type="checkbox" checked={ps.is_hidden} onChange={e => save(p.id, null, { is_hidden: e.target.checked })} /><EyeOff className="h-3.5 w-3.5" /></label></td>
       </tr>
-      {p.variants.map(v => {
+      {!collapsed && p.variants.map(v => {
         const vs = get(p.id, v.id)
         const vl = listGet(p.id, v.id)
         return (
-          <tr key={v.id}>
+          <tr key={v.id} className={vs.is_hidden || ps.is_hidden ? 'opacity-50' : undefined}>
             <td className="px-3 py-2 pl-7 text-gray-700">↳ {v.name}<span className="block text-xs text-gray-400">{v.sku ? `SKU ${v.sku} · ` : ''}stock {v.stock ?? '—'}{saving === key(p.id, v.id) ? ' · saving…' : ''}</span></td>
             <td className="px-3 py-2 tabular-nums text-gray-600">RM{v.price.toFixed(2)}</td>
             <td className="px-3 py-2"><TextCell value={vs.pos_name ?? ''} placeholder={ps.pos_name ?? p.name} onCommit={val => save(p.id, v.id, { pos_name: val || null })} /></td>

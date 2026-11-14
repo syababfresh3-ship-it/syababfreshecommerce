@@ -23,7 +23,11 @@ export const POS_DECLARE_HINT: Partial<Record<PosPayMethod, string>> = {
   ewallet_terminal: 'Settlement total on the e-wallet terminal',
 }
 
-export interface PosCashier { id: string; name: string; role: PosCashierRole }
+export interface PosCashier {
+  id: string; name: string; role: PosCashierRole
+  /** Saat UNIX kuki PIN dikeluarkan (server sahaja) — dibanding dengan pos_cashiers.updated_at untuk batalkan sesi lama. */
+  issuedAt?: number
+}
 
 export interface PosCategory { id: string; name: string; sortOrder: number }
 
@@ -104,6 +108,8 @@ export interface PosSalePayload {
   note?: string | null
   offline?: boolean
   sold_at?: string | null
+  /** Token kelulusan manager (PIN verify_only, 15 min) — server benarkan diskaun melebihi had / harga bawah katalog untuk tiket ini. */
+  approval?: string | null
 }
 
 export interface PosTotals {

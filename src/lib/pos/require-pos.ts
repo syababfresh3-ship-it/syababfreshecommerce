@@ -45,7 +45,20 @@ export async function requirePos(opts: { cashier?: boolean; manager?: boolean } 
   if (!access.ok) return deny(403, 'No POS access', 'NO_POS_ACCESS')
 
   const jar = await cookies()
-  const cashier = readCashier(jar.get(POS_CASHIER_COOKIE)?.value)
+  let cashier = readCashier(jar.get(POS_CASHIER_COOKIE)?.value)
+  // Kuki sah ≠ kasyer masih sah: semak semula DB setiap permintaan supaya sesi 12 jam boleh dibatalkan
+  // serta-merta — nyahaktif, reset PIN atau tukar peranan (admin PATCH tulis updated_at) → kuki lama ditolak
+  // (UI minta PIN semula). Peranan/nama diambil dari DB, bukan kuki. Ralat DB → kekal ikut kuki (jangan
+  // tumbangkan kaunter kerana gangguan sementara).
+  if (cashier) {
+    const { data: row, error } = await supabase.from('pos_cashiers').select('name, role, is_active, updated_at').eq('id', cashier.id).maybeSingle()
+    if (!error) {
+      const changedAfterLogin = cashier.issuedAt != null && !!row?.updated_at && Date.parse(row.updated_at) / 1000 > cashier.issuedAt + 1
+      cashier = !row || !row.is_active || changedAfterLogin
+        ? null
+        : { id: cashier.id, name: row.name, role: row.role === 'manager' ? 'manager' : 'cashier', issuedAt: cashier.issuedAt }
+    }
+  }
   if (opts.cashier && !cashier) return deny(401, 'Cashier PIN required', 'PIN_REQUIRED')
   if (opts.manager && !access.isAdmin && cashier?.role !== 'manager') return deny(403, 'Manager PIN required', 'MANAGER_REQUIRED')
 

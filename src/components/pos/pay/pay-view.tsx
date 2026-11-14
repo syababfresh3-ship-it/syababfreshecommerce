@@ -12,6 +12,9 @@ import type { PosPayMethod, PosPaymentInput, PosSalePayload } from '@/lib/pos/ty
 // Skrin bayar: jumlah besar → pilih kaedah → pane kaedah → (berpecah: tambah tender seterusnya) → hantar.
 // Tunai: tender pantas + baki, jumlah dibundar 5 sen. QR statik: papar imej + "Received".
 // Terminal: rekod + rujukan pilihan. Pautan CHIP: Fasa 2 (jubin dimatikan). UI EN.
+// Hantar: had masa 25s (AbortController) — tanpa had, Wi-Fi bazar yang tergantung buat kasyer tekan lagi.
+// Rangkaian gagal = jualan MUNGKIN dah tersimpan (respons hilang) → mesej suruh semak Sales dulu.
+// 409 STORE_CLOSED (peranti lain tutup kedai) → kunci skrin Sell semula.
 
 export interface SaleDone { id: string; receipt_no: string | null; public_token: string | null; total: number; change: number; payments: PosPaymentInput[]; duplicate: boolean }
 
@@ -25,7 +28,7 @@ const TILES: { m: PosPayMethod; label: string; icon: React.ElementType; soon?: b
 
 export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void; onDone: (r: SaleDone) => void; onPinRequired: () => void }) {
   const t = usePosTicket()
-  const { registerId, settings, nextLocalRef } = usePosSession()
+  const { registerId, settings, nextLocalRef, setShift } = usePosSession()
   const [method, setMethod] = useState<PosPayMethod | null>(null)
   const [payments, setPayments] = useState<PosPaymentInput[]>([])
   const [tender, setTender] = useState('')
@@ -43,15 +46,18 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
       const payload: PosSalePayload = {
         client_txn_id: t.clientTxnId, register_id: registerId, customer: t.customer, lines: t.lines, discount: t.discount, promo: t.promo,
         payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false,
-        local_ref: nextLocalRef(),
+        local_ref: nextLocalRef(), approval: t.approval,
       }
-      const res = await fetch('/api/pos/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 25_000)
+      const res = await fetch('/api/pos/sales', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: ctrl.signal }).finally(() => clearTimeout(timer))
       const j = await res.json().catch(() => ({}))
       if (res.status === 401 && j.code === 'PIN_REQUIRED') { toast.error('Enter the cashier PIN first'); onPinRequired(); return }
-      if (!res.ok) { toast.error(j.error ?? 'Failed to save sale'); return }
+      if (res.status === 409 && j.code === 'STORE_CLOSED') { toast.error(j.error ?? 'Store is closed'); setShift(null); onBack(); return }
+      if (!res.ok) { toast.error(j.error ?? 'Failed to save sale', { duration: 6000 }); return }
       onDone({ id: j.id, receipt_no: j.receipt_no, public_token: j.public_token, total: j.total ?? totals.total, change: j.change_given ?? all.reduce((s, p) => s + (p.change_given ?? 0), 0), payments: all, duplicate: !!j.duplicate })
     } catch {
-      toast.error('No connection — sale not saved. Try again (offline mode arrives in Phase 2).')
+      toast.error('No connection — this sale may or may not have been saved. Check Sales before ringing it again (offline mode arrives in Phase 2).', { duration: 10_000 })
     } finally { setBusy(false) }
   }
 

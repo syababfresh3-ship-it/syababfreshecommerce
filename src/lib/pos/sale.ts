@@ -1,21 +1,34 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { upsertCustomer } from '@/lib/customers'
 import { normalizePhone } from '@/lib/phone'
-import { computeTotals, lineTotal, round2, round3 } from '@/lib/pos/money'
+import { cartDiscountAmount, computeTotals, lineGross, lineTotal, rm, round2, round3 } from '@/lib/pos/money'
 import { deductPosSaleStock } from '@/lib/pos/stock'
 import { loadOpenShift } from '@/lib/pos/shifts'
 import { stampSaleConsign } from '@/lib/pos/consign'
-import { POS_PAY_METHODS, type PosPaymentInput, type PosSaleDetail, type PosSalePayload, type PosTicketLine } from '@/lib/pos/types'
+import { buildPosCatalog } from '@/lib/pos/catalog'
+import { POS_SETTINGS_KEY, parsePosSettings } from '@/lib/pos/settings'
+import { readApproval } from '@/lib/pos/pin'
+import { evaluatePromo, type PromoItem, type PromoRow } from '@/lib/promo-rules'
+import { countGuestPromoUses } from '@/lib/promo-usage'
+import { POS_PAY_METHODS, type PosCatalog, type PosPaymentInput, type PosSaleDetail, type PosSalePayload, type PosTicketDiscount, type PosTicketLine } from '@/lib/pos/types'
 
-// Cipta & lengkapkan jualan POS (server). Harga baris dari klien adalah muktamad (pelanggan dah
-// bayar di kaunter) — server SAHKAN bentuk data, KIRA SEMULA jumlah dengan peraturan yang sama
-// (lib/pos/money.ts) dan tolak kalau bayaran tak padan jumlah. Insert atomik + idempoten via RPC
+// Cipta & lengkapkan jualan POS (server). Server SAHKAN bentuk data, KIRA SEMULA jumlah dengan peraturan
+// yang sama (lib/pos/money.ts) dan tolak kalau bayaran tak padan jumlah. Insert atomik + idempoten via RPC
 // pos_create_sale (client_txn_id). Kesan sampingan selepas paid: stok (pek sahaja), CRM, promo.
+//
+// Sempadan amanah (14 Nov 2026) — badan permintaan boleh dipalsukan, jadi server kuat kuasa sendiri:
+//  • catalog_price = harga katalog register (bukan nilai klien); harga unit BAWAH katalog → perlu keistimewaan
+//  • diskaun baris / tiket melebihi tetapan cashierMaxDiscountPct → perlu keistimewaan
+//  • promo dinilai semula (input sama seperti /api/pos/promo/validate); diskaun klien diabaikan
+//  • shift SENTIASA ditentukan server (shift_id klien diabaikan); requireShift & tiada shift terbuka → 409 STORE_CLOSED
+// Keistimewaan = admin, kasyer peranan manager, atau token kelulusan manager (body.approval, lib/pos/pin signApproval).
+// Item manual (productId null) kekal harga bebas — macam UI. Kecualian: jualan pendua (client_txn_id dah wujud)
+// dipulangkan AWAL tanpa semakan supaya ulangan selepas rangkaian putus tak ditolak oleh perubahan katalog/shift.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = SupabaseClient<any, any, any>
 
-export class PosSaleError extends Error { constructor(msg: string, public status = 400) { super(msg) } }
+export class PosSaleError extends Error { constructor(msg: string, public status = 400, public code: string | null = null) { super(msg) } }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID_RE.test(v)
@@ -67,21 +80,110 @@ function cleanPayments(raw: unknown): PosPaymentInput[] {
   })
 }
 
-export interface CreateSaleCtx { userId: string; cashierId: string | null }
+/** Harga baris vs katalog register: catalog_price ditulis semula dengan harga server; bawah katalog → perlu keistimewaan.
+ *  Item tiada dalam katalog (disorok/dipadam/senarai harga bertukar selepas ditambah) → tolak supaya kasyer tambah semula. */
+function enforceCatalogPrices(lines: PosTicketLine[], catalog: PosCatalog, privileged: boolean) {
+  const byKey = new Map(catalog.items.map(i => [i.key, i]))
+  for (const l of lines) {
+    if (!l.productId) continue
+    const item = byKey.get(l.unit === 'kg' ? `${l.productId}:kg` : `${l.productId}:${l.variantId ?? ''}`)
+    if (!item) {
+      if (privileged) continue
+      throw new PosSaleError(`"${l.name}" is no longer in the catalog — remove it and add it again`, 409, 'CATALOG_CHANGED')
+    }
+    l.catalogPrice = item.price
+    if (!privileged && l.unitPrice < item.price - 0.005) {
+      throw new PosSaleError(`"${l.name}" is priced below the catalog price (${rm(item.price)}) — manager PIN required`, 403, 'MANAGER_REQUIRED')
+    }
+  }
+}
+
+/** Had diskaun kasyer (cashierMaxDiscountPct) — peraturan sama seperti DiscountSheet/LineSheet, tetapi dikuatkuasa di sini. */
+function enforceDiscountCaps(lines: PosTicketLine[], discount: PosTicketDiscount | null, capPct: number, privileged: boolean) {
+  if (privileged) return
+  for (const l of lines) {
+    if (!l.productId || !(l.lineDiscount > 0)) continue
+    const gross = lineGross(l)
+    if (gross > 0 && l.lineDiscount > gross * capPct / 100 + 0.005) {
+      throw new PosSaleError(`Line discount on "${l.name}" exceeds the cashier limit of ${capPct}% — manager PIN required`, 403, 'MANAGER_REQUIRED')
+    }
+  }
+  const subtotal = round2(lines.reduce((s, l) => s + lineTotal(l), 0))
+  const amt = cartDiscountAmount(subtotal, discount)
+  if (subtotal > 0 && amt > 0 && amt / subtotal * 100 > capPct + 1e-9) {
+    throw new PosSaleError(`Ticket discount ${(amt / subtotal * 100).toFixed(0)}% exceeds the cashier limit of ${capPct}% — manager PIN required`, 403, 'MANAGER_REQUIRED')
+  }
+}
+
+/** Promo dinilai semula dengan input yang SAMA seperti /api/pos/promo/validate (subtotal selepas diskaun tiket, baris berproduk
+ *  tanpa kategori, kiraan guna ikut telefon). Diskaun klien diabaikan; beza → 409 PROMO_CHANGED (kasyer guna semula kod). */
+async function verifyPromo(sb: SB, promo: { id: string; code: string; discount: number } | null, lines: PosTicketLine[], discount: PosTicketDiscount | null, phone: string) {
+  if (!promo) return null
+  const { data: row, error } = await sb.from('promo_codes').select('*').eq('id', promo.id).maybeSingle()
+  if (error) throw new PosSaleError(error.message, 500)
+  if (!row) throw new PosSaleError('Promo code not found — remove it from the ticket', 409, 'PROMO_INVALID')
+  const pr = row as PromoRow
+  if (pr.type === 'free_shipping') throw new PosSaleError('Free-shipping codes do not apply at the counter', 409, 'PROMO_INVALID')
+  const subtotal = round2(lines.reduce((s, l) => s + lineTotal(l), 0))
+  const base = round2(subtotal - cartDiscountAmount(subtotal, discount))
+  const items: PromoItem[] = lines.filter(l => l.productId).map(l => ({ product_id: l.productId!, line_total: lineTotal(l) }))
+  let priorUses = 0
+  if (phone) {
+    priorUses = await countGuestPromoUses(sb, promo.id, phone)
+    const { count } = await sb.from('pos_sales').select('id', { count: 'exact', head: true }).eq('promo_code_id', promo.id).eq('customer_phone', phone).neq('status', 'void')
+    priorUses += count ?? 0
+  }
+  const r = evaluatePromo(pr, { subtotal: base, deliveryFee: 0, items, priorUses })
+  if (!r.ok) throw new PosSaleError(`Promo ${pr.code}: ${r.error}`, 409, 'PROMO_INVALID')
+  if (Math.abs(r.discount - promo.discount) > 0.011) throw new PosSaleError(`Promo ${pr.code} is now −${rm(r.discount)} — apply the code again`, 409, 'PROMO_CHANGED')
+  return { id: promo.id, code: pr.code, discount: round2(r.discount) }
+}
+
+export interface CreateSaleCtx {
+  userId: string; cashierId: string | null
+  /** admin atau kasyer peranan manager — bebas had diskaun & semakan harga bawah katalog (token kelulusan juga memberi ini). */
+  privileged?: boolean
+}
 export interface CreateSaleResult { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
 
 export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Promise<CreateSaleResult> {
   const b = (body ?? {}) as Partial<PosSalePayload> & Record<string, unknown>
   if (!isUuid(b.client_txn_id)) throw new PosSaleError('client_txn_id (uuid) required')
 
+  // Pendua (ulang selepas respons hilang / tekan dua kali) → pulangkan jualan sedia ada tanpa semakan lanjut
+  const { data: dup } = await sb.from('pos_sales').select('id, receipt_no, status').eq('client_txn_id', b.client_txn_id).maybeSingle()
+  if (dup && dup.status !== 'void') return { id: dup.id, receipt_no: dup.receipt_no, status: dup.status as 'pending' | 'paid', duplicate: true }
+
   const lines = cleanLines(b.lines)
   const payments = cleanPayments(b.payments)
-  const discount = b.discount && typeof b.discount === 'object'
+  const discount: PosTicketDiscount | null = b.discount && typeof b.discount === 'object'
     ? { type: (b.discount as { type?: string }).type === 'pct' ? 'pct' as const : 'rm' as const, value: money((b.discount as { value?: unknown }).value ?? 0), note: typeof (b.discount as { note?: unknown }).note === 'string' ? String((b.discount as { note?: unknown }).note).slice(0, 120) : null }
     : null
-  const promo = b.promo && typeof b.promo === 'object' && isUuid((b.promo as { id?: unknown }).id)
+  const promoIn = b.promo && typeof b.promo === 'object' && isUuid((b.promo as { id?: unknown }).id)
     ? { id: (b.promo as { id: string }).id, code: String((b.promo as { code?: unknown }).code ?? '').slice(0, 40), discount: money((b.promo as { discount?: unknown }).discount ?? 0) }
     : null
+  const customer = b.customer && typeof b.customer === 'object' ? (b.customer as { phone?: unknown; name?: unknown; id?: unknown }) : null
+  const phoneNorm = (customer ? normalizePhone(typeof customer.phone === 'string' ? customer.phone : null) : '') ?? ''
+
+  // Sumber kebenaran server: katalog register (harga senarai/override), tetapan POS, shift terbuka
+  const registerId = optUuid(b.register_id)
+  const [catalog, settingsRes, openShift] = await Promise.all([
+    buildPosCatalog(sb, { registerId }).catch(() => null),
+    sb.from('app_settings').select('value').eq('key', POS_SETTINGS_KEY).maybeSingle(),
+    loadOpenShift(sb, registerId).catch(() => null),
+  ])
+  if (!catalog) throw new PosSaleError('Could not load the catalog to verify prices — try again', 503, 'CATALOG_UNAVAILABLE')
+  const settings = parsePosSettings(settingsRes.data?.value ?? null)
+  const privileged = !!ctx.privileged || !!readApproval(b.approval)
+
+  if (settings.requireShift && !openShift) {
+    throw new PosSaleError(registerId ? 'Store is closed — open the store before selling' : 'Choose a register before selling', 409, 'STORE_CLOSED')
+  }
+  const shiftId = openShift?.id ?? null
+
+  enforceCatalogPrices(lines, catalog, privileged)
+  enforceDiscountCaps(lines, discount, settings.cashierMaxDiscountPct, privileged)
+  const promo = await verifyPromo(sb, promoIn, lines, discount, phoneNorm)
 
   const hasCash = payments.some(p => p.method === 'cash')
   const totals = computeTotals(lines, discount, promo?.discount ?? 0, { cashRounding: hasCash })
@@ -94,14 +196,7 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const status: 'pending' | 'paid' = pendingTotal > 0 ? 'pending' : 'paid'
   const changeGiven = round2(payments.reduce((s, p) => s + (p.change_given ?? 0), 0))
 
-  const customer = b.customer && typeof b.customer === 'object' ? (b.customer as { phone?: unknown; name?: unknown; id?: unknown }) : null
-  const phoneNorm = customer ? normalizePhone(typeof customer.phone === 'string' ? customer.phone : null) : ''
   const soldAt = typeof b.sold_at === 'string' && !Number.isNaN(Date.parse(b.sold_at)) ? new Date(b.sold_at).toISOString() : null
-
-  // Shift: guna shift_id klien jika ada; jika tidak, shift terbuka register ini (buka/tutup kedai). Tiada shift → null (jualan tetap lulus).
-  const registerId = optUuid(b.register_id)
-  let shiftId = optUuid(b.shift_id)
-  if (!shiftId && registerId) shiftId = (await loadOpenShift(sb, registerId).catch(() => null))?.id ?? null
 
   const payload = {
     client_txn_id: b.client_txn_id,

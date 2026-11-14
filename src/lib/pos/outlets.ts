@@ -9,7 +9,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 //  • Outlet bukan HQ = pos_outlet_stock (pcs & kg), ditulis HANYA melalui applyOutletMovement (lejar lengkap).
 //  • Issue DO: dari HQ → tolak stok kedai pek (pos_deduct_stock, tak RAISE; kekurangan → hq_stock_short);
 //    ke outlet → transfer_in. Return (outlet → HQ): transfer_out dari outlet; pek masuk semula stok kedai (restore_stock).
-//  • Confirm DO (staf bertugas): received_qty; beza → movement 'adjustment' pada outlet penerima (bukan HQ).
+//    ATOMIK melalui RPC pos_issue_transfer (migration 161) — satu transaksi untuk nombor + semua stok + status;
+//    jatuh ke laluan lama (beberapa panggilan) hanya jika 161 belum dijalankan.
+//  • Confirm DO (staf bertugas): received_qty; beza → movement 'adjustment' pada outlet penerima; penerima HQ →
+//    stok kedai pek dibetulkan (issue dah kreditkan kuantiti penuh) — 14 Nov, dulu diabaikan → stok HQ terlebih kekal.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = SupabaseClient<any, any, any>
@@ -107,18 +110,29 @@ export async function loadTransfer(sb: SB, id: string): Promise<TransferRow | nu
 
 export class TransferError extends Error { constructor(message: string, public status = 400) { super(message) } }
 
-/** Issue DO: nombor + stok (HQ pek ditolak, outlet masuk). Idempoten melalui tuntutan status draft → issued. */
+/** Issue DO: nombor + stok (HQ pek ditolak, outlet masuk) — satu transaksi (RPC 161). */
 export async function issueTransfer(sb: SB, id: string, ctx: { userId: string | null }): Promise<TransferRow> {
   const t = await loadTransfer(sb, id)
   if (!t) throw new TransferError('Transfer not found', 404)
   if (t.status !== 'draft') throw new TransferError(`Transfer is already ${t.status}`, 409)
   if (!t.pos_transfer_items?.length) throw new TransferError('Add at least one line before issuing')
+
+  const { data: rpc, error: rpcErr } = await sb.rpc('pos_issue_transfer', { p_transfer: id, p_user: ctx.userId })
+  if (!rpcErr) {
+    const r = (rpc ?? {}) as { ok?: boolean; status?: number; error?: string }
+    if (!r.ok) throw new TransferError(r.error ?? 'Issue failed', r.status ?? 400)
+    return (await loadTransfer(sb, id))!
+  }
+  if (!OUTLET_MISSING.has(rpcErr.code ?? '')) throw new TransferError(rpcErr.message, 500)
+
+  // Fallback (161 belum dijalankan): laluan lama, beberapa panggilan. stock_applied_at hanya ditanda SELEPAS semua
+  // baris — kalau terhenti separuh jalan, DO nampak "issued" tanpa tarikh stok supaya admin tahu ia perlu disemak.
   const { data: docNo, error: nErr } = await sb.rpc('pos_next_transfer_no')
   if (nErr) throw new TransferError(nErr.message, 500)
   const now = new Date().toISOString()
   const { data: claimed, error: cErr } = await sb.from('pos_transfers')
-    .update({ status: 'issued', doc_no: docNo, issued_at: now, issued_by: ctx.userId, stock_applied_at: now, updated_at: now })
-    .eq('id', id).eq('status', 'draft').is('stock_applied_at', null).select('id')
+    .update({ status: 'issued', doc_no: docNo, issued_at: now, issued_by: ctx.userId, updated_at: now })
+    .eq('id', id).eq('status', 'draft').select('id')
   if (cErr) throw new TransferError(cErr.message, 500)
   if (!claimed?.[0]) throw new TransferError('Transfer was issued by someone else', 409)
 
@@ -141,10 +155,12 @@ export async function issueTransfer(sb: SB, id: string, ctx: { userId: string | 
       await applyOutletMovement(sb, { outletId: to.id, productId: it.product_id, variantId: it.variant_id, unit: it.base_unit, delta: it.base_qty, type: 'transfer_in', refType: 'transfer', refId: t.id, note: docNo, userId: ctx.userId })
     }
   }
+  await sb.from('pos_transfers').update({ stock_applied_at: new Date().toISOString() }).eq('id', id)
   return (await loadTransfer(sb, id))!
 }
 
-/** Pengesahan di outlet penerima oleh staf bertugas. Beza diterima vs dihantar → 'adjustment' pada outlet (bukan HQ). */
+/** Pengesahan di outlet penerima oleh staf bertugas. Beza diterima vs dihantar → 'adjustment' pada outlet;
+ *  penerima HQ (DO pulangan) → stok kedai pek dibetulkan dengan beza itu (issue dah kreditkan kuantiti penuh). */
 export async function confirmTransfer(sb: SB, id: string, received: { id: string; received_qty: number }[], ctx: { userId: string | null; cashierId: string | null; note?: string | null }): Promise<TransferRow> {
   const t = await loadTransfer(sb, id)
   if (!t) throw new TransferError('Transfer not found', 404)
@@ -161,8 +177,16 @@ export async function confirmTransfer(sb: SB, id: string, received: { id: string
     const rec = recMap.has(it.id) ? recMap.get(it.id)! : it.base_qty
     await sb.from('pos_transfer_items').update({ received_qty: rec }).eq('id', it.id)
     const diff = n3(rec - it.base_qty)
-    if (diff !== 0 && it.product_id && to.type !== 'hq') {
+    if (diff === 0 || !it.product_id) continue
+    if (to.type !== 'hq') {
       await applyOutletMovement(sb, { outletId: to.id, productId: it.product_id, variantId: it.variant_id, unit: it.base_unit, delta: diff, type: 'adjustment', refType: 'transfer', refId: t.id, note: `${t.doc_no ?? 'DO'} variance (sent ${it.base_qty}, received ${rec})`, userId: ctx.userId, cashierId: ctx.cashierId })
+    } else if (it.base_unit === 'pcs') {
+      // HQ: issue dah masukkan base_qty penuh ke stok kedai → terima kurang = tolak beza, terima lebih = tambah beza (kg HQ tak dijejak)
+      const n = Math.round(Math.abs(diff))
+      if (n > 0) {
+        if (diff < 0) await sb.rpc('pos_deduct_stock', { p_product_id: it.product_id, p_variant_id: it.variant_id, p_qty: n })
+        else await sb.rpc('restore_stock', { p_product_id: it.product_id, p_variant_id: it.variant_id, p_quantity: n })
+      }
     }
   }
   return (await loadTransfer(sb, id))!

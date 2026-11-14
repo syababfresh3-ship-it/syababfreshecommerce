@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { klDateStr, klDayWindow, isValidYmd } from '@/lib/daily-summary'
 import { buildPosDayReport } from '@/lib/pos/reports'
+import { fetchAll } from '@/lib/pos/shifts'
 
 // Jualan POS untuk admin: ?from=YYYY-MM-DD&to=YYYY-MM-DD (lalai hari ini) &register= &cashier= &status= &format=csv
 // Juga pulangkan laporan hari (bila from===to) untuk dashboard.
+// JSON (senarai UI) dihadkan 2000 baris + `truncated` supaya UI boleh beri amaran; CSV (eksport perakaunan)
+// ambil SEMUA baris melalui fetchAll — dulu kedua-duanya terpotong 2000 secara senyap.
 export const dynamic = 'force-dynamic'
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const LIST_LIMIT = 2000
+const SELECT = 'id, receipt_no, local_ref, status, subtotal, discount_total, promo_code, promo_discount, rounding_adj, total, paid_total, weight_kg_total, sold_at, customer_name, customer_phone, offline, void_reason, stock_notes, public_token, register_id, cashier_id, pos_cashiers!cashier_id(name), pos_registers(code), pos_payments(method, amount, status), pos_sale_items(name, variant_name, qty, unit, unit_price, catalog_price, line_total)'
 
 export async function GET(request: Request) {
   const { supabase, forbidden } = await requireAdmin()
@@ -17,22 +24,38 @@ export async function GET(request: Request) {
   const { start } = klDayWindow(from)
   const { end } = klDayWindow(to)
 
-  let q = supabase!.from('pos_sales')
-    .select('id, receipt_no, local_ref, status, subtotal, discount_total, promo_code, promo_discount, rounding_adj, total, paid_total, weight_kg_total, sold_at, customer_name, customer_phone, offline, void_reason, stock_notes, public_token, register_id, cashier_id, pos_cashiers!cashier_id(name), pos_registers(code), pos_payments(method, amount, status), pos_sale_items(name, variant_name, qty, unit, unit_price, catalog_price, line_total)')
-    .gte('sold_at', start).lt('sold_at', end)
-    .order('sold_at', { ascending: false })
-    .limit(2000)
-  if (sp.get('register')) q = q.eq('register_id', sp.get('register')!)
-  if (sp.get('cashier')) q = q.eq('cashier_id', sp.get('cashier')!)
-  if (sp.get('status')) q = q.eq('status', sp.get('status')!)
-  const { data, error } = await q
-  if (error) return NextResponse.json({ error: error.message, sales: [] }, { status: error.code === '42P01' || error.code === 'PGRST205' ? 503 : 500 })
-
+  const register = UUID.test(sp.get('register') ?? '') ? sp.get('register') : null
+  const cashier = UUID.test(sp.get('cashier') ?? '') ? sp.get('cashier') : null
+  const status = ['pending', 'paid', 'void'].includes(sp.get('status') ?? '') ? sp.get('status') : null
+  const isCsv = sp.get('format') === 'csv'
+  const build = (f: number, t: number) => {
+    let q = supabase!.from('pos_sales').select(SELECT).gte('sold_at', start).lt('sold_at', end).order('sold_at', { ascending: false }).order('id').range(f, t)
+    if (register) q = q.eq('register_id', register)
+    if (cashier) q = q.eq('cashier_id', cashier)
+    if (status) q = q.eq('status', status)
+    return q
+  }
   type Sale = { receipt_no: string | null; local_ref: string | null; status: string; subtotal: number; discount_total: number; promo_code: string | null; promo_discount: number; rounding_adj: number; total: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; pos_cashiers: { name: string } | null; pos_registers: { code: string } | null; pos_payments: { method: string; amount: number; status: string }[] | null }
-  if (sp.get('format') === 'csv') {
+  let data: Sale[]
+  let truncated = false
+  try {
+    if (isCsv) data = await fetchAll<Sale>(build)
+    else {
+      const { data: d, error } = await build(0, LIST_LIMIT)   // satu lebih daripada had → tahu ada lagi
+      if (error) throw new Error(error.message)
+      data = (d ?? []) as unknown as Sale[]
+      truncated = data.length > LIST_LIMIT
+      if (truncated) data = data.slice(0, LIST_LIMIT)
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed'
+    return NextResponse.json({ error: msg, sales: [] }, { status: /does not exist|Could not find/i.test(msg) ? 503 : 500 })
+  }
+
+  if (isCsv) {
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
     const head = ['receipt_no', 'local_ref', 'status', 'sold_at_kl', 'register', 'cashier', 'customer_name', 'customer_phone', 'subtotal', 'discount', 'promo_code', 'promo_discount', 'rounding', 'total', 'weight_kg', 'payments', 'offline', 'void_reason']
-    const rows = ((data ?? []) as unknown as Sale[]).map(s => [
+    const rows = data.map(s => [
       s.receipt_no, s.local_ref, s.status,
       new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kuala_Lumpur', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(s.sold_at)),
       s.pos_registers?.code, s.pos_cashiers?.name, s.customer_name, s.customer_phone,
@@ -44,6 +67,6 @@ export async function GET(request: Request) {
     return new Response(`﻿${csv}`, { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="pos-sales-${from}_${to}.csv"` } })
   }
 
-  const report = from === to ? await buildPosDayReport(supabase!, from, sp.get('register')).catch(() => null) : null
-  return NextResponse.json({ from, to, sales: data ?? [], report })
+  const report = from === to ? await buildPosDayReport(supabase!, from, register).catch(() => null) : null
+  return NextResponse.json({ from, to, sales: data, truncated, limit: LIST_LIMIT, report })
 }

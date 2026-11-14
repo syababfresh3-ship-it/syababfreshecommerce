@@ -5,6 +5,7 @@ import { klDateStr, klDayWindow, isValidYmd } from '@/lib/daily-summary'
 
 // POST: cipta jualan (perlu kuki PIN kasyer; admin tanpa PIN juga dibenarkan). Idempoten ikut
 //       client_txn_id — replay offline / tekan dua kali pulangkan baris sama dengan duplicate=true.
+//       Ralat berkod (STORE_CLOSED, MANAGER_REQUIRED, CATALOG_CHANGED, PROMO_*) → { error, code } untuk UI.
 // GET : senarai jualan satu hari (?date=YYYY-MM-DD, lalai hari ini KL; ?register=).
 export const dynamic = 'force-dynamic'
 
@@ -15,11 +16,11 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   try {
-    const r = await createSale(auth.supabase!, body, { userId: auth.user!.id, cashierId: auth.cashier?.id ?? null })
+    const r = await createSale(auth.supabase!, body, { userId: auth.user!.id, cashierId: auth.cashier?.id ?? null, privileged: auth.isAdmin || auth.cashier?.role === 'manager' })
     const { data } = await auth.supabase!.from('pos_sales').select('public_token, total, change_given').eq('id', r.id).maybeSingle()
     return NextResponse.json({ ...r, public_token: data?.public_token ?? null, total: data ? Number(data.total) : null, change_given: data ? Number(data.change_given) : null }, { status: r.duplicate ? 200 : 201 })
   } catch (e) {
-    if (e instanceof PosSaleError) return NextResponse.json({ error: e.message }, { status: e.status })
+    if (e instanceof PosSaleError) return NextResponse.json({ error: e.message, code: e.code ?? undefined }, { status: e.status })
     console.error('[pos/sales] gagal', e)
     return NextResponse.json({ error: 'Failed to save sale' }, { status: 500 })
   }

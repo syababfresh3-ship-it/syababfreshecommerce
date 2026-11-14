@@ -177,9 +177,18 @@ export async function createSettlement(sb: SB, p: { consignorId: string; from: s
     note: p.note?.trim().slice(0, 300) || null, created_by: p.userId,
   }).select('*').single()
   if (error) throw new ConsignError(error.message, 500)
+  // Tuntut baris; kira yang benar-benar dituntut. Dua klik / dua admin serentak → kedua-dua bina laporan yang sama,
+  // tetapi hanya satu dapat menuntut baris (`is null`) — yang satu lagi kena diundur, bukan jadi penyata berjumlah penuh
+  // untuk baris yang bukan miliknya.
+  let claimed = 0
   for (const part of chunk(report.itemIds, 200)) {
-    const { error: uErr } = await sb.from('pos_sale_items').update({ consign_settlement_id: s.id }).in('id', part).is('consign_settlement_id', null)
-    if (uErr) throw new ConsignError(uErr.message, 500)
+    const { data: upd, error: uErr } = await sb.from('pos_sale_items').update({ consign_settlement_id: s.id }).in('id', part).is('consign_settlement_id', null).select('id')
+    if (uErr) { await deleteSettlement(sb, s.id).catch(() => {}); throw new ConsignError(uErr.message, 500) }
+    claimed += upd?.length ?? 0
+  }
+  if (claimed !== report.itemIds.length) {
+    await deleteSettlement(sb, s.id).catch(() => {})
+    throw new ConsignError('Some of these sales were just added to another statement — refresh and try again', 409)
   }
   return s as ConsignSettlement
 }

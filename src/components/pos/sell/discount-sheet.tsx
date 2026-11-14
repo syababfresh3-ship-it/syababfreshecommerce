@@ -9,9 +9,10 @@ import { usePosSession } from '@/lib/stores/pos-session'
 import { cartDiscountAmount, rm } from '@/lib/pos/money'
 
 // Diskaun keseluruhan tiket (RM atau %). Melebihi had kasyer (tetapan cashierMaxDiscountPct)
-// → perlu pengesahan PIN manager (verify_only, tanpa tukar kasyer semasa).
+// → perlu pengesahan PIN manager (verify_only, tanpa tukar kasyer semasa); token `approval` yang
+// dipulangkan disimpan pada tiket supaya server (lib/pos/sale.ts) benarkan diskaun ini.
 export function DiscountSheet({ onClose }: { onClose: () => void }) {
-  const { discount, setDiscount, totals } = usePosTicket()
+  const { discount, setDiscount, setApproval, totals } = usePosTicket()
   const { cashier, isAdmin, settings } = usePosSession()
   const subtotal = totals(false).subtotal
   const [type, setType] = useState<'rm' | 'pct'>(discount?.type ?? 'pct')
@@ -31,8 +32,9 @@ export function DiscountSheet({ onClose }: { onClose: () => void }) {
   }
   const verifyManager = async (r: { cashier: { id: string }; pin: string }) => {
     const res = await fetch('/api/pos/pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cashier_id: r.cashier.id, pin: r.pin, verify_only: true }) })
-    if (!res.ok) { toast.error((await res.json().catch(() => ({}))).error ?? 'Wrong manager PIN'); return }
-    setDiscount({ type, value, note: note.trim() || null }); onClose()
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(j.error ?? 'Wrong manager PIN'); return }
+    setDiscount({ type, value, note: note.trim() || null }); setApproval(j.approval ?? null); onClose()
   }
 
   if (needManager) return <PinPad mode="verify" onlyManager title={`Discount ${pct.toFixed(0)}% exceeds the cashier limit of ${cap}%. Confirm with a manager PIN.`} onDone={verifyManager} />

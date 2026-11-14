@@ -8,6 +8,8 @@ import type { PosPayMethod } from '@/lib/pos/types'
 
 // Laporan POS (server): ringkasan satu hari (laporan X di /pos/sales & dashboard admin).
 // Hasil = jualan status 'paid'. Void dikira berasingan. Masa ikut Asia/Kuala_Lumpur.
+// Semua baris diambil melalui fetchAll (had lalai 1000 baris PostgREST memotong hari sibuk secara senyap) dan
+// bayaran/item ditapis dengan inner join ke pos_sales (bukan senarai id dalam URL) — corak sama dengan laporan julat.
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = SupabaseClient<any, any, any>
@@ -28,26 +30,27 @@ export interface PosDayReport {
   cashChange: number
 }
 
-const MISSING_TABLE = new Set(['42P01', 'PGRST205'])
+const DAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function buildPosDayReport(sb: SB, date: string, registerId?: string | null): Promise<PosDayReport | null> {
   const { start, end } = klDayWindow(date)
-  let q = sb.from('pos_sales')
-    .select('id, status, total, discount_total, promo_discount, weight_kg_total, cashier_id, pos_cashiers!cashier_id(name)')
-    .gte('sold_at', start).lt('sold_at', end)
-  if (registerId) q = q.eq('register_id', registerId)
-  const { data: sales, error } = await q
-  if (error) {
-    if (MISSING_TABLE.has(error.code ?? '')) return null
-    throw new Error(error.message)
-  }
+  const reg = registerId && DAY_UUID.test(registerId) ? registerId : null
   type SaleRow = { id: string; status: string; total: number | string; discount_total: number | string; promo_discount: number | string; weight_kg_total: number | string; cashier_id: string | null; pos_cashiers: { name: string } | null }
-  const rows = (sales ?? []) as unknown as SaleRow[]
+  let rows: SaleRow[]
+  try {
+    rows = await fetchAll<SaleRow>((f, t) => {
+      let q = sb.from('pos_sales').select('id, status, total, discount_total, promo_discount, weight_kg_total, cashier_id, pos_cashiers!cashier_id(name)').gte('sold_at', start).lt('sold_at', end).order('id').range(f, t)
+      if (reg) q = q.eq('register_id', reg)
+      return q
+    })
+  } catch (e) {
+    if (e instanceof Error && /does not exist|Could not find/i.test(e.message)) return null
+    throw e
+  }
   const paid = rows.filter(r => r.status === 'paid')
-  const ids = paid.map(r => r.id)
 
   const report: PosDayReport = {
-    date, registerId: registerId ?? null,
+    date, registerId: reg,
     sales: paid.length,
     revenue: round2(paid.reduce((s, r) => s + Number(r.total), 0)),
     discount: round2(paid.reduce((s, r) => s + Number(r.discount_total) + Number(r.promo_discount), 0)),
@@ -66,13 +69,23 @@ export async function buildPosDayReport(sb: SB, date: string, registerId?: strin
   }
   report.byCashier = Array.from(cashierMap.values()).sort((a, b) => b.revenue - a.revenue)
 
-  if (ids.length === 0) return report
+  if (paid.length === 0) return report
 
-  const [{ data: pays }, { data: items }] = await Promise.all([
-    sb.from('pos_payments').select('sale_id, method, amount, tendered, change_given, status').in('sale_id', ids).eq('status', 'paid'),
-    sb.from('pos_sale_items').select('name, variant_name, qty, unit, line_total').in('sale_id', ids),
+  type PayRow = { method: PosPayMethod; amount: number | string; tendered: number | string | null; change_given: number | string | null }
+  type ItemRow = { name: string; variant_name: string | null; qty: number | string; unit: 'pcs' | 'kg'; line_total: number | string }
+  const [pays, items] = await Promise.all([
+    fetchAll<PayRow>((f, t) => {
+      let q = sb.from('pos_payments').select('method, amount, tendered, change_given, pos_sales!inner(status, sold_at, register_id)').eq('status', 'paid').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
+      if (reg) q = q.eq('pos_sales.register_id', reg)
+      return q
+    }),
+    fetchAll<ItemRow>((f, t) => {
+      let q = sb.from('pos_sale_items').select('name, variant_name, qty, unit, line_total, pos_sales!inner(status, sold_at, register_id)').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
+      if (reg) q = q.eq('pos_sales.register_id', reg)
+      return q
+    }),
   ])
-  for (const p of (pays ?? []) as { method: PosPayMethod; amount: number | string; tendered: number | string | null; change_given: number | string | null }[]) {
+  for (const p of pays) {
     const cur = report.byMethod[p.method] ?? { count: 0, amount: 0 }
     cur.count += 1; cur.amount = round2(cur.amount + Number(p.amount))
     report.byMethod[p.method] = cur
@@ -82,7 +95,7 @@ export async function buildPosDayReport(sb: SB, date: string, registerId?: strin
     }
   }
   const itemMap = new Map<string, { name: string; qty: number; unit: 'pcs' | 'kg'; revenue: number }>()
-  for (const it of (items ?? []) as { name: string; variant_name: string | null; qty: number | string; unit: 'pcs' | 'kg'; line_total: number | string }[]) {
+  for (const it of items) {
     const name = it.variant_name && it.variant_name !== 'ikut berat' ? `${it.name} ${it.variant_name}` : it.name
     const key = `${name}|${it.unit}`
     const cur = itemMap.get(key) ?? { name, qty: 0, unit: it.unit, revenue: 0 }

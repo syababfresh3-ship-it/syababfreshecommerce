@@ -17,6 +17,7 @@ export function PosSalesAdminClient() {
   const [to, setTo] = useState(today)
   const [status, setStatus] = useState('')
   const [rows, setRows] = useState<Sale[]>([])
+  const [truncated, setTruncated] = useState<number | null>(null)   // had senarai API dicapai (CSV tetap lengkap)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<string | null>(null)
 
@@ -29,7 +30,7 @@ export function PosSalesAdminClient() {
       const j = await res.json().catch(() => ({}))
       if (!alive) return
       if (!res.ok) toast.error(j.error ?? 'Failed to load')
-      setRows(j.sales ?? []); setLoading(false)
+      setRows(j.sales ?? []); setTruncated(j.truncated ? Number(j.limit) || null : null); setLoading(false)
     }).catch(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [qs, tick])
@@ -48,7 +49,11 @@ export function PosSalesAdminClient() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="text-xl font-bold text-gray-900">POS Sales</h1><p className="text-sm text-gray-500">{rows.length} sales · paid revenue {rm(total)}</p></div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">POS Sales</h1>
+          <p className="text-sm text-gray-500">{rows.length} sales · paid revenue {rm(total)}</p>
+          {truncated && <p className="text-xs text-amber-800">Showing the latest {truncated} sales only — totals above are partial. Narrow the dates, or download the CSV (always complete).</p>}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <input type="date" value={from} onChange={e => e.target.value && setFrom(e.target.value)} className="h-10 px-3 rounded-lg border border-gray-300 text-sm" />
           <span className="text-gray-400">–</span>

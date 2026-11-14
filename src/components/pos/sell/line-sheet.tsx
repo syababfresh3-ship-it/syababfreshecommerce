@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Trash2 } from 'lucide-react'
 import { PosNumpad } from '@/components/pos/numpad'
+import { PinPad } from '@/components/pos/pin-pad'
 import { WeightKeypad } from '@/components/pos/sell/weight-keypad'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { usePosSession } from '@/lib/stores/pos-session'
@@ -10,6 +12,8 @@ import { lineTotal, rm } from '@/lib/pos/money'
 import type { PosTicketLine } from '@/lib/pos/types'
 
 // Edit satu baris tiket: kuantiti/berat, diskaun baris (RM), harga unit (manager/admin/item manual), buang.
+// Diskaun baris melebihi had kasyer (cashierMaxDiscountPct, peraturan sama dengan DiscountSheet & server)
+// → PIN manager (verify_only) → token `approval` disimpan pada tiket.
 
 type Tab = 'qty' | 'disc' | 'price'
 
@@ -18,13 +22,31 @@ function TabBtn({ active, onClick, label }: { active: boolean; onClick: () => vo
 }
 
 export function LineSheet({ line, onClose }: { line: PosTicketLine; onClose: () => void }) {
-  const { setQty, setLineDiscount, setUnitPrice, removeLine } = usePosTicket()
-  const { cashier, isAdmin } = usePosSession()
-  const canEditPrice = isAdmin || cashier?.role === 'manager' || line.productId === null
+  const { setQty, setLineDiscount, setUnitPrice, setApproval, removeLine } = usePosTicket()
+  const { cashier, isAdmin, settings } = usePosSession()
+  const privileged = isAdmin || cashier?.role === 'manager'
+  const canEditPrice = privileged || line.productId === null
+  const cap = settings?.cashierMaxDiscountPct ?? 10
+  const gross = line.qty * line.unitPrice
   const [tab, setTab] = useState<Tab>('qty')
   const [qtyV, setQtyV] = useState(String(line.qty))
   const [discV, setDiscV] = useState(line.lineDiscount ? String(line.lineDiscount) : '')
   const [priceV, setPriceV] = useState(String(line.unitPrice))
+  const [needManager, setNeedManager] = useState<number | null>(null)   // diskaun baris menunggu PIN manager
+
+  const applyDiscount = () => {
+    const n = Math.min(Number(discV) || 0, gross)
+    if (!privileged && line.productId !== null && gross > 0 && n > gross * cap / 100 + 0.005) { setNeedManager(n); return }
+    setLineDiscount(line.lineId, n); onClose()
+  }
+  const verifyManager = async (r: { cashier: { id: string }; pin: string }) => {
+    const res = await fetch('/api/pos/pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cashier_id: r.cashier.id, pin: r.pin, verify_only: true }) })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) { toast.error(j.error ?? 'Wrong manager PIN'); return }
+    setLineDiscount(line.lineId, needManager ?? 0); setApproval(j.approval ?? null); onClose()
+  }
+
+  if (needManager != null) return <PinPad mode="verify" onlyManager title={`Line discount ${rm(needManager)} exceeds the cashier limit of ${cap}%. Confirm with a manager PIN.`} onDone={verifyManager} />
 
   return (
     <div className="space-y-4">
@@ -43,8 +65,8 @@ export function LineSheet({ line, onClose }: { line: PosTicketLine; onClose: () 
         : <PosNumpad value={qtyV} onChange={setQtyV} maxLen={4} onEnter={() => { const n = Math.round(Number(qtyV)); if (n > 0) { setQty(line.lineId, n); onClose() } }} enterLabel="Save quantity" />)}
       {tab === 'disc' && (
         <div className="space-y-2">
-          <p className="text-[12px] text-gray-500">Discount in RM for this line only (max {rm(line.qty * line.unitPrice)}).</p>
-          <PosNumpad value={discV} onChange={setDiscV} decimal maxLen={8} onEnter={() => { const n = Math.min(Number(discV) || 0, line.qty * line.unitPrice); setLineDiscount(line.lineId, n); onClose() }} enterLabel={discV ? `Discount ${rm(Number(discV) || 0)}` : 'No discount'} />
+          <p className="text-[12px] text-gray-500">Discount in RM for this line only (max {rm(gross)}).{!privileged && line.productId !== null ? ` Over ${cap}% needs a manager PIN.` : ''}</p>
+          <PosNumpad value={discV} onChange={setDiscV} decimal maxLen={8} onEnter={applyDiscount} enterLabel={discV ? `Discount ${rm(Number(discV) || 0)}` : 'No discount'} />
         </div>
       )}
       {tab === 'price' && canEditPrice && (
