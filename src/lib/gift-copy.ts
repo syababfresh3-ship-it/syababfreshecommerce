@@ -79,14 +79,18 @@ export const RAMADAN = {
 // Satu sumber senarai klien — dikongsi LP (gift-landing) & /portfolio supaya tak bercapah.
 export const GIFT_CLIENTS = ['Petronas', 'FGV', 'Aexis', 'Hertz', 'GAINS Education', 'BPMB', 'UMPSA', 'Yayasan Hasanah', 'JPJ', 'DIVO', 'ECMS', 'Roadstone']
 
-export const GIFT_FAQ: { q: string; a: string }[] = [
+// `link` pilihan — UI sahaja (corak sama ShopFaq di lib/kurma-shop); faqPageSchema kekal baca q/a.
+export interface GiftFaq { q: string; a: string; link?: { host: 'kurma' | 'shop'; path: string; label: string } }
+export const GIFT_FAQ: GiftFaq[] = [
   { q: 'Berapa kuantiti minimum untuk tempah?', a: 'Serendah 50 kotak. Lagi banyak kuantiti, lagi murah harga seunit — boleh tempah sehingga 2,000+ kotak.' },
-  { q: 'Harga sudah termasuk kurma?', a: 'Ya. Harga yang dipaparkan sudah termasuk kurma (Ajwa, Mariami atau Safawi) + kotak custom berjenama anda. Penghantaran dikira berasingan.' },
+  { q: 'Harga sudah termasuk kurma?', a: 'Ya. Harga yang dipaparkan sudah termasuk kurma (Ajwa, Mariami atau Safawi) + kotak custom berjenama anda. Penghantaran dikira berasingan.',
+    link: { host: 'shop', path: '/panduan/panduan-gift-kurma-hamper-korporat', label: 'Panduan gift kurma & hamper kurma korporat' } },
   { q: 'Boleh letak logo & design syarikat saya?', a: 'Boleh. Kami reka design ikut jenama anda (logo, warna, mesej) dan anda sahkan dulu sebelum cetak. Khidmat reka bentuk percuma.' },
   { q: 'Saya tiada design atau idea — boleh tempah?', a: 'Boleh! Tak perlu ada design siap. Hantar sahaja gambar rujukan, logo, atau idea anda — pasukan reka bentuk kami akan realisasikannya jadi design kotak yang kemas. Anda sahkan dulu sebelum cetak.' },
   { q: 'Berapa lama proses sehingga siap?', a: 'Biasanya lebih kurang 2 minggu bekerja selepas design & bayaran disahkan — bergantung pada kuantiti. Tempah awal untuk musim Ramadan amat digalakkan.' },
   // C5 — soalan musim Ramadan (tarikh ikut RAMADAN.deadline; deposit ikut DEFAULT_DEPOSIT_PCT di lib/gift)
-  { q: 'Bila patut tempah gift kurma untuk Ramadan 2027?', a: 'Ramadan 1448H dijangka bermula sekitar 8 Februari 2027. Sahkan design & deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa (lead time ~2 minggu bekerja). Tempah dari Disember atau awal Januari lebih selamat — ada ruang untuk semakan design, kuantiti besar & agihan ke berbilang alamat.' },
+  { q: 'Bila patut tempah gift kurma untuk Ramadan 2027?', a: 'Ramadan 1448H dijangka bermula sekitar 8 Februari 2027. Sahkan design & deposit selewat-lewatnya 1 Februari 2027 supaya kotak siap sebelum hari pertama puasa (lead time ~2 minggu bekerja). Tempah dari Disember atau awal Januari lebih selamat — ada ruang untuk semakan design, kuantiti besar & agihan ke berbilang alamat.',
+    link: { host: 'shop', path: '/panduan/bila-order-kurma-ramadan-2027', label: 'Lihat timeline lengkap order kurma Ramadan 2027' } },
   { q: 'Perlu bayar deposit? Berapa?', a: `Deposit ${DEFAULT_DEPOSIT_PCT}% selepas sebut harga & design disahkan, baki selepas kotak siap. Tiada bayaran semasa minta sebut harga atau kira harga di web.` },
   { q: 'Hantar ke seluruh Malaysia?', a: 'Ya, kami hantar ke seluruh Malaysia. Boleh hantar ke satu alamat atau berbilang alamat (cth agihan ke cawangan).' },
   { q: 'Boleh custom saiz atau jenis kurma lain?', a: 'Boleh. Jika pilihan kurma atau saiz yang anda mahu tiada dalam senarai, WhatsApp kami — kami bantu sesuaikan.' },

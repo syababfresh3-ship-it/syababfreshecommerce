@@ -12,7 +12,7 @@ import { DesignRenders } from '@/components/kurma/design-renders'
 import { RENDER_HERO, RENDER_NOTE } from '@/lib/gift-renders'
 import { KurmaCountdown } from '@/components/kurma/kurma-countdown'
 import { GIFT_FAQ, GIFT_TESTIMONIALS, GIFT_CLIENTS, GIFT_WA_TEXT, RAMADAN, type GiftLandingCopy } from '@/lib/gift-copy'
-import { kurmaPath } from '@/lib/kurma-host'
+import { kurmaPath, shopPath } from '@/lib/kurma-host'
 
 const CLIENTS = GIFT_CLIENTS   // satu sumber (gift-copy) — sama dgn /portfolio
 const RED = '#E11D2A'
@@ -190,6 +190,11 @@ export function GiftLanding({ copy }: { copy: GiftLandingCopy }) {
                 <ChevronRight className="h-5 w-5 text-gray-400 transition-transform group-open:rotate-90 shrink-0" />
               </summary>
               <p className="text-sm text-gray-500 mt-2.5 leading-relaxed">{f.a}</p>
+              {f.link && (
+                <Link href={f.link.host === 'shop' ? shopPath(f.link.path) : kurmaPath(f.link.path)} className="inline-flex items-center gap-0.5 text-[13px] font-bold mt-2" style={{ color: RED }}>
+                  {f.link.label} <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
             </details>
           ))}
         </div>

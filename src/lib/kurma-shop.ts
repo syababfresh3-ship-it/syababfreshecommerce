@@ -56,6 +56,7 @@ export const SHOP_FAQ: ShopFaq[] = [
   {
     q: 'Macam mana nak simpan kurma supaya tahan lama?',
     a: 'Simpan dalam bekas tertutup di tempat sejuk dan gelap. Dalam cuaca Malaysia, peti sejuk lebih selamat terutama untuk kurma lembap seperti Medjoul dan Ajwa gred besar. Rotab dan kurma muda disimpan sejuk beku dan dikeluarkan sedikit demi sedikit. Kurma yang mengeras masih boleh dimakan — kukus sebentar atau simpan semalaman bersama sekeping roti dalam bekas tertutup.',
+    link: { host: 'shop', path: '/panduan/kurma-medjool-vs-ajwa', label: 'Kurma Medjool vs Ajwa: beza, pilihan & cara simpan' },
   },
   {
     q: 'Boleh beli kurma sebagai gift atau hadiah?',
@@ -65,6 +66,7 @@ export const SHOP_FAQ: ShopFaq[] = [
   {
     q: 'Bila patut order kurma untuk Ramadan?',
     a: 'Ramadan 1448H dijangka bermula sekitar 8 Februari 2027. Untuk stok runcit, order dari pertengahan Januari supaya pilihan gred dan saiz masih lengkap dan bungkusan sampai sebelum hari pertama puasa. Untuk gift box custom, tempah sebelum 1 Februari 2027 kerana proses design, cetak dan bungkus mengambil lebih kurang 2 minggu bekerja.',
+    link: { host: 'shop', path: '/panduan/bila-order-kurma-ramadan-2027', label: 'Lihat timeline lengkap order kurma Ramadan 2027' },
   },
   {
     q: 'Ada harga borong untuk kuantiti banyak?',
