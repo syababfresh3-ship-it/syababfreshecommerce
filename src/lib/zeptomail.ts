@@ -4,6 +4,12 @@ const API_KEY   = process.env.ZEPTOMAIL_API_KEY ?? ''
 const FROM_ORDER   = process.env.ZEPTOMAIL_FROM_ORDER   ?? 'order@mail.syababfresh.my'
 const FROM_NOREPLY = process.env.ZEPTOMAIL_FROM_NOREPLY ?? 'noreply@mail.syababfresh.my'
 
+// Nombor WhatsApp sokongan dalam footer email — ikut env yang SAMA dengan LP berjaya,
+// checkout LP & /info (NEXT_PUBLIC_WHATSAPP_SUPPORT). Dulu hardcode 601156816687 (Hijau,
+// nombor Murpati yang dah mati) → pelanggan hantar pengesahan pesanan ke nombor salah.
+// Fallback = nombor CS Official yang dipapar di laman web (COMPANY.phoneGeneral).
+const SUPPORT_WA = (process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT || '601156816548').replace(/\D/g, '')
+
 // ─── shared helpers ────────────────────────────────────────────────────────────
 
 function esc(s: string | null | undefined): string {
@@ -39,7 +45,7 @@ function layout(title: string, body: string) {
         <tr><td style="background:#f9fafb;border-top:1px solid #e5e7eb;padding:20px 32px;text-align:center;">
           <p style="margin:0;font-size:12px;color:#9ca3af;">© 2026 Syabab Trading Sdn Bhd &nbsp;·&nbsp; Klang Valley, Malaysia</p>
           <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">
-            Sokongan: <a href="https://wa.me/601156816687" style="color:#16a34a;text-decoration:none;">WhatsApp Kami</a>
+            Sokongan: <a href="https://wa.me/${SUPPORT_WA}" style="color:#16a34a;text-decoration:none;">WhatsApp Kami</a>
           </p>
         </td></tr>
 
