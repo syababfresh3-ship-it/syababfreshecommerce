@@ -2,7 +2,8 @@
 
 // Bar tawaran masa terhad LP (migration 159) — muat keadaan dari /api/lp/[slug]/flash (set cookie masa
 // mula untuk mod visitor), papar countdown besar; tamat → bar hilang senyap & semua checkout kembali
-// harga asal (stor lib/stores/lp-flash.ts dikongsi). Copy JUJUR: "untuk anda · sekali setiap N jam".
+// harga asal (stor lib/stores/lp-flash.ts dikongsi). Copy: "untuk anda · tawaran masa terhad" — tempoh
+// cooldown (sekali setiap N jam) TIDAK dipapar kepada pelanggan (keputusan pemilik 18 Nov 2026).
 //
 // Kedudukan (pemilik 12 Nov 2026: "letak kat footer, besarkan"): classic = melekat BAWAH skrin, besar;
 // template live = atas (kawalan beli template itu di bawah). Tinggi bar didedahkan sebagai CSS var
@@ -74,7 +75,7 @@ export function LpFlashBar({ slug, position = 'bottom' }: { slug: string; positi
             <span className="h-10 w-10 shrink-0 grid place-items-center rounded-full bg-white/15"><Gift className="h-5 w-5" aria-hidden /></span>
             <div className="min-w-0">
               <div className="text-[16px] font-extrabold leading-tight truncate">{label} untuk anda</div>
-              <div className="text-[12px] font-semibold text-white/80 truncate">Sah {offer.window_minutes} minit selepas tuntut · sekali setiap {offer.cooldown_hours} jam{minTxt}</div>
+              <div className="text-[12px] font-semibold text-white/80 truncate">Sah {offer.window_minutes} minit selepas tuntut{minTxt}</div>
             </div>
           </div>
           <button
@@ -91,7 +92,7 @@ export function LpFlashBar({ slug, position = 'bottom' }: { slug: string; positi
   }
   if (!state?.active) return null
   const remain = state.endsAt != null ? state.endsAt - now : null
-  const sub = (visitor ? `Sekali setiap ${offer.cooldown_hours} jam` : 'Flash sale') + minTxt
+  const sub = (visitor ? 'Tawaran masa terhad' : 'Flash sale') + minTxt
 
   return (
     <div

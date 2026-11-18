@@ -1377,7 +1377,7 @@ export function LpClient({ initial }: { initial: LandingPage[] }) {
                     </div>
                   )}
                   <p className="text-[11px] text-gray-500 leading-relaxed">
-                    Pratonton bar: <span className="font-semibold text-gray-800">{flashLabel(form.flash_offer)}{form.flash_offer.mode === 'visitor' ? ` untuk anda · tamat dalam ${String(form.flash_offer.window_minutes - 1).padStart(2, '0')}:59 · sekali setiap ${form.flash_offer.cooldown_hours} jam` : ' · tamat HH:MM:SS'}</span>.
+                    Pratonton bar: <span className="font-semibold text-gray-800">{flashLabel(form.flash_offer)}{form.flash_offer.mode === 'visitor' ? ` untuk anda · Tawaran masa terhad · tamat dalam ${String(form.flash_offer.window_minutes - 1).padStart(2, '0')}:59` : ' · tamat HH:MM:SS'}</span>.{form.flash_offer.mode === 'visitor' ? ` Tempoh cooldown ${form.flash_offer.cooldown_hours} jam tidak dipapar kepada pelanggan.` : ''}
                     Diskaun dikuatkuasa di pelayan — tamat = harga asal; nombor telefon yang dah tuntut tak layak semula dalam tempoh cooldown; tak boleh digabung dengan kod promo.
                     Jangan tulis &ldquo;stok terhad&rdquo; atau &ldquo;untuk semua&rdquo; dalam HTML LP kalau mod per pelawat — tawaran ini peribadi dan berulang.
                   </p>
