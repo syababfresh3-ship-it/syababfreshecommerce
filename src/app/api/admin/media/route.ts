@@ -5,9 +5,11 @@ export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
 
-  const [lpRes, productRes] = await Promise.all([
+  const [lpRes, productRes, videoRes] = await Promise.all([
     supabase!.storage.from('brand-assets').list('lp-images', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } }),
     supabase!.storage.from('product-images').list('', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } }),
+    // Video (header template WhatsApp / LP) — dimuat naik terus dari pelayar via /api/admin/media/sign
+    supabase!.storage.from('brand-assets').list('videos', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } }),
   ])
 
   const lpImages = (lpRes.data ?? [])
@@ -32,7 +34,18 @@ export async function GET() {
       url: supabase!.storage.from('product-images').getPublicUrl(f.name).data.publicUrl,
     }))
 
-  return NextResponse.json({ lp: lpImages, products: productImages })
+  const videos = (videoRes.data ?? [])
+    .filter(f => f.name && !f.name.startsWith('.'))
+    .map(f => ({
+      name: f.name,
+      size: f.metadata?.size ?? 0,
+      created_at: f.created_at ?? '',
+      bucket: 'brand-assets',
+      path: `videos/${f.name}`,
+      url: supabase!.storage.from('brand-assets').getPublicUrl(`videos/${f.name}`).data.publicUrl,
+    }))
+
+  return NextResponse.json({ lp: lpImages, products: productImages, videos })
 }
 
 export async function POST(request: Request) {

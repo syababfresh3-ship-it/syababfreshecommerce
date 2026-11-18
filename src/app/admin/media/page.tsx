@@ -3,6 +3,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { toast } from 'sonner'
 import { Upload, Copy, Trash2, Search, ImageIcon, RefreshCw, Check, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+const isVideo = (f: { url: string }) => /\.(mp4|3gp)$/i.test(f.url.split('?')[0])
 
 interface MediaFile {
   name: string
@@ -28,9 +31,10 @@ function formatDate(d: string) {
 export default function MediaPage() {
   const [lpFiles, setLpFiles] = useState<MediaFile[]>([])
   const [productFiles, setProductFiles] = useState<MediaFile[]>([])
+  const [videoFiles, setVideoFiles] = useState<MediaFile[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [tab, setTab] = useState<'lp' | 'products'>('lp')
+  const [tab, setTab] = useState<'lp' | 'products' | 'videos'>('lp')
   const [search, setSearch] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -44,18 +48,35 @@ export default function MediaPage() {
       const data = await res.json()
       setLpFiles(data.lp ?? [])
       setProductFiles(data.products ?? [])
+      setVideoFiles(data.videos ?? [])
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    // ?tab=videos (pautan dari wizard Blaster) — baca sekali masa mula
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'videos') setTab('videos')
+    load()
+  }, [])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(true)
     try {
+      if (tab === 'videos') {
+        // Video pintas fungsi Vercel (had badan 4.5MB): minta URL upload bertandatangan, muat naik terus ke Storage.
+        if (file.type !== 'video/mp4') { toast.error('Hanya fail video .mp4 (format yang WhatsApp terima)'); return }
+        const signRes = await fetch('/api/admin/media/sign', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, type: file.type, size: file.size }) })
+        const sign = await signRes.json()
+        if (!signRes.ok) { toast.error(sign.error ?? 'Upload failed'); return }
+        const { error } = await createClient().storage.from(sign.bucket).uploadToSignedUrl(sign.path, sign.token, file, { contentType: file.type })
+        if (error) { toast.error(error.message); return }
+        toast.success('Video uploaded!')
+        await load()
+        return
+      }
       const fd = new FormData()
       fd.append('file', file)
       fd.append('bucket', tab === 'lp' ? 'brand-assets' : 'product-images')
@@ -94,7 +115,7 @@ export default function MediaPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const files = tab === 'lp' ? lpFiles : productFiles
+  const files = tab === 'lp' ? lpFiles : tab === 'products' ? productFiles : videoFiles
   const filtered = search.trim()
     ? files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
     : files
@@ -105,7 +126,7 @@ export default function MediaPage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Media Library</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{files.length} files · click URL to copy for LP use</p>
+          <p className="text-sm text-gray-400 mt-0.5">{files.length} files · {tab === 'videos' ? 'URL video untuk header template WhatsApp / LP (.mp4, maks 16MB)' : 'click URL to copy for LP use'}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={load} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
@@ -117,9 +138,9 @@ export default function MediaPage() {
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
             <Upload className="h-4 w-4" />
-            {uploading ? 'Uploading...' : 'Upload Image'}
+            {uploading ? 'Uploading...' : tab === 'videos' ? 'Upload Video' : 'Upload Image'}
           </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+          <input ref={fileRef} type="file" accept={tab === 'videos' ? 'video/mp4' : 'image/*'} className="hidden" onChange={handleUpload} />
         </div>
       </div>
 
@@ -130,6 +151,9 @@ export default function MediaPage() {
         </button>
         <button onClick={() => setTab('products')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'products' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
           Product Images ({productFiles.length})
+        </button>
+        <button onClick={() => setTab('videos')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'videos' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
+          Video ({videoFiles.length})
         </button>
       </div>
 
@@ -152,8 +176,8 @@ export default function MediaPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-24 text-gray-400">
           <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
-          <p className="font-semibold">{search ? 'No results' : 'No images yet'}</p>
-          <p className="text-sm mt-1">Upload an image to get started</p>
+          <p className="font-semibold">{search ? 'No results' : tab === 'videos' ? 'No videos yet' : 'No images yet'}</p>
+          <p className="text-sm mt-1">{tab === 'videos' ? 'Upload a .mp4 (max 16MB) to get started' : 'Upload an image to get started'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -161,6 +185,9 @@ export default function MediaPage() {
             <div key={file.path} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden group hover:shadow-md transition-all">
               {/* Image preview */}
               <div className="relative aspect-square bg-gray-50 overflow-hidden">
+                {isVideo(file) ? (
+                  <video src={file.url} className="w-full h-full object-cover" muted playsInline preload="metadata" controls />
+                ) : (
                 <img
                   src={file.url}
                   alt={file.name}
@@ -168,6 +195,7 @@ export default function MediaPage() {
                   loading="lazy"
                   onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                 />
+                )}
                 {/* Hover overlay */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                   <button
@@ -216,8 +244,8 @@ export default function MediaPage() {
               <X className="h-4 w-4 text-gray-400" />
             </button>
             <div className="mb-4">
-              <img src={confirmDelete.url} alt="" className="w-full h-32 object-cover rounded-xl mb-3" />
-              <p className="font-bold text-gray-900">Delete this image?</p>
+              {isVideo(confirmDelete) ? <video src={confirmDelete.url} className="w-full h-32 object-cover rounded-xl mb-3" muted preload="metadata" /> : <img src={confirmDelete.url} alt="" className="w-full h-32 object-cover rounded-xl mb-3" />}
+              <p className="font-bold text-gray-900">Delete this {isVideo(confirmDelete) ? 'video' : 'image'}?</p>
               <p className="text-xs text-gray-500 mt-1 break-all">{confirmDelete.name}</p>
               <p className="text-xs text-red-500 mt-2 font-semibold">⚠️ If this image is used in any LP, it will break.</p>
             </div>

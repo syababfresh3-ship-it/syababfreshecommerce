@@ -212,6 +212,12 @@ export function BlastWizard() {
 
   async function send(test: boolean) {
     if (test && !testNumber.trim()) { setMsg("Masukkan nombor test."); return; }
+    // Header wajib ikut format template — tanpa header Meta balas #131008 "Required parameter is missing".
+    if (needsHeaderVideo && !headerVideo.trim()) { setMsg("Template ini guna header VIDEO — tampal URL terus fail .mp4 dahulu (Admin › Media › Video)."); return; }
+    if (needsHeaderImage && !headerImage.trim()) { setMsg("Template ini guna header GAMBAR — tampal URL gambar dahulu."); return; }
+    // Param kosong (selain nama/name/1 yang auto) → Meta #131008; CSV boleh isi per-penerima kalau ada lajur sama nama.
+    const emptyKeys = Object.keys(params).filter((k) => !["nama", "name", "1"].includes(k) && !params[k]?.trim() && !(audType === "csv" && csvCols.includes(k)));
+    if (emptyKeys.length) { setMsg(`Param ${emptyKeys.join(", ")} kosong — isi nilai atau token {nama}. Meta tolak param kosong.`); return; }
     setBusy(true);
     setMsg(test ? "Menghantar test…" : "Menghantar blast… (jangan tutup halaman)");
     const res = await fetch("/api/whatsapp/blast", {
@@ -434,12 +440,12 @@ export function BlastWizard() {
           </div>
           {tpl && Object.keys(params).length > 0 && (
             <div className="space-y-2">
-              <div className="text-xs text-gray-500"><b>nama</b> boleh kosong (auto nama penerima). {audType === "csv" && "Param yang sepadan nama lajur CSV akan diisi per-penerima."}</div>
+              <div className="text-xs text-gray-500"><b>nama</b> / <b>1</b> boleh kosong (auto nama penerima). Param lain WAJIB diisi — Meta tolak param kosong. Token <code>{"{nama}"}</code> boleh diguna dalam mana-mana param. {audType === "csv" && "Param yang sepadan nama lajur CSV akan diisi per-penerima."}</div>
               {Object.keys(params).map((k) => (
                 <div key={k}>
                   <label className="text-xs text-gray-500">{k}{audType === "csv" && csvCols.includes(k) && <span className="text-emerald-500"> · auto dari CSV</span>}</label>
                   <input value={params[k]} onChange={(e) => setParams((p) => ({ ...p, [k]: e.target.value }))}
-                    placeholder={k === "nama" || k === "name" ? "(auto nama penerima)" : k} className={inputCls} />
+                    placeholder={k === "nama" || k === "name" || k === "1" ? "(auto nama penerima)" : `${k} — wajib isi`} className={inputCls} />
                 </div>
               ))}
             </div>
@@ -454,7 +460,7 @@ export function BlastWizard() {
             <div>
               <label className="text-sm font-semibold text-gray-600">🎥 Video header (URL)</label>
               <input value={headerVideo} onChange={(e) => setHeaderVideo(e.target.value)} placeholder="https://… (URL .mp4 public)" className={`${inputCls} mt-1`} />
-              <p className="text-[11px] text-gray-400 mt-1">Template ini guna header VIDEO. Letak URL video .mp4 yang boleh diakses awam (cth Supabase storage / CDN).</p>
+              <p className="text-[11px] text-gray-400 mt-1">Template ini guna header VIDEO. URL mesti pautan terus ke fail .mp4 awam (maks 16MB) — bukan pautan Google Drive / YouTube. Muat naik di <a href="/admin/media?tab=videos" target="_blank" rel="noreferrer" className="underline font-semibold text-gray-600">Admin › Media › Video</a>, kemudian salin URL.</p>
             </div>
           )}
           <div className="flex justify-between">
@@ -478,7 +484,7 @@ export function BlastWizard() {
               <label className="text-xs font-semibold text-gray-500">Test dulu (1 nombor)</label>
               <div className="flex gap-2 mt-1">
                 <input value={testNumber} onChange={(e) => setTestNumber(e.target.value)} placeholder="60123456789" className={inputCls} />
-                <button onClick={() => send(true)} disabled={busy} className="bg-gray-100 hover:bg-gray-200 rounded-xl px-4 text-sm font-semibold disabled:opacity-50">Test</button>
+                <button onClick={() => send(true)} disabled={busy || !step2Ok} title={!step2Ok ? "Isi URL header (gambar/video) dahulu" : undefined} className="bg-gray-100 hover:bg-gray-200 rounded-xl px-4 text-sm font-semibold disabled:opacity-50">Test</button>
               </div>
             </div>
           )}

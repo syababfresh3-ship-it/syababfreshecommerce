@@ -13,16 +13,31 @@ import { sendTemplate, formatWaPhone } from "@/lib/whatsapp-cloud";
 import { drainBlasts } from "@/lib/blast-drain";
 import { resolveAudience, type AudienceSpec } from "@/lib/blast-audience";
 import { getSender } from "@/lib/wa-numbers";
+import { fillTemplateParams, emptyParamKeys } from "@/lib/blast-params";
 
 // Terjemah error WhatsApp Cloud API kepada mesej yang admin faham (punca + tindakan).
 function friendlyWaError(err?: string): string | null {
   if (!err) return null;
-  if (/132000|131008|132012/.test(err)) return `${err} — Template perlu header imej/param betul. Pastikan URL imej diisi & bilangan param padan template.`;
+  if (/132000|131008|132012/.test(err)) return `${err} — Template perlu header (gambar/video) & param yang betul. Pastikan URL header diisi dan bilangan param padan template.`;
   if (/132001/.test(err)) return `${err} — Template tak wujud pada WABA nombor penghantar. Tukar "Hantar dari" ke nombor yang memiliki template ini.`;
   if (/131026/.test(err)) return `${err} — Nombor tak boleh terima (bukan WhatsApp aktif / belum terima ToS).`;
   if (/131047/.test(err)) return `${err} — Di luar tetingkap 24 jam — guna template diluluskan.`;
   if (/13005[0-9]|permission|OAuth|190\b/.test(err)) return `${err} — Isu token/kebenaran nombor penghantar.`;
   return err;
+}
+
+// Pautan header mesti URL TERUS ke fail awam — Meta muat turun sendiri. Pautan halaman (Drive/YouTube) pasti gagal.
+function headerLinkError(link: string, kind: "image" | "video"): string | null {
+  const label = kind === "video" ? "video" : "gambar";
+  let u: URL;
+  try { u = new URL(link); } catch { return `URL ${label} header tidak sah.`; }
+  if (u.protocol !== "https:") return `URL ${label} header mesti HTTPS.`;
+  const host = u.hostname.replace(/^www\./, "");
+  const pageHost = /(^|\.)(drive\.google\.com|docs\.google\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com|vimeo\.com)$/.test(host)
+    || (host === "dropbox.com" && u.searchParams.get("dl") !== "1");
+  if (pageHost) return `Pautan ${host} ialah halaman web, bukan fail. Meta perlukan URL terus ke fail${kind === "video" ? " .mp4" : ""} — muat naik di Admin › Media dan salin URL.`;
+  if (kind === "video" && !/\.(mp4|3gp)$/i.test(u.pathname)) return "URL video header mesti fail .mp4 (atau .3gp) — format lain tidak disokong WhatsApp.";
+  return null;
 }
 
 async function auth() {
@@ -144,6 +159,8 @@ export async function POST(req: NextRequest) {
   const headerMedia = headerVideo ? ({ type: "video" as const, link: headerVideo }) : headerImage;
 
   if (!templateName) return NextResponse.json({ error: "templateName diperlukan." }, { status: 400 });
+  if (headerVideo) { const e = headerLinkError(headerVideo, "video"); if (e) return NextResponse.json({ error: e }, { status: 400 }); }
+  else if (headerImage) { const e = headerLinkError(headerImage, "image"); if (e) return NextResponse.json({ error: e }, { status: 400 }); }
 
   // Multi-number: hantar dari nombor dipilih (lalai = env default).
   const sender = await getSender(sb, phoneNumberId);
@@ -151,8 +168,10 @@ export async function POST(req: NextRequest) {
   // --- Test: hantar segerak ke 1 nombor, TANPA cipta campaign ---
   if (test) {
     if (!testNumber) return NextResponse.json({ error: "Masukkan nombor test." }, { status: 400 });
-    const p = { ...params };
-    for (const key of ["nama", "name"]) if (key in p && (!p[key] || !p[key].trim())) p[key] = "pelanggan";
+    // Sama seperti drainer: nama/name/"1" kosong → "pelanggan" (test tiada nama penerima); token {nama} diganti.
+    const p = fillTemplateParams(params, { name: null });
+    const empties = emptyParamKeys(p);
+    if (empties.length) return NextResponse.json({ ok: false, sent: 0, failed: 1, error: `Param kosong: ${empties.join(", ")} — Meta tolak param kosong. Isi nilai atau token {nama}.` });
     const res = await sendTemplate(formatWaPhone(testNumber), templateName, templateLang, p, headerMedia, sender);
     // ok = Graph TERIMA permintaan (bukan jaminan delivered). id = wamid utk jejak.
     return NextResponse.json({ ok: res.ok, id: res.id ?? null, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: friendlyWaError(res.error) });

@@ -7,6 +7,7 @@
 // ============================================================
 import { sendTemplate } from "@/lib/whatsapp-cloud";
 import { getSender } from "@/lib/wa-numbers";
+import { fillTemplateParams, emptyParamKeys } from "@/lib/blast-params";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -67,9 +68,13 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
           await sb.from("crm_blast_recipients").update({ status: "failed", error: "opt_out", failed_at: new Date().toISOString() }).eq("id", r.id);
           continue;
         }
-        const p: Record<string, string> = { ...(b.params ?? {}), ...(r.vars ?? {}) };
-        for (const k of ["nama", "name"]) {
-          if (k in p && (!p[k] || !String(p[k]).trim())) p[k] = r.name || "pelanggan";
+        // Isi param: vars CSV > params kempen; token {nama}/{lajur}; nama/name/"1" kosong → nama penerima.
+        const p = fillTemplateParams(b.params, { name: r.name, vars: r.vars });
+        const empties = emptyParamKeys(p);
+        if (empties.length) {
+          // Meta pasti tolak (#131008) — gagalkan tempatan dengan sebab yang admin faham, jimat kuota API.
+          await sb.from("crm_blast_recipients").update({ status: "failed", error: `param kosong: ${empties.join(", ")} — isi nilai atau token {nama}/{lajur_csv}`, failed_at: new Date().toISOString() }).eq("id", r.id);
+          continue;
         }
         const headerMedia = b.header_video ? ({ type: "video" as const, link: b.header_video as string }) : (b.header_image || undefined);
         const res = await sendTemplate(r.wa_id, b.template_name, b.template_lang || "ms", p, headerMedia, sender);
