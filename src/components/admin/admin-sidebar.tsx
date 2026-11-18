@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Send, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
 import { kurmaPath } from '@/lib/kurma-host'
@@ -81,7 +81,9 @@ const sections: Section[] = [
       { href: '/admin/sales-report', label: 'Jualan Sales & Borong', icon: BarChart2 },   // laporan ikut staf sales & pelanggan borong
       { href: '/admin/shipping',    label: 'Shipping',    icon: Truck },
       { href: '/admin/refunds',     label: 'Refund',      icon: RotateCcw, badge: 'refunds' },
-      { href: '/admin/wa-outbox',   label: 'WA Outbox',   icon: Send },
+      // Disorok 2026-11-18: WA tracking semua guna nombor Official (ops), outbox tak dipakai staf.
+      // Page & cron drain masih wujud — untuk pulihkan: nyahkomen baris bawah + tambah balik `Send` ke import lucide.
+      // { href: '/admin/wa-outbox',   label: 'WA Outbox',   icon: Send },
       // Disorok 2026-06-12: semua dispatch (Lalamove/Poslaju/Ninja) kini diuruskan di
       // syababfresh-app via raw export (/api/admin/orders-export). Page masih wujud —
       // untuk pulihkan: nyahkomen baris bawah + tambah balik `Route` ke import lucide.
