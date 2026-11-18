@@ -153,7 +153,7 @@ export async function planRestock(sb: SB, productId: string): Promise<RestockPla
         .order("id", { ascending: true })
         .range(from, to),
     "waitlist-restock"),
-    sb.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).order("created_at"),
+    sb.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).not("phone_number_id", "like", "gw:%").order("created_at"),
     sb.from("crm_blasts")
       .select("template_name, template_lang, phone_number_id, header_image")
       .ilike("name", "Restock:%")

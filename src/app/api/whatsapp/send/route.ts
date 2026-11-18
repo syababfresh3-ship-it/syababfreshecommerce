@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendText, sendTemplate, sendMedia } from "@/lib/whatsapp-cloud";
 import { getSender } from "@/lib/wa-numbers";
+import { isGatewayNumber, gatewaySessionId, gatewayConfigured, gatewaySendText, gatewaySendMedia } from "@/lib/wa-gateway";
 
 export async function POST(req: NextRequest) {
   // Auth admin
@@ -49,10 +50,31 @@ export async function POST(req: NextRequest) {
   const sender = await getSender(sb, (conv as { phone_number_id?: string | null }).phone_number_id);
 
   // Hantar
-  let result;
+  let result: { ok: boolean; id?: string; error?: string };
   let type: string;
   let preview: string;
-  if (templateName) {
+  const pnid = (conv as { phone_number_id?: string | null }).phone_number_id;
+  if (isGatewayNumber(pnid)) {
+    // Nombor gateway (tak rasmi, 'gw:<session>'): teks/media bebas, tiada template & tiada tetingkap 24j.
+    if (!gatewayConfigured()) return NextResponse.json({ error: "Gateway WA belum dikonfigurasi (WA_GATEWAY_URL / WA_GATEWAY_KEY)." }, { status: 503 });
+    if (templateName) return NextResponse.json({ error: "Nombor gateway tidak guna template — hantar teks biasa." }, { status: 400 });
+    const sid = gatewaySessionId(pnid!);
+    if (imageUrl) {
+      result = await gatewaySendMedia(sid, waId, imageUrl, { caption: caption?.trim() || undefined, mediaType: "image" });
+      type = "image";
+      preview = caption?.trim() || "📷 Gambar";
+    } else if (documentUrl) {
+      result = await gatewaySendMedia(sid, waId, documentUrl, { caption: caption?.trim() || undefined, mediaType: "document", fileName: filename?.trim() || undefined });
+      type = "document";
+      preview = caption?.trim() || `📄 ${filename?.trim() || "Dokumen"}`;
+    } else if (text && text.trim()) {
+      result = await gatewaySendText(sid, waId, text.trim());
+      type = "text";
+      preview = text.trim();
+    } else {
+      return NextResponse.json({ error: "text diperlukan." }, { status: 400 });
+    }
+  } else if (templateName) {
     result = await sendTemplate(waId, templateName, templateLang || "ms", templateParams, undefined, sender);
     type = "template";
     preview = `[template] ${templateName}`;

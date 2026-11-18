@@ -90,7 +90,7 @@ export function BlastWizard() {
       setPastList((j.blasts ?? []).map((b: { id: string; name: string; total: number }) => ({ id: b.id, name: b.name, total: b.total }))),
     );
     supabase.from("crm_tags").select("name").order("name").then(({ data }: { data: { name: string }[] | null }) => setTagList((data ?? []).map((t) => t.name)));
-    supabase.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).order("created_at")
+    supabase.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).not("phone_number_id", "like", "gw:%").order("created_at")
       .then(({ data }: { data: { phone_number_id: string; display_name: string; is_default: boolean }[] | null }) => {
         setWaNumbers(data ?? []);
         const def = (data ?? []).find((n) => n.is_default) ?? (data ?? [])[0];
