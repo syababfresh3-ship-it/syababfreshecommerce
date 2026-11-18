@@ -18,13 +18,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendAdminPush } from "@/lib/push";
 import { isOptOutReply } from "@/lib/wa-optout";
 import { gatewayFetchMedia, gatewayNumberId } from "@/lib/wa-gateway";
+import { reportGatewayState } from "@/lib/wa-gateway-alerts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Admin = any;
 
 interface GwMedia { mime: string; filename: string | null; size: number; path: string }
 interface GwEvent {
-  event: "message" | "status" | "reaction";
+  event: "message" | "status" | "reaction" | "session";
   session_id: string;
   session_phone?: string | null;
   device_name?: string | null;
@@ -40,6 +41,9 @@ interface GwEvent {
   media?: GwMedia | null;
   status?: string;
   emoji?: string | null;
+  phone_number?: string | null;
+  reason?: string | null;
+  since?: string | null;
 }
 
 const MEDIA_EXT: Record<string, string> = {
@@ -72,6 +76,7 @@ export async function POST(req: NextRequest) {
     if (ev.event === "status") await handleStatus(sb, ev);
     else if (ev.event === "reaction") await handleReaction(sb, ev);
     else if (ev.event === "message") await handleMessage(sb, ev);
+    else if (ev.event === "session") await handleSession(sb, ev);
   } catch (e) {
     console.error("[gateway-webhook] gagal:", e);
     return NextResponse.json({ error: "internal" }, { status: 500 });
@@ -88,6 +93,13 @@ async function handleStatus(sb: Admin, ev: GwEvent) {
   if ((rank[ev.status] ?? 0) >= (rank[row.status as string] ?? 0)) {
     await sb.from("wa_messages").update({ status: ev.status }).eq("wa_message_id", ev.message_id);
   }
+}
+
+// Keadaan session dari gateway: disconnected (>5 min) / logged_out / connected (pulih) → emel + push admin.
+async function handleSession(sb: Admin, ev: GwEvent) {
+  const state = ev.status === "connected" ? "ok" : ev.status === "logged_out" ? "logged_out" : ev.status === "disconnected" ? "down" : null;
+  if (!state) return;
+  await reportGatewayState(sb, ev.session_id, state, { label: ev.device_name ?? null, phone: ev.phone_number ?? null, reason: ev.reason ?? null, since: ev.since ?? null });
 }
 
 async function handleReaction(sb: Admin, ev: GwEvent) {

@@ -69,3 +69,22 @@ export async function gatewayFetchMedia(mediaPath: string): Promise<{ data: Arra
     return null
   }
 }
+
+export interface GatewaySession { session_id: string; status: string; phone_number?: string | null; device_name?: string | null; sent_today?: number }
+
+/** GET /v1/sessions dengan timeout 10s — untuk pemeriksa kesihatan (cron wa-gateway-health). */
+export async function gatewayListSessions(): Promise<{ ok: boolean; sessions: GatewaySession[]; error?: string }> {
+  if (!gatewayConfigured()) return { ok: false, sessions: [], error: 'gateway tidak dikonfigurasi' }
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), 10_000)
+  try {
+    const res = await fetch(`${BASE}/v1/sessions`, { headers: { 'X-API-Key': KEY }, signal: ctl.signal, cache: 'no-store' })
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; sessions?: GatewaySession[]; error?: string }
+    if (!res.ok || data.success === false) return { ok: false, sessions: [], error: data.error || `HTTP ${res.status}` }
+    return { ok: true, sessions: data.sessions ?? [] }
+  } catch (e) {
+    return { ok: false, sessions: [], error: e instanceof Error && e.name === 'AbortError' ? 'timeout 10s' : String(e) }
+  } finally {
+    clearTimeout(t)
+  }
+}
