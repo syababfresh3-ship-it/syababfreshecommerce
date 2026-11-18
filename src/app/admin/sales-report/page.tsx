@@ -8,7 +8,9 @@ import Link from 'next/link'
 import { BarChart2, Users, Store, Package } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { classifyLpSource } from '@/lib/admin-order-filters'
+import { hasLpStaffColumn } from '@/lib/lp-staff-col'
 import { StatusDropdown, PaymentDropdown } from '../orders/order-dropdowns'
+import { PagedTable } from './paged-table'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = any
@@ -46,8 +48,9 @@ const bump = (map: Map<string, Agg>, key: string, o: { total: number; created_at
 async function getData(from: string, to: string) {
   const sb = createAdminClient()
   const start = `${from}T00:00:00+08:00`, end = `${to}T23:59:59+08:00`
+  const staffCol = (await hasLpStaffColumn(sb)) ? 'staff_name, ' : ''
   const [lp, web, gift, rs] = await Promise.all([
-    sb.from('lp_guest_orders').select('id, order_number, name, phone, total, source, reseller_id, status, payment_status, payment_method, created_at, product_name, quantity').gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(5000),
+    sb.from('lp_guest_orders').select(`id, order_number, name, phone, total, source, ${staffCol}reseller_id, status, payment_status, payment_method, created_at, product_name, quantity`).gte('created_at', start).lte('created_at', end).order('created_at', { ascending: false }).limit(5000),
     sb.from('orders').select('id, total, status, created_at').gte('created_at', start).lte('created_at', end).limit(5000),
     sb.from('gift_deals').select('id, amount, stage, created_at').gte('created_at', start).lte('created_at', end).limit(2000),
     sb.from('resellers').select('id, customers(name, phone_norm)'),
@@ -65,14 +68,19 @@ async function getData(from: string, to: string) {
   const borongOrders: Row[] = []
   for (const o of lpRows) {
     const c = classifyLpSource(o.source)
+    // Nama staf: lajur staff_name (migration 162, termasuk order borong) > source 'whatsapp-<nama>'.
+    // Huruf pertama diseragamkan supaya "man" & "Man" tidak terpisah.
+    const rawStaff = (typeof o.staff_name === 'string' && o.staff_name.trim()) || c.staffName || null
+    const staffKey = rawStaff ? rawStaff.trim().charAt(0).toUpperCase() + rawStaff.trim().slice(1) : null
     if (c.isReseller || o.reseller_id) {
       summary.borong.count++; summary.borong.total += o.total
       bump(byReseller, o.reseller_id ?? '—', o); borongOrders.push(o)
+      if (staffKey) bump(byStaff, staffKey, o) // order borong yang di-key-in staf (cth Mika) dikira jualan staf juga
     } else if (c.isStoreGuest) {
       summary.web.count++; summary.web.total += o.total
     } else if (c.isManual || o.source === 'crm') {
       summary.sales.count++; summary.sales.total += o.total
-      bump(byStaff, c.staffName ?? (o.source === 'crm' ? 'Inbox CRM' : o.source === 'manual' ? 'Manual' : 'Tanpa nama staf'), o)
+      bump(byStaff, staffKey ?? (o.source === 'crm' ? 'Inbox CRM' : o.source === 'manual' ? 'Manual' : 'Tanpa nama staf'), o)
     } else {
       summary.lp.count++; summary.lp.total += o.total
     }
@@ -128,7 +136,7 @@ export default async function SalesReportPage({ searchParams }: { searchParams: 
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid gap-6">
         {/* Ikut staf sales */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Users className="h-4 w-4 text-gray-500" />Ikut staf sales</h2>
@@ -149,28 +157,28 @@ export default async function SalesReportPage({ searchParams }: { searchParams: 
               </tbody>
             </table>
           </div>
-          <p className="text-[11px] text-gray-400 mt-1">Nama ikut pilihan Staf dalam Quick Order (sumber whatsapp-nama). Order tanpa nama staf dikumpul sebagai &quot;Tanpa nama staf&quot;.</p>
+          <p className="text-[11px] text-gray-400 mt-1">Nama ikut pilihan Staf dalam Quick Order — termasuk order borong yang di-key-in staf. Order sales tanpa nama staf dikumpul sebagai &quot;Tanpa nama staf&quot;.</p>
         </section>
 
         {/* Ikut pelanggan borong */}
         <section>
           <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Store className="h-4 w-4 text-gray-500" />Ikut pelanggan borong</h2>
           <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-500 text-xs"><tr><th className={th}>Pelanggan</th><th className={`${th} text-right`}>Order</th><th className={`${th} text-right`}>Jumlah</th><th className={`${th} text-right`}>Purata</th><th className={th}>Order terakhir</th></tr></thead>
-              <tbody className="divide-y divide-gray-50">
-                {d.byReseller.map(([name, a, id]) => (
-                  <tr key={id}>
-                    <td className="px-3 py-2 font-semibold text-gray-900">{name}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{a.count}</td>
-                    <td className="px-3 py-2 text-right font-mono text-gray-900">{rm(a.total)}</td>
-                    <td className="px-3 py-2 text-right font-mono text-gray-500">{rm(a.total / a.count)}</td>
-                    <td className="px-3 py-2 text-xs text-gray-500">{a.last ? `${fmtD(a.last)} · ${a.lastNo}` : '—'}</td>
-                  </tr>
-                ))}
-                {d.byReseller.length === 0 && <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">Tiada order borong dalam tempoh ini.</td></tr>}
-              </tbody>
-            </table>
+            <PagedTable
+              colSpan={5}
+              pageSize={15}
+              empty="Tiada order borong dalam tempoh ini."
+              head={<tr><th className={th}>Pelanggan</th><th className={`${th} text-right`}>Order</th><th className={`${th} text-right`}>Jumlah</th><th className={`${th} text-right`}>Purata</th><th className={th}>Order terakhir</th></tr>}
+              rows={d.byReseller.map(([name, a, id]) => (
+                <tr key={id}>
+                  <td className="px-3 py-2 font-semibold text-gray-900">{name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{a.count}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-900">{rm(a.total)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-gray-500">{rm(a.total / a.count)}</td>
+                  <td className="px-3 py-2 text-xs text-gray-500">{a.last ? `${fmtD(a.last)} · ${a.lastNo}` : '—'}</td>
+                </tr>
+              ))}
+            />
           </div>
           <p className="text-[11px] text-gray-400 mt-1">Order Quick Order yang dipilih pelanggan borong (sumber reseller). Urus pelanggan & harga di <Link href="/admin/resellers" className="underline">Borong</Link>.</p>
         </section>
@@ -180,23 +188,23 @@ export default async function SalesReportPage({ searchParams }: { searchParams: 
       <section className="mt-6">
         <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><Package className="h-4 w-4 text-gray-500" />Order borong dalam tempoh ({d.borongOrders.length})</h2>
         <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs"><tr><th className={th}>Tarikh</th><th className={th}>Order</th><th className={th}>Pelanggan</th><th className={th}>Produk</th><th className={`${th} text-right`}>Jumlah</th><th className={th}>Status</th><th className={th}>Bayaran</th></tr></thead>
-            <tbody className="divide-y divide-gray-50">
-              {d.borongOrders.map((o: Row) => (
-                <tr key={o.id}>
-                  <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtD(o.created_at)}</td>
-                  <td className="px-3 py-2 font-mono text-gray-700"><Link href={`/admin/orders/lp/${o.id}`} className="hover:underline">{o.order_number}</Link></td>
-                  <td className="px-3 py-2 text-gray-900">{d.resellerName.get(o.reseller_id) ?? o.name}</td>
-                  <td className="px-3 py-2 text-gray-600 max-w-[22rem] truncate">{o.product_name}{o.quantity > 1 ? ` ×${o.quantity}` : ''}</td>
-                  <td className="px-3 py-2 text-right font-mono text-gray-900">{rm(o.total)}</td>
-                  <td className="px-3 py-1.5"><StatusDropdown orderId={o.id} currentStatus={o.status} isLp /></td>
-                  <td className="px-3 py-1.5"><PaymentDropdown orderId={o.id} currentStatus={o.payment_status ?? 'unpaid'} paymentMethod={o.payment_method} isLp allowManual /></td>
-                </tr>
-              ))}
-              {d.borongOrders.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-gray-400">Tiada order borong dalam tempoh ini.</td></tr>}
-            </tbody>
-          </table>
+          <PagedTable
+            colSpan={7}
+            pageSize={20}
+            empty="Tiada order borong dalam tempoh ini."
+            head={<tr><th className={th}>Tarikh</th><th className={th}>Order</th><th className={th}>Pelanggan</th><th className={th}>Produk</th><th className={`${th} text-right`}>Jumlah</th><th className={th}>Status</th><th className={th}>Bayaran</th></tr>}
+            rows={d.borongOrders.map((o: Row) => (
+              <tr key={o.id}>
+                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{fmtD(o.created_at)}</td>
+                <td className="px-3 py-2 font-mono text-gray-700"><Link href={`/admin/orders/lp/${o.id}`} className="hover:underline">{o.order_number}</Link></td>
+                <td className="px-3 py-2 text-gray-900">{d.resellerName.get(o.reseller_id) ?? o.name}</td>
+                <td className="px-3 py-2 text-gray-600 max-w-[22rem] truncate">{o.product_name}{o.quantity > 1 ? ` ×${o.quantity}` : ''}</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-900">{rm(o.total)}</td>
+                <td className="px-3 py-1.5"><StatusDropdown orderId={o.id} currentStatus={o.status} isLp /></td>
+                <td className="px-3 py-1.5"><PaymentDropdown orderId={o.id} currentStatus={o.payment_status ?? 'unpaid'} paymentMethod={o.payment_method} isLp allowManual /></td>
+              </tr>
+            ))}
+          />
         </div>
         <p className="text-[11px] text-gray-400 mt-1">Status &amp; bayaran boleh ditukar terus di sini. Semua order borong (tanpa had tempoh) + invois ada di <Link href="/admin/resellers" className="underline">Borong</Link>.</p>
       </section>

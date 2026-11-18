@@ -1,4 +1,5 @@
 import { requireAdmin } from '@/lib/supabase/require-admin'
+import { hasLpStaffColumn } from '@/lib/lp-staff-col'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { NextResponse } from 'next/server'
@@ -13,6 +14,9 @@ export async function POST(request: Request) {
   const { name, phone, email, address, postcode, notes, payment_method, items, source = 'whatsapp', discount, reseller_id, delivery_fee, delivery_method, pickup_date } = body
   const discountNum = Math.max(0, Number(discount) || 0)
   const isReseller = typeof reseller_id === 'string' && reseller_id.length > 0
+  // Nama staf dari Quick Order ('whatsapp-<nama>') disimpan berasingan — order reseller/borong
+  // kekal source 'reseller' (dipakai export/loyalty/detail) tapi staf tidak hilang lagi.
+  const staffName = typeof source === 'string' && source.startsWith('whatsapp-') ? (source.slice('whatsapp-'.length).trim() || null) : null
   const isPickup = delivery_method === 'pickup' // additive: pickup → alamat/poskod optional, fee 0
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
@@ -155,6 +159,7 @@ export async function POST(request: Request) {
     ...(paidUpfront ? { payment_status: 'paid' } : {}),
     source: isReseller ? 'reseller' : source,
     reseller_id: isReseller ? reseller_id : null,
+    ...(staffName && (await hasLpStaffColumn(supabase)) ? { staff_name: staffName } : {}),
     items: validatedItems,
     status: 'confirmed', // WA orders already confirmed
   }).select('id, order_number, total').single()

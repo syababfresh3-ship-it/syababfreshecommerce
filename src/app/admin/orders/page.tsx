@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { hasLpStaffColumn } from '@/lib/lp-staff-col'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { OrderFilters } from './order-filters'
@@ -128,13 +129,15 @@ const LP_SELECT =
 // semakan semula + kira-kira team sales) — hanya cancelled/refunded disorok.
 async function getAllLpOrders(status: string | undefined, bounds: Bounds, pageId?: string) {
   const supabase = createAdminClient()
+  // staff_name (migration 162) dipilih hanya jika lajur wujud — kod selamat sebelum/selepas migration.
+  const lpSelect = (await hasLpStaffColumn(supabase)) ? LP_SELECT.replace('source, needs_approval', 'source, staff_name, needs_approval') : LP_SELECT
   const { gte, lt, lte } = bounds
   const CHUNK = 1000
   const all: any[] = []
   for (let from = 0; ; from += CHUNK) {
     let q = supabase
       .from('lp_guest_orders')
-      .select(LP_SELECT)
+      .select(lpSelect)
       .order('created_at', { ascending: false })
       .range(from, from + CHUNK - 1)
     if (status) q = q.eq('status', status)
@@ -240,7 +243,7 @@ export default async function AdminOrdersPage({
     })),
     _isLp: true,
     _isManual: isManual,
-    _staff: staffName,
+    _staff: lp.staff_name ?? staffName, // staff_name (migration 162) menang — order borong source 'reseller' pun ada staf
     _isReseller: isReseller,
     _isStoreGuest: isStoreGuest,
     _lpTitle: (isManual || isReseller || isStoreGuest) ? null : (Array.isArray(lp.landing_pages) ? lp.landing_pages[0]?.title : lp.landing_pages?.title),
@@ -259,6 +262,7 @@ export default async function AdminOrdersPage({
       .filter((o: any) => typeof o.source === 'string' && o.source.startsWith('whatsapp-'))
       .map((o: any) => o.source.slice('whatsapp-'.length))
       .filter(Boolean),
+    ...allLpOrders.map((o: any) => (typeof o.staff_name === 'string' ? o.staff_name.trim() : '')).filter(Boolean),
   ])].sort()
 
   // Tapis "Keyin Manual" (lp=manual) & ikut staf

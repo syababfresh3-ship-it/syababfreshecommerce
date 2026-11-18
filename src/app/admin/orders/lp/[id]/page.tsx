@@ -66,6 +66,9 @@ export default async function LpOrderDetailPage({ params }: { params: Promise<{ 
               {order.source === 'reseller'
                 ? <span className="text-xs font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">Reseller</span>
                 : <span className="text-xs font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full">LP</span>}
+              {order.staff_name && (
+                <span className="text-xs font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Staf: {order.staff_name}</span>
+              )}
               {order.delivery_method === 'pickup' && (
                 <span className="text-xs font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">PICKUP</span>
               )}

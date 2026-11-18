@@ -404,8 +404,9 @@ export default function QuickOrderPage() {
           ) : (
             <div className="space-y-2">
               {items.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
-                  <div className="flex-1 min-w-0">
+                <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                  {/* Telefon: nama item ambil satu baris penuh (dulu dihimpit ke 0px oleh kawalan qty/harga) */}
+                  <div className="basis-full sm:basis-auto sm:flex-1 min-w-0">
                     {item.custom ? (
                       <input
                         value={item.product_name}
