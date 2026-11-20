@@ -14,6 +14,27 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { pickLpOgImage, lpFirstCheckoutSlugs } from '@/lib/lp-og-image'
 
 const FALLBACK = '/og-image.jpg'
+
+// Gambar lebar → potong cover 1200×630. Gambar tinggi/segi empat (poster 4:5, foto produk 1:1) → papar PENUH
+// di tengah atas latar kabur gambar yang sama, supaya tajuk/harga poster tak terpotong.
+export async function renderOg(buf: Buffer): Promise<Buffer> {
+  const src = sharp(buf).rotate()
+  const meta = await src.metadata()
+  const ratio = (meta.width ?? 1) / (meta.height ?? 1)
+  if (ratio >= 1.5) {
+    return src.resize(1200, 630, { fit: 'cover', position: 'attention' }).flatten({ background: '#ffffff' }).jpeg({ quality: 82, mozjpeg: true }).toBuffer()
+  }
+  const [bg, fg] = await Promise.all([
+    sharp(buf).rotate().resize(1200, 630, { fit: 'cover' }).blur(28).modulate({ brightness: 0.72, saturation: 1.1 }).toBuffer(),
+    sharp(buf).rotate().resize(1200, 630, { fit: 'inside' }).toBuffer(),
+  ])
+  const fgMeta = await sharp(fg).metadata()
+  return sharp(bg)
+    .composite([{ input: fg, left: Math.round((1200 - (fgMeta.width ?? 0)) / 2), top: Math.round((630 - (fgMeta.height ?? 0)) / 2) }])
+    .flatten({ background: '#ffffff' })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer()
+}
 const MAX_BYTES = 12 * 1024 * 1024
 
 export async function GET(req: Request, ctx: { params: Promise<{ slug: string }> }) {
@@ -50,12 +71,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
       clearTimeout(t)
     }
 
-    const out = await sharp(buf)
-      .rotate()
-      .resize(1200, 630, { fit: 'cover', position: 'attention' })
-      .flatten({ background: '#ffffff' })
-      .jpeg({ quality: 82, mozjpeg: true })
-      .toBuffer()
+    const out = await renderOg(buf)
 
     return new NextResponse(new Uint8Array(out), {
       headers: {
