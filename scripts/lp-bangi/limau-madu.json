@@ -1,0 +1,16 @@
+{
+  "slug": "limau-madu-bangi",
+  "name": "Limau Madu",
+  "unit": "kg",
+  "description": "Limau madu manis berair, mudah dikupas — sesuai untuk seisi keluarga. Harga istimewa warga Bangi dari RM4/kg — selagi stok ada.",
+  "image_from": "mandarin-l",
+  "after": "Epal Fuji S",
+  "checkout_after": "epal-fuji-s-bangi",
+  "unit_line": "Dari RM4/kg",
+  "_nota": "kos pemilik RM2.90/kg (21 Nov 2026), tier agresif ~30% margin; coret rujukan RM5.90/kg",
+  "variants": [
+    { "name": "1kg", "normal": 5.9, "lp": 4.5, "weight_grams": 1000 },
+    { "name": "2kg", "normal": 11.8, "lp": 8.5, "weight_grams": 2000 },
+    { "name": "3kg", "normal": 17.7, "lp": 12, "weight_grams": 3000 }
+  ]
+}
