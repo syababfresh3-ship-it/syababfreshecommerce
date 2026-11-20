@@ -208,7 +208,7 @@ export function localBusinessSchema() {
     name: 'SyababFresh — Kedai Buah Segar Bangi',
     parentOrganization: { '@id': `${BASE_URL}/#organization` },
     url: BASE_URL,
-    image: `${BASE_URL}/og-image.png`,
+    image: `${BASE_URL}/og-image.jpg`,
     telephone: '+601156816548',
     address: {
       '@type': 'PostalAddress',

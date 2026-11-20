@@ -60,13 +60,13 @@ export const metadata: Metadata = {
     siteName: "SyababFresh",
     title: "SyababFresh — Buah Segar Online",
     description: "Beli kurma online & buah online — kurma Ajwa, Safawi, Medjoul, ceri import & anggur dihantar sejuk dalam 24 jam. Jaminan kesegaran 100%.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SyababFresh" }],
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "SyababFresh" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "SyababFresh — Buah Segar Online",
     description: "Beli kurma online & buah online — kurma Ajwa, ceri import & buah segar dihantar sejuk dalam 24 jam. Jaminan kesegaran 100%.",
-    images: ["/og-image.png"],
+    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,

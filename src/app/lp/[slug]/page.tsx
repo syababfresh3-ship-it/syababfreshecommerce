@@ -153,7 +153,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (res.error?.code === '42703') res = await q('title')
   const row = (res.data ?? null) as { title?: string; host?: unknown } | null
   const title = row?.title ?? 'SyababFresh'
-  if (normalizeLpHost(row?.host) !== 'kurma') return { title }
+  if (normalizeLpHost(row?.host) !== 'kurma') {
+    // Pratonton pautan (Threads/IG/WA): gambar LP sendiri via /api/lp-og/[slug] (JPEG 1200×630,
+    // dipilih dari HTML LP / produk pertama; override <!-- og-image: URL -->). Dulu: og-image.png lalai.
+    const og = `/api/lp-og/${slug}`
+    return {
+      title,
+      openGraph: { title, type: 'website', siteName: 'SyababFresh', locale: 'ms_MY', url: `/lp/${slug}`, images: [{ url: og, width: 1200, height: 630, alt: title }] },
+      twitter: { card: 'summary_large_image', title, images: [og] },
+    }
+  }
   // LP di subdomain kurma: canonical & OG ikut hos kurma (OG gift box kongsi — JPEG berfoto)
   const url = lpPublicPath(slug, 'kurma')
   return {

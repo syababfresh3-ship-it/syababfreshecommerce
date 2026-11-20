@@ -6,11 +6,12 @@ import { createClient } from '@/lib/supabase/server'
 import { SfProduct } from '@/components/storev2/sf-product'
 import { getBoughtTogether, getUnitsSold30d } from '@/lib/merchandising'
 import { JsonLd, productSchema, withAggregateRating, breadcrumbSchema } from '@/components/seo/json-ld'
+import { AffiliateCapture } from './affiliate-capture'
 
 // Fix 8: `openGraph` pada segmen anak MENINDIH seluruh openGraph root (bukan merge) —
 // tanpa `images` di sini page langsung tiada og:image (disahkan pada /kategori/*).
 // Jadi fallback eksplisit ke imej root; URL relatif diselesaikan oleh metadataBase.
-const ROOT_OG_IMAGE = { url: '/og-image.png', width: 1200, height: 630, alt: 'SyababFresh' }
+const ROOT_OG_IMAGE = { url: '/og-image.jpg', width: 1200, height: 630, alt: 'SyababFresh' }
 
 async function getProduct(slug: string) {
   const supabase = await createClient()
@@ -164,6 +165,8 @@ export default async function ProductDetailPage({
 
   return (
     <>
+      {/* Tangkap attribution affiliate (?aff=KOD) — migration 139 */}
+      <AffiliateCapture slug={product.slug} />
       {/* Structured data — produk + rating sebenar (bintang di carian Google) + breadcrumb */}
       <JsonLd data={withAggregateRating(productSchema(product), reviewsRes.data ?? [])} />
       <JsonLd

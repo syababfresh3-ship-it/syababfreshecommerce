@@ -19,7 +19,7 @@ export const revalidate = 300
 
 // Fix 8: openGraph anak tak mewarisi `images` root (lihat products/[slug]) —
 // guna imej kategori jika ada, jika tiada fallback eksplisit ke imej root.
-const ROOT_OG_IMAGE = { url: '/og-image.png', width: 1200, height: 630, alt: 'SyababFresh' }
+const ROOT_OG_IMAGE = { url: '/og-image.jpg', width: 1200, height: 630, alt: 'SyababFresh' }
 
 // Kategori jarang berubah — jana statik masa build, revalidate setiap 5 minit.
 export async function generateStaticParams() {
