@@ -48,9 +48,10 @@ export interface BorongCatalogEntry {
 }
 
 export const BORONG_CATALOG: BorongCatalogEntry[] = [
-  // Gred Ajwa diseragamkan ikut gred supplier 2027 (11 Nov): AA · AA Premium · Large · Jumbo · VIP (slug lama kekal untuk URL)
-  { slug: 'ajwa-medium', group: 'ajwa', grade: 'AA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
-  { slug: 'ajwa-aa-premium', group: 'ajwa', grade: 'AA Premium', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
+  // Gred Ajwa ikut gred supplier sheet 2027. 21 Nov: pemilik tukar label gred dalam sheet — "AA" (kos RM16/kg) jadi "A",
+  // "AA Premium" (kos RM21/kg) jadi "AA". Slug lama kekal untuk URL; padanan sheet→slug (suggestCatalogSlug) ikut `grade` ini.
+  { slug: 'ajwa-medium', group: 'ajwa', grade: 'A', pack: '5kg/ctn', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
+  { slug: 'ajwa-aa-premium', group: 'ajwa', grade: 'AA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'ajwa-large', group: 'ajwa', grade: 'Large', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'ajwa-aliyah-mix', group: 'ajwa', grade: 'Aliyah', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'ajwa-jumbo', group: 'ajwa', grade: 'Jumbo', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },

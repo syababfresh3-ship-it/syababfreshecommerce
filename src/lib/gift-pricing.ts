@@ -25,7 +25,12 @@ export const SHEET_WEIGHTS: readonly SheetWeight[] = ['100g', '200g', '500g']
 export const QTY_PRESETS: readonly number[] = [50, 100, 200, 500, 1000, 2000]
 
 // Angka disalin dari sheet 11 Nov 2026 (tier 50/100/200 = "Custom kuantiti kecil", 500/1000/2000 = "Custom pukal").
+// 21 Nov 2026: sheet tambah gred "Ajwa A" (bawah AA) — disemak semula, angka lain tak berubah.
 export const KURMA: readonly SheetKurma[] = [
+  { id: 'ajwa-a', name: 'Ajwa A', note: 'Ajwa Madinah gred asas · paling mesra bajet', w: {
+    '100g': { 50: 12.5, 100: 11.5, 200: 10.5, 500: 7, 1000: 6.5, 2000: 6 },
+    '200g': { 50: 19, 100: 18, 200: 17, 500: 11, 1000: 10, 2000: 9 },
+    '500g': { 500: 23.5, 1000: 21.5, 2000: 19.5 } } },
   { id: 'ajwa-aa', name: 'Ajwa AA', note: 'Kurma Madinah · popular untuk korporat', w: {
     '100g': { 50: 13, 100: 12, 200: 11, 500: 7.5, 1000: 7, 2000: 6.5 },
     '200g': { 50: 20, 100: 19, 200: 18, 500: 12, 1000: 11, 2000: 10 },
@@ -61,8 +66,9 @@ export const KURMA: readonly SheetKurma[] = [
     '500g': { 50: 17, 100: 16, 200: 13, 500: 17, 1000: 16, 2000: 14 } } },
 ]
 
-/** ID sheet 2026 yang tiada lagi dalam 2027 → padanan terdekat, supaya enquiry/RFQ lama (kurma_id disimpan) masih boleh dikira. */
-export const LEGACY_KURMA_IDS: Readonly<Record<string, string>> = { 'ajwa-aa-premium': 'ajwa-large' }
+/** ID sheet 2026 yang tiada lagi dalam 2027 → padanan terdekat, supaya enquiry/RFQ lama (kurma_id disimpan) masih boleh dikira.
+ *  21 Nov 2026: pemilik sahkan "Ajwa Premium" lama = gred AA sekarang (dulu dipetakan ke Large). */
+export const LEGACY_KURMA_IDS: Readonly<Record<string, string>> = { 'ajwa-aa-premium': 'ajwa-aa' }
 
 /** Julat harga/kotak seluruh sheet (untuk schema/teks "dari RM__") + tier kuantiti terkecil. Dikira, bukan hardcode. */
 export function sheetPriceRange(): { low: number; high: number; minQty: number } {

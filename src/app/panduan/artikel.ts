@@ -264,7 +264,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Ajwa — hitam, lembut, manis halus',
         body: [
           'Ajwa datang dari Madinah, dan inilah kurma yang paling dicari di Malaysia terutama menjelang Ramadan; gred besar selalunya habis dahulu, jadi lihat [panduan bila patut order kurma Ramadan](/panduan/bila-order-kurma-ramadan-2027) sebelum musim tiba. Warnanya hitam kelam dengan permukaan berkedut halus, teksturnya lembut, dan yang membezakannya: manisnya paling halus antara semua jenis dalam senarai ini. Ia tidak menyengat tekak walaupun dimakan beberapa biji berturut-turut.',
-          'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — AA, AA Premium, Large, Jumbo dan VIP — jadi harga banyak bergantung pada saiz, bukan rasa.',
+          'Sebab manisnya sederhana, Ajwa sesuai untuk orang yang rasa kurma lain terlalu manis. Ia juga digredkan mengikut saiz biji — A, AA, Large, Aliyah, Jumbo dan VIP — jadi harga banyak bergantung pada saiz, bukan rasa.',
           'Pilih Ajwa kalau: anda mahu kurma untuk dimakan setiap hari tanpa rasa memberat, atau untuk dihadiahkan kepada orang yang memang mencari kurma Madinah. [Lihat semua kurma Ajwa](/kategori/kurma-ajwa).',
         ],
       },
@@ -365,7 +365,7 @@ export const ARTIKEL: Artikel[] = [
     slug: 'panduan-kurma-ajwa',
     title: 'Panduan Kurma Ajwa: Beza Gred Medium, Large, Jumbo & Cara Simpan',
     description:
-      'Semua yang perlu anda tahu tentang kurma Ajwa Madinah — apa beza gred AA, AA Premium, Large, Jumbo dan VIP, gred mana untuk tujuan apa, ciri Ajwa yang biasa, dan cara simpan supaya kekal lembut.',
+      'Semua yang perlu anda tahu tentang kurma Ajwa Madinah — apa beza gred A, AA, Large, Aliyah, Jumbo dan VIP, gred mana untuk tujuan apa, ciri Ajwa yang biasa, dan cara simpan supaya kekal lembut.',
     updated: '2026-07',
     sections: [
       {
@@ -380,7 +380,7 @@ export const ARTIKEL: Artikel[] = [
         heading: 'Gred Ajwa: apa sebenarnya yang berbeza?',
         body: [
           'Ini soalan paling kerap ditanya, dan jawapannya lebih mudah daripada yang disangka: gred Ajwa ialah gred SAIZ, bukan gred rasa. Ajwa AA dan Ajwa VIP datang dari kultivar yang sama dengan profil rasa yang sama. Yang berbeza ialah saiz biji dan keseragaman bentuk.',
-          'AA ialah saiz asas — muat sekali suap dan paling menjimatkan. AA Premium satu tingkat lebih berisi dan seragam. Large lebih padat. Jumbo ketara lebih besar dengan isi yang lebih tebal. VIP pula disaring pada saiz paling besar dan bentuk paling seragam, jadi ia yang paling menonjol bila disusun dalam bekas atau dulang.',
+          'A ialah saiz asas — muat sekali suap dan paling menjimatkan. AA satu tingkat lebih berisi dan seragam. Large lebih padat. Aliyah pula pek saiz bercampur yang lebih berpatutan. Jumbo ketara lebih besar dengan isi yang lebih tebal. VIP pula disaring pada saiz paling besar dan bentuk paling seragam, jadi ia yang paling menonjol bila disusun dalam bekas atau dulang.',
           'Kerana rasa asasnya sama, memilih gred sebenarnya soal tujuan dan bajet — bukan soal mana lebih sedap.',
         ],
       },
@@ -429,8 +429,8 @@ export const ARTIKEL: Artikel[] = [
     ],
     faq: [
       {
-        q: 'Apa beza Ajwa AA, AA Premium, Large, Jumbo dan VIP?',
-        a: 'Semuanya kurma Ajwa yang sama dengan rasa yang sama — yang berbeza hanya saiz biji dan keseragaman bentuk. AA paling kecil dan paling menjimatkan; VIP disaring pada saiz paling besar dan paling seragam.',
+        q: 'Apa beza Ajwa A, AA, Large, Aliyah, Jumbo dan VIP?',
+        a: 'Semuanya kurma Ajwa yang sama dengan rasa yang sama — yang berbeza hanya saiz biji dan keseragaman bentuk. A paling kecil dan paling menjimatkan; VIP disaring pada saiz paling besar dan paling seragam.',
       },
       {
         q: 'Ajwa gred besar lebih sedap ke?',
@@ -778,7 +778,7 @@ export const ARTIKEL: Artikel[] = [
       {
         heading: 'Harga dan gred: apa yang anda bayar sebenarnya',
         body: [
-          'Kedua-dua kurma ini digredkan ikut saiz biji, bukan ikut rasa — Large, Jumbo dan Super Jumbo untuk Medjool; AA, AA Premium, Large, Jumbo dan VIP untuk Ajwa. Rasa asas dalam satu kultivar lebih kurang sama; yang naik bersama gred ialah saiz, keseragaman dan rupa di atas dulang. Jadi kalau kurma itu untuk dimakan sendiri, gred rendah bukan pilihan yang salah.',
+          'Kedua-dua kurma ini digredkan ikut saiz biji, bukan ikut rasa — Large, Jumbo dan Super Jumbo untuk Medjool; A, AA, Large, Aliyah, Jumbo dan VIP untuk Ajwa. Rasa asas dalam satu kultivar lebih kurang sama; yang naik bersama gred ialah saiz, keseragaman dan rupa di atas dulang. Jadi kalau kurma itu untuk dimakan sendiri, gred rendah bukan pilihan yang salah.',
           'Di kedai kami pada masa artikel ini ditulis, Ajwa bermula sekitar RM12 untuk pek 100g gred AA, dan sekilo gred Large sekitar RM72, Jumbo RM83, VIP RM99. Medjool Palestin sekilo pula sekitar RM79 untuk Large, RM89 Jumbo dan RM99 Super Jumbo, dengan pek 100g sekitar RM15 hingga RM17 untuk mencuba. Harga boleh berubah ikut kiriman dan musim, jadi semak harga semasa pada page produk sebelum order.',
           'Dua perkara yang mengubah nilai sebenar: pertama, sekilo Medjool mengandungi lebih sedikit biji berbanding sekilo Ajwa kerana saiznya, jadi harga per biji Medjool lebih tinggi. Kedua, Ajwa gred tinggi dan Medjool gred tinggi sebenarnya berada dalam julat harga yang hampir sama — apa yang anda pilih antara keduanya lebih bergantung pada tujuan daripada bajet. [Lihat semua gred Ajwa](/kategori/kurma-ajwa), dan untuk pecahan gred yang lebih terperinci baca [panduan kurma Ajwa](/panduan/panduan-kurma-ajwa).',
         ],

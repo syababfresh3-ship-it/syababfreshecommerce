@@ -16,6 +16,16 @@ export interface BorongSettingsTerms {
   sampleAvailable: boolean | null; sampleNote: string | null
   ramadan: { preorderOpen: string | null; preorderClose: string | null; priceLockNote: string | null; deliveryWindow: string | null }
 }
+/** Harga promo SEMENTARA (tab "Harga Promo 2027") — menimpa prices/tiers per slug sehingga `until` (inklusif, tarikh KL),
+ *  selepas itu LP/sebut harga kembali ke harga biasa SENDIRI tanpa perlu ubah apa-apa. Ditulis oleh POST /api/admin/settings/borong/promo. */
+export interface BorongPromo {
+  until: string | null            // 'YYYY-MM-DD'
+  label: string | null            // cth "Harga promo sehingga 10 Dis 2026" (dipapar di LP)
+  source: string | null           // cth "Harga Promo 2027 · Senario A"
+  applied_at: string | null       // ISO
+  prices: Record<string, number>
+  tiers: Record<string, BorongPriceTier[]>
+}
 export interface BorongSettings {
   /** 'YYYY-MM-DD' — ditetapkan auto bila harga disimpan. */
   updated: string | null
@@ -26,10 +36,11 @@ export interface BorongSettings {
   /** slug → tangga tier (LP papar cip tier bila ada; kosong = hanya "dari RM"). */
   tiers: Record<string, BorongPriceTier[]>
   terms: BorongSettingsTerms
+  promo: BorongPromo | null
 }
 
 export const EMPTY_BORONG_SETTINGS: BorongSettings = {
-  updated: null, defaultPct: null, byGroup: {}, prices: {}, tiers: {},
+  updated: null, defaultPct: null, byGroup: {}, prices: {}, tiers: {}, promo: null,
   terms: {
     moqCtn: null, mixAllowed: null, leadTime: null, freeAboveRm: null, deliveryNote: null, pickup: null,
     paymentMethods: [], creditNote: null, returnsNote: null, sampleAvailable: null, sampleNote: null,
@@ -42,6 +53,41 @@ const GROUPS = new Set<string>(BORONG_GROUPS.map(g => g.id))
 const num = (v: unknown, min = 0, max = 1_000_000): number | null => { const n = typeof v === 'string' && v.trim() === '' ? NaN : Number(v); return v == null || !Number.isFinite(n) || n < min || n > max ? null : n }
 const str = (v: unknown, max: number): string | null => { if (typeof v !== 'string') return null; const s = v.trim().slice(0, max); return s || null }
 const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : v === 'true' ? true : v === 'false' ? false : null)
+
+function parsePrices(v: unknown): Record<string, number> {
+  const prices: Record<string, number> = {}
+  for (const [slug, x] of Object.entries((v && typeof v === 'object' ? v : {}) as Record<string, unknown>)) {
+    const n = num(x, 0.01, 100_000); if (SLUGS.has(slug) && n != null) prices[slug] = Math.round(n * 100) / 100
+  }
+  return prices
+}
+/** Tangga tier per slug: label ≤30 aksara, minCtn ≥1, maxCtn null (terbuka) atau ≥ minCtn, harga 0.01–100k; maks 6 tier */
+function parseTiers(v: unknown): Record<string, BorongPriceTier[]> {
+  const tiers: Record<string, BorongPriceTier[]> = {}
+  for (const [slug, arr] of Object.entries((v && typeof v === 'object' ? v : {}) as Record<string, unknown>)) {
+    if (!SLUGS.has(slug) || !Array.isArray(arr)) continue
+    const list: BorongPriceTier[] = []
+    for (const x of (arr as unknown[]).slice(0, 6)) {
+      const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>
+      const minCtn = num(o.minCtn, 1, 10_000), price = num(o.price, 0.01, 100_000), label = str(o.label, 30)
+      const maxCtn = o.maxCtn == null || o.maxCtn === '' ? null : num(o.maxCtn, 1, 10_000)
+      if (minCtn == null || price == null || !label) continue
+      list.push({ label, minCtn: Math.floor(minCtn), maxCtn: maxCtn == null ? null : Math.max(Math.floor(minCtn), Math.floor(maxCtn)), price: Math.round(price * 100) / 100 })
+    }
+    if (list.length) tiers[slug] = list.sort((a, b) => a.minCtn - b.minCtn)
+  }
+  return tiers
+}
+
+/** Tarikh hari ini di Kuala Lumpur (YYYY-MM-DD) — tempoh promo dinilai ikut tarikh tempatan, bukan UTC. */
+export const todayKL = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' })
+/** Promo berkuat kuasa jika ada tarikh akhir dan hari ini ≤ tarikh itu (inklusif). */
+export function activePromo(s: BorongSettings, today = todayKL()): BorongPromo | null {
+  return s.promo?.until && today <= s.promo.until ? s.promo : null
+}
+/** Harga/tier yang BERKUAT KUASA (promo aktif menimpa per slug; selepas tamat → biasa). Semua pembaca guna ini, bukan s.prices/s.tiers terus. */
+export function pricesOf(s: BorongSettings, today = todayKL()): Record<string, number> { const p = activePromo(s, today); return p ? { ...s.prices, ...p.prices } : s.prices }
+export function tiersOf(s: BorongSettings, today = todayKL()): Record<string, BorongPriceTier[]> { const p = activePromo(s, today); return p ? { ...s.tiers, ...p.tiers } : s.tiers }
 
 /** Toleran — JSON rosak/kosong → bentuk lengkap dengan null. */
 export function parseBorongSettings(raw: string | null | undefined): BorongSettings {
@@ -58,29 +104,20 @@ export function normalizeBorongSettings(input: unknown): BorongSettings {
   for (const [g, v] of Object.entries((i.byGroup && typeof i.byGroup === 'object' ? i.byGroup : {}) as Record<string, unknown>)) {
     const n = num(v, 0, 95); if (GROUPS.has(g) && n != null) byGroup[g as BorongGroup] = n
   }
-  const prices: Record<string, number> = {}
-  for (const [slug, v] of Object.entries((i.prices && typeof i.prices === 'object' ? i.prices : {}) as Record<string, unknown>)) {
-    const n = num(v, 0.01, 100_000); if (SLUGS.has(slug) && n != null) prices[slug] = Math.round(n * 100) / 100
-  }
-  // Tangga tier per slug: label ≤30 aksara, minCtn ≥1, maxCtn null (terbuka) atau ≥ minCtn, harga 0.01–100k; maks 6 tier
-  const tiers: Record<string, BorongPriceTier[]> = {}
-  for (const [slug, arr] of Object.entries((i.tiers && typeof i.tiers === 'object' ? i.tiers : {}) as Record<string, unknown>)) {
-    if (!SLUGS.has(slug) || !Array.isArray(arr)) continue
-    const list: BorongPriceTier[] = []
-    for (const x of (arr as unknown[]).slice(0, 6)) {
-      const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>
-      const minCtn = num(o.minCtn, 1, 10_000), price = num(o.price, 0.01, 100_000), label = str(o.label, 30)
-      const maxCtn = o.maxCtn == null || o.maxCtn === '' ? null : num(o.maxCtn, 1, 10_000)
-      if (minCtn == null || price == null || !label) continue
-      list.push({ label, minCtn: Math.floor(minCtn), maxCtn: maxCtn == null ? null : Math.max(Math.floor(minCtn), Math.floor(maxCtn)), price: Math.round(price * 100) / 100 })
-    }
-    if (list.length) tiers[slug] = list.sort((a, b) => a.minCtn - b.minCtn)
-  }
+  const prices = parsePrices(i.prices), tiers = parseTiers(i.tiers)
   const updated = str(i.updated, 10)
+  const pr = (i.promo && typeof i.promo === 'object' ? i.promo : null) as Record<string, unknown> | null
+  const promoUntil = pr ? str(pr.until, 10) : null
+  const promo: BorongPromo | null = pr ? {
+    until: promoUntil && /^\d{4}-\d{2}-\d{2}$/.test(promoUntil) ? promoUntil : null,
+    label: str(pr.label, 80), source: str(pr.source, 80), applied_at: str(pr.applied_at, 40),
+    prices: parsePrices(pr.prices), tiers: parseTiers(pr.tiers),
+  } : null
   return {
     updated: updated && /^\d{4}-\d{2}-\d{2}$/.test(updated) ? updated : null,
     defaultPct: num(i.defaultPct, 0, 95),
     byGroup, prices, tiers,
+    promo: promo && (Object.keys(promo.prices).length || Object.keys(promo.tiers).length) ? promo : null,
     terms: {
       moqCtn: (() => { const n = num(t.moqCtn, 1, 10_000); return n == null ? null : Math.floor(n) })(),
       mixAllowed: bool(t.mixAllowed), leadTime: str(t.leadTime, 160),
@@ -114,7 +151,8 @@ export function effectiveTerms(s: BorongSettings): BorongTerms {
 
 /** Harga borong/karton: tetapan admin (RM) > fail (refPriceCtn) > % admin (kumpulan > lalai) > % fail > null. */
 export function wholesaleWith(s: BorongSettings, e: BorongCatalogEntry, retailCtn: number | null): number | null {
-  if (s.prices[e.slug] != null) return s.prices[e.slug]
+  const prices = pricesOf(s)
+  if (prices[e.slug] != null) return prices[e.slug]
   if (e.refPriceCtn != null) return e.refPriceCtn
   const pct = s.byGroup[e.group] ?? s.defaultPct ?? BORONG_DISCOUNT.byGroup[e.group] ?? BORONG_DISCOUNT.defaultPct
   if (pct == null || retailCtn == null) return null
@@ -122,7 +160,7 @@ export function wholesaleWith(s: BorongSettings, e: BorongCatalogEntry, retailCt
 }
 
 export function anyWholesale(s: BorongSettings): boolean {
-  return Object.keys(s.prices).length > 0 || s.defaultPct != null || Object.keys(s.byGroup).length > 0
+  return Object.keys(pricesOf(s)).length > 0 || s.defaultPct != null || Object.keys(s.byGroup).length > 0
     || BORONG_CATALOG.some(e => e.refPriceCtn != null) || BORONG_DISCOUNT.defaultPct != null || Object.keys(BORONG_DISCOUNT.byGroup).length > 0
 }
 

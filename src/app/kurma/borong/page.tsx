@@ -44,7 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const RED = '#E11D2A'
 
 export default async function BorongPage() {
-  const { rows, agentRows, terms, updated, anyPrice } = await getBorongRows()
+  const { rows, agentRows, terms, updated, anyPrice, promo } = await getBorongRows()
   const photos = rows.filter(r => r.featured && r.product.image_url).map(r => ({ url: r.product.image_url!, name: r.displayName }))
   const varietyOptions = rows.length ? rows.map(r => r.displayName) : BORONG_GROUPS.map(g => g.label)
   const stepList = steps(terms)
@@ -68,7 +68,7 @@ export default async function BorongPage() {
           <BorongHero photos={photos} terms={terms} updated={updated} />
           <ProofStrip />
           <SegmentCards terms={terms} />
-          <BorongCatalog rows={rows} terms={terms} updated={updated} anyPrice={anyPrice} />
+          <BorongCatalog rows={rows} terms={terms} updated={updated} anyPrice={anyPrice} promo={promo} />
           <TermsTiers terms={terms} />
           <QualityPromise terms={terms} />
           <AgentProgram rows={agentRows} />

@@ -56,11 +56,11 @@ export const GIFT_TOOLS: AiToolDef[] = [
   {
     name: "gift_price_estimate",
     description:
-      `ANGGARAN harga senarai Custom Gift Box Kurma (sama seperti kalkulator awam Studio, sheet ${SHEET_VERSION}): pilih kurma (Ajwa AA / Ajwa Large / Ajwa VIP / Mariami A / Mariami AA / Safawi A / Medjoul / Libya-Tunisia; Ajwa VIP & Medjoul untuk pukal 500+ sahaja), berat isi (100g/200g/500g) dan kuantiti kotak. Pulang harga per kotak & jumlah (termasuk kurma + kotak berlogo, TANPA penghantaran) + tier minimum. Sentiasa beritahu customer ini anggaran; harga rasmi dari sebut harga team sales.`,
+      `ANGGARAN harga senarai Custom Gift Box Kurma (sama seperti kalkulator awam Studio, sheet ${SHEET_VERSION}): pilih kurma (Ajwa A / Ajwa AA / Ajwa Large / Ajwa VIP / Mariami A / Mariami AA / Safawi A / Medjoul / Libya-Tunisia; Ajwa VIP & Medjoul untuk pukal 500+ sahaja), berat isi (100g/200g/500g) dan kuantiti kotak. Pulang harga per kotak & jumlah (termasuk kurma + kotak berlogo, TANPA penghantaran) + tier minimum. Sentiasa beritahu customer ini anggaran; harga rasmi dari sebut harga team sales.`,
     parameters: {
       type: "object",
       properties: {
-        kurma: { type: "string", description: 'Jenis kurma, cth "ajwa", "ajwa large", "ajwa vip", "mariami", "mariami aa", "safawi", "medjoul", "libya". Kosong = Ajwa AA.' },
+        kurma: { type: "string", description: 'Jenis kurma, cth "ajwa", "ajwa a", "ajwa aa", "ajwa large", "ajwa vip", "mariami", "mariami aa", "safawi", "medjoul", "libya". Kosong = Ajwa AA.' },
         weight: { type: "string", enum: ["100g", "200g", "500g"], description: "Berat isi kurma per kotak." },
         qty: { type: "integer", description: "Bilangan kotak (minimum biasanya 50; 500g bermula 500)." },
       },
@@ -95,7 +95,10 @@ function kurmaIdFor(input: unknown): string {
   const t = norm(input);
   if (!t) return "ajwa-aa";
   if (t.includes("ajwa") && t.includes("vip")) return "ajwa-vip";
-  if (t.includes("ajwa") && (t.includes("large") || t.includes("premium") || t.includes("besar"))) return "ajwa-large";
+  if (t.includes("ajwa") && (t.includes("large") || t.includes("besar"))) return "ajwa-large";
+  // 21 Nov 2026: pemilik tukar gred — "Premium" lama = AA sekarang; "ajwa a" (satu A) = gred asas baharu
+  if (t.includes("ajwa") && t.includes("premium")) return "ajwa-aa";
+  if (t.includes("ajwa") && /\ba\b/.test(t) && !/\baa\b/.test(t)) return "ajwa-a";
   if (t.includes("ajwa")) return "ajwa-aa";
   if (t.includes("mariami") && /\baa\b/.test(t)) return "mariami-aa";
   if (t.includes("mariami")) return "mariami-a";

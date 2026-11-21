@@ -9,10 +9,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, Save, ExternalLink, Boxes, RefreshCw, Table2 } from 'lucide-react'
+import { Loader2, Save, ExternalLink, Boxes, RefreshCw, Table2, Timer } from 'lucide-react'
 import { BORONG_GROUPS, rm, type BorongGroup } from '@/lib/borong-pricing'
 import { EMPTY_BORONG_SETTINGS, type BorongSettings, type BorongPriceTier } from '@/lib/borong-settings'
-import { WHOLESALE_SHEET_EDIT_URL, suggestCatalogSlug, wholesaleRowKey, wholesaleRowName, type WholesaleSheet, type WholesaleSheetRow } from '@/lib/wholesale-sheet'
+import { WHOLESALE_SHEET_EDIT_URL, WHOLESALE_PROMO_SHEET_EDIT_URL, suggestCatalogSlug, wholesaleRowKey, wholesaleRowName, type WholesaleSheet, type WholesaleSheetRow } from '@/lib/wholesale-sheet'
 
 interface Row { slug: string; name: string; group: BorongGroup; grade: string; pack: string; packKg: number; found: boolean; retailCtn: number | null; fileRef: number | null; effective: number | null; productId?: string | null; packVariantId?: string | null; tiers?: BorongPriceTier[] }
 
@@ -39,6 +39,9 @@ export function BorongSettingsClient() {
   const [sheetBusy, setSheetBusy] = useState(false)
   const [mapSel, setMapSel] = useState<Record<string, string>>({})
   const [qoBusy, setQoBusy] = useState<string | null>(null)
+  // Promo sementara (tab Harga Promo 2027): tarikh akhir + butang tarik/tamat → POST/DELETE /api/admin/settings/borong/promo
+  const [promoUntil, setPromoUntil] = useState('')
+  const [promoBusy, setPromoBusy] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/settings/wholesale-sheet').then(r => r.ok ? r.json() : null).then(j => setSheet(j?.sheet ?? null)).catch(() => {})
@@ -51,6 +54,7 @@ export function BorongSettingsClient() {
       setPriceText(Object.fromEntries(Object.entries(st.prices).map(([k, v]) => [k, String(v)])))
       setPctText(Object.fromEntries(Object.entries(st.byGroup).map(([k, v]) => [k, String(v)])))
       setDefaultPct(st.defaultPct != null ? String(st.defaultPct) : '')
+      setPromoUntil(st.promo?.until ?? '')
       setLoadedPriceKey(JSON.stringify([st.prices, st.byGroup, st.defaultPct, st.tiers]))
     }).catch(() => toast.error('Gagal muat tetapan'))
   }, [])
@@ -86,6 +90,29 @@ export function BorongSettingsClient() {
     setS(j.settings); setRows(j.rows ?? rows); setExists(true)
     setLoadedPriceKey(JSON.stringify([j.settings.prices, j.settings.byGroup, j.settings.defaultPct, j.settings.tiers]))
     toast.success('Harga borong disimpan — LP dikemas kini')
+  }
+
+  const refreshRows = () => fetch('/api/admin/settings/borong').then(r => r.json()).then(j => setRows(j?.rows ?? [])).catch(() => {})
+  async function applyPromo() {
+    if (!promoUntil) { toast.error('Pilih tarikh akhir promo dulu'); return }
+    setPromoBusy(true)
+    try {
+      const res = await fetch('/api/admin/settings/borong/promo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ until: promoUntil }) })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(j.error ?? 'Gagal guna harga promo'); return }
+      setS(j.settings); setExists(true); refreshRows()
+      toast.success(`Harga promo diguna untuk ${j.mapped?.length ?? 0} produk sehingga ${promoUntil}${j.unmapped?.length ? ` · ${j.unmapped.length} SKU sheet tiada padanan` : ''}`)
+    } finally { setPromoBusy(false) }
+  }
+  async function clearPromo() {
+    setPromoBusy(true)
+    try {
+      const res = await fetch('/api/admin/settings/borong/promo', { method: 'DELETE' })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(j.error ?? 'Gagal tamatkan promo'); return }
+      setS(j.settings); setPromoUntil(''); refreshRows()
+      toast.success('Promo ditamatkan — LP kembali ke harga biasa')
+    } finally { setPromoBusy(false) }
   }
 
   async function pullSheet() {
@@ -147,6 +174,33 @@ export function BorongSettingsClient() {
           <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Simpan</button>
         </div>
       </div>
+
+      {/* Harga promo sementara — menimpa Borong RM & tier per produk sehingga tarikh akhir, kemudian kembali sendiri */}
+      {(() => {
+        const pr = s.promo, live = !!pr?.until && new Date().toLocaleDateString('en-CA') <= pr.until
+        return (
+          <div className={`${box} ${live ? 'border-gray-900' : ''}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 inline-flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" />Harga promo sementara (sheet &quot;Harga Promo 2027&quot;)</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {pr ? `${live ? 'AKTIF' : 'TAMAT'} · ${pr.source ?? 'sheet promo'} · ${Object.keys(pr.prices).length} produk · sehingga ${pr.until ?? '—'} (inklusif)${pr.applied_at ? ` · diguna ${fmtDT(pr.applied_at)}` : ''}. Selepas tarikh akhir, LP & sebut harga kembali ke harga biasa sendiri.`
+                    : 'Tiada promo. Pilih tarikh akhir dan tarik tab Harga Promo 2027 — harga promo menimpa Borong RM & tier sehingga tarikh itu, kemudian kembali ke harga biasa sendiri.'}
+                </p>
+                {pr && Object.keys(pr.prices).length > 0 && (
+                  <p className="text-[11px] text-gray-400 mt-1.5">{Object.entries(pr.prices).map(([slug, p]) => `${rows.find(r => r.slug === slug)?.name ?? slug} ${rm(p)}`).join(' · ')}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <a href={WHOLESALE_PROMO_SHEET_EDIT_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50"><ExternalLink className="h-4 w-4" />Buka sheet</a>
+                <input type="date" value={promoUntil} onChange={e => setPromoUntil(e.target.value)} aria-label="Tarikh akhir promo" className={inp} />
+                <button type="button" onClick={applyPromo} disabled={promoBusy || !promoUntil} className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 disabled:opacity-50">{promoBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Tarik &amp; guna promo</button>
+                {pr && <button type="button" onClick={clearPromo} disabled={promoBusy} className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 disabled:opacity-50">Tamatkan promo</button>}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Peratus */}
       <div className={box}>

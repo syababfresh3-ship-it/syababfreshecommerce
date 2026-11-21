@@ -1,11 +1,11 @@
 import { BORONG_GROUPS, perKg, rm, type BorongTerms } from '@/lib/borong-pricing'
-import type { BorongRow } from '@/lib/borong-data'
+import type { BorongRow, BorongPromoInfo } from '@/lib/borong-data'
 import { CatalogRowActions } from './catalog-row-actions'
 
 // Katalog borong — ikut kumpulan varieti. Dua harga dipapar sebelah-menyebelah (keputusan pemilik):
 // RUNCIT = harga karton DB (sentiasa, berlabel), BORONG = tetapan admin / refPriceCtn / diskaun % atau "tanya".
 // Tangga tier (1–2 / 3–9 / 10+ karton) dipapar sebagai cip bila admin simpan tier untuk produk itu (pemilik 11 Nov 2026).
-export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: BorongRow[]; terms: BorongTerms; updated: string | null; anyPrice: boolean }) {
+export function BorongCatalog({ rows, terms, updated, anyPrice, promo = null }: { rows: BorongRow[]; terms: BorongTerms; updated: string | null; anyPrice: boolean; promo?: BorongPromoInfo | null }) {
   if (!rows.length) return null
   const anyTiers = rows.some(r => r.tiers.length > 0)
   return (
@@ -14,6 +14,8 @@ export function BorongCatalog({ rows, terms, updated, anyPrice }: { rows: Borong
         <div>
           <h2 className="text-2xl font-black text-gray-900">Katalog borong</h2>
           <p className="text-sm text-gray-500 mt-1">{anyTiers ? 'Harga borong per karton ikut kuantiti — lagi banyak karton, lagi rendah seunit. Tertakluk stok semasa.' : anyPrice ? 'Harga runcit vs borong per karton — harga borong muktamad ikut kuantiti & stok semasa.' : 'Harga runcit karton dipapar; harga borong diberi via WhatsApp ikut kuantiti & musim.'}</p>
+          {/* Promo sementara (borong_pricing.promo) — label hilang sendiri selepas tarikh akhir */}
+          {promo && <p className="text-[13px] font-bold mt-1.5" style={{ color: '#E11D2A' }}>{promo.label ?? `Harga promo sehingga ${promo.until}`} · selepas itu harga biasa.</p>}
         </div>
         {updated && <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Dikemas kini {updated}</span>}
       </div>

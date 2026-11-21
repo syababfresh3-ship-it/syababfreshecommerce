@@ -1,19 +1,24 @@
 // Sheet pemilik "MASTER HARGA KURMA 2027" › tab "Harga Wholesale 2027" — harga borong per KARTON ikut
 // 3 tier kuantiti (1–2 · 3–9 · 10+ karton), kos/kg, rizab operasi & kos asas; parameter margin/marketing
-// di bawah jadual. Gred ikut NAMA SUPPLIER (Ajwa AA / AA Premium / Large …), bukan nama produk kedai —
+// di bawah jadual. Gred ikut NAMA SUPPLIER (Ajwa A / AA / Large … — 21 Nov 2026 "AA"→"A", "AA Premium"→"AA"), bukan nama produk kedai —
 // pemetaan ke katalog borong (lib/borong-pricing.ts) dibuat admin di /admin/borong, tidak diteka kod.
 // Pure (klien & server). Disimpan di app_settings.wholesale_sheet (wholesale-sheet-server.ts).
 // Corak sama lib/gift-cost-sheet.ts (parser CSV dikongsi).
 import { parseCsv, parseRm, r2 } from '@/lib/gift-cost-sheet'
 import { BORONG_CATALOG, type BorongCatalogEntry, type BorongGroup } from '@/lib/borong-pricing'
+import type { BorongPromo, BorongPriceTier } from '@/lib/borong-settings'
 
 export const WHOLESALE_SHEET_KEY = 'wholesale_sheet'
 export const WHOLESALE_SHEET_EDIT_URL = 'https://docs.google.com/spreadsheets/d/1eSIohPzOB3SDYk7JPa5O37WvqkI7hWREUBEPi_JpA9A/edit?gid=370660936#gid=370660936'
+/** Tab "Harga Promo 2027" (gid 5272027) — harga promo direct/WA per karton, format sama (Jenis · Gred · 3 tier) tetapi DUA jadual:
+ *  Senario A (tanpa marketing) & Senario B (dengan marketing). Dipakai sementara (borong_pricing.promo.until) — lihat borong-settings.ts. */
+export const WHOLESALE_PROMO_SHEET_KEY = 'wholesale_promo_sheet'
+export const WHOLESALE_PROMO_SHEET_EDIT_URL = 'https://docs.google.com/spreadsheets/d/1eSIohPzOB3SDYk7JPa5O37WvqkI7hWREUBEPi_JpA9A/edit?gid=5272027#gid=5272027'
 
 export interface WholesaleTier { label: string; minCtn: number; maxCtn: number | null; price: number; profit: number; margin_pct: number }
 export interface WholesaleSheetRow {
   jenis: string        // "Ajwa" | "Safawi" | "Mariami" | "Libya" | "Medjoul"
-  gred: string         // gred supplier ("AA", "AA Premium", "Large"); "Tiada gred" → ''
+  gred: string         // gred supplier ("A", "AA", "Large"); "Tiada gred" → ''
   ctn_kg: number       // berat karton (5 | 6)
   cost_kg: number      // kos kurma RM/kg
   cost_kurma: number   // kos kurma / karton
@@ -23,6 +28,9 @@ export interface WholesaleSheetRow {
 }
 export interface WholesaleSheet {
   version: string; source_gid: string; fetched_at: string
+  /** Tab promo: senario yang dibaca ('A' tanpa marketing | 'B' dengan marketing) + tarikh akhir promo (YYYY-MM-DD, inklusif). */
+  scenario?: 'A' | 'B'
+  promo_until?: string | null
   rows: WholesaleSheetRow[]
   tier_labels: string[]
   jenis: string[]      // urutan muncul
@@ -37,7 +45,7 @@ const DEFAULT_TIERS: { label: string; minCtn: number; maxCtn: number | null }[] 
 /** "TIER 1: 1–2 KARTON" → { label '1–2 karton', min 1, max 2 }; "TIER 3: 10+ KARTON" → max null. */
 function parseTierHead(s: string): { label: string; minCtn: number; maxCtn: number | null } | null {
   if (!/^tier\s*\d/i.test(s)) return null
-  const body = s.replace(/^tier\s*\d+\s*:?/i, '').trim()
+  const body = s.replace(/^tier\s*\d+\s*[:·\-–]?\s*/i, '').trim()   // "TIER 1: 1–2 KARTON" (Wholesale) / "TIER 1 · 1–2 KARTON" (Promo)
   const range = body.match(/(\d+)\s*[–-]\s*(\d+)/)
   if (range) return { label: body.toLowerCase(), minCtn: Number(range[1]), maxCtn: Number(range[2]) }
   const plus = body.match(/(\d+)\s*\+/)
@@ -48,13 +56,19 @@ function parseTierHead(s: string): { label: string; minCtn: number; maxCtn: numb
 /** Tukar CSV tab "Harga Wholesale 2027" → WholesaleSheet. Header dikesan ikut nama lajur ("Gred supplier");
  *  setiap lajur "Harga jual" = satu tier, untung & margin = lajur berikutnya sebelum tier seterusnya;
  *  label tier dari baris kumpulan di atas header ("TIER 1: 1–2 KARTON"), gagal → lalai 1–2/3–9/10+. */
-export function parseWholesaleSheetCsv(csv: string, meta: { version?: string; source_gid?: string } = {}): WholesaleSheet {
+const isHeaderRow = (r: string[]) => r.some(c => /^gred( supplier)?$/i.test(c.replace(/\s+/g, ' '))) && r.some(c => /harga jual/i.test(c))
+
+/** `section`: baca jadual SELEPAS baris yang padan (cth /^senario b/i untuk jadual kedua tab Promo); lalai = jadual pertama.
+ *  Bacaan berhenti pada tajuk senario seterusnya / header kedua, supaya dua jadual dalam satu tab tak bercampur. */
+export function parseWholesaleSheetCsv(csv: string, meta: { version?: string; source_gid?: string; section?: RegExp } = {}): WholesaleSheet {
   const grid = parseCsv(csv).map(r => r.map(c => c.trim()))
-  const headerIdx = grid.findIndex(r => r.some(c => /gred supplier/i.test(c)))
-  if (headerIdx < 0) throw new Error('Header "Gred supplier" tidak dijumpai — pastikan tab Harga Wholesale')
+  const from = meta.section ? grid.findIndex(r => meta.section!.test(r[0] ?? '')) : 0
+  if (meta.section && from < 0) throw new Error('Bahagian sheet yang diminta tidak dijumpai')
+  const headerIdx = grid.findIndex((r, i) => i >= from && isHeaderRow(r))
+  if (headerIdx < 0) throw new Error('Header "Gred" / "Harga jual" tidak dijumpai — pastikan tab Harga Wholesale / Harga Promo')
   const header = grid[headerIdx].map(h => h.toLowerCase().replace(/\s+/g, ' '))   // sel header ada baris baru
   const col = (re: RegExp) => header.findIndex(h => re.test(h))
-  const C = { jenis: col(/^jenis/), gred: col(/gred supplier/), costKg: col(/kos\/kg/), ctnKg: col(/berat\/karton/), costKurma: col(/kos kurma/), reserve: col(/rizab/), costBase: col(/kos asas/) }
+  const C = { jenis: col(/^jenis/), gred: col(/^gred( supplier)?$/), costKg: col(/kos\/kg/), ctnKg: col(/berat.?karton/), costKurma: col(/kos kurma/), reserve: col(/rizab/), costBase: col(/kos asas/) }
   for (const [k, v] of Object.entries(C)) if (v < 0) throw new Error(`Lajur "${k}" tidak dijumpai dalam header sheet`)
   const priceCols = header.map((h, i) => (/harga jual/.test(h) ? i : -1)).filter(i => i >= 0)
   if (!priceCols.length) throw new Error('Lajur "Harga jual" tidak dijumpai')
@@ -66,6 +80,7 @@ export function parseWholesaleSheetCsv(csv: string, meta: { version?: string; so
   const rows: WholesaleSheetRow[] = []
   for (let i = headerIdx + 1; i < grid.length; i++) {
     const r = grid[i]
+    if (/^senario\s+[a-z]\b/i.test(r[0] ?? '') || isHeaderRow(r)) break   // jadual seterusnya (tab Promo ada Senario A & B)
     const jenis = r[C.jenis] ?? '', gredRaw = r[C.gred] ?? ''
     if (!jenis || !gredRaw) continue   // baris nota/parameter di bawah jadual tiada gred
     const costBase = parseRm(r[C.costBase]), costKurma = parseRm(r[C.costKurma]), reserve = parseRm(r[C.reserve])
@@ -149,4 +164,32 @@ export function suggestCatalogSlug(r: WholesaleSheetRow, catalog: readonly Boron
   if (exact) return exact.slug
   const word = cands.filter(e => new RegExp(`\\b${escRe(gred)}\\b`, 'i').test(e.grade))
   return word.length === 1 ? word[0].slug : null
+}
+
+const BULAN_MY = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis']
+/** '2026-12-10' → '10 Dis 2026' (label pelanggan). */
+export function fmtTarikhMY(ymd: string): string {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return m ? `${Number(m[3])} ${BULAN_MY[Number(m[2]) - 1] ?? m[2]} ${m[1]}` : ymd
+}
+
+/** Bina harga promo sementara (borong_pricing.promo) dari sheet promo: setiap baris sheet → slug katalog ikut suggestCatalogSlug
+ *  (gred mesti padan tepat); harga "dari" = tier terendah, tangga tier penuh disimpan untuk cip LP. Baris tanpa padanan / slug
+ *  yang sudah dipakai baris lain dilaporkan dalam `unmapped` — tidak diteka. Dipakai oleh POST /api/admin/settings/borong/promo. */
+export function promoFromSheet(sheet: WholesaleSheet, until: string, catalog: readonly BorongCatalogEntry[] = BORONG_CATALOG): BorongPromo & { mapped: { key: string; slug: string; from: number }[]; unmapped: string[] } {
+  const prices: Record<string, number> = {}, tiers: Record<string, BorongPriceTier[]> = {}
+  const mapped: { key: string; slug: string; from: number }[] = [], unmapped: string[] = []
+  for (const r of sheet.rows) {
+    const slug = suggestCatalogSlug(r, catalog)
+    if (!slug || !r.tiers.length) { unmapped.push(wholesaleRowName(r)); continue }
+    if (prices[slug] != null) { unmapped.push(`${wholesaleRowName(r)} (produk ${slug} sudah dipadankan)`); continue }
+    const low = r.tiers.reduce((a, t) => (t.price < a.price ? t : a))
+    prices[slug] = low.price
+    tiers[slug] = r.tiers.map(t => ({ label: t.label, minCtn: t.minCtn, maxCtn: t.maxCtn, price: t.price }))
+    mapped.push({ key: wholesaleRowKey(r), slug, from: low.price })
+  }
+  return {
+    until, label: `Harga promo sehingga ${fmtTarikhMY(until)}`, source: `Harga Promo 2027 · Senario ${sheet.scenario ?? 'A'}`,
+    applied_at: new Date().toISOString(), prices, tiers, mapped, unmapped,
+  }
 }

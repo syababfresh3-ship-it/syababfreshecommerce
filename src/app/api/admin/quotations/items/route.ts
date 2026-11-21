@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/require-admin'
 import { loadGiftCostSheet } from '@/lib/gift-cost-sheet-server'
 import { sheetItemName, sheetTiers } from '@/lib/gift-cost-sheet'
-import { loadWholesaleSheet } from '@/lib/wholesale-sheet-server'
+import { loadEffectiveWholesaleSheet } from '@/lib/wholesale-sheet-server'
 import { wholesaleItemName } from '@/lib/wholesale-sheet'
 
 export interface ItemHit { source: 'product' | 'variant' | 'gift_box' | 'gift_filling' | 'gift_sheet' | 'wholesale_sheet'; name: string; description: string | null; rate: number; unit: string }
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
     supabase!.from('gift_boxes').select('id, name, base_price, capacity_label, is_active').ilike('name', like).eq('is_active', true).limit(5),
     supabase!.from('gift_fillings').select('id, name, price, unit, grade, is_active').ilike('name', like).eq('is_active', true).limit(5),
     loadGiftCostSheet(supabase!).catch(() => null),
-    loadWholesaleSheet(supabase!).catch(() => null),
+    loadEffectiveWholesaleSheet(supabase!).catch(() => null),   // promo (tab Harga Promo, sehingga tarikh) > wholesale
   ])
   const hits: ItemHit[] = []
   // Sheet harga borong per karton — satu cadangan per SKU; kadar = tier 1 (1–2 karton), tier lain dalam keterangan
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       const t1 = r.tiers[0]
       if (!t1 || (!generic && !name.toLowerCase().includes(ql))) continue
       const others = r.tiers.slice(1).map(t => `${t.label} RM${t.price.toFixed(2)}`).join(' · ')
-      hits.push({ source: 'wholesale_sheet', name, description: `Sheet ${wsheet.version} borong ${t1.label}: RM${t1.price.toFixed(2)}/karton (kos asas RM${r.cost_base.toFixed(2)}, margin ${t1.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: t1.price, unit: 'ctn' })
+      hits.push({ source: 'wholesale_sheet', name, description: `Sheet ${wsheet.version}${wsheet.promo_until ? ` PROMO sehingga ${wsheet.promo_until}` : ''} borong ${t1.label}: RM${t1.price.toFixed(2)}/karton (kos asas RM${r.cost_base.toFixed(2)}, margin ${t1.margin_pct.toFixed(1)}%)${others ? ' · ' + others : ''}`, rate: t1.price, unit: 'ctn' })
     }
   }
   // Sheet harga gift box — satu cadangan per kategori × kurma × berat; kadar = tier terkecil, tier lain dalam keterangan
