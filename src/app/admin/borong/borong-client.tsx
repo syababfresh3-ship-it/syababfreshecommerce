@@ -262,13 +262,24 @@ export function BorongSettingsClient() {
       <div className={`${box} overflow-x-auto`}>
         <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-3">Harga per karton</p>
         <table className="w-full text-sm">
-          <thead className="text-[11px] font-bold uppercase tracking-wide text-gray-400"><tr><th className="text-left py-1.5 pr-2">Produk</th><th className="text-left py-1.5 pr-2">Karton</th><th className="text-right py-1.5 pr-2">Runcit</th><th className="text-right py-1.5 pr-2 w-32">Borong RM</th><th className="text-right py-1.5 pr-2">Dipapar</th><th className="text-left py-1.5">Tier LP</th></tr></thead>
+          <thead className="text-[11px] font-bold uppercase tracking-wide text-gray-400"><tr><th className="text-left py-1.5 pr-2">Imej LP</th><th className="text-left py-1.5 pr-2">Produk</th><th className="text-left py-1.5 pr-2">Karton</th><th className="text-right py-1.5 pr-2">Runcit</th><th className="text-right py-1.5 pr-2 w-32">Borong RM</th><th className="text-right py-1.5 pr-2">Dipapar</th><th className="text-left py-1.5">Tier LP</th></tr></thead>
           <tbody className="divide-y divide-gray-100">
             {rows.map(r => {
               const eff = preview(r)
               const tiers = s.tiers[r.slug] ?? []
               return (
                 <tr key={r.slug} className={r.found ? '' : 'opacity-50'}>
+                  {/* Imej khas LP borong (foto studio) — URL dari Media admin; kosong = gambar produk kedai. Kedai tak terjejas. Perlu Simpan. */}
+                  <td className="py-2 pr-2">
+                    <div className="flex items-center gap-1.5">
+                      {s.images[r.slug] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={s.images[r.slug]} alt="" className="h-9 w-9 rounded-md object-cover border border-gray-200 bg-gray-50 shrink-0" />
+                      ) : <span className="h-9 w-9 rounded-md border border-dashed border-gray-200 grid place-items-center text-[9px] text-gray-300 shrink-0">kedai</span>}
+                      <input value={s.images[r.slug] ?? ''} onChange={e => { const v = e.target.value.trim(); setS(p => { if (!p) return p; const images = { ...p.images }; if (v) images[r.slug] = v; else delete images[r.slug]; return { ...p, images } }) }}
+                        placeholder="URL imej LP" aria-label={`URL imej LP untuk ${r.name}`} className={`${inp} py-1 text-[11px] w-28`} />
+                    </div>
+                  </td>
                   <td className="py-2 pr-2"><div className="font-medium text-gray-900">{r.name}{r.grade && !r.name.toLowerCase().includes(r.grade.toLowerCase()) ? <span className="ml-1.5 text-[10px] font-bold uppercase text-gray-400">{r.grade}</span> : null}</div>{!r.found && <div className="text-[11px] text-amber-600">slug tiada/tak aktif</div>}</td>
                   <td className="py-2 pr-2 text-gray-600">{r.pack}</td>
                   <td className="py-2 pr-2 text-right tabular-nums text-gray-600">{r.retailCtn != null ? rm(r.retailCtn) : '—'}</td>
@@ -281,6 +292,7 @@ export function BorongSettingsClient() {
             })}
           </tbody>
         </table>
+        <p className="text-[11px] text-gray-400 mt-2">Imej LP = foto khas untuk LP borong (hero, thumbnail, program ejen) — tampal URL dari Media admin; kosong = guna gambar produk kedai. Gambar kedai tidak berubah. Perlu Simpan.</p>
       </div>
 
       {/* Terma */}

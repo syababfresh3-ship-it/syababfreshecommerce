@@ -60,9 +60,10 @@ export const BORONG_CATALOG: BorongCatalogEntry[] = [
   { slug: 'mariami-aa', group: 'mariami', grade: 'AA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   { slug: 'mariami-aaa', group: 'mariami', grade: 'AAA', pack: '5kg/ctn', packKg: 5, refPriceCtn: null },
   // Gred Safawi diseragamkan ikut sheet 2027 (11 Nov): A · AA · Jumbo (slug lama kekal)
-  { slug: 'safawi-medium', group: 'safawi', grade: 'A', pack: '5kg', packKg: 5, refPriceCtn: null, featured: true, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
+  // 21 Nov: hero LP guna foto studio — featured dipindah dari Safawi A (tiada foto studio) ke Safawi Jumbo (kotak emas); program ejen kekal Safawi A
+  { slug: 'safawi-medium', group: 'safawi', grade: 'A', pack: '5kg', packKg: 5, refPriceCtn: null, agent: { pack: '500g', agentPrice: null, stokisPrice: null, srp: null } },
   { slug: 'safawi-large', group: 'safawi', grade: 'AA', pack: '5kg', packKg: 5, refPriceCtn: null },
-  { slug: 'safawi-jumbo', group: 'safawi', grade: 'Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null },
+  { slug: 'safawi-jumbo', group: 'safawi', grade: 'Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null, featured: true },
   { slug: 'medjoul-palestine-large', group: 'medjoul', grade: 'Large', pack: '5kg', packKg: 5, refPriceCtn: null },
   { slug: 'medjoul-palestine-jumbo', group: 'medjoul', grade: 'Jumbo', pack: '5kg', packKg: 5, refPriceCtn: null },
   // SKU borong sheet 2027 "Medjoul · Mix Large–Jumbo" (produk baharu 11 Nov, draf sehingga pemilik aktifkan)

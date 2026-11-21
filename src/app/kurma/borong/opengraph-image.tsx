@@ -1,7 +1,7 @@
 import { kurmaOg, asJpeg } from '@/lib/kurma-og'
 import { HERO } from '@/lib/borong-copy'
 import { BORONG_CATALOG } from '@/lib/borong-pricing'
-import { getBorongProducts } from '@/lib/borong-data'
+import { getBorongProducts, getBorongSettings } from '@/lib/borong-data'
 
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/jpeg'
@@ -12,8 +12,9 @@ export default async function Image() {
   let dataUrl: string | undefined
   try {
     const featured = BORONG_CATALOG.filter(e => e.featured).map(e => e.slug)
-    const products = await getBorongProducts(featured)
-    const url = featured.map(s => products.get(s)?.image_url).find((u): u is string => !!u)
+    const [products, settings] = await Promise.all([getBorongProducts(featured), getBorongSettings()])
+    // Imej khas LP (foto studio, borong_pricing.images) diutamakan — sama seperti hero LP
+    const url = featured.map(s => settings.images[s] ?? products.get(s)?.image_url).find((u): u is string => !!u)
     if (url) {
       const res = await fetch(url, { cache: 'force-cache' })
       if (res.ok) {

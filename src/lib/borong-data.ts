@@ -45,7 +45,9 @@ export async function getBorongRows(): Promise<{ rows: BorongRow[]; agentRows: A
     const product = products.get(e.slug)
     if (!product) { missing.push(e.slug); continue }
     const retail = product.variants.find(v => v.name === e.pack)?.price ?? null
-    rows.push({ ...e, product, retailCtn: retail, wholesaleCtn: wholesaleWith(settings, e, retail), displayName: e.nameOverride ?? product.name, tiers: tiers[e.slug] ?? [] })
+    // Imej khas LP borong (foto studio) menimpa gambar produk kedai — hero, thumbnail katalog & program ejen ikut sekali
+    const lpProduct = settings.images[e.slug] ? { ...product, image_url: settings.images[e.slug] } : product
+    rows.push({ ...e, product: lpProduct, retailCtn: retail, wholesaleCtn: wholesaleWith(settings, e, retail), displayName: e.nameOverride ?? product.name, tiers: tiers[e.slug] ?? [] })
   }
   const ap = activePromo(settings)
   if (missing.length && process.env.NODE_ENV !== 'production') console.warn('[borong] slug tiada/tak aktif:', missing.join(', '))
@@ -53,7 +55,7 @@ export async function getBorongRows(): Promise<{ rows: BorongRow[]; agentRows: A
     const product = products.get(e.slug)
     if (!product || !e.agent) return []
     const srp = e.agent.srp ?? product.variants.find(v => v.name === e.agent!.pack)?.price ?? null
-    return [{ slug: e.slug, name: e.nameOverride ?? product.name, pack: e.agent.pack, agentPrice: e.agent.agentPrice, stokisPrice: e.agent.stokisPrice, srp, image_url: product.image_url }]
+    return [{ slug: e.slug, name: e.nameOverride ?? product.name, pack: e.agent.pack, agentPrice: e.agent.agentPrice, stokisPrice: e.agent.stokisPrice, srp, image_url: settings.images[e.slug] ?? product.image_url }]
   })
   return { rows, agentRows, missing, settings, terms: effectiveTerms(settings), updated: effectiveUpdated(settings, BORONG_UPDATED), anyPrice: anyWholesale(settings), promo: ap?.until ? { until: ap.until, label: ap.label } : null }
 }

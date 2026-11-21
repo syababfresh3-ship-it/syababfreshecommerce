@@ -37,10 +37,12 @@ export interface BorongSettings {
   tiers: Record<string, BorongPriceTier[]>
   terms: BorongSettingsTerms
   promo: BorongPromo | null
+  /** slug → URL imej khas LP borong (foto studio karton/dulang). Kosong = guna gambar produk kedai. Kedai TIDAK terjejas. */
+  images: Record<string, string>
 }
 
 export const EMPTY_BORONG_SETTINGS: BorongSettings = {
-  updated: null, defaultPct: null, byGroup: {}, prices: {}, tiers: {}, promo: null,
+  updated: null, defaultPct: null, byGroup: {}, prices: {}, tiers: {}, promo: null, images: {},
   terms: {
     moqCtn: null, mixAllowed: null, leadTime: null, freeAboveRm: null, deliveryNote: null, pickup: null,
     paymentMethods: [], creditNote: null, returnsNote: null, sampleAvailable: null, sampleNote: null,
@@ -77,6 +79,15 @@ function parseTiers(v: unknown): Record<string, BorongPriceTier[]> {
     if (list.length) tiers[slug] = list.sort((a, b) => a.minCtn - b.minCtn)
   }
   return tiers
+}
+
+/** Imej khas LP: hanya URL https (≤500 aksara) untuk slug katalog yang dikenali. */
+function parseImages(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [slug, x] of Object.entries((v && typeof v === 'object' ? v : {}) as Record<string, unknown>)) {
+    const u = str(x, 500); if (SLUGS.has(slug) && u && /^https:\/\//i.test(u)) out[slug] = u
+  }
+  return out
 }
 
 /** Tarikh hari ini di Kuala Lumpur (YYYY-MM-DD) — tempoh promo dinilai ikut tarikh tempatan, bukan UTC. */
@@ -118,6 +129,7 @@ export function normalizeBorongSettings(input: unknown): BorongSettings {
     defaultPct: num(i.defaultPct, 0, 95),
     byGroup, prices, tiers,
     promo: promo && (Object.keys(promo.prices).length || Object.keys(promo.tiers).length) ? promo : null,
+    images: parseImages(i.images),
     terms: {
       moqCtn: (() => { const n = num(t.moqCtn, 1, 10_000); return n == null ? null : Math.floor(n) })(),
       mixAllowed: bool(t.mixAllowed), leadTime: str(t.leadTime, 160),
