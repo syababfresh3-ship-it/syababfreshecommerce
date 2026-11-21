@@ -31,7 +31,11 @@ export function PosShell({ children }: { children: React.ReactNode }) {
   const [pinOpen, setPinOpen] = useState(false)
 
   return (
-    <div className="min-h-dvh flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    // Rangka TETAP setinggi skrin (app frame): kandungan skrol DALAM <main>, bukan seluruh page — supaya panel tiket
+    // (Total + Pay) sentiasa nampak di kanan pada skrin kaunter. Sebelum ini min-h-dvh sahaja → tiada tinggi pasti,
+    // overflow-y-auto grid produk tak berkesan; tab All (~90 produk) tolak butang Pay ke hujung bawah page dan kasyer
+    // terpaksa skrol seluruh katalog (video kaunter eTIMA 20 Nov). h-screen (100vh) = sandaran pelayar tanpa unit dvh.
+    <div className="h-screen flex flex-col overflow-hidden" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)' }}>
       <header className="h-14 shrink-0 bg-white border-b border-gray-200 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 min-w-0">
         <Link href="/pos/sell" className="flex items-center gap-2 shrink-0">
           <span className="hidden sm:inline text-[15px] font-black tracking-tight text-gray-900">SF POS</span>
@@ -69,7 +73,7 @@ export function PosShell({ children }: { children: React.ReactNode }) {
       )}
       {error && <div className="bg-red-50 border-b border-red-200 text-red-800 text-[12px] font-semibold px-4 py-2">{error}</div>}
 
-      <main className="flex-1 min-h-0 flex flex-col">
+      <main className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         {loading ? <div className="flex-1 grid place-items-center text-gray-400"><Loader2 className="h-6 w-6 animate-spin" /></div> : children}
       </main>
 
