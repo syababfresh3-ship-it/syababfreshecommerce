@@ -49,10 +49,13 @@ export async function sendWhatsApp(to: string, message: string) {
     return { skipped: true }
   }
 
-  // Normalize phone — strip leading 0, ensure starts with 60
-  let phone = to.replace(/\D/g, '')
-  if (phone.startsWith('0')) phone = '6' + phone
-  if (!phone.startsWith('60')) phone = '60' + phone
+  // JID (grup @g.us / @s.whatsapp.net / @lid) dihantar seadanya — gateway terima terus. Nombor biasa dinormalkan ke 60xxx.
+  let phone = to.trim()
+  if (!phone.includes('@')) {
+    phone = phone.replace(/\D/g, '')
+    if (phone.startsWith('0')) phone = '6' + phone
+    if (!phone.startsWith('60')) phone = '60' + phone
+  }
 
   // Rotate: mula dari nombor rawak (sebar beban supaya tiada satu nombor
   // terlebih hantar). Failover: kalau nombor gagal/ban, cuba yang seterusnya.
