@@ -14,6 +14,8 @@ import { drainBlasts } from "@/lib/blast-drain";
 import { resolveAudience, type AudienceSpec } from "@/lib/blast-audience";
 import { getSender } from "@/lib/wa-numbers";
 import { fillTemplateParams, emptyParamKeys } from "@/lib/blast-params";
+import { isGatewayNumber, gatewaySessionId, gatewaySendText } from "@/lib/wa-gateway";
+import { GATEWAY_TEMPLATE_NAME, GW_BLAST_MAX_CHARS, GW_BLAST_MAX_RECIPIENTS, GW_BLAST_DAILY_CAP, renderGatewayText, enqueueGatewayBlast, clampGatewayPace } from "@/lib/blast-gateway";
 
 // Terjemah error WhatsApp Cloud API kepada mesej yang admin faham (punca + tindakan).
 function friendlyWaError(err?: string): string | null {
@@ -65,20 +67,28 @@ export async function GET(req: NextRequest) {
   const number = (sp.get("number") ?? "").trim();
   const includeNull = sp.get("includeNull") === "1";
 
-  let q = sb
-    .from("crm_blasts")
-    .select("id, name, template_name, status, total, sent, failed, scheduled_at, created_at, phone_number_id", { count: "exact" })
-    .order("created_at", { ascending: false });
-  if (/^\d{4}-\d{2}$/.test(month)) {
-    const start = new Date(`${month}-01T00:00:00+08:00`);
-    const end = new Date(start);
-    end.setUTCMonth(end.getUTCMonth() + 1);
-    q = q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
-  }
-  if (number) {
-    q = includeNull ? q.or(`phone_number_id.eq.${number},phone_number_id.is.null`) : q.eq("phone_number_id", number);
-  }
-  const { data: blasts, count } = await q.range(page * PER_PAGE, (page + 1) * PER_PAGE - 1);
+  const LIST_COLS = "id, name, template_name, status, total, sent, failed, scheduled_at, created_at, phone_number_id";
+  type BlastRow = { id: string; name: string; template_name: string; status: string; total: number | null; sent: number | null; failed: number | null; scheduled_at: string | null; created_at: string; phone_number_id: string | null; channel?: string | null };
+  const listQuery = async (cols: string) => {
+    let q = sb
+      .from("crm_blasts")
+      .select(cols, { count: "exact" })
+      .order("created_at", { ascending: false });
+    if (/^\d{4}-\d{2}$/.test(month)) {
+      const start = new Date(`${month}-01T00:00:00+08:00`);
+      const end = new Date(start);
+      end.setUTCMonth(end.getUTCMonth() + 1);
+      q = q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
+    }
+    if (number) {
+      q = includeNull ? q.or(`phone_number_id.eq.${number},phone_number_id.is.null`) : q.eq("phone_number_id", number);
+    }
+    const r = await q.range(page * PER_PAGE, (page + 1) * PER_PAGE - 1);
+    return { data: (r.data as unknown as BlastRow[] | null), count: r.count, error: r.error };
+  };
+  // `channel` (official|gateway) datang dari migration 164 — kalau lajur belum wujud (42703), ulang tanpa lajur itu supaya senarai tetap keluar.
+  const first = await listQuery(`${LIST_COLS}, channel`);
+  const { data: blasts, count } = first.error?.code === "42703" ? await listQuery(LIST_COLS) : first;
 
   // Progress sebenar (delivered/read) dari view — webhook yang kemas status penerima.
   const ids = (blasts ?? []).map((b) => b.id);
@@ -142,6 +152,9 @@ export async function POST(req: NextRequest) {
     headerVideo,
     scheduledAt,
     phoneNumberId,
+    message,
+    gwDailyCap,
+    gwGapSec,
   } = body as {
     name?: string;
     templateName?: string;
@@ -154,9 +167,56 @@ export async function POST(req: NextRequest) {
     headerVideo?: string;
     scheduledAt?: string;
     phoneNumberId?: string;
+    message?: string;   // kempen gateway (nombor tidak rasmi): teks bebas, bukan template
+    gwDailyCap?: number; // gateway: berapa nombor sehari (5–140)
+    gwGapSec?: number;   // gateway: jarak antara mesej dalam saat (20–600)
   };
   // Header media: video diutamakan (objek), kalau tidak fallback gambar (string).
   const headerMedia = headerVideo ? ({ type: "video" as const, link: headerVideo }) : headerImage;
+
+  // ---------- Cabang GATEWAY (nombor tidak rasmi, cth Hijau): teks bebas → wa_outbox perlahan. Laluan Official di bawah tidak disentuh. ----------
+  if (isGatewayNumber(phoneNumberId)) {
+    const sessionId = gatewaySessionId(phoneNumberId!);
+    const text = (message ?? "").trim();
+    if (!text) return NextResponse.json({ error: "Tulis mesej untuk blast nombor tidak rasmi." }, { status: 400 });
+    if (text.length > GW_BLAST_MAX_CHARS) return NextResponse.json({ error: `Mesej terlalu panjang (maks ${GW_BLAST_MAX_CHARS} aksara).` }, { status: 400 });
+    if (test) {
+      if (!testNumber) return NextResponse.json({ error: "Masukkan nombor test." }, { status: 400 });
+      const res = await gatewaySendText(sessionId, formatWaPhone(testNumber), renderGatewayText(text, { name: null }));
+      return NextResponse.json({ ok: res.ok, id: res.id ?? null, sent: res.ok ? 1 : 0, failed: res.ok ? 0 : 1, error: res.ok ? null : `${res.error}${res.code ? ` (${res.code})` : ""}` });
+    }
+    const recipients = await resolveAudience(sb, audience);
+    if (recipients.length === 0) return NextResponse.json({ error: "Tiada penerima." }, { status: 400 });
+    if (recipients.length > GW_BLAST_MAX_RECIPIENTS) return NextResponse.json({ error: `Terlalu ramai penerima untuk nombor tidak rasmi (maks ${GW_BLAST_MAX_RECIPIENTS}; ${GW_BLAST_DAILY_CAP} sehari).` }, { status: 400 });
+    const schedMs = scheduledAt ? new Date(scheduledAt).getTime() : 0;
+    const startAt = Number.isFinite(schedMs) && schedMs > Date.now() ? schedMs : Date.now();
+    const pace = clampGatewayPace({ dailyCap: gwDailyCap, gapSec: gwGapSec });   // admin pilih; dikekang 5–140/hari, 20–600s
+    const { data: blast, error: bErr } = await sb
+      .from("crm_blasts")
+      .insert({
+        name: name || `Blast Hijau ${new Date().toLocaleDateString("ms-MY")}`,
+        template_name: GATEWAY_TEMPLATE_NAME, template_lang: "ms", params: { gw_daily_cap: pace.dailyCap, gw_gap_sec: pace.gapMs / 1000 }, channel: "gateway", message: text,
+        phone_number_id: phoneNumberId, audience, status: "sending", scheduled_at: new Date(startAt).toISOString(),
+        total: recipients.length, created_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (bErr || !blast) return NextResponse.json({ error: `Gagal cipta kempen: ${bErr?.message ?? "?"} — pastikan migration 164 dijalankan.` }, { status: 500 });
+    const blastId = blast.id as string;
+    const queueRows = recipients.map((r) => ({ blast_id: blastId, wa_id: r.wa_id, name: r.name, vars: r.vars ?? {}, status: "pending" }));
+    const inserted: { id: string; wa_id: string; name: string | null; vars: Record<string, string> | null }[] = [];
+    for (let i = 0; i < queueRows.length; i += 500) {
+      const { data } = await sb.from("crm_blast_recipients").insert(queueRows.slice(i, i + 500)).select("id, wa_id, name, vars");
+      inserted.push(...((data ?? []) as typeof inserted));
+    }
+    const [{ data: opted }, { data: supp }] = await Promise.all([
+      sb.from("wa_contacts").select("wa_id").eq("opt_out", true),
+      sb.from("crm_suppressions").select("wa_id"),
+    ]);
+    const blocked = new Set([...(opted ?? []), ...(supp ?? [])].map((o: { wa_id: string }) => o.wa_id));
+    const q = await enqueueGatewayBlast(sb, { blastId, sessionId, message: text, recipients: inserted, startAt, blocked, dailyCap: pace.dailyCap, gapMs: pace.gapMs });
+    return NextResponse.json({ ok: true, blastId, total: recipients.length, gateway: true, dailyCap: pace.dailyCap, gapSec: pace.gapMs / 1000, queued: q.queued, skipped: q.skipped, firstAt: q.firstAt ? new Date(q.firstAt).toISOString() : null, lastAt: q.lastAt ? new Date(q.lastAt).toISOString() : null });
+  }
 
   if (!templateName) return NextResponse.json({ error: "templateName diperlukan." }, { status: 400 });
   if (headerVideo) { const e = headerLinkError(headerVideo, "video"); if (e) return NextResponse.json({ error: e }, { status: 400 }); }

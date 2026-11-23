@@ -74,6 +74,10 @@ export function BlastWizard() {
   const [params, setParams] = useState<Record<string, string>>({});
   const [headerImage, setHeaderImage] = useState("");
   const [headerVideo, setHeaderVideo] = useState("");
+  // Nombor tidak rasmi (gateway Hijau): teks bebas, dihantar perlahan 45s/mesej, maks 140 sehari, 09:00–21:00
+  const [gwMessage, setGwMessage] = useState("");
+  const [gwDailyCap, setGwDailyCap] = useState("140");   // berapa nombor sehari (5–140)
+  const [gwGapSec, setGwGapSec] = useState("45");        // jarak antara mesej, saat (20–600)
 
   // Send
   const [testNumber, setTestNumber] = useState("");
@@ -90,7 +94,8 @@ export function BlastWizard() {
       setPastList((j.blasts ?? []).map((b: { id: string; name: string; total: number }) => ({ id: b.id, name: b.name, total: b.total }))),
     );
     supabase.from("crm_tags").select("name").order("name").then(({ data }: { data: { name: string }[] | null }) => setTagList((data ?? []).map((t) => t.name)));
-    supabase.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).not("phone_number_id", "like", "gw:%").order("created_at")
+    // Termasuk nombor gateway (gw:…, cth Hijau) — mod teks bebas perlahan (lib/blast-gateway), bukan template
+    supabase.from("wa_numbers").select("phone_number_id, display_name, is_default").eq("is_active", true).order("created_at")
       .then(({ data }: { data: { phone_number_id: string; display_name: string; is_default: boolean }[] | null }) => {
         setWaNumbers(data ?? []);
         const def = (data ?? []).find((n) => n.is_default) ?? (data ?? [])[0];
@@ -101,12 +106,14 @@ export function BlastWizard() {
 
   // Template per-WABA: muat semula senarai template ikut nombor 'hantar dari'.
   // Nombor #2 (Syabab Fresh ll) ada set template tersendiri di WABA-nya.
+  const isGw = fromNumber.startsWith("gw:");
   useEffect(() => {
+    setTpl(null); // reset pilihan — template beza antara WABA
+    if (fromNumber.startsWith("gw:")) { setTemplates([]); return; }   // gateway: tiada template, teks bebas
     const url = fromNumber
       ? `/api/whatsapp/templates?phoneId=${encodeURIComponent(fromNumber)}`
       : "/api/whatsapp/templates";
     fetch(url).then((r) => r.json()).then((j) => setTemplates(j.templates ?? []));
-    setTpl(null); // reset pilihan — template beza antara WABA
   }, [fromNumber]);
 
   const toggleTag = (t: string) => setSelectedTags((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
@@ -208,15 +215,21 @@ export function BlastWizard() {
 
   // Validasi setiap langkah
   const step1Ok = name.trim().length > 0 && count > 0;
-  const step2Ok = !!tpl && (!needsHeaderImage || headerImage.trim().length > 0) && (!needsHeaderVideo || headerVideo.trim().length > 0);
+  const step2Ok = isGw
+    ? gwMessage.trim().length > 0 && gwMessage.length <= 3000
+    : !!tpl && (!needsHeaderImage || headerImage.trim().length > 0) && (!needsHeaderVideo || headerVideo.trim().length > 0);
+  const gwCapNum = Math.min(140, Math.max(5, parseInt(gwDailyCap, 10) || 140));
+  const gwGapNum = Math.min(600, Math.max(20, parseInt(gwGapSec, 10) || 45));
+  const gwDays = Math.max(1, Math.ceil(count / gwCapNum));
+  const gwPerHour = Math.floor(3600 / gwGapNum);
 
   async function send(test: boolean) {
     if (test && !testNumber.trim()) { setMsg("Masukkan nombor test."); return; }
     // Header wajib ikut format template — tanpa header Meta balas #131008 "Required parameter is missing".
-    if (needsHeaderVideo && !headerVideo.trim()) { setMsg("Template ini guna header VIDEO — tampal URL terus fail .mp4 dahulu (Admin › Media › Video)."); return; }
-    if (needsHeaderImage && !headerImage.trim()) { setMsg("Template ini guna header GAMBAR — tampal URL gambar dahulu."); return; }
+    if (!isGw && needsHeaderVideo && !headerVideo.trim()) { setMsg("Template ini guna header VIDEO — tampal URL terus fail .mp4 dahulu (Admin › Media › Video)."); return; }
+    if (!isGw && needsHeaderImage && !headerImage.trim()) { setMsg("Template ini guna header GAMBAR — tampal URL gambar dahulu."); return; }
     // Param kosong (selain nama/name/1 yang auto) → Meta #131008; CSV boleh isi per-penerima kalau ada lajur sama nama.
-    const emptyKeys = Object.keys(params).filter((k) => !["nama", "name", "1"].includes(k) && !params[k]?.trim() && !(audType === "csv" && csvCols.includes(k)));
+    const emptyKeys = isGw ? [] : Object.keys(params).filter((k) => !["nama", "name", "1"].includes(k) && !params[k]?.trim() && !(audType === "csv" && csvCols.includes(k)));
     if (emptyKeys.length) { setMsg(`Param ${emptyKeys.join(", ")} kosong — isi nilai atau token {nama}. Meta tolak param kosong.`); return; }
     setBusy(true);
     setMsg(test ? "Menghantar test…" : "Menghantar blast… (jangan tutup halaman)");
@@ -225,14 +238,17 @@ export function BlastWizard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
-        templateName: tpl!.name,
-        templateLang: tpl!.language,
+        templateName: isGw ? undefined : tpl!.name,
+        templateLang: isGw ? undefined : tpl!.language,
+        message: isGw ? gwMessage : undefined,
+        gwDailyCap: isGw ? gwCapNum : undefined,
+        gwGapSec: isGw ? gwGapNum : undefined,
         params,
         audience: buildAudience(),
         test,
         testNumber: test ? testNumber.trim() : undefined,
-        headerImage: needsHeaderImage ? headerImage.trim() : undefined,
-        headerVideo: needsHeaderVideo ? headerVideo.trim() : undefined,
+        headerImage: !isGw && needsHeaderImage ? headerImage.trim() : undefined,
+        headerVideo: !isGw && needsHeaderVideo ? headerVideo.trim() : undefined,
         phoneNumberId: fromNumber || undefined,
         scheduledAt: !test && scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       }),
@@ -248,7 +264,8 @@ export function BlastWizard() {
       );
       return;
     }
-    if (j.scheduled) setMsg(`✅ Dijadualkan untuk ${new Date(j.scheduledAt).toLocaleString("ms-MY")} — drainer akan hantar bila tiba masa.`);
+    if (j.gateway) setMsg(`✅ ${j.queued} mesej dibaris untuk nombor tidak rasmi${j.skipped ? ` (${j.skipped} dilangkau: opt-out)` : ""}. ${j.dailyCap} sehari, ${j.gapSec} saat semesej, ${j.firstAt ? `mula ${new Date(j.firstAt).toLocaleString("ms-MY")}` : ""}${j.lastAt ? `, siap anggaran ${new Date(j.lastAt).toLocaleString("ms-MY")}` : ""}.`);
+    else if (j.scheduled) setMsg(`✅ Dijadualkan untuk ${new Date(j.scheduledAt).toLocaleString("ms-MY")} — drainer akan hantar bila tiba masa.`);
     else setMsg(`✅ Blast dimulakan — ${j.sent} dihantar, ${j.queued} dalam baris gilir (cron sambung).`);
     setDone(true);
   }
@@ -422,10 +439,41 @@ export function BlastWizard() {
             <div>
               <label className="text-sm font-semibold text-gray-600">Hantar dari nombor</label>
               <select className={`${inputCls} mt-1`} value={fromNumber} onChange={(e) => setFromNumber(e.target.value)}>
-                {waNumbers.map((n) => <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}</option>)}
+                {waNumbers.map((n) => <option key={n.phone_number_id} value={n.phone_number_id}>{n.display_name}{n.phone_number_id.startsWith("gw:") ? " · tidak rasmi (teks bebas, perlahan)" : ""}</option>)}
               </select>
             </div>
           )}
+          {isGw && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-gray-600">Mesej</label>
+                <textarea value={gwMessage} onChange={(e) => setGwMessage(e.target.value)} rows={7} maxLength={3000}
+                  placeholder={"Salam {nama}, stok buah baharu dah sampai minggu ni…\n\nBalas mesej ini untuk order."} className={`${inputCls} mt-1 resize-y`} />
+                <div className="flex justify-between mt-1 text-[11px] text-gray-400">
+                  <span>Token: <code>{"{nama}"}</code> → nama penerima{audType === "csv" && csvCols.length > 0 ? ` · lajur CSV: ${csvCols.filter((c) => !/phone|tel|^no|nombor|hp|wa|nama|name/i.test(c)).map((c) => `{${c}}`).join(" ")}` : ""}. Tebal guna *asterisk*.</span>
+                  <span>{gwMessage.length}/3000</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-2">
+                <p className="font-semibold text-gray-800">Nombor tidak rasmi: hantar perlahan, elak sekatan</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500">Berapa nombor sehari</label>
+                    <input type="number" min={5} max={140} value={gwDailyCap} onChange={(e) => setGwDailyCap(e.target.value.replace(/\D/g, ""))} onBlur={() => setGwDailyCap(String(gwCapNum))} className={`${inputCls} mt-1 py-1.5`} />
+                    <p className="text-[10px] text-gray-400 mt-0.5">5–140 · nombor baharu mula rendah (30–50), naik perlahan</p>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500">Jarak antara mesej (saat)</label>
+                    <input type="number" min={20} max={600} value={gwGapSec} onChange={(e) => setGwGapSec(e.target.value.replace(/\D/g, ""))} onBlur={() => setGwGapSec(String(gwGapNum))} className={`${inputCls} mt-1 py-1.5`} />
+                    <p className="text-[10px] text-gray-400 mt-0.5">20–600 · {gwGapNum}s ≈ {gwPerHour} mesej sejam</p>
+                  </div>
+                </div>
+                <p>{gwCapNum} sehari · {gwGapNum} saat semesej · hanya 09:00–21:00. {count} penerima ≈ <b>{gwDays} hari</b>{gwDays > 1 ? ", bersambung sendiri setiap pagi" : ""}.</p>
+                <p>Hantar kepada pelanggan yang kenal kita sahaja (pernah order / pernah chat). Tiada template, tiada kos Meta, resit sampai &amp; dibaca tetap direkod.</p>
+              </div>
+            </div>
+          )}
+          {!isGw && (<>
           <div>
             <label className="text-sm font-semibold text-gray-600">Template diluluskan</label>
             <select className={`${inputCls} mt-1`} value={tpl?.name ?? ""} onChange={(e) => { const t = templates.find((x) => x.name === e.target.value); if (t) pickTemplate(t); }}>
@@ -463,6 +511,7 @@ export function BlastWizard() {
               <p className="text-[11px] text-gray-400 mt-1">Template ini guna header VIDEO. URL mesti pautan terus ke fail .mp4 awam (maks 16MB) — bukan pautan Google Drive / YouTube. Muat naik di <a href="/admin/media?tab=videos" target="_blank" rel="noreferrer" className="underline font-semibold text-gray-600">Admin › Media › Video</a>, kemudian salin URL.</p>
             </div>
           )}
+          </>)}
           <div className="flex justify-between">
             <button onClick={() => setStep(1)} className="text-sm text-gray-500 px-4 py-2.5">← Back</button>
             <button disabled={!step2Ok} onClick={() => setStep(3)} className="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-bold disabled:opacity-40">Next →</button>
@@ -475,7 +524,8 @@ export function BlastWizard() {
         <div className={`${card} space-y-4`}>
           <div className="bg-gray-50 rounded-xl p-4 space-y-1.5 text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Campaign</span><span className="font-bold text-gray-800">{name}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Template</span><span className="font-semibold">{tpl?.name}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">{isGw ? "Penghantar" : "Template"}</span><span className="font-semibold">{isGw ? `${waNumbers.find((n) => n.phone_number_id === fromNumber)?.display_name ?? "Gateway"} · teks bebas` : tpl?.name}</span></div>
+            {isGw && <div className="flex justify-between"><span className="text-gray-400">Kelajuan</span><span className="font-semibold">{gwGapNum}s/mesej · {gwCapNum}/hari · ≈ {gwDays} hari</span></div>}
             <div className="flex justify-between"><span className="text-gray-400">Audiens</span><span className="font-semibold">{audType === "database" ? "Customer Database" : audType} · {count} penerima</span></div>
           </div>
 

@@ -8,6 +8,7 @@
 import { sendTemplate } from "@/lib/whatsapp-cloud";
 import { getSender } from "@/lib/wa-numbers";
 import { fillTemplateParams, emptyParamKeys } from "@/lib/blast-params";
+import { GATEWAY_TEMPLATE_NAME } from "@/lib/blast-gateway";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,6 +41,7 @@ export async function drainBlasts(sb: SB, opts: { budgetMs: number; blastId?: st
     .from("crm_blasts")
     .select("id, template_name, template_lang, params, header_image, header_video, status, scheduled_at, phone_number_id")
     .in("status", ["scheduled", "sending"])
+    .neq("template_name", GATEWAY_TEMPLATE_NAME)   // kempen gateway (Hijau) dihantar oleh wa_outbox, bukan Cloud API
     .order("scheduled_at", { ascending: true, nullsFirst: true });
   if (opts.blastId) q = q.eq("id", opts.blastId);
   const { data: blasts } = await q;

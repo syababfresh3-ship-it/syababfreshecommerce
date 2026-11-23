@@ -20,7 +20,7 @@ export function gatewayConfigured(): boolean {
   return !!BASE && !!KEY
 }
 
-export interface GatewaySendResult { ok: boolean; id?: string; error?: string }
+export interface GatewaySendResult { ok: boolean; id?: string; error?: string; code?: string }
 
 async function call(path: string, body: Record<string, unknown>): Promise<GatewaySendResult> {
   if (!gatewayConfigured()) return { ok: false, error: 'Gateway WA belum dikonfigurasi (WA_GATEWAY_URL / WA_GATEWAY_KEY).' }
@@ -30,8 +30,8 @@ async function call(path: string, body: Record<string, unknown>): Promise<Gatewa
       headers: { 'Content-Type': 'application/json', 'X-API-Key': KEY },
       body: JSON.stringify(body),
     })
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string; message_id?: string | null }
-    if (!res.ok || data.success === false) return { ok: false, error: data.error || `HTTP ${res.status}` }
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string; code?: string; message_id?: string | null }
+    if (!res.ok || data.success === false) return { ok: false, error: data.error || `HTTP ${res.status}`, code: data.code || (res.status === 429 ? 'busy' : undefined) }
     return { ok: true, id: data.message_id ?? undefined }
   } catch (e) {
     return { ok: false, error: String(e) }

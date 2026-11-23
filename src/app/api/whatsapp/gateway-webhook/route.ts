@@ -86,6 +86,10 @@ export async function POST(req: NextRequest) {
 
 async function handleStatus(sb: Admin, ev: GwEvent) {
   if (!ev.message_id || !ev.status) return;
+  // Kempen Blaster gateway (lib/blast-gateway): penerima dipadankan ikut wa_message_id — RPC sama dgn webhook Official.
+  if (["sent", "delivered", "read", "failed"].includes(ev.status)) {
+    await sb.rpc("crm_blast_mark_status", { p_msg: ev.message_id, p_status: ev.status }).then(() => {}, () => {});
+  }
   // Jangan turunkan status (read → delivered) bila resit sampai tak ikut turutan.
   const rank: Record<string, number> = { sent: 1, delivered: 2, read: 3, failed: 9 };
   const { data: row } = await sb.from("wa_messages").select("status").eq("wa_message_id", ev.message_id).maybeSingle();
