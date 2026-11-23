@@ -8,6 +8,7 @@ import { safeClientIp, checkMemberOrderIpFlood, FLOOD_ERROR } from '@/lib/order-
 import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
 import { evaluatePromo } from '@/lib/promo-rules'
 import { stampAffiliateAttributions, type AffLine } from '@/lib/affiliate-stamp'
+import { queueOpsAlert, opsCodText } from '@/lib/ops-alerts'
 
 interface CartItem {
   product_id: string
@@ -353,6 +354,17 @@ export async function POST(request: Request) {
       grossSubtotal: subtotal,
       discount: Number(promoDiscount || 0) + Number(pointsDiscount || 0),
     })
+  }
+
+  // Amaran operasi (lib/ops-alerts): pesanan pertama ahli menunggu kelulusan → kumpulan staf. Best-effort.
+  if (needsApproval) {
+    const l0 = String(delivery_address).split('\n')[0] ?? ''
+    const si = l0.indexOf(' | ')
+    await queueOpsAlert('cod', opsCodText({
+      source: 'store', orderId: order.id, orderNumber: order.order_number ?? null,
+      name: si > 0 ? l0.substring(0, si).trim() : null, phone: si > 0 ? l0.substring(si + 3).trim() : null,
+      total: Number(total), paymentMethod: payment_method,
+    }), { orderId: order.id })
   }
 
   // Parse nama & phone dari delivery_address ("Nama | Phone\nAlamat")

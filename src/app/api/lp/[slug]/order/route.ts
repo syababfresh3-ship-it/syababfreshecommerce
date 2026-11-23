@@ -17,6 +17,7 @@ import { formatPromoNotes, promoDelivery, promoGift, promoPriceFor } from '@/lib
 import { loadPromoRules, quotaRemaining } from '@/lib/lp-promo-rules-server'
 import { NextResponse } from 'next/server'
 import { stampAffiliateAttributions } from '@/lib/affiliate-stamp'
+import { queueOpsAlert, opsCodText } from '@/lib/ops-alerts'
 
 // Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
 // disahkan selepas halaman dimuat (lib/lp-payment). Dulu hanya senarai ini yang
@@ -562,6 +563,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // dibuat dalam PATCH admin bila order diluluskan. Kalau ditolak, tiada apa yang
   // perlu dipulangkan. Sama dengan pintu order pertama ahli storefront.
   if (approvalPending) {
+    // Amaran operasi ke kumpulan staf (lib/ops-alerts) — best-effort, tak patah aliran.
+    await queueOpsAlert('cod', opsCodText({
+      source: 'lp', title: page.title, orderId: order.id, orderNumber: order.order_number ?? null,
+      name, phone, total: Number(order.total), paymentMethod: payment_method,
+    }), { orderId: order.id })
     return NextResponse.json({
       ok: true,
       needs_approval: true,

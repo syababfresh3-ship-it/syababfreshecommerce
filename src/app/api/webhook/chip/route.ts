@@ -3,6 +3,7 @@ import { ensureDealForGiftOrderPayment } from '@/lib/gift-deals-server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createVerify } from 'crypto'
 import { confirmLpGuestOrder, confirmStorefrontOrder, normalizeChipPem } from '@/lib/order-confirm'
+import { queueOpsAlert, opsPaymentText } from '@/lib/ops-alerts'
 
 export const runtime = 'nodejs'
 
@@ -147,10 +148,23 @@ export async function POST(req: NextRequest) {
 
   // Auto-cancel order if payment failed, cancelled, or expired
   if (outcome === 'failed') {
-    await Promise.all([
-      supabase.from('orders').update({ status: 'cancelled', payment_status: 'failed' }).eq('id', orderId).eq('payment_status', 'unpaid'),
-      supabase.from('lp_guest_orders').update({ status: 'cancelled' }).eq('id', orderId).eq('status', 'pending'),
+    const [sf, lp] = await Promise.all([
+      supabase.from('orders').update({ status: 'cancelled', payment_status: 'failed' }).eq('id', orderId).eq('payment_status', 'unpaid')
+        .select('id, order_number, total, payment_method'),
+      supabase.from('lp_guest_orders').update({ status: 'cancelled' }).eq('id', orderId).eq('status', 'pending')
+        .select('id, order_number, total, payment_method, name, phone'),
     ])
+    // Amaran operasi (lib/ops-alerts) — hanya bila order memang baru dibatalkan di sini; best-effort.
+    const sfRow = sf.data?.[0] as { id: string; order_number: string | null; total: number; payment_method: string | null } | undefined
+    const lpRow = lp.data?.[0] as { id: string; order_number: string | null; total: number; payment_method: string | null; name: string | null; phone: string | null } | undefined
+    const hit = sfRow ? { source: 'store' as const, ...sfRow } : lpRow ? { source: 'lp' as const, ...lpRow } : null
+    if (hit) {
+      await queueOpsAlert('payment', opsPaymentText({
+        source: hit.source, orderId: hit.id, orderNumber: hit.order_number, total: Number(hit.total), paymentMethod: hit.payment_method,
+        name: 'name' in hit ? hit.name : null, phone: 'phone' in hit ? hit.phone : null,
+        reason: eventType ?? purchaseStatus ?? null,
+      }), { orderId: hit.id })
+    }
     return NextResponse.json({ ok: true })
   }
 

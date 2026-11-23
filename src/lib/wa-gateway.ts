@@ -88,3 +88,28 @@ export async function gatewayListSessions(): Promise<{ ok: boolean; sessions: Ga
     clearTimeout(t)
   }
 }
+
+export interface GatewayGroup { jid: string; name: string; size: number | null }
+
+/** GET /v1/sessions/:id/groups — kumpulan yang disertai nombor itu (untuk pilih sasaran amaran/laporan). */
+export async function gatewayListGroups(sessionId: string): Promise<{ ok: boolean; groups: GatewayGroup[]; error?: string }> {
+  if (!gatewayConfigured()) return { ok: false, groups: [], error: 'gateway tidak dikonfigurasi' }
+  if (!/^[A-Za-z0-9_-]{4,80}$/.test(sessionId)) return { ok: false, groups: [], error: 'session tidak sah' }
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), 15_000)
+  try {
+    const res = await fetch(`${BASE}/v1/sessions/${encodeURIComponent(sessionId)}/groups`, { headers: { 'X-API-Key': KEY }, signal: ctl.signal, cache: 'no-store' })
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: string; groups?: Record<string, unknown>[] }
+    if (!res.ok || data.success === false) return { ok: false, groups: [], error: data.error || `HTTP ${res.status}` }
+    const groups = (data.groups ?? []).map(g => ({
+      jid: String(g.id ?? g.jid ?? ''),
+      name: String(g.subject ?? g.name ?? g.id ?? ''),
+      size: typeof g.size === 'number' ? g.size : Array.isArray(g.participants) ? g.participants.length : null,
+    })).filter(g => /@g\.us$/.test(g.jid))
+    return { ok: true, groups }
+  } catch (e) {
+    return { ok: false, groups: [], error: e instanceof Error && e.name === 'AbortError' ? 'timeout 15s' : String(e) }
+  } finally {
+    clearTimeout(t)
+  }
+}

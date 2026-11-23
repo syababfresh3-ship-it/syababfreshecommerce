@@ -20,6 +20,8 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | voucher-reminder | `/api/cron/voucher-reminder` | Email voucher peribadi luput ≤7 hari (sekali/voucher) | harian (~10:00) | cron-job.org |
 | daily-summary | `/api/cron/daily-summary` | Ringkasan semalam ke admin: jualan SF+LP, top produk, COD tertunggak, pending, stok rendah, batch luput, refund, cron senyap, ralat storefront (WA + push + email) | 08:30 harian (MYT) | cron-job.org |
 | abandoned-checkout | `/api/cron/abandoned-checkout` | Email pemulihan troli terbengkalai (Sprint 3F, EMAIL sahaja): email 1 selepas 1j, email 2 selepas 24j, sekali per peringkat, hormat nyah-langgan | tiap 30 min | cron-job.org |
+| affiliate-credit | `/api/cron/affiliate-credit` | Kredit komisen affiliate yang cukup tempoh tahan (RPC `affiliate_credit_due`; void bila order batal/refund) | tiap jam (minit 20) | **Vercel** |
+| ops-alerts | `/api/cron/ops-alerts` | Amaran operasi ke kumpulan WA staf melalui nombor gateway: cron senyap (ulang 6j) + stok rendah (ulang 24j); COD menunggu kelulusan & bayaran gagal dihantar terus dari laluan order/webhook (lib/ops-alerts; tetapan /admin/settings/whatsapp) | tiap 15 min | **Vercel** |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 

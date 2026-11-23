@@ -1,5 +1,7 @@
 'use client'
 
+import { OpsAlertsCard } from './ops-alerts-card'
+
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { MessageCircle, Save, RefreshCw, RotateCcw } from 'lucide-react'
@@ -197,6 +199,9 @@ export default function WhatsAppTemplatesPage() {
         </div>
         <p className="text-[11px] text-gray-400 mt-2">Tekan <span className="font-semibold">Save All</span> untuk simpan pilihan.</p>
       </div>
+
+      {/* Amaran operasi ke kumpulan staf melalui nombor gateway (lib/ops-alerts) */}
+      <OpsAlertsCard />
 
       <div className="space-y-4">
         {TEMPLATES.map(t => (
