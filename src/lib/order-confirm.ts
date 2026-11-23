@@ -3,7 +3,7 @@ import { deductLpOrderStock } from '@/lib/stock'
 import { sendWhatsApp } from '@/lib/murpati'
 import { sendAdminPush } from '@/lib/push'
 import { sendPaymentConfirmedEmail } from '@/lib/zeptomail'
-import { sendCapiPurchaseWhatsApp } from '@/lib/meta-capi'
+import { sendCapiPurchase, sendCapiPurchaseWhatsApp } from '@/lib/meta-capi'
 import { parsePromoNotes } from '@/lib/lp-promo-rules'
 
 // CHIP's RSA public key may be stored as a single line (no newlines) in the
@@ -35,7 +35,7 @@ export async function confirmLpGuestOrder(
     .update({ status: 'confirmed', payment_status: 'paid' })
     .eq('id', orderId)
     .eq('status', 'pending')
-    .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, ctwa_clid, landing_pages(title)')
+    .select('id, order_number, name, phone, total, items, payment_method, promo_code_id, user_id, points_used, email, address, notes, ctwa_clid, fbc, fbp, user_agent, client_ip, landing_pages(title, slug)')
     .maybeSingle()
 
   if (!lp) return 'already' // already processed, or id not an LP order
@@ -118,6 +118,29 @@ export async function confirmLpGuestOrder(
       total: Number(order.total),
       phone: order.phone,
       ctwa_clid: order.ctwa_clid,
+    }).catch(() => {})
+  } else {
+    // Purchase CAPI (website) untuk bayaran dalam talian LP (migration 167, 23 Nov 2026):
+    // event_id = purchase_<order_number> SAMA dengan pixel page berjaya → Meta nyahganda pelayar↔pelayan,
+    // dan isyarat tetap sampai walau pelayar sekat pixel. Atribusi tersimpan masa order (fbc/fbp/ua/ip).
+    // Guard flip pending→confirmed pastikan ini jalan sekali sahaja. Fire-and-forget.
+    type LpItem = { product_id?: string | null; quantity?: number | string; unit_price?: number | string }
+    const capiItems = ((order.items as LpItem[] | null) ?? []).map(i => ({ productId: String(i.product_id ?? ''), quantity: Number(i.quantity) || 1, price: Number(i.unit_price) || 0 }))
+    const lpSlug = order.landing_pages?.slug as string | undefined
+    void sendCapiPurchase({
+      orderId: order.id,
+      orderNumber: order.order_number,
+      total: Number(order.total),
+      items: capiItems,
+      userEmail: order.email ?? null,
+      userPhone: order.phone ?? null,
+      userId: order.user_id ?? null,
+      customerName: order.name ?? null,
+      clientIp: order.client_ip ?? null,
+      userAgent: order.user_agent ?? null,
+      fbc: order.fbc ?? null,
+      fbp: order.fbp ?? null,
+      eventSourceUrl: lpSlug ? `${appUrl}/lp/${lpSlug}` : null,
     }).catch(() => {})
   }
 

@@ -28,25 +28,50 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
 
   if (!page) notFound()
 
-  // Fetch order details
-  const order = pesanan ? await supabase
-    .from('lp_guest_orders')
-    .select('id, status, order_number, name, phone, total, delivery_fee, payment_method, items, product_name, variant_name, quantity, unit_price')
-    .eq('order_number', pesanan)
-    .single()
-    .then(r => r.data) : null
+  // Fetch order details (+ penanda pixel, migration 167 — jatuh balik bila lajur belum wujud)
+  const ORDER_COLS = 'id, status, payment_status, order_number, name, phone, total, delivery_fee, payment_method, items, product_name, variant_name, quantity, unit_price'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let order: any = null
+  let pixelFlagSupported = true
+  if (pesanan) {
+    let r = await supabase.from('lp_guest_orders').select(`${ORDER_COLS}, pixel_purchase_at`).eq('order_number', pesanan).maybeSingle()
+    if (r.error && ['42703', 'PGRST204'].includes(r.error.code ?? '')) {
+      pixelFlagSupported = false
+      r = await supabase.from('lp_guest_orders').select(ORDER_COLS).eq('order_number', pesanan).maybeSingle()
+    }
+    order = r.data ?? null
+  }
 
   const items: LpOrderItem[] = Array.isArray(order?.items) && order.items.length > 0
     ? order.items
     : order ? [{ product_name: order.product_name, variant_name: order.variant_name, quantity: order.quantity, unit_price: order.unit_price }]
     : []
 
-  // Meta Pixel Purchase (22 Okt 2026):
-  // - eventID = purchase_<order_number>, SAMA dengan event_id CAPI (lib/meta-capi.ts
-  //   sendCapiPurchase) → Meta dedup pelayar ↔ pelayan.
-  // - Penanda sessionStorage per order → tak fire semula bila page ini di-refresh.
+  // Meta Pixel Purchase (22 Okt 2026; diperketat 23 Nov 2026, migration 167):
+  // - eventID = purchase_<order_number>, SAMA dengan event_id CAPI (lib/order-confirm →
+  //   sendCapiPurchase masa bayaran disahkan) → Meta nyahganda pelayar ↔ pelayan.
+  // - Meta TIDAK nyahganda salinan pelayar-sahaja, jadi penanda sessionStorage tak cukup
+  //   (buka semula dalam sesi/peranti lain = dikira lagi). Kini: tembak HANYA bila order
+  //   sudah dibayar DAN claim atomik pixel_purchase_at berjaya (sekali seumur hidup order).
+  //   Order masih pending → LpPaymentVerifier sahkan & refresh → render semula → tembak.
+  // - Lajur belum wujud (migration 167 belum jalan) → kelakuan lama (penanda sessionStorage).
   // - Nilai dimasukkan ke skrip melalui JSON.stringify (bukan interpolasi mentah).
   const pixelId = String(page.meta_pixel_id ?? '').replace(/[^0-9]/g, '')
+  const isPaid = !!order && (order.payment_status === 'paid' || ['confirmed', 'delivering', 'delivered'].includes(String(order.status)))
+  let firePixel = false
+  if (order && pixelId) {
+    if (!pixelFlagSupported) firePixel = true
+    else if (isPaid && !order.pixel_purchase_at) {
+      const { data: claimed } = await supabase
+        .from('lp_guest_orders')
+        .update({ pixel_purchase_at: new Date().toISOString() })
+        .eq('id', order.id)
+        .is('pixel_purchase_at', null)
+        .select('id')
+        .maybeSingle()
+      firePixel = !!claimed
+    }
+  }
   const orderNo = order ? String(order.order_number).replace(/[^A-Za-z0-9_-]/g, '') : ''
   const purchaseKey = orderNo ? `sf_lp_purchase_${orderNo}` : `sf_lp_purchase_${slug.replace(/[^A-Za-z0-9_-]/g, '')}_tiada`
   const purchaseData = {
@@ -68,8 +93,8 @@ export default async function ThankYouPage({ params, searchParams }: Props) {
         <LpPaymentVerifier orderId={order.id} />
       )}
 
-      {/* Meta Pixel */}
-      {pixelId && (
+      {/* Meta Pixel — Purchase sekali sahaja per order (lihat nota di atas) */}
+      {pixelId && firePixel && (
         <script dangerouslySetInnerHTML={{ __html: `
           !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
           fbq('init', '${pixelId}');

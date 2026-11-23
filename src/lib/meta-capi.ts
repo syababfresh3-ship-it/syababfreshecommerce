@@ -59,6 +59,7 @@ export async function sendCapiPurchase({
   userAgent,
   fbc,
   fbp,
+  eventSourceUrl,
 }: {
   orderId: string
   orderNumber: string
@@ -72,6 +73,8 @@ export async function sendCapiPurchase({
   userAgent?: string | null
   fbc?: string | null
   fbp?: string | null
+  /** URL halaman sebenar (cth LP) — lalai /checkout kedai. */
+  eventSourceUrl?: string | null
 }) {
   if (!process.env.META_CAPI_ACCESS_TOKEN) return
   const pixelId = await getPixelId()
@@ -93,7 +96,7 @@ export async function sendCapiPurchase({
       event_time: Math.floor(Date.now() / 1000),
       event_id: `purchase_${orderNumber}`,
       action_source: 'website',
-      event_source_url: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/checkout`,
+      event_source_url: eventSourceUrl || `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my'}/checkout`,
       user_data: userData,
       custom_data: {
         currency: 'MYR',
