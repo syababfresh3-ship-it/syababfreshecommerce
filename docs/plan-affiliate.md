@@ -1,6 +1,6 @@
 # Program Affiliate — produk-link, klik pelayan, tahan 7 hari
 
-Status: **DIBINA 23 Nov 2026, belum commit. Migration 165 belum dijalankan di production.**
+Status: **LIVE 23 Nov 2026** — commit `85ca09b`, migration 165 dijalankan pemilik 23 Nov 2026 (disahkan: jadual, lajur, tetapan, 5 RPC wujud).
 Keputusan pemilik (23 Nov): kadar komisen ikut produk · tempoh tahan 7 hari · pautan LP ditangkap.
 
 ## Model
@@ -36,12 +36,11 @@ Keputusan pemilik (23 Nov): kadar komisen ikut produk · tempoh tahan 7 hari · 
 - Klien: `lib/affiliate-attribution.ts`, `components/affiliate/affiliate-capture.tsx` (root layout), `stores/cart.ts` (`affClick`), `checkout/page.tsx`, 3 borang LP (`lp-cart-bar`, `lp-multi-checkout`, `lp-inline-checkout` hantar `aff`).
 - Pelayan: `lib/affiliate-stamp.ts`, `api/orders`, `api/store/guest-order`, `api/lp/[slug]/order` (cap attribution), `lib/order-delivered.ts` (jadual/reversal), `api/cron/affiliate-credit`, `api/affiliate/click`, `api/affiliate/withdraw`, `api/admin/affiliates/withdrawals/[id]`, `api/admin/products` (clamp).
 - UI: `/affiliate` (page + `affiliate-dashboard.tsx`, Melayu, monokrom), `/admin/affiliates` (page + client), nav admin MARKETING → Affiliate.
-- `src/app/products/[slug]/affiliate-capture.tsx` kini shim kosong (tangkapan pindah ke root) — boleh dipadam.
 
 ## Langkah pemilik
 
-1. Jalankan `supabase/165_affiliate_hardening.sql` di Supabase SQL editor (production). Sebelum itu kod sudah tahan: stamp jatuh balik ke lajur lama, kredit tak dijadualkan (baris kekal pending, tiada komisen hilang).
-2. `commit dan push` → Vercel daftar cron `affiliate-credit` dari `vercel.json`.
+1. ~~Jalankan `supabase/165_affiliate_hardening.sql`~~ — SIAP 23 Nov 2026.
+2. ~~`commit dan push`~~ — SIAP (85ca09b); cron `affiliate-credit` didaftar dari `vercel.json`.
 3. Set kadar pada produk yang mahu dipromosi (5 produk sudah ada kadar > 0).
 4. Ujian: buka `/products/<slug>?aff=<KOD>` → semak baris `affiliate_clicks`; buat order ujian → baris `affiliate_attributions` pending; tanda delivered → `credit_after` terisi; cron/RPC kredit selepas 7 hari (untuk ujian, set `affiliate_hold_days` = 0 sementara).
 
@@ -49,4 +48,3 @@ Keputusan pemilik (23 Nov): kadar komisen ikut produk · tempoh tahan 7 hari · 
 
 - `/jadi-affiliate` (halaman jemputan) masih gaya lama (ungu) — belum disentuh.
 - Penyata bulanan / eksport untuk affiliate; notifikasi dalam app.
-- Cawangan Neon `aff-mig-test` (projek syababfresh) dicipta untuk ujian SQL — padam bila selesai.
