@@ -6,7 +6,7 @@ import { sendOrderConfirmationEmail } from '@/lib/zeptomail'
 import { reverseOrderLoyalty } from '@/lib/loyalty-reverse'
 import { restoreStorefrontOrderStock } from '@/lib/stock'
 import { canTransition, transitionError } from '@/lib/order-status'
-import { handleOrderDelivered } from '@/lib/order-delivered'
+import { handleOrderDelivered, reverseAffiliateAttributions } from '@/lib/order-delivered'
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   // Audit §0.3: dulu tiada auth — sesiapa dengan UUID dapat alamat/telefon/email pelanggan
@@ -163,6 +163,7 @@ export async function PATCH(
     await restoreStorefrontOrderStock(supabase, id)
     const { data: o } = await supabase.from('orders').select('user_id, total, order_number').eq('id', id).single()
     if (o?.user_id) await reverseOrderLoyalty(supabase, { id, ...o })
+    await reverseAffiliateAttributions(supabase, id, 'order', 'cancelled')   // migration 139/165: pending dibatalkan, credited ditolak balik
   }
 
   // On refund: reverse earned points + spend, give back redeemed points
@@ -175,6 +176,7 @@ export async function PATCH(
     if (orderData?.user_id) {
       await reverseOrderLoyalty(supabase, { id, ...orderData })
     }
+    await reverseAffiliateAttributions(supabase, id, 'order')   // migration 139
   }
 
   return NextResponse.json({ ok: true })

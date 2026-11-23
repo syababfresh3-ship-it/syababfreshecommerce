@@ -3,7 +3,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { handleOrderDelivered, sendLpReviewRequest } from '@/lib/order-delivered'
+import { handleOrderDelivered, sendLpReviewRequest, handleLpGuestDelivered } from '@/lib/order-delivered'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
 import { stampHeartbeat } from '@/lib/cron-heartbeat'
 
@@ -79,6 +79,7 @@ export async function GET(req: Request) {
       .select('id')
     if (synced?.length) {
       await awardLpLoyalty(admin, o).catch(() => {}) // idempotent (loyalty_awarded flag)
+      await handleLpGuestDelivered(admin, o.id).catch(() => {}) // komisen affiliate guest/LP (migration 139)
       await sendLpReviewRequest(admin, o.id).catch(() => {}) // Sprint 3D: jemput ulasan (sekali per order)
       lpDelivered++
     }

@@ -7,11 +7,15 @@ import { rateLimitDb } from '@/lib/rate-limit-db'
 import { safeClientIp, checkMemberOrderIpFlood, FLOOD_ERROR } from '@/lib/order-guard'
 import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
 import { evaluatePromo } from '@/lib/promo-rules'
+import { stampAffiliateAttributions, type AffLine } from '@/lib/affiliate-stamp'
 
 interface CartItem {
   product_id: string
   variant_id: string | null
   quantity: number
+  aff_code?: string | null   // attribution affiliate (migration 139)
+  aff_at?: number | null
+  aff_click?: string | null   // id klik pelayan (migration 165)
 }
 
 export async function POST(request: Request) {
@@ -109,6 +113,7 @@ export async function POST(request: Request) {
   }> = []
 
   let subtotal = 0
+  const affLines: AffLine[] = []   // attribution affiliate per baris (migration 139)
 
   for (const item of items as CartItem[]) {
     if (item.variant_id) {
@@ -130,6 +135,7 @@ export async function POST(request: Request) {
         variant_name: variant.name,
         weight_grams: variant.weight_grams ?? null,
       })
+      affLines.push({ product_id: product.id, subtotal: itemSubtotal, aff_code: item.aff_code, aff_at: item.aff_at, aff_click: item.aff_click })
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
@@ -147,6 +153,7 @@ export async function POST(request: Request) {
         variant_name: null,
         weight_grams: (product as any).weight_grams ?? null,
       })
+      affLines.push({ product_id: product.id, subtotal: itemSubtotal, aff_code: item.aff_code, aff_at: item.aff_at, aff_click: item.aff_click })
     }
   }
 
@@ -333,6 +340,19 @@ export async function POST(request: Request) {
     // Rollback order if items fail
     await supabase.from('orders').delete().eq('id', order.id)
     return NextResponse.json({ error: 'Gagal simpan item pesanan' }, { status: 500 })
+  }
+
+  // Cap attribution affiliate (migration 139/165) — tak patah flow jika gagal. Telefon penerima (baris
+  // pertama alamat "Nama | Telefon") untuk semakan beli-sendiri; asas komisen bersih diskaun promo+mata.
+  {
+    const firstAddrLine = String(delivery_address).split('\n')[0] ?? ''
+    const sepIdx = firstAddrLine.indexOf(' | ')
+    await stampAffiliateAttributions(order.id, 'order', affLines, user.id, {
+      buyerPhone: sepIdx > 0 ? firstAddrLine.substring(sepIdx + 3).trim() : null,
+      orderNumber: order.order_number ?? null,
+      grossSubtotal: subtotal,
+      discount: Number(promoDiscount || 0) + Number(pointsDiscount || 0),
+    })
   }
 
   // Parse nama & phone dari delivery_address ("Nama | Phone\nAlamat")

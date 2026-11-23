@@ -3,91 +3,62 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendWhatsApp } from '@/lib/murpati'
 
+// POST /api/affiliate/withdraw — permohonan pengeluaran komisen.
+// Migration 165: semak baki + tolak + insert dalam SATU transaksi (RPC
+// affiliate_request_withdrawal, service_role sahaja) — tiada lagi dua langkah
+// yang boleh berlumba dengan kredit cron. Minimum ikut app_settings.affiliate_min_withdraw.
+
+const RPC_ERR: Record<string, string> = {
+  not_affiliate:  'Akaun ini bukan affiliate',
+  min_amount:     'Amaun di bawah minimum pengeluaran',
+  pending_exists: 'Ada permintaan pengeluaran yang sedang diproses',
+  insufficient:   'Baki tidak mencukupi',
+}
+
 export async function POST(request: Request) {
   try {
     const userClient = await createClient()
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const supabase = createAdminClient()
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_affiliate, affiliate_balance, full_name')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_affiliate) return NextResponse.json({ error: 'Bukan affiliate' }, { status: 403 })
-
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const { bank_name, bank_account, account_name } = body
-    const amount = typeof body.amount === 'number' && isFinite(body.amount) ? body.amount : null
+    const amount = typeof body.amount === 'number' && isFinite(body.amount) ? Math.round(body.amount * 100) / 100 : null
 
     if (!amount || amount <= 0) return NextResponse.json({ error: 'Amaun tidak sah' }, { status: 400 })
-    if (amount < 10) return NextResponse.json({ error: 'Minimum pengeluaran RM10' }, { status: 400 })
     if (amount > 50000) return NextResponse.json({ error: 'Amaun melebihi had' }, { status: 400 })
-    if (amount > profile.affiliate_balance) return NextResponse.json({ error: 'Baki tidak mencukupi' }, { status: 400 })
     if (!bank_name || typeof bank_name !== 'string' || bank_name.trim().length < 2) return NextResponse.json({ error: 'Nama bank tidak sah' }, { status: 400 })
     if (!bank_account || typeof bank_account !== 'string' || !/^\d{6,20}$/.test(bank_account.trim())) return NextResponse.json({ error: 'No. akaun bank tidak sah' }, { status: 400 })
     if (!account_name || typeof account_name !== 'string' || account_name.trim().length < 3) return NextResponse.json({ error: 'Nama pemilik akaun tidak lengkap' }, { status: 400 })
 
-    // Check no pending withdrawal already
-    const { data: pending } = await supabase
-      .from('affiliate_withdrawals')
-      .select('id')
-      .eq('affiliate_id', user.id)
-      .eq('status', 'pending')
-      .maybeSingle()
-
-    if (pending) return NextResponse.json({ error: 'Ada permintaan pengeluaran yang sedang diproses' }, { status: 400 })
-
-    // Atomic balance deduction — WHERE affiliate_balance >= amount prevents race condition
-    const { data: deducted, error: deductErr } = await supabase
-      .from('profiles')
-      .update({ affiliate_balance: profile.affiliate_balance - amount })
-      .eq('id', user.id)
-      .gte('affiliate_balance', amount)
-      .select('id')
-      .single()
-
-    if (deductErr || !deducted) {
-      return NextResponse.json({ error: 'Baki tidak mencukupi' }, { status: 400 })
-    }
-
-    const { error } = await supabase.from('affiliate_withdrawals').insert({
-      affiliate_id: user.id,
-      amount,
-      bank_name: bank_name.trim(),
-      bank_account: bank_account.trim(),
-      account_name: account_name.trim(),
-      status: 'pending',
+    const supabase = createAdminClient()
+    const { data: wdId, error } = await supabase.rpc('affiliate_request_withdrawal', {
+      p_affiliate: user.id,
+      p_amount: amount,
+      p_bank: bank_name.trim(),
+      p_account: bank_account.trim(),
+      p_name: account_name.trim(),
     })
-
     if (error) {
-      // Rollback balance deduction if withdrawal insert fails
-      await supabase.from('profiles')
-        .update({ affiliate_balance: profile.affiliate_balance })
-        .eq('id', user.id)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      const key = Object.keys(RPC_ERR).find(k => (error.message ?? '').includes(k))
+      return NextResponse.json({ error: key ? RPC_ERR[key] : 'Permintaan gagal. Cuba lagi.' }, { status: key ? 400 : 500 })
     }
 
-    // Notify admin via WhatsApp
+    // Maklum admin (nombor dalaman) — best-effort
     const adminPhone = process.env.ADMIN_WHATSAPP
     if (adminPhone) {
-      const name = (profile as any).full_name ?? 'Affiliate'
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
+      const name = prof?.full_name ?? 'Affiliate'
       sendWhatsApp(adminPhone, [
-        `💰 *Permintaan Pengeluaran Affiliate*`,
-        ``,
-        `👤 ${name}`,
-        `💵 RM${amount.toFixed(2)}`,
-        `🏦 ${bank_name.trim()} — ${bank_account.trim()}`,
-        ``,
-        `Sila semak di panel admin → Program Affiliate → Pengeluaran`,
+        `Permintaan pengeluaran affiliate`,
+        `${name} — RM${amount.toFixed(2)}`,
+        `${bank_name.trim()} ${bank_account.trim()} (${account_name.trim()})`,
+        `Semak: panel admin → Affiliate → Pengeluaran`,
       ].join('\n')).catch(() => {})
     }
 
-    return NextResponse.json({ ok: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
+    return NextResponse.json({ ok: true, id: wdId })
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error)?.message ?? 'Server error' }, { status: 500 })
   }
 }

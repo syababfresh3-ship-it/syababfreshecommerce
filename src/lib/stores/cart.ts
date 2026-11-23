@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartStore, Product, ProductVariant } from '@/types'
 import { trackAddToCart } from '@/lib/tracking'
+import { readAff } from '@/lib/affiliate-attribution'
 
 export const useCartStore = create<CartStore>()(
   persist(
@@ -11,6 +12,7 @@ export const useCartStore = create<CartStore>()(
       addItem: (product: Product, quantity: number = 1, variant: ProductVariant | null = null) => {
         const price = variant ? Number(variant.price) : Number(product.price)
         trackAddToCart(product.name, price, quantity)
+        const aff = readAff(product.slug)   // attribution affiliate last-click untuk produk ni
         set((state) => {
           const existing = state.items.find(
             (item) => item.product.id === product.id && (item.variant?.id ?? null) === (variant?.id ?? null)
@@ -19,12 +21,13 @@ export const useCartStore = create<CartStore>()(
             return {
               items: state.items.map((item) =>
                 item.product.id === product.id && (item.variant?.id ?? null) === (variant?.id ?? null)
-                  ? { ...item, quantity: item.quantity + quantity }
+                  // last-click menang: kemas kini affCode jika ada klik baru
+                  ? { ...item, quantity: item.quantity + quantity, affCode: aff?.code ?? item.affCode ?? null, affAt: aff?.at ?? item.affAt ?? null, affClick: aff?.click ?? item.affClick ?? null }
                   : item
               ),
             }
           }
-          return { items: [...state.items, { product, variant: variant ?? null, quantity }] }
+          return { items: [...state.items, { product, variant: variant ?? null, quantity, affCode: aff?.code ?? null, affAt: aff?.at ?? null, affClick: aff?.click ?? null }] }
         })
       },
 

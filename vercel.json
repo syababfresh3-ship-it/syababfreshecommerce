@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/wa-gateway-health",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/affiliate-credit",
+      "schedule": "20 * * * *"
     }
   ]
 }

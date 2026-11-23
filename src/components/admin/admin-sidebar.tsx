@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Users, Tag, BarChart2, Image, MapPin, FolderOpen, LogOut, RotateCcw, ChevronRight, ChevronDown, CreditCard, Truck, Megaphone, MessageSquare, MessageCircle, Settings2, Globe, Shield, BookOpen, Store, Inbox, Bot, Calculator, TrendingUp, BellRing, Star, Database, PanelTop, Gift, Box, ExternalLink, Link2, FileText, Receipt, Kanban, ClipboardList, Handshake, Share2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useCartStore } from '@/lib/stores/cart'
 import { kurmaPath } from '@/lib/kurma-host'
@@ -53,7 +53,7 @@ function subscribeNavOpen(l: () => void) {
 //   /admin/shipping/dispatch  Scan Keluar        → 1 scan sahaja (8 Jun); dispatch di syababfresh-app
 //   /admin/notifications      Notifications      → push, 13 pelanggan langgan, terakhir 18 Ogos
 //   /admin/referrals          Referrals          → 1 rekod (Jul)
-//   /admin/affiliates         Affiliate          → 0 komisen, 0 pengeluaran
+//   /admin/affiliates         Affiliate          → 0 komisen, 0 pengeluaran (DIPULIHKAN 23 Nov 2026, lihat MARKETING)
 //   /admin/support            Support AI         → 3 aduan, terakhir 5 Jun
 //   /admin/inventory          Inventory          → batch stok terakhir 7 Mei
 // Untuk pulihkan: tambah semula ke kumpulan berkaitan + import ikon lucide
@@ -125,6 +125,8 @@ const sections: Section[] = [
       { href: '/admin/waitlist',     label: 'Waitlist',       icon: BellRing },
       // Dibuka semula 24 Sep 2026: spend Meta kini ditarik automatik (cron meta-ad-spend)
       { href: '/admin/marketing/ads', label: 'Ad Spend & ROAS', icon: TrendingUp },
+      // Dipulihkan 23 Nov 2026: program affiliate produk-link + pautan LP (migration 139/165)
+      { href: '/admin/affiliates',    label: 'Affiliate',       icon: Share2 },
     ],
   },
   {

@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
+import { handleLpGuestDelivered } from '@/lib/order-delivered'
 import { sendDeliveryStatusEmail } from '@/lib/zeptomail'
 
 // POST /api/lalamove/sync-delivered?secret=<LALAMOVE_WEBHOOK_SECRET>
@@ -96,6 +97,7 @@ export async function POST(req: Request) {
       .select('id')
     if (synced?.length) {
       await awardLpLoyalty(admin, lp).catch(() => {})
+      await handleLpGuestDelivered(admin, lp.id).catch(() => {})
       // Email delivered untuk LP (guest tiada halaman /orders → orderId disorok)
       if (lp.email && !silent) {
         await sendDeliveryStatusEmail({

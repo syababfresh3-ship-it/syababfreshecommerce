@@ -608,10 +608,13 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items.map(({ product, variant, quantity }) => ({
+          items: items.map(({ product, variant, quantity, affCode, affAt, affClick }) => ({
             product_id: product.id,
             variant_id: variant?.id ?? null,
             quantity,
+            aff_code: affCode ?? null,   // attribution affiliate (migration 139)
+            aff_at: affAt ?? null,
+            aff_click: affClick ?? null,
           })),
           name: form.recipient_name.trim(),
           phone: form.phone.trim(),
@@ -651,10 +654,13 @@ export default function CheckoutPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: items.map(({ product, variant, quantity }) => ({
+        items: items.map(({ product, variant, quantity, affCode, affAt, affClick }) => ({
           product_id: product.id,
           variant_id: variant?.id ?? null,
           quantity,
+          aff_code: affCode ?? null,   // attribution affiliate (migration 139)
+          aff_at: affAt ?? null,
+          aff_click: affClick ?? null,
         })),
         postcode: isPickup ? null : (postcode || null),
         payment_method: form.payment_method,

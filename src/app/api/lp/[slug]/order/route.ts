@@ -16,6 +16,7 @@ import { hasRecentFlashClaim, loadFlashOffer, readCookie, recordFlashClaim, veri
 import { formatPromoNotes, promoDelivery, promoGift, promoPriceFor } from '@/lib/lp-promo-rules'
 import { loadPromoRules, quotaRemaining } from '@/lib/lp-promo-rules-server'
 import { NextResponse } from 'next/server'
+import { stampAffiliateAttributions } from '@/lib/affiliate-stamp'
 
 // Gate murah (bentuk sahaja). Senarai SEBENAR yang dibenarkan datang dari LP —
 // disahkan selepas halaman dimuat (lib/lp-payment). Dulu hanya senarai ini yang
@@ -475,6 +476,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   if (error || !order) return NextResponse.json({ error: error?.message ?? 'Gagal cipta pesanan' }, { status: 500 })
+
+  // Cap attribution affiliate (migration 139/165): pautan LP ?aff=KOD → semua baris order ini.
+  // Kod + id klik datang di peringkat order (body.aff, dari localStorage skop LP/kedai); pelayan
+  // sahkan tetingkap ikut masa klik, kadar ikut produk, asas bersih diskaun (promo/flash/mata).
+  // Best-effort — tak patah flow order.
+  if (body?.aff && typeof body.aff === 'object' && typeof body.aff.code === 'string') {
+    const aff = body.aff as { code: string; at?: unknown; click?: unknown }
+    await stampAffiliateAttributions(
+      order.id, 'lp_guest',
+      validatedItems.map(i => ({
+        product_id: i.product_id, subtotal: Number(i.unit_price) * i.quantity,
+        aff_code: aff.code, aff_at: typeof aff.at === 'number' ? aff.at : null, aff_click: typeof aff.click === 'string' ? aff.click : null,
+      })),
+      userId,
+      { buyerPhone: phone, orderNumber: order.order_number ?? null, lpSlug: slug, grossSubtotal: subtotal, discount: Number(discount || 0) + Number(pointsDiscount || 0) },
+    )
+  }
 
   // Tuntutan flash (mod visitor) direkod SEKARANG — sebelum bayaran/kelulusan — supaya nombor telefon ini
   // tak boleh tuntut semula dalam cooldown walau cookie dipadam. Best-effort, tak block order.

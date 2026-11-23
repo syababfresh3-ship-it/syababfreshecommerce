@@ -4,6 +4,7 @@ export const runtime = 'nodejs'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { handleOrderDelivered } from '@/lib/order-delivered'
 import { awardLpLoyalty } from '@/lib/lp-loyalty'
+import { handleLpGuestDelivered } from '@/lib/order-delivered'
 import { sendDeliveryStatusEmail } from '@/lib/zeptomail'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -125,6 +126,7 @@ async function handleLp(admin: SupabaseClient, lp: any, status: string) {
       .select('id')
     if (synced?.length) {
       await awardLpLoyalty(admin, lp).catch(() => {})
+      await handleLpGuestDelivered(admin, lp.id).catch(() => {})
       await sendNotifications(admin, {
         name: lp.name ?? 'Pelanggan',
         phone: lp.phone ?? null,

@@ -1,4 +1,5 @@
 'use client'
+import { readLpAff } from '@/lib/affiliate-attribution'   // pautan affiliate LP (migration 139/165)
 
 import { useState, useEffect, useCallback } from 'react'
 import { lpTrackInitiateCheckout } from '@/lib/lp-tracking'
@@ -148,6 +149,7 @@ export function LpInlineCheckout({ product, stock, slug, freeMin = 80, pickupEna
           promo_code: appliedPromo?.code ?? null,
           flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
+          aff: readLpAff(slug),   // kod + id klik affiliate skop LP/kedai (pelayan sahkan)
           items: [{ product_id: product.id, variant_id: selectedVariant?.id ?? null,
             product_name: product.name, variant_name: selectedVariant?.name ?? null,
             quantity: qty, unit_price: displayPrice }],

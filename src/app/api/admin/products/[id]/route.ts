@@ -7,6 +7,7 @@ const PRODUCT_FIELDS = [
   'name', 'slug', 'description', 'price', 'compare_price', 'unit',
   'is_featured', 'is_active', 'is_shippable', 'sort_order', 'category_id',
   'image_url', 'images', 'weight_grams', 'show_in_storefront',
+  'affiliate_pct', // kadar komisen affiliate (migration 139)
 ] as const
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   for (const key of PRODUCT_FIELDS) {
     if (key in body) update[key] = body[key]
   }
+  // Kadar komisen affiliate dihadkan 0..1 di pelayan (klien hantar %/100; migration 139/165)
+  if ('affiliate_pct' in update) update.affiliate_pct = Math.min(1, Math.max(0, Number(update.affiliate_pct) || 0))
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }

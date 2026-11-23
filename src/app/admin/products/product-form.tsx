@@ -68,6 +68,7 @@ export function ProductForm({ categories, product }: ProductFormProps) {
     is_shippable: product?.is_shippable ?? false,
     is_cold: product?.is_cold ?? true, // default sejuk — majoriti katalog buah segar
     sort_order: product?.sort_order?.toString() ?? '0',
+    affiliate_pct: product?.affiliate_pct ? String(Math.round(Number(product.affiliate_pct) * 10000) / 100) : '', // % (migration 139)
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -123,6 +124,8 @@ export function ProductForm({ categories, product }: ProductFormProps) {
       is_shippable: form.is_shippable,
       is_cold: form.is_cold,
       sort_order: parseInt(form.sort_order) || 0,
+      // Kadar komisen affiliate: input % → simpan 0..1 (migration 139)
+      affiliate_pct: form.affiliate_pct ? Math.max(0, Math.min(1, (parseFloat(form.affiliate_pct) || 0) / 100)) : 0,
     }
 
     const res = isEdit
@@ -335,6 +338,22 @@ export function ProductForm({ categories, product }: ProductFormProps) {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
               placeholder="0.00"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Komisen Affiliate (%)</label>
+            <input
+              name="affiliate_pct"
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              value={form.affiliate_pct}
+              onChange={handleChange}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+              placeholder="0 = tiada"
+            />
+            <p className="text-[11px] text-gray-400 mt-1">Affiliate dapat % ini atas produk ni bila dibeli via link mereka. Kosong/0 = produk ni tak bayar komisen.</p>
           </div>
 
           <div>

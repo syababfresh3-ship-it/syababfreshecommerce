@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     show_in_storefront: body.show_in_storefront ?? true,
     sort_order: body.sort_order ?? 0,
     is_shippable: body.is_shippable ?? true,
+    affiliate_pct: Math.min(1, Math.max(0, Number(body.affiliate_pct) || 0)), // kadar komisen affiliate 0..1, dihadkan di pelayan (migration 139/165)
   }
   const { error, data } = await supabase!.from('products').insert(validated).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

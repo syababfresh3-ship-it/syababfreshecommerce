@@ -1,403 +1,515 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+// Dashboard affiliate (pelanggan) — Melayu, monokrom (ikon lucide, tiada emoji).
+// Jawab satu soalan dalam 5 saat: "berapa saya dapat dan bila masuk".
+// Semua angka dikira di page.tsx (service role); komponen ini papar sahaja + borang pengeluaran.
+// Migration 139 (produk-link) + 165 (klik, tahan 7 hari, RPC).
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { Wallet, TrendingUp, Clock, CheckCircle2, Copy, Check, ChevronDown, ChevronUp, Users, Info, Share2, ArrowUp, ArrowDown, Minus } from 'lucide-react'
+import {
+  Wallet, Copy, Check, Share2, ChevronDown, ChevronUp, MousePointerClick, ShoppingBag,
+  Percent, CalendarDays, Link2, ClipboardList, BookOpen, Landmark,
+} from 'lucide-react'
 
-const BANKS = ['Maybank', 'CIMB', 'Public Bank', 'RHB', 'Hong Leong Bank', 'AmBank', 'Bank Islam', 'Bank Rakyat', 'BSN', 'Affin Bank', 'Alliance Bank', 'OCBC', 'Standard Chartered', 'HSBC']
-
-const WD_STATUS: Record<string, { label: string; cls: string }> = {
-  pending:  { label: 'Menunggu semakan', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  approved: { label: 'Diluluskan',       cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  paid:     { label: 'Sudah dibayar',    cls: 'bg-green-50 text-green-700 border-green-200' },
-  rejected: { label: 'Ditolak',          cls: 'bg-red-50 text-red-700 border-red-200' },
+export type AffAttrRow = {
+  id: string
+  source: 'order' | 'lp_guest'
+  orderNumber: string | null
+  lpSlug: string | null
+  productId: string | null
+  productName: string
+  productSlug: string | null
+  gross: number
+  net: number
+  rate: number
+  amount: number
+  status: 'pending' | 'credited' | 'reversed'
+  createdAt: string
+  creditAfter: string | null
+  creditedAt: string | null
+  reversedAt: string | null
+  reversedReason: string | null
+}
+export type AffWithdrawal = {
+  id: string; amount: number; bank_name: string; bank_account: string; account_name: string
+  status: string; requested_at: string; processed_at: string | null; admin_note: string | null
+}
+export type AffLinkProduct = { slug: string; name: string; pct: number; imageUrl: string | null; price: number; clicks: number; orders: number; amount: number }
+export type AffLinkLp = { slug: string; title: string; url: string; clicks: number; orders: number; amount: number }
+export type AffDashboardData = {
+  name: string | null
+  code: string
+  balance: number
+  holdDays: number
+  windowDays: number
+  minWithdraw: number
+  pendingTotal: number
+  creditedTotal: number
+  withdrawnPaid: number
+  thisMonth: number
+  lastMonth: number
+  clicks30: number
+  orders30: number
+  hasPendingWithdrawal: boolean
+  attributions: AffAttrRow[]
+  withdrawals: AffWithdrawal[]
+  products: AffLinkProduct[]
+  lps: AffLinkLp[]
+  shopOrigin: string
+  nowMs: number
 }
 
-const ORDER_STATUS: Record<string, string> = {
-  confirmed: 'Disahkan', preparing: 'Sedang Disediakan', delivering: 'Dalam Penghantaran',
+const BANKS = ['Maybank', 'CIMB', 'Public Bank', 'RHB', 'Hong Leong Bank', 'AmBank', 'Bank Islam', 'Bank Rakyat', 'BSN', 'Affin Bank', 'Alliance Bank', 'OCBC', 'Standard Chartered', 'HSBC', 'Agrobank', 'Bank Muamalat']
+const WD_STATUS: Record<string, string> = { pending: 'Dalam semakan', approved: 'Diluluskan', paid: 'Dibayar', rejected: 'Ditolak' }
+const MONTHS = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogo', 'Sep', 'Okt', 'Nov', 'Dis']
+
+const rm = (n: number) => `RM${(Number(n) || 0).toFixed(2)}`
+// Tarikh Malaysia (UTC+8) tanpa bergantung pada ICU pelayan/pelayar — elak hydration mismatch.
+function dt(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const t = new Date(iso).getTime(); if (!Number.isFinite(t)) return '—'
+  const d = new Date(t + 8 * 3600_000)
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }
 
-function getInitials(name: string | null) {
-  if (!name) return '?'
-  return name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+function statusOf(a: AffAttrRow, now: number): { label: string; cls: string } {
+  if (a.status === 'credited') return { label: 'Dikreditkan', cls: 'text-gray-900' }
+  if (a.status === 'reversed') return { label: a.reversedReason === 'refunded' ? 'Refund' : 'Dibatalkan', cls: 'text-gray-400' }
+  if (a.creditAfter) {
+    return new Date(a.creditAfter).getTime() > now
+      ? { label: `Tertahan hingga ${dt(a.creditAfter)}`, cls: 'text-gray-600' }
+      : { label: 'Dikreditkan tidak lama lagi', cls: 'text-gray-600' }
+  }
+  return { label: 'Menunggu penghantaran', cls: 'text-gray-500' }
 }
 
-export function AffiliateDashboard({ profile, commissions, withdrawals, commissionRate, referrals, upcomingOrders }: {
-  profile: { full_name: string | null; affiliate_balance: number; referral_code: string | null }
-  commissions: any[]
-  withdrawals: any[]
-  commissionRate: number
-  referrals: any[]
-  upcomingOrders: any[]
-}) {
+async function copyText(s: string) {
+  try { await navigator.clipboard.writeText(s); return true } catch { /* jatuh ke bawah */ }
+  try {
+    const ta = document.createElement('textarea'); ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0'
+    document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok
+  } catch { return false }
+}
+
+type Tab = 'pesanan' | 'pautan' | 'pengeluaran' | 'panduan'
+
+export function AffiliateDashboard({ data }: { data: AffDashboardData }) {
+  const [tab, setTab] = useState<Tab>(data.attributions.length === 0 ? 'pautan' : 'pesanan')
+  const [kind, setKind] = useState<'produk' | 'lp' | 'kedai'>(data.products.length ? 'produk' : data.lps.length ? 'lp' : 'kedai')
+  const [prodSlug, setProdSlug] = useState(data.products[0]?.slug ?? '')
+  const [lpSlug, setLpSlug] = useState(data.lps[0]?.slug ?? '')
+  const [copied, setCopied] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
-  const [showHowTo, setShowHowTo] = useState(commissions.length === 0)
   const [form, setForm] = useState({ amount: '', bank_name: '', bank_account: '', account_name: '' })
   const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [expandedWd, setExpandedWd] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'komisyen' | 'rujukan' | 'pengeluaran'>('komisyen')
+  const [showAllOrders, setShowAllOrders] = useState(false)
+  const now = data.nowMs   // masa pelayan (elak Date.now() dalam render → hydration & purity)
 
-  const balance        = Number(profile.affiliate_balance ?? 0)
-  const totalEarned    = commissions.reduce((s, c) => s + Number(c.amount), 0)
-  const totalWithdrawn = withdrawals.filter(w => w.status === 'paid').reduce((s, w) => s + Number(w.amount), 0)
-  const hasPending     = withdrawals.some(w => w.status === 'pending' || w.status === 'approved')
-  const refLink        = profile.referral_code
-    ? `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? 'https://shop.syababfresh.my')}/daftar?ref=${profile.referral_code}`
-    : ''
-  const pctDisplay     = (commissionRate * 100).toFixed(1)
-  const needed         = Math.max(0, 10 - balance)
+  const canWithdraw = data.balance >= data.minWithdraw && !data.hasPendingWithdrawal
+  const conversion = data.clicks30 > 0 ? (data.orders30 / data.clicks30) * 100 : 0
+  const monthDiff = data.thisMonth - data.lastMonth
 
-  // Monthly stats
-  const now = new Date()
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
-  const thisMonthEarned = commissions.filter(c => c.created_at >= thisMonthStart).reduce((s, c) => s + Number(c.amount), 0)
-  const lastMonthEarned = commissions.filter(c => c.created_at >= lastMonthStart && c.created_at < thisMonthStart).reduce((s, c) => s + Number(c.amount), 0)
-  const monthDiff = thisMonthEarned - lastMonthEarned
+  // ── Pautan ──
+  const prod = data.products.find(p => p.slug === prodSlug) ?? null
+  const lp = data.lps.find(l => l.slug === lpSlug) ?? null
+  const link = kind === 'produk'
+    ? (prod ? `${data.shopOrigin}/products/${prod.slug}?aff=${data.code}` : '')
+    : kind === 'lp'
+      ? (lp ? `${lp.url}${lp.url.includes('?') ? '&' : '?'}aff=${data.code}` : '')
+      : `${data.shopOrigin}/?aff=${data.code}`
+  const shareText = kind === 'produk' && prod
+    ? `${prod.name} dari SyababFresh\n${link}`
+    : kind === 'lp' && lp
+      ? `${lp.title}\n${link}`
+      : `Buah segar dan kurma dari SyababFresh\n${link}`
 
-  // Upcoming commission total
-  const upcomingTotal = useMemo(() => upcomingOrders.reduce((s, o) => s + o.estimatedCommission, 0), [upcomingOrders])
-
-  // Referrals with order indicator — map referee_id to upcomingOrders
-  const upcomingByReferee = useMemo(() => {
-    const map: Record<string, boolean> = {}
-    upcomingOrders.forEach(o => { map[o.user_id] = true })
-    return map
-  }, [upcomingOrders])
-
-  const referralsOrdered = useMemo(() => referrals.filter(r => r.status === 'rewarded').length, [referrals])
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(refLink)
-      setCopied(true)
-      toast.success('Link disalin!')
-      setTimeout(() => setCopied(false), 2000)
-    } catch { toast.error('Gagal salin') }
+  async function onCopy() {
+    if (!link) return
+    const ok = await copyText(link)
+    if (ok) { setCopied(true); toast.success('Pautan disalin'); setTimeout(() => setCopied(false), 1500) }
+    else toast.error('Gagal salin — tekan lama pada pautan untuk salin')
+  }
+  function onShareWa() {
+    if (!link) return
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener')
   }
 
-  function handleShareWa() {
-    const msg = encodeURIComponent(
-      `Hai! Saya nak perkenalkan SyababFresh — buah segar berkualiti dihantar ke rumah 🍒\n\nDaftar akaun guna link saya dan dapat 50 mata percuma! 🎁\n\n${refLink}`
-    )
-    window.open(`https://wa.me/?text=${msg}`, '_blank')
-  }
-
-  async function handleWithdraw(e: React.FormEvent) {
+  async function onWithdraw(e: React.FormEvent) {
     e.preventDefault()
     const amt = parseFloat(form.amount)
-    if (isNaN(amt) || amt < 10) { toast.error('Minimum pengeluaran RM10'); return }
-    if (amt > balance) { toast.error('Melebihi baki semasa'); return }
+    if (!Number.isFinite(amt) || amt < data.minWithdraw) { toast.error(`Minimum pengeluaran ${rm(data.minWithdraw)}`); return }
+    if (amt > data.balance) { toast.error('Melebihi baki boleh dikeluarkan'); return }
     setLoading(true)
     const res = await fetch('/api/affiliate/withdraw', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, amount: amt }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, amount: Math.round(amt * 100) / 100 }),
     })
-    const data = await res.json().catch(() => ({}))
+    const j = await res.json().catch(() => ({}))
     setLoading(false)
-    if (!res.ok) { toast.error(data.error ?? 'Gagal hantar permintaan'); return }
-    toast.success('Permintaan pengeluaran dihantar!')
+    if (!res.ok) { toast.error(j.error ?? 'Permintaan gagal'); return }
+    toast.success('Permintaan pengeluaran dihantar')
     setShowWithdraw(false)
     setForm({ amount: '', bank_name: '', bank_account: '', account_name: '' })
     location.reload()
   }
 
-  return (
-    <div className="bg-gray-50 min-h-screen pb-28">
+  const orders = showAllOrders ? data.attributions : data.attributions.slice(0, 30)
 
-      {/* Hero */}
-      <div className="bg-gradient-to-br from-purple-600 to-indigo-700 px-5 pt-5 pb-12 relative overflow-hidden">
-        <div className="pointer-events-none absolute -top-14 -right-14 w-60 h-60 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-10 -left-10 w-44 h-44 rounded-full bg-black/15 blur-2xl" />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-1">
-            <p className="text-white/70 text-[11px] font-semibold tracking-widest uppercase">Baki Komisyen</p>
-            <span className="text-[10px] font-bold bg-white/20 text-white px-2 py-0.5 rounded-full">{pctDisplay}% setiap order</span>
+  return (
+    <div className="bg-gray-50 min-h-screen pb-24">
+
+      {/* Kepala: nama, kod, baki */}
+      <div className="bg-white border-b border-gray-200 px-4 pt-5 pb-5">
+        <p className="text-xs text-gray-500">Affiliate</p>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-lg font-bold text-gray-900 truncate">{data.name ?? 'Affiliate'}</h1>
+          <span className="shrink-0 font-mono text-xs text-gray-900 bg-gray-100 border border-gray-200 rounded-md px-2 py-1 tracking-wider">{data.code}</span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-gray-500">Boleh dikeluarkan</p>
+            <p className="text-[28px] leading-tight font-bold tabular-nums text-gray-900">{rm(data.balance)}</p>
           </div>
-          <p className="text-[52px] font-black text-white leading-none drop-shadow-lg">
-            RM{balance.toFixed(2)}
-          </p>
-          {upcomingTotal > 0 && (
-            <p className="text-white/70 text-xs mt-1">
-              + <span className="text-white font-bold">RM{upcomingTotal.toFixed(2)}</span> dijangka masuk ({upcomingOrders.length} order dalam proses)
-            </p>
-          )}
-          {balance >= 10 && !hasPending && (
-            <button onClick={() => setShowWithdraw(true)} className="mt-3 flex items-center gap-2 bg-white text-purple-700 font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg active:scale-[0.97] transition-all">
-              <Wallet className="h-4 w-4" /> Keluarkan Duit
-            </button>
-          )}
-          {balance > 0 && balance < 10 && !hasPending && (
-            <p className="mt-2 text-white/70 text-xs">Terkumpul lagi <span className="text-white font-black">RM{needed.toFixed(2)}</span> untuk boleh keluarkan</p>
-          )}
-          {hasPending && <p className="mt-2 text-yellow-300 text-xs font-semibold">⏳ Ada permintaan pengeluaran sedang diproses</p>}
+          <div>
+            <p className="text-xs text-gray-500">Menunggu / tertahan</p>
+            <p className="text-[28px] leading-tight font-bold tabular-nums text-gray-500">{rm(data.pendingTotal)}</p>
+          </div>
+        </div>
+        <p className="text-[11px] text-gray-500 mt-2">
+          Komisen masuk ke baki {data.holdDays} hari selepas pesanan dihantar dan dibayar. Pesanan refund atau batal tidak dikira.
+        </p>
+
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => { setTab('pengeluaran'); setShowWithdraw(true) }}
+            disabled={!canWithdraw}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Wallet className="h-4 w-4" /> Keluarkan
+          </button>
+          {data.hasPendingWithdrawal ? (
+            <span className="text-xs text-gray-500">Satu permintaan sedang diproses</span>
+          ) : data.balance < data.minWithdraw ? (
+            <span className="text-xs text-gray-500">Minimum {rm(data.minWithdraw)} · perlu {rm(Math.max(0, data.minWithdraw - data.balance))} lagi</span>
+          ) : null}
         </div>
       </div>
 
-      <div className="px-4 -mt-6 space-y-4">
+      <div className="px-4 mt-4 space-y-4">
 
-        {/* Stats 2x2 */}
+        {/* Statistik 30 hari */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-purple-500" />
-              <p className="text-xs text-gray-400">Jumlah Diperoleh</p>
-            </div>
-            <p className="text-xl font-black text-gray-900">RM{totalEarned.toFixed(2)}</p>
-            <div className="flex items-center gap-1 mt-1">
-              {monthDiff > 0 ? <ArrowUp className="h-3 w-3 text-green-500" /> : monthDiff < 0 ? <ArrowDown className="h-3 w-3 text-red-400" /> : <Minus className="h-3 w-3 text-gray-300" />}
-              <p className="text-[10px] text-gray-400">
-                Bulan ini <span className={`font-bold ${monthDiff > 0 ? 'text-green-600' : monthDiff < 0 ? 'text-red-500' : 'text-gray-400'}`}>RM{thisMonthEarned.toFixed(2)}</span>
-              </p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <p className="text-xs text-gray-400">Dikeluarkan</p>
-            </div>
-            <p className="text-xl font-black text-gray-900">RM{totalWithdrawn.toFixed(2)}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Users className="h-4 w-4 text-blue-400" />
-              <p className="text-xs text-gray-400">Rakan Dijemput</p>
-            </div>
-            <p className="text-xl font-black text-gray-900">{referrals.length} orang</p>
-            {referralsOrdered > 0 && <p className="text-[10px] text-green-600 mt-0.5 font-semibold">{referralsOrdered} dah buat order</p>}
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-gray-400" />
-              <p className="text-xs text-gray-400">Order Dikreditkan</p>
-            </div>
-            <p className="text-xl font-black text-gray-900">{commissions.length}</p>
-          </div>
+          <Stat icon={MousePointerClick} label="Klik 30 hari" value={String(data.clicks30)} />
+          <Stat icon={ShoppingBag} label="Pesanan 30 hari" value={String(data.orders30)} />
+          <Stat icon={Percent} label="Kadar tukaran" value={`${conversion.toFixed(1)}%`} sub="pesanan ÷ klik" />
+          <Stat
+            icon={CalendarDays} label="Dikreditkan bulan ini" value={rm(data.thisMonth)}
+            sub={`${monthDiff >= 0 ? '+' : '−'}${rm(Math.abs(monthDiff)).slice(2)} vs bulan lepas`}
+          />
         </div>
 
-        {/* Referral link + share */}
-        {profile.referral_code && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Link & Kod Rujukan</p>
-              <span className="font-mono text-base font-black text-purple-600 bg-purple-50 px-3 py-1 rounded-lg tracking-widest">{profile.referral_code}</span>
-            </div>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
-              <span className="text-xs text-gray-500 flex-1 truncate font-mono">{refLink}</span>
-              <button onClick={handleCopy} className="text-purple-600 hover:text-purple-800 transition-colors shrink-0">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleShareWa} className="flex-1 flex items-center justify-center gap-2 bg-[#25d366] text-white font-bold text-sm py-2.5 rounded-xl hover:bg-[#1ebe5b] transition-colors">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                Kongsi via WhatsApp
-              </button>
-              <button onClick={handleCopy} className="flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 font-semibold text-sm px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                {copied ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* How it works — collapsible */}
-        <div className="bg-purple-50 border border-purple-100 rounded-2xl overflow-hidden">
-          <button onClick={() => setShowHowTo(v => !v)} className="w-full flex items-center gap-2 px-4 py-3 text-left">
-            <Info className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-            <p className="text-xs font-bold text-purple-700 flex-1">Cara Jana Komisyen</p>
-            {showHowTo ? <ChevronUp className="h-3.5 w-3.5 text-purple-400" /> : <ChevronDown className="h-3.5 w-3.5 text-purple-400" />}
-          </button>
-          {showHowTo && (
-            <div className="px-4 pb-4">
-              <ol className="text-xs text-purple-600 space-y-1.5 list-decimal list-inside">
-                <li>Kongsi link rujukan anda kepada rakan-rakan</li>
-                <li>Mereka daftar akaun guna link anda dan dapat <span className="font-black">50 mata</span> percuma</li>
-                <li>Setiap kali mereka buat order dan <span className="font-black">selesai dihantar</span>, anda dapat <span className="font-black">{pctDisplay}%</span> komisyen automatik</li>
-                <li>Komisyen terkumpul dalam baki — keluarkan bila dah RM10</li>
-              </ol>
-              <p className="text-[10px] text-purple-400 mt-2">* Komisyen dikira apabila order ditanda "Selesai Dihantar"</p>
-            </div>
-          )}
-        </div>
-
-        {/* Withdraw form */}
-        {showWithdraw && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Permintaan Pengeluaran</h2>
-              <p className="text-xs text-gray-400">Baki: <span className="font-black text-gray-700">RM{balance.toFixed(2)}</span></p>
-            </div>
-            <form onSubmit={handleWithdraw} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Amaun (RM)</label>
-                <input type="number" min="10" step="0.01" max={balance} required value={form.amount}
-                  onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
-                  placeholder={`Min RM10 — Max RM${balance.toFixed(2)}`}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Bank</label>
-                <select required value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white" suppressHydrationWarning>
-                  <option value="">Pilih bank...</option>
-                  {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">No. Akaun</label>
-                <input required value={form.bank_account} onChange={e => setForm(p => ({ ...p, bank_account: e.target.value }))}
-                  placeholder="cth: 1234567890"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-300" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nama Pemilik Akaun</label>
-                <input required value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))}
-                  placeholder="Nama penuh seperti dalam buku bank"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button type="submit" disabled={loading} className="flex-1 bg-purple-600 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                  {loading ? 'Menghantar...' : 'Hantar Permintaan'}
-                </button>
-                <button type="button" onClick={() => setShowWithdraw(false)} className="px-4 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50">Batal</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* Tabs */}
+        {/* Tab */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
-          {(['komisyen', 'rujukan', 'pengeluaran'] as const).map(t => (
-            <button key={t} onClick={() => setActiveTab(t)}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all capitalize ${activeTab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
-              {t === 'komisyen' ? `Komisyen${commissions.length ? ` (${commissions.length})` : ''}` :
-               t === 'rujukan' ? `Rujukan${referrals.length ? ` (${referrals.length})` : ''}` :
-               `Pengeluaran${withdrawals.length ? ` (${withdrawals.length})` : ''}`}
+          {([
+            ['pesanan', 'Pesanan', ClipboardList],
+            ['pautan', 'Pautan', Link2],
+            ['pengeluaran', 'Pengeluaran', Landmark],
+            ['panduan', 'Panduan', BookOpen],
+          ] as const).map(([k, label, Icon]) => (
+            <button key={k} onClick={() => setTab(k)}
+              className={`flex-1 inline-flex items-center justify-center gap-1 py-2 text-xs font-semibold rounded-lg ${tab === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+              <Icon className="h-3.5 w-3.5" /> {label}
             </button>
           ))}
         </div>
 
-        {/* Tab: Komisyen */}
-        {activeTab === 'komisyen' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {commissions.length === 0 ? (
+        {/* ── PESANAN ── */}
+        {tab === 'pesanan' && (
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            {data.attributions.length === 0 ? (
               <div className="px-4 py-10 text-center">
-                <TrendingUp className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-gray-400">Belum ada komisyen lagi</p>
-                <p className="text-xs text-gray-400 mt-1">Komisyen masuk apabila rakan anda membuat order yang selesai dihantar</p>
+                <ShoppingBag className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-gray-600">Belum ada pesanan melalui pautan anda</p>
+                <p className="text-xs text-gray-500 mt-1">Kongsi pautan produk atau halaman promo untuk mula</p>
+                <button onClick={() => setTab('pautan')} className="mt-3 text-xs font-semibold text-gray-900 underline underline-offset-2">Buat pautan</button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
-                {commissions.map(c => (
-                  <div key={c.id} className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-purple-50">
-                      <TrendingUp className="h-4 w-4 text-purple-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-700">Order RM{Number(c.order_total).toFixed(2)}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        {new Date(c.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' · '}{(c.rate * 100).toFixed(1)}% komisyen
-                      </p>
-                    </div>
-                    <span className="text-sm font-black shrink-0 text-purple-600">+RM{Number(c.amount).toFixed(2)}</span>
-                  </div>
+              <>
+                <div className="divide-y divide-gray-100">
+                  {orders.map(a => {
+                    const s = statusOf(a, now)
+                    return (
+                      <div key={a.id} className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{a.productName}</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5">
+                              {dt(a.createdAt)}{a.orderNumber ? ` · ${a.orderNumber}` : ''}{a.lpSlug ? ` · halaman promo` : a.source === 'lp_guest' ? ' · tetamu' : ''}
+                            </p>
+                            <p className={`text-[11px] mt-0.5 ${s.cls}`}>{s.label}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={`text-sm font-bold tabular-nums ${a.status === 'reversed' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{rm(a.amount)}</p>
+                            <p className="text-[11px] text-gray-500 tabular-nums">{rm(a.net)} × {(a.rate * 100).toFixed(1)}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                {data.attributions.length > 30 && !showAllOrders && (
+                  <button onClick={() => setShowAllOrders(true)} className="w-full py-2.5 text-xs font-semibold text-gray-600 border-t border-gray-100 hover:bg-gray-50">
+                    Tunjuk semua ({data.attributions.length})
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── PAUTAN ── */}
+        {tab === 'pautan' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                {([['produk', 'Produk'], ['lp', 'Halaman promo'], ['kedai', 'Kedai']] as const).map(([k, label]) => (
+                  <button key={k} onClick={() => setKind(k)}
+                    disabled={(k === 'produk' && data.products.length === 0) || (k === 'lp' && data.lps.length === 0)}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-md disabled:opacity-40 ${kind === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                    {label}
+                  </button>
                 ))}
               </div>
+
+              {kind === 'produk' && (
+                <select value={prodSlug} onChange={e => setProdSlug(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300">
+                  {data.products.map(p => <option key={p.slug} value={p.slug}>{p.name} · {(p.pct * 100).toFixed(1)}%</option>)}
+                </select>
+              )}
+              {kind === 'lp' && (
+                <select value={lpSlug} onChange={e => setLpSlug(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300">
+                  {data.lps.map(l => <option key={l.slug} value={l.slug}>{l.title}</option>)}
+                </select>
+              )}
+              {kind === 'kedai' && (
+                <p className="text-xs text-gray-500">Pautan ke laman utama kedai. Semua produk yang dibeli dalam {data.windowDays} hari selepas klik dikira ikut kadar produk masing-masing.</p>
+              )}
+
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                <span className="text-xs text-gray-600 flex-1 truncate font-mono select-all">{link || '—'}</span>
+                <button onClick={onCopy} className="text-gray-700 hover:text-gray-900 shrink-0" aria-label="Salin pautan">
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={onShareWa} disabled={!link}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-gray-800 disabled:opacity-40">
+                  <Share2 className="h-4 w-4" /> Kongsi ke WhatsApp
+                </button>
+                <button onClick={onCopy} disabled={!link}
+                  className="inline-flex items-center justify-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-gray-50 disabled:opacity-40">
+                  <Copy className="h-4 w-4" /> Salin
+                </button>
+              </div>
+              {kind === 'produk' && prod && (
+                <p className="text-[11px] text-gray-500">
+                  {prod.name}: komisen {(prod.pct * 100).toFixed(1)}% daripada harga bersih diskaun. Harga semasa {rm(prod.price)}, anggaran {rm(prod.price * prod.pct)} seunit.
+                </p>
+              )}
+            </div>
+
+            {data.products.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900">Prestasi ikut produk</p>
+                  <p className="text-[11px] text-gray-500">Klik 90 hari · pesanan & komisen keseluruhan (tidak termasuk yang dibatalkan)</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[420px]">
+                    <thead>
+                      <tr className="text-[11px] text-gray-500 border-b border-gray-100">
+                        <th className="text-left font-medium px-4 py-2">Produk</th>
+                        <th className="text-right font-medium px-3 py-2">Kadar</th>
+                        <th className="text-right font-medium px-3 py-2">Klik</th>
+                        <th className="text-right font-medium px-3 py-2">Pesanan</th>
+                        <th className="text-right font-medium px-4 py-2">Komisen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {data.products.map(p => (
+                        <tr key={p.slug}>
+                          <td className="px-4 py-2 text-gray-900">{p.name}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-500">{(p.pct * 100).toFixed(1)}%</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-700">{p.clicks}</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-gray-700">{p.orders}</td>
+                          <td className="px-4 py-2 text-right tabular-nums font-semibold text-gray-900">{rm(p.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {data.lps.some(l => l.clicks > 0 || l.orders > 0) && (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900">Prestasi ikut halaman promo</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {data.lps.filter(l => l.clicks > 0 || l.orders > 0).map(l => (
+                    <div key={l.slug} className="px-4 py-2.5 flex items-center justify-between gap-3 text-sm">
+                      <p className="text-gray-900 truncate">{l.title}</p>
+                      <p className="text-[11px] text-gray-500 tabular-nums shrink-0">{l.clicks} klik · {l.orders} pesanan · <span className="font-semibold text-gray-900">{rm(l.amount)}</span></p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* Tab: Rujukan */}
-        {activeTab === 'rujukan' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {referrals.length === 0 ? (
-              <div className="px-4 py-10 text-center">
-                <Users className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-gray-400">Belum ada rujukan lagi</p>
-                <p className="text-xs text-gray-400 mt-1">Kongsi link anda kepada rakan untuk mula</p>
+        {/* ── PENGELUARAN ── */}
+        {tab === 'pengeluaran' && (
+          <div className="space-y-4">
+            {showWithdraw && (
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-900">Permintaan pengeluaran</h2>
+                  <p className="text-xs text-gray-500">Baki <span className="font-semibold text-gray-900 tabular-nums">{rm(data.balance)}</span></p>
+                </div>
+                <form onSubmit={onWithdraw} className="space-y-3">
+                  <Field label="Amaun (RM)">
+                    <input type="number" min={data.minWithdraw} step="0.01" max={data.balance} required value={form.amount}
+                      onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+                      placeholder={`Min ${rm(data.minWithdraw)} · maks ${rm(data.balance)}`} className={inputCls} />
+                  </Field>
+                  <Field label="Bank">
+                    <select required value={form.bank_name} onChange={e => setForm(p => ({ ...p, bank_name: e.target.value }))} className={`${inputCls} bg-white`}>
+                      <option value="">Pilih bank</option>
+                      {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="No. akaun">
+                    <input required inputMode="numeric" value={form.bank_account} onChange={e => setForm(p => ({ ...p, bank_account: e.target.value.replace(/\D/g, '') }))}
+                      placeholder="Nombor sahaja" className={`${inputCls} font-mono`} />
+                  </Field>
+                  <Field label="Nama pemegang akaun">
+                    <input required value={form.account_name} onChange={e => setForm(p => ({ ...p, account_name: e.target.value }))}
+                      placeholder="Seperti dalam rekod bank" className={inputCls} />
+                  </Field>
+                  <div className="flex gap-2 pt-1">
+                    <button type="submit" disabled={loading} className="flex-1 bg-gray-900 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-gray-800 disabled:opacity-50">
+                      {loading ? 'Menghantar…' : 'Hantar permintaan'}
+                    </button>
+                    <button type="button" onClick={() => setShowWithdraw(false)} className="px-4 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50">Batal</button>
+                  </div>
+                </form>
               </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {referrals.map(r => {
-                  const referee = r.referee as any
-                  const hasUpcoming = upcomingByReferee[referee?.id]
-                  const hasOrdered = r.status === 'rewarded'
-                  return (
-                    <div key={r.id} className="flex items-center gap-3 px-4 py-3.5">
-                      <div className="w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center shrink-0 text-xs font-black text-purple-600">
-                        {getInitials(referee?.full_name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800">{referee?.full_name ?? 'Rakan'}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">
-                          Daftar {new Date(r.created_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        {hasUpcoming ? (
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">Order dalam proses</span>
-                        ) : hasOrdered ? (
-                          <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">✓ Dah order</span>
-                        ) : (
-                          <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">Belum order</span>
+            )}
+
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">Sejarah pengeluaran</p>
+                <p className="text-[11px] text-gray-500">Dibayar <span className="font-semibold text-gray-900 tabular-nums">{rm(data.withdrawnPaid)}</span></p>
+              </div>
+              {data.withdrawals.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <Landmark className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Belum ada pengeluaran</p>
+                  {!showWithdraw && canWithdraw && (
+                    <button onClick={() => setShowWithdraw(true)} className="mt-2 text-xs font-semibold text-gray-900 underline underline-offset-2">Keluarkan sekarang</button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {data.withdrawals.map(w => {
+                    const open = expandedWd === w.id
+                    return (
+                      <div key={w.id}>
+                        <button onClick={() => setExpandedWd(open ? null : w.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-gray-900 tabular-nums">{rm(w.amount)}</span>
+                              <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-md border ${w.status === 'paid' ? 'border-gray-900 text-gray-900' : w.status === 'rejected' ? 'border-gray-200 text-gray-400' : 'border-gray-200 text-gray-600'}`}>
+                                {WD_STATUS[w.status] ?? w.status}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-gray-500 mt-0.5">Dimohon {dt(w.requested_at)}{w.processed_at ? ` · diproses ${dt(w.processed_at)}` : ''}</p>
+                          </div>
+                          {open ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                        </button>
+                        {open && (
+                          <div className="px-4 pb-3 text-xs text-gray-600 space-y-1 bg-gray-50">
+                            <p>{w.bank_name} · <span className="font-mono">{w.bank_account}</span></p>
+                            <p>{w.account_name}</p>
+                            {w.admin_note && <p className="text-gray-700 border border-gray-200 bg-white rounded-lg px-2 py-1.5 mt-1">{w.admin_note}</p>}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Tab: Pengeluaran */}
-        {activeTab === 'pengeluaran' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {withdrawals.length === 0 ? (
-              <div className="px-4 py-10 text-center">
-                <Wallet className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-gray-400">Belum ada pengeluaran</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {withdrawals.map(w => {
-                  const cfg = WD_STATUS[w.status] ?? WD_STATUS.pending
-                  const expanded = expandedWd === w.id
-                  return (
-                    <div key={w.id}>
-                      <button onClick={() => setExpandedWd(expanded ? null : w.id)}
-                        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50/60 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">RM{Number(w.amount).toFixed(2)}</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border ${cfg.cls}`}>{cfg.label}</span>
-                          </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {new Date(w.requested_at).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
-                        </div>
-                        {expanded ? <ChevronUp className="h-3.5 w-3.5 text-gray-400 shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" />}
-                      </button>
-                      {expanded && (
-                        <div className="px-4 pb-4 text-xs text-gray-600 space-y-1 bg-gray-50/60">
-                          <p><span className="text-gray-400">Bank:</span> {w.bank_name}</p>
-                          <p><span className="text-gray-400">No. Akaun:</span> <span className="font-mono">{w.bank_account}</span></p>
-                          <p><span className="text-gray-400">Nama:</span> {w.account_name}</p>
-                          {w.admin_note && <p className="text-yellow-700 bg-yellow-50 rounded-lg px-2 py-1.5 mt-1">{w.admin_note}</p>}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+        {/* ── PANDUAN ── */}
+        {tab === 'panduan' && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4 text-sm text-gray-700">
+            <div>
+              <p className="font-semibold text-gray-900 mb-1.5">Cara dapat komisen</p>
+              <ol className="list-decimal list-inside space-y-1 text-gray-700">
+                <li>Pilih produk atau halaman promo di tab Pautan, salin pautan anda.</li>
+                <li>Pelanggan klik pautan dan beli dalam {data.windowDays} hari. Klik terakhir yang dikira.</li>
+                <li>Komisen = harga produk selepas diskaun × kadar produk itu. Caj penghantaran tidak dikira.</li>
+                <li>Bila pesanan dihantar dan dibayar, komisen tertahan {data.holdDays} hari, kemudian masuk ke baki.</li>
+                <li>Keluarkan ke bank bila baki mencapai {rm(data.minWithdraw)}. Satu permintaan pada satu masa.</li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-semibold text-gray-900 mb-1.5">Yang tidak dikira</p>
+              <ul className="list-disc list-inside space-y-1 text-gray-700">
+                <li>Pembelian sendiri (akaun atau nombor telefon yang sama).</li>
+                <li>Pesanan yang dibatalkan atau refund. Komisen yang sudah masuk ditolak semula.</li>
+                <li>Produk dengan kadar 0% (tidak disenaraikan dalam tab Pautan).</li>
+              </ul>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Mata ganjaran untuk jemput kawan mendaftar diurus berasingan di halaman Jemput Kawan.
+            </p>
           </div>
         )}
-
       </div>
+    </div>
+  )
+}
+
+const inputCls = 'w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300'
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function Stat({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string; sub?: string }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-3.5">
+      <div className="flex items-center gap-1.5 text-gray-500">
+        <Icon className="h-3.5 w-3.5" />
+        <p className="text-[11px]">{label}</p>
+      </div>
+      <p className="text-xl font-bold tabular-nums text-gray-900 mt-1">{value}</p>
+      {sub && <p className="text-[11px] text-gray-500 mt-0.5">{sub}</p>}
     </div>
   )
 }

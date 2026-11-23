@@ -49,6 +49,7 @@ export interface Product {
   is_shippable: boolean
   is_cold: boolean
   sort_order: number
+  affiliate_pct?: number   // kadar komisen affiliate (0..1), 0 = tiada (migration 139)
   created_at: string
   updated_at: string
   // Dimensi variasi gaya TikTok (migration 136): [{ name, values[] }]. null = senarai varian rata
@@ -220,6 +221,9 @@ export interface CartItemLocal {
   product: Product
   variant: ProductVariant | null
   quantity: number
+  affCode?: string | null   // kod affiliate (last-click) untuk produk ni — migration 139
+  affAt?: number | null     // timestamp klik (ms) untuk semakan tetingkap masa
+  affClick?: string | null  // id klik di pelayan (affiliate_clicks) — tetingkap disahkan pelayan (migration 165)
 }
 
 export type ShipmentStatus =

@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { reviewUrl } from '@/lib/review-token'
-import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { awardOrderLoyalty } from '@/lib/loyalty-award'
 import { sendReviewRequestEmail } from '@/lib/zeptomail'
+import { getAppSettings } from '@/lib/app-settings'
 
 // An order counts as "settled" — and therefore eligible to earn loyalty — when:
 //   - it was paid online (payment_status === 'paid'), OR
@@ -59,54 +59,73 @@ async function processReferralReward(supabase: SupabaseClient, userId: string, o
   }
 }
 
-async function processAffiliateCommission(
+// Komisen affiliate PRODUK-LINK (migration 139 + 165). Baris 'pending' dicap masa order
+// dicipta (lib/affiliate-stamp.ts). Bila order delivered+dibayar, fungsi ini TIDAK kredit
+// serta-merta — ia JADUALKAN kredit (credit_after = now + affiliate_hold_days, lalai 7)
+// melalui RPC affiliate_schedule_credit. Cron /api/cron/affiliate-credit yang kredit
+// secara atomik selepas tempoh tahan, dengan semakan semula status order & affiliate.
+// Idempotent. Panggil HANYA untuk order settled (di bawah gate isOrderSettled).
+export async function creditAffiliateAttributions(
   supabase: SupabaseClient,
-  userId: string,
   orderId: string,
-  orderTotal: number,
+  orderSource: 'order' | 'lp_guest',
 ) {
-  // Find referrer for this user
-  const { data: referral } = await supabase
-    .from('referrals')
-    .select('referrer_id')
-    .eq('referee_id', userId)
-    .maybeSingle()
+  try {
+    let holdDays = 7
+    try {
+      const s = await getAppSettings()
+      const n = parseInt(s['affiliate_hold_days'] ?? '7', 10)
+      if (Number.isFinite(n) && n >= 0 && n <= 60) holdDays = n
+    } catch { /* guna lalai */ }
+    const { error } = await supabase.rpc('affiliate_schedule_credit', {
+      p_source: orderSource, p_order_id: orderId, p_hold_days: holdDays,
+    })
+    if (error) throw error
+  } catch (err) {
+    // RPC belum wujud (migration 165 belum jalan) atau ralat lain → senyap; cron tak akan kredit
+    // sehingga migration dijalankan (baris kekal pending, tiada komisen hilang).
+    console.error('[affiliate-credit] gagal jadualkan:', (err as Error)?.message)
+  }
+}
 
-  if (!referral) return
+// Kredit komisen affiliate untuk order GUEST/LP (lp_guest_orders) bila delivered.
+// Self-fetch status bayaran → hanya kredit jika settled. Idempotent. Panggil di
+// SETIAP laluan yang tandakan lp_guest_orders 'delivered' (sebelah awardLpLoyalty).
+// Migration 139.
+export async function handleLpGuestDelivered(supabase: SupabaseClient, orderId: string) {
+  try {
+    const { data: o } = await supabase
+      .from('lp_guest_orders')
+      .select('source, payment_method, payment_status')
+      .eq('id', orderId)
+      .single()
+    if (!o || o.source === 'reseller') return
+    if (!isOrderSettled(o.payment_method, o.payment_status)) return
+    await creditAffiliateAttributions(supabase, orderId, 'lp_guest')
+  } catch (err) {
+    console.error('[affiliate-credit-lp] gagal:', (err as Error)?.message)
+  }
+}
 
-  // Check if referrer is an affiliate
-  const { data: referrer } = await supabase
-    .from('profiles')
-    .select('is_affiliate')
-    .eq('id', referral.referrer_id)
-    .single()
-
-  if (!referrer?.is_affiliate) return
-
-  // Avoid duplicate commission for same order
-  const { data: existing } = await supabase
-    .from('affiliate_commissions')
-    .select('id')
-    .eq('affiliate_id', referral.referrer_id)
-    .eq('order_id', orderId)
-    .maybeSingle()
-
-  if (existing) return
-
-  const appSettings = await getAppSettings()
-  const rate = parseFloat(appSettings.affiliate_commission_pct ?? '0.01')
-  const amount = Math.round(orderTotal * rate * 100) / 100
-
-  await supabase.from('affiliate_commissions').insert({
-    affiliate_id: referral.referrer_id,
-    order_id: orderId,
-    order_total: orderTotal,
-    rate,
-    amount,
-    status: 'pending',
-  })
-
-  await supabase.rpc('increment_affiliate_balance', { uid: referral.referrer_id, amt: amount })
+// Reversal komisen affiliate bila order REFUND / BATAL (migration 139 + 165). RPC atomik
+// affiliate_reverse_order: baris 'credited' → tolak balik baki → 'reversed'; baris 'pending'
+// (belum/menunggu tempoh tahan) → 'reversed' tanpa sentuh baki. Idempotent.
+// Panggil dari handler refund & cancel (member & guest/LP); cron juga menyapu pending
+// yang ordernya dibatalkan melalui laluan lain (CHIP gagal, pelanggan batal).
+export async function reverseAffiliateAttributions(
+  supabase: SupabaseClient,
+  orderId: string,
+  orderSource: 'order' | 'lp_guest',
+  reason: 'refunded' | 'cancelled' = 'refunded',
+) {
+  try {
+    const { error } = await supabase.rpc('affiliate_reverse_order', {
+      p_source: orderSource, p_order_id: orderId, p_reason: reason,
+    })
+    if (error) throw error
+  } catch (err) {
+    console.error('[affiliate-reverse] gagal:', (err as Error)?.message)
+  }
 }
 
 // Single source of truth for everything that must happen when a regular order
@@ -124,7 +143,8 @@ export async function handleOrderDelivered(supabase: SupabaseClient, orderId: st
     .single()
   if (!order) return
 
-  // Earn points + spend — but only for settled orders (don't reward unpaid online orders)
+  // Earn points + affiliate commission — but only for settled orders (don't reward
+  // unpaid online orders). Komisen affiliate = produk-link (migration 139).
   if (isOrderSettled(order.payment_method, order.payment_status)) {
     await awardOrderLoyalty(supabase, {
       id: orderId,
@@ -132,9 +152,9 @@ export async function handleOrderDelivered(supabase: SupabaseClient, orderId: st
       order_number: order.order_number,
       total: order.total,
     })
+    await creditAffiliateAttributions(supabase, orderId, 'order')
   }
   await processReferralReward(supabase, order.user_id, orderId)
-  await processAffiliateCommission(supabase, order.user_id, orderId, Number(order.total))
   await sendReviewRequest(supabase, order.user_id, orderId, order.order_number)
 }
 

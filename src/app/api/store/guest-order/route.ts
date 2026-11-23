@@ -10,6 +10,7 @@ import { CHIP_WHITELIST, isChipMethod } from '@/lib/chip-methods'
 import { markCheckoutSessionsRecovered } from '@/lib/checkout-session'
 import { evaluatePromo } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
+import { stampAffiliateAttributions, type AffLine } from '@/lib/affiliate-stamp'
 import { NextResponse } from 'next/server'
 
 // Guest checkout STOREFRONT — tanpa login. Disimpan dalam lp_guest_orders
@@ -34,6 +35,9 @@ interface OrderItem {
   variant_name?: string | null
   quantity: number
   unit_price: number
+  aff_code?: string | null   // attribution affiliate (migration 139)
+  aff_at?: number | null
+  aff_click?: string | null   // id klik pelayan (migration 165)
 }
 
 export async function POST(request: Request) {
@@ -122,6 +126,7 @@ export async function POST(request: Request) {
 
   let subtotal = 0
   const validatedItems: OrderItem[] = []
+  const affLines: AffLine[] = []   // attribution affiliate per baris (migration 139)
 
   for (const item of items as OrderItem[]) {
     if (item.variant_id) {
@@ -132,12 +137,14 @@ export async function POST(request: Request) {
       const unitPrice = Number(variant.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: prod.name, variant_name: variant.name, unit_price: unitPrice })
+      affLines.push({ product_id: prod.id, subtotal: unitPrice * item.quantity, aff_code: item.aff_code, aff_at: item.aff_at, aff_click: item.aff_click })
     } else {
       const product = productMap.get(item.product_id)
       if (!product || !product.is_active) return NextResponse.json({ error: `Produk tidak tersedia` }, { status: 400 })
       const unitPrice = Number(product.price)
       subtotal += unitPrice * item.quantity
       validatedItems.push({ ...item, product_name: product.name, unit_price: unitPrice })
+      affLines.push({ product_id: product.id, subtotal: unitPrice * item.quantity, aff_code: item.aff_code, aff_at: item.aff_at, aff_click: item.aff_click })
     }
   }
 
@@ -266,6 +273,12 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Cap attribution affiliate (migration 139/165) — order guest/store (order_source lp_guest).
+  // Telefon pembeli untuk semakan beli-sendiri; asas komisen bersih diskaun promo.
+  await stampAffiliateAttributions(order.id, 'lp_guest', affLines, userId, {
+    buyerPhone: phone, orderNumber: order.order_number ?? null, grossSubtotal: subtotal, discount,
+  })
 
   // Sprint 3F: order masuk → tandakan sesi checkout terbengkalai (email/telefon ini,
   // ≤ 7 hari) sebagai pulih supaya cron peringatan tak hantar. Best-effort (helper

@@ -6,6 +6,7 @@ import { PixelScripts } from "@/components/analytics/pixel-scripts";
 import { Clarity } from "@/components/analytics/clarity";
 import { Analytics } from "@vercel/analytics/next";
 import { PWAInstallBanner } from "@/components/store/pwa-install-banner";
+import { AffiliateCapture } from "@/components/affiliate/affiliate-capture";
 import { getAppSettings } from "@/lib/app-settings";
 import { JsonLd, organizationSchema, websiteSchema, localBusinessSchema } from "@/components/seo/json-ld";
 import "./globals.css";
@@ -184,6 +185,9 @@ export default async function RootLayout({
 
         {/* PWA Install Banner */}
         <PWAInstallBanner />
+
+        {/* Pautan affiliate ?aff=KOD di mana-mana laluan (produk/LP/kedai) — migration 139/165 */}
+        <AffiliateCapture />
 
         {/* Toast notifications */}
         <Toaster

@@ -1,4 +1,5 @@
 'use client'
+import { readLpAff } from '@/lib/affiliate-attribution'   // pautan affiliate LP (migration 139/165)
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLpCart } from '@/lib/stores/lp-cart'
@@ -157,6 +158,7 @@ export function LpCartBar({ slug, freeMin = 80, pickupEnabled = false, hideBar =
           flash_expected: flashDisc > 0,
           use_points: loyalty.loggedIn && usePoints,
           source,
+          aff: readLpAff(slug),   // kod + id klik affiliate skop LP/kedai (pelayan sahkan)
           items: items.map(i => ({
             product_id: i.productId,
             variant_id: i.variantId,
