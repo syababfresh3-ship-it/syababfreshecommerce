@@ -5,6 +5,7 @@ import { useLpCart } from '@/lib/stores/lp-cart'
 import { toast } from 'sonner'
 import { Minus, Plus, ShoppingBag, Check } from 'lucide-react'
 import type { Product, ProductVariant } from '@/types'
+import { useFlashDiscount } from '@/lib/stores/lp-flash'
 
 interface Props {
   product: Product
@@ -27,6 +28,8 @@ export function LpAddToCartBtn({ product, stock, variants }: Props) {
 
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : Number(product.price)
   const comparePrice = selectedVariant ? selectedVariant.compare_price : product.compare_price
+  // Tawaran masa terhad (migration 159): harga asal dicoret bila aktif — dipanggil sebelum return awal (peraturan hook)
+  const flash = useFlashDiscount(displayPrice * qty)
 
   const inCart = cartItems.find(
     i => i.productId === product.id && i.variantId === (selectedVariant?.id ?? null)
@@ -81,8 +84,10 @@ export function LpAddToCartBtn({ product, stock, variants }: Props) {
       {/* Price + qty */}
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-xl font-black text-green-600">RM{(displayPrice * qty).toFixed(2)}</span>
-          {comparePrice && Number(comparePrice) > displayPrice && (
+          <span className={`text-xl font-black ${flash.active ? 'text-[#E11D2A]' : 'text-green-600'}`}>RM{flash.final.toFixed(2)}</span>
+          {flash.active ? (
+            <span className="ml-2 text-sm text-gray-400 line-through">RM{(displayPrice * qty).toFixed(2)}</span>
+          ) : comparePrice && Number(comparePrice) > displayPrice && (
             <span className="ml-2 text-sm text-gray-400 line-through">RM{(Number(comparePrice) * qty).toFixed(2)}</span>
           )}
         </div>
