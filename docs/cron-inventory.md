@@ -23,6 +23,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | affiliate-credit | `/api/cron/affiliate-credit` | Kredit komisen affiliate yang cukup tempoh tahan (RPC `affiliate_credit_due`; void bila order batal/refund) | tiap jam (minit 20) | **Vercel** |
 | ops-alerts | `/api/cron/ops-alerts` | Amaran operasi ke kumpulan WA staf melalui nombor gateway: cron senyap (ulang 6j) + stok rendah (ulang 24j); COD menunggu kelulusan & bayaran gagal dihantar terus dari laluan order/webhook (lib/ops-alerts; tetapan /admin/settings/whatsapp) | tiap 15 min | **Vercel** |
 | hermes-stock-in | `/api/cron/hermes-stock-in` | Baca sheet Hermes (log invois pembekal, CSV awam); baris buah baharu → satu mesej "Buah baru masuk" setiap invois ke kumpulan WA staf melalui nombor gateway (jenis stock_in dalam lib/ops-alerts); larian pertama = garis dasar tanpa hantar; `?reset=1` bina semula garis dasar | tiap 10 min | **Vercel** |
+| security-digest | `/api/cron/security-digest` | Ringkasan keselamatan mingguan ke emel+push admin: CVE Cloudflare Radar padan stack (CVSS ≥ 7) + laporan `npm audit` storefront (GitHub Actions `security-audit.yml`) & gateway (cron VPS `deploy/security-audit.sh`) melalui `POST /api/security/report` | Isnin 08:10 MYT | **Vercel** |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 
