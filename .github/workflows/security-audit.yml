@@ -21,10 +21,10 @@ jobs:
           npm audit --omit=dev --json > audit.json || true
           node -e 'const a=require("./audit.json"); console.log(JSON.stringify(a.metadata && a.metadata.vulnerabilities || {}))'
       - name: Hantar laporan ke storefront
-        if: ${{ secrets.CRON_SECRET != '' }}
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
+          if [ -z "$CRON_SECRET" ]; then echo "Rahsia CRON_SECRET tiada — laporan tidak dihantar"; exit 0; fi
           node -e '
             const fs=require("fs"); const audit=JSON.parse(fs.readFileSync("audit.json","utf8"));
             fs.writeFileSync("payload.json", JSON.stringify({ source:"storefront", audit, node: process.version, ref: process.env.GITHUB_SHA.slice(0,7) }));
