@@ -25,11 +25,14 @@ export function trackInitiateCheckout(value: number) {
   window.gtag?.('event', 'begin_checkout', { currency: 'MYR', value })
 }
 
-export function trackPurchase(orderId: string, value: number, items: { product_name: string; unit_price: number; quantity: number }[]) {
+// eventId = `purchase_<order_number>` — SAMA dengan event_id CAPI pelayan (finalize / verify-payment →
+// sendCapiPurchase) supaya Meta nyahganda pelayar↔pelayan. Tanpa ini order kedai dikira dua kali (25 Nov 2026).
+export function trackPurchase(orderId: string, value: number, items: { product_name: string; unit_price: number; quantity: number }[], eventId?: string | null) {
   if (typeof window === 'undefined') return
 
   const contents = items.map(i => ({ id: i.product_name, quantity: i.quantity }))
-  window.fbq?.('track', 'Purchase', { value, currency: 'MYR', content_type: 'product', contents })
+  if (eventId) window.fbq?.('track', 'Purchase', { value, currency: 'MYR', content_type: 'product', contents }, { eventID: eventId })
+  else window.fbq?.('track', 'Purchase', { value, currency: 'MYR', content_type: 'product', contents })
 
   window.gtag?.('event', 'purchase', {
     transaction_id: orderId,

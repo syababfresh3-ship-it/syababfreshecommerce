@@ -195,6 +195,7 @@ export default async function OrderDetailPage({
         {isNew && !isBankTransfer && (
           <PurchaseTracker
             orderId={order.id}
+            orderNumber={order.order_number ?? null}
             total={Number(order.total)}
             items={(order.order_items ?? []).map((i: OrderItemRow) => ({
               product_name: i.product_name,

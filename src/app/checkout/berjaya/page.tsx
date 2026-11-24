@@ -44,6 +44,7 @@ export default async function CheckoutBerjayaPage({ searchParams }: Props) {
       {order && order.payment_method !== 'bank_transfer' && (
         <PurchaseTracker
           orderId={order.id}
+          orderNumber={String(order.order_number ?? '')}
           total={Number(order.total)}
           items={items.map((i) => ({
             product_name: String(i.product_name ?? ''),

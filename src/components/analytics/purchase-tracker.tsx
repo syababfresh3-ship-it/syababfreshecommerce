@@ -5,11 +5,13 @@ import { trackPurchase } from '@/lib/tracking'
 
 interface Props {
   orderId: string
+  /** Nombor pesanan → eventID `purchase_<no>` (padan CAPI pelayan). */
+  orderNumber?: string | null
   total: number
   items: { product_name: string; unit_price: number; quantity: number }[]
 }
 
-export function PurchaseTracker({ orderId, total, items }: Props) {
+export function PurchaseTracker({ orderId, orderNumber, total, items }: Props) {
   const fired = useRef(false)
 
   useEffect(() => {
@@ -27,10 +29,10 @@ export function PurchaseTracker({ orderId, total, items }: Props) {
       if (fired.current) return
       fired.current = true
       try { sessionStorage.setItem(key, '1') } catch {}
-      trackPurchase(orderId, total, items)
+      trackPurchase(orderId, total, items, orderNumber ? `purchase_${String(orderNumber).replace(/[^A-Za-z0-9_-]/g, '')}` : null)
     }, 1500)
     return () => clearTimeout(t)
-  }, [orderId, total, items])
+  }, [orderId, orderNumber, total, items])
 
   return null
 }
