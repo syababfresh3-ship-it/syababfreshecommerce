@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { stampHeartbeat, stampHeartbeatError } from '@/lib/cron-heartbeat'
 import { getOpsAlertConfig, queueOpsAlert } from '@/lib/ops-alerts'
 import { fetchHermesCsv, parseHermesRows, groupByInvoice, stockInMessage } from '@/lib/hermes-sheet'
+import { setAgentStatus } from '@/lib/office'
 
 // Pemantau "buah baru masuk" — sheet Hermes (log invois pembekal) disemak setiap 10 min (vercel.json).
 // Baris baharu (kunci belum dilihat) dikumpul ikut invois → satu mesej WhatsApp ke kumpulan staf melalui
@@ -25,6 +26,8 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
   const admin = createAdminClient()
+  // Pejabat AI: Nurul sedang menjalankan tugasan ini (lib/office) — best-effort.
+  await setAgentStatus(admin, { agent: 'nurul', state: 'working', task: 'Semak sheet Hermes untuk buah baru masuk' })
   await admin.from('cron_heartbeats').upsert({ job: JOB, expected_minutes: 10 }, { onConflict: 'job', ignoreDuplicates: true })
   const reset = new URL(req.url).searchParams.get('reset') === '1'
 
@@ -46,6 +49,7 @@ export async function GET(req: Request) {
     if (!seen || !Array.isArray(seen.keys)) {
       await save(rows.map(r => r.key), { baselined_at: nowIso })
       await stampHeartbeat(admin, JOB)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Siap: Semak sheet Hermes untuk buah baru masuk' })
       return NextResponse.json({ ok: true, baseline: true, rows: rows.length })
     }
 
@@ -68,9 +72,11 @@ export async function GET(req: Request) {
     }
 
     await stampHeartbeat(admin, JOB)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Siap: Semak sheet Hermes untuk buah baru masuk' })
     return NextResponse.json(out)
   } catch (e) {
     await stampHeartbeatError(admin, JOB, e)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Gagal: Semak sheet Hermes untuk buah baru masuk' })
     return NextResponse.json({ ok: false, error: String((e as Error)?.message ?? e) }, { status: 500 })
   }
 }

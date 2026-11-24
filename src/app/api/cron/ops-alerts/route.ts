@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { stampHeartbeat, stampHeartbeatError } from '@/lib/cron-heartbeat'
 import { getOpsAlertConfig, queueOpsAlert, opsCronText, opsStockText } from '@/lib/ops-alerts'
+import { setAgentStatus } from '@/lib/office'
 
 // Pemeriksa amaran operasi (lib/ops-alerts) — Vercel cron setiap 15 min (vercel.json).
 //  1) Cron senyap: peraturan sama dengan dashboard admin & laporan harian (senyap > 3× selang
@@ -31,6 +32,8 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
   const admin = createAdminClient()
+  // Pejabat AI: Nurul sedang menjalankan tugasan ini (lib/office) — best-effort.
+  await setAgentStatus(admin, { agent: 'nurul', state: 'working', task: 'Amaran operasi: semak cron senyap & stok rendah' })
   // Seed baris heartbeat dengan selang 15 min (stampHeartbeat tidak mengubah expected_minutes).
   await admin.from('cron_heartbeats').upsert({ job: JOB, expected_minutes: 15 }, { onConflict: 'job', ignoreDuplicates: true })
 
@@ -39,6 +42,7 @@ export async function GET(req: Request) {
     const out = { enabled: cfg.enabled, cronJobs: [] as string[], stockItems: [] as string[], stockTotal: 0 }
     if (!cfg.enabled) {
       await stampHeartbeat(admin, JOB)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Siap: Amaran operasi: semak cron senyap & stok rendah' })
       return NextResponse.json({ ok: true, ...out })
     }
     const now = Date.now()
@@ -97,9 +101,11 @@ export async function GET(req: Request) {
     }
 
     await stampHeartbeat(admin, JOB)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Siap: Amaran operasi: semak cron senyap & stok rendah' })
     return NextResponse.json({ ok: true, ...out })
   } catch (e) {
     await stampHeartbeatError(admin, JOB, e)
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Gagal: Amaran operasi: semak cron senyap & stok rendah' })
     return NextResponse.json({ ok: false, error: String((e as Error)?.message ?? e) }, { status: 500 })
   }
 }

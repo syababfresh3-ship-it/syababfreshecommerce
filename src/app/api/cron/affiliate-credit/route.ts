@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { sendWhatsApp } from '@/lib/murpati'
 import { stampHeartbeat, stampHeartbeatError } from '@/lib/cron-heartbeat'
+import { setAgentStatus } from '@/lib/office'
 
 // Kredit komisen affiliate yang cukup tempoh tahan (migration 165).
 //
@@ -24,6 +25,7 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
   const admin = createAdminClient()
+  await setAgentStatus(admin, { agent: 'nurul', state: 'working', task: 'Kredit komisen affiliate yang cukup tempoh tahan' })
   try {
     const { data, error } = await admin.rpc('affiliate_credit_due', { p_limit: 300 })
     if (error) throw error
@@ -51,9 +53,11 @@ export async function GET(req: Request) {
     }
 
     await stampHeartbeat(admin, 'affiliate-credit')
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Siap: kredit komisen affiliate' })
     return Response.json({ ok: true, affiliates: rows.length, total: Math.round(total * 100) / 100, notified })
   } catch (err) {
     await stampHeartbeatError(admin, 'affiliate-credit', err).catch(() => {})
+    await setAgentStatus(admin, { agent: 'nurul', state: 'idle', task: 'Gagal: kredit komisen affiliate' })
     const msg = (err as Error)?.message ?? String(err)
     return Response.json({ ok: false, error: msg }, { status: 500 })
   }
