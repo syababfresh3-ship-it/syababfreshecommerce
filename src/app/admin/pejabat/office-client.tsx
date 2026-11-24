@@ -84,7 +84,7 @@ function Plant({ x, y }: { x: number; y: number }) {
   )
 }
 
-function Person({ x, y, z, state, scale = 1 }: { x: number; y: number; z: number; state: AgentState; scale?: number }) {
+function Person({ x, y, z, state, scale = 1, marks = true }: { x: number; y: number; z: number; state: AgentState; scale?: number; marks?: boolean }) {
   const c = STATE_COLOR[state]
   const head = iso(x, y, z + 28 * scale), body = iso(x, y, z)
   const w = 24 * scale, hgt = 26 * scale
@@ -92,13 +92,13 @@ function Person({ x, y, z, state, scale = 1 }: { x: number; y: number; z: number
     <g>
       <path d={`M${body.X - w / 2} ${body.Y} v${-hgt + 8} a${w / 2} ${w / 2} 0 0 1 ${w} 0 v${hgt - 8} z`} fill={c.body} stroke={state === 'offline' ? '#cbd5e1' : 'none'} />
       <circle cx={head.X} cy={head.Y} r={9.5 * scale} fill={state === 'offline' ? '#f1f5f9' : '#ffe0c2'} stroke={state === 'offline' ? '#cbd5e1' : '#e8c4a0'} strokeWidth="0.8" />
-      {state === 'idle' && <text x={head.X + 10} y={head.Y - 8} fontSize={10 * scale} fontWeight="700" fill="#9ca3af" fontFamily="ui-sans-serif, system-ui">zz</text>}
-      {state === 'waiting' && <g><circle cx={head.X + 12} cy={head.Y - 12} r="6.5" fill="#d97706" /><text x={head.X + 12} y={head.Y - 8.5} fontSize="9" fontWeight="800" fill="#fff" textAnchor="middle" fontFamily="ui-sans-serif, system-ui">!</text></g>}
+      {marks && state === 'idle' && <text x={head.X + 10} y={head.Y - 8} fontSize={10 * scale} fontWeight="700" fill="#9ca3af" fontFamily="ui-sans-serif, system-ui">zz</text>}
+      {marks && state === 'waiting' && <g><circle cx={head.X + 12} cy={head.Y - 12} r="6.5" fill="#d97706" /><text x={head.X + 12} y={head.Y - 8.5} fontSize="9" fontWeight="800" fill="#fff" textAnchor="middle" fontFamily="ui-sans-serif, system-ui">!</text></g>}
     </g>
   )
 }
 
-const CELL = 150
+const CELL = 200
 
 function OfficeScene({ agents, queueCount, now }: { agents: Agent[]; queueCount: number; now: number }) {
   const cols = agents.length <= 4 ? 2 : 3
@@ -107,7 +107,7 @@ function OfficeScene({ agents, queueCount, now }: { agents: Agent[]; queueCount:
   // bounding box of floor + margins (left for queue, top for bubbles, bottom for labels)
   const corners = [iso(0, 0), iso(floorW, 0), iso(floorW, floorD), iso(0, floorD)]
   const minX = Math.min(...corners.map(p => p.X)) - 150, maxX = Math.max(...corners.map(p => p.X)) + 40
-  const minY = Math.min(...corners.map(p => p.Y)) - 110, maxY = Math.max(...corners.map(p => p.Y)) + 56
+  const minY = Math.min(...corners.map(p => p.Y)) - 110, maxY = Math.max(...corners.map(p => p.Y)) + 70
   const placed = agents.map((a, i) => ({ a, c: i % cols, r: Math.floor(i / cols) })).sort((p, q) => (p.c + p.r) - (q.c + q.r))
   const tiles: string[] = []
   for (let tx = 0; tx <= floorW; tx += 30) tiles.push(pts(iso(tx, 0), iso(tx, floorD)))
@@ -124,7 +124,7 @@ function OfficeScene({ agents, queueCount, now }: { agents: Agent[]; queueCount:
       {tiles.map((t, i) => <polyline key={i} points={t} fill="none" stroke="#ebe5da" strokeWidth="0.8" />)}
       {/* entrance mat + queue */}
       <polygon points={pts(iso(-26, floorD * 0.55 - 22), iso(0, floorD * 0.55 - 22), iso(0, floorD * 0.55 + 22), iso(-26, floorD * 0.55 + 22))} fill="#dbe4ee" />
-      {Array.from({ length: queueFigures }).map((_, k) => <Person key={k} x={-46 - k * 22} y={floorD * 0.55 + (k % 2 ? 6 : -6)} z={0} state="idle" scale={0.8} />)}
+      {Array.from({ length: queueFigures }).map((_, k) => <Person key={k} x={-46 - k * 22} y={floorD * 0.55 + (k % 2 ? 6 : -6)} z={0} state="idle" scale={0.8} marks={false} />)}
       <text x={entrance.X - 70} y={entrance.Y + 40} fontSize="11" fontWeight="700" fill="#475569" textAnchor="middle" fontFamily="ui-sans-serif, system-ui">
         {queueCount === 0 ? 'No customers waiting' : `${queueCount} customer${queueCount === 1 ? '' : 's'} waiting`}
       </text>
@@ -132,40 +132,41 @@ function OfficeScene({ agents, queueCount, now }: { agents: Agent[]; queueCount:
       <Plant x={floorW - 18} y={18} />
 
       {placed.map(({ a, c, r }) => {
-        const cx = c * CELL, cy = r * CELL
+        const cx = c * CELL + 25, cy = r * CELL + 20
         const col = STATE_COLOR[a.state]
         const dash = a.state === 'offline' ? '3 2' : undefined
         const head = iso(cx + 75, cy + 30, 60)
-        const label = iso(cx + 75, cy + 118, 0)
         return (
           <g key={a.key} opacity={a.state === 'offline' ? 0.7 : 1}>
-            {/* chair */}
             <Box x={cx + 62} y={cy + 18} w={26} d={22} h={14} top="#6b7280" left="#4b5563" right="#374151" />
             <Box x={cx + 62} y={cy + 14} w={26} d={5} h={34} top="#4b5563" left="#374151" right="#1f2937" />
-            {/* person */}
             <Person x={cx + 75} y={cy + 30} z={22} state={a.state} />
-            {/* desk */}
             <Box x={cx + 32} y={cy + 46} w={86} d={42} h={30} top="#f1e4d0" left="#d9c6a8" right="#c9b391" stroke="#b59f7c" dash={dash} />
-            {/* monitor */}
-            <Box x={cx + 64} y={cy + 56} w={24} d={3} h={17} z={30} top="#1f2937" left="#111827" right={col.screen} />
-            <line x1={iso(cx + 76, cy + 58, 30).X} y1={iso(cx + 76, cy + 58, 30).Y} x2={iso(cx + 76, cy + 58, 30).X} y2={iso(cx + 76, cy + 58, 30).Y - 4} stroke="#111827" strokeWidth="1" />
-            {/* mug */}
-            <ellipse cx={iso(cx + 104, cy + 72, 30).X} cy={iso(cx + 104, cy + 72, 30).Y} rx="3.5" ry="2" fill="#fff" stroke="#9ca3af" strokeWidth="0.6" />
-            {/* working glow */}
+            {/* monitor: skrin menghadap pemerhati (muka kanan) */}
+            <Box x={cx + 66} y={cy + 54} w={28} d={3} h={20} z={30} top="#1f2937" left="#111827" right={col.screen} />
+            <ellipse cx={iso(cx + 106, cy + 74, 30).X} cy={iso(cx + 106, cy + 74, 30).Y} rx="3.5" ry="2" fill="#fff" stroke="#9ca3af" strokeWidth="0.6" />
             {a.state === 'working' && <circle cx={head.X + 22} cy={head.Y - 22} r="4" fill="#16a34a"><animate attributeName="r" values="3;5;3" dur="1.6s" repeatCount="indefinite" /><animate attributeName="opacity" values="1;0.4;1" dur="1.6s" repeatCount="indefinite" /></circle>}
-            {/* task bubble */}
+            <title>{`${a.name} · ${STATE_LABEL[a.state]}${a.task ? ` · ${a.task}` : ''} · ${ago(a.lastSeen, now)}`}</title>
+          </g>
+        )
+      })}
+      {/* labels & bubbles — laluan akhir supaya tidak ditutup meja hadapan */}
+      {placed.map(({ a, c, r }) => {
+        const cx = c * CELL + 25, cy = r * CELL + 20
+        const head = iso(cx + 75, cy + 30, 60)
+        const label = iso(cx + 75, cy + 104, 0)
+        return (
+          <g key={`${a.key}-label`}>
             {a.task && (a.state === 'working' || a.state === 'waiting') && (
               <foreignObject x={head.X - 92} y={head.Y - 84} width="184" height="58">
                 <div className="rounded-xl bg-white border border-gray-200 shadow-sm px-2.5 py-1.5 text-[10.5px] leading-snug text-gray-800 line-clamp-2" style={{ borderColor: a.state === 'waiting' ? '#fcd34d' : '#e5e7eb' }}>{a.task}</div>
               </foreignObject>
             )}
-            {/* labels */}
-            <text x={label.X} y={label.Y + 10} fontSize="13" fontWeight="800" fill="#111827" textAnchor="middle" fontFamily="ui-sans-serif, system-ui">{a.name}</text>
-            <text x={label.X} y={label.Y + 23} fontSize="10" fill="#6b7280" textAnchor="middle" fontFamily="ui-sans-serif, system-ui">{a.role}</text>
-            <foreignObject x={label.X - 60} y={label.Y + 28} width="120" height="24">
+            <text x={label.X} y={label.Y + 8} fontSize="13" fontWeight="800" fill="#111827" textAnchor="middle" fontFamily="ui-sans-serif, system-ui" style={{ paintOrder: 'stroke', stroke: '#f8f5ef', strokeWidth: 3 }}>{a.name}</text>
+            <text x={label.X} y={label.Y + 21} fontSize="10" fill="#6b7280" textAnchor="middle" fontFamily="ui-sans-serif, system-ui" style={{ paintOrder: 'stroke', stroke: '#f8f5ef', strokeWidth: 3 }}>{a.role}</text>
+            <foreignObject x={label.X - 60} y={label.Y + 26} width="120" height="24">
               <div className="flex justify-center"><Badge state={a.state} /></div>
             </foreignObject>
-            <title>{`${a.name} · ${STATE_LABEL[a.state]}${a.task ? ` · ${a.task}` : ''} · ${ago(a.lastSeen, now)}`}</title>
           </g>
         )
       })}
