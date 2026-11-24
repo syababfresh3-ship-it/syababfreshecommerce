@@ -17,6 +17,7 @@ export interface OfficeAgent {
 const WORKING_WINDOW_MS = 90_000
 const PENDING_REPLY_MS = 3 * 60_000
 const STALE_REPORT_MS = 30 * 60_000 // laporan 'working' lebih lama dari ini dianggap tamat
+const QUEUE_WINDOW_MS = 3 * 86_400_000
 
 export async function GET() {
   const userClient = await createClient()
@@ -27,13 +28,14 @@ export async function GET() {
   if (!me?.is_admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const now = Date.now()
+  const queueSince = new Date(now - QUEUE_WINDOW_MS).toISOString() // flag needs_reply lama bertimbun (7k+) — tunjuk 3 hari terakhir sahaja
   const [statuses, lastAssistant, lastUser, openChats, queueRows, queueCount, codStore, codLp, wdPending, appPending, refundsOpen, heartbeats, lines] = await Promise.all([
     readAgentStatuses(admin),
     admin.from('support_messages').select('created_at').eq('role', 'assistant').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     admin.from('support_messages').select('created_at').eq('role', 'user').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     admin.from('support_complaints').select('id', { count: 'exact', head: true }).in('status', ['open', 'escalated']),
-    admin.from('wa_conversations').select('last_message_preview, last_message_at, unread_count, wa_contacts(name, wa_id)').eq('needs_reply', true).order('last_message_at', { ascending: false }).limit(8),
-    admin.from('wa_conversations').select('id', { count: 'exact', head: true }).eq('needs_reply', true),
+    admin.from('wa_conversations').select('last_message_preview, last_message_at, unread_count, wa_contacts(name, wa_id)').eq('needs_reply', true).gte('last_message_at', queueSince).order('last_message_at', { ascending: false }).limit(8),
+    admin.from('wa_conversations').select('id', { count: 'exact', head: true }).eq('needs_reply', true).gte('last_message_at', queueSince),
     admin.from('orders').select('id', { count: 'exact', head: true }).eq('needs_approval', true).eq('status', 'pending'),
     admin.from('lp_guest_orders').select('id', { count: 'exact', head: true }).eq('needs_approval', true).eq('status', 'pending'),
     admin.from('affiliate_withdrawals').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -65,44 +67,44 @@ export async function GET() {
     const fresh = row ? now - t(row.last_seen) < STALE_REPORT_MS : false
     let state: AgentState = 'offline', task: string | null = null, note: string | null = null
     if (row && (fresh || row.state !== 'working')) { state = row.state; task = row.task }
-    else if (row) { state = 'idle'; task = row.task; note = 'Laporan terakhir lebih 30 minit, dianggap tamat' }
+    else if (row) { state = 'idle'; task = row.task; note = 'Last report over 30 min ago, treated as finished' }
 
     if (r.key === 'aina') {
       state = ainaWorking ? 'working' : 'idle'
-      task = ainaWorking ? 'Membalas pelanggan di chat bantuan' : null
-      note = `${openN} chat terbuka`
+      task = ainaWorking ? 'Replying to a customer in the help chat' : null
+      note = `${openN} open chat${openN === 1 ? '' : 's'}`
       return { ...r, state, task, since: null, lastSeen: lastAssistant.data?.created_at ?? null, note }
     }
     if (r.key === 'nurul') {
       if (!(row && fresh && row.state === 'working')) {
-        if (staleJobs.length) { state = 'waiting'; task = `Cron senyap: ${staleJobs.join(', ')}` }
+        if (staleJobs.length) { state = 'waiting'; task = `Silent cron: ${staleJobs.join(', ')}` }
         else { state = 'idle'; task = row?.task ?? null }
       }
-      note = lastRun ? `Larian terakhir: ${lastRun.job}` : null
+      note = lastRun ? `Last run: ${lastRun.job}` : null
       return { ...r, state, task, since: row?.since ?? null, lastSeen: lastRun?.lastOkAt ?? row?.last_seen ?? null, note }
     }
-    if (!row) note = 'Belum lapor diri (buka sesi Claude Code dalam folder ini)'
+    if (!row) note = 'Not reporting yet (open a Claude Code session in this folder)'
     return { ...r, state, task, since: row?.since ?? null, lastSeen: row?.last_seen ?? null, note }
   })
   // Agen lain yang lapor diri tapi tiada dalam roster
   for (const row of statuses.rows) {
     if (OFFICE_ROSTER.some(r => r.key === row.agent_key)) continue
     const fresh = now - t(row.last_seen) < STALE_REPORT_MS
-    agents.push({ key: row.agent_key, name: row.name || row.agent_key, role: row.role || 'Agen', where: String(row.meta?.where ?? 'Luar'), state: fresh || row.state !== 'working' ? row.state : 'idle', task: row.task, since: row.since, lastSeen: row.last_seen, note: null })
+    agents.push({ key: row.agent_key, name: row.name || row.agent_key, role: row.role || 'Agent', where: String(row.meta?.where ?? 'External'), state: fresh || row.state !== 'working' ? row.state : 'idle', task: row.task, since: row.since, lastSeen: row.last_seen, note: null })
   }
 
   type QRow = { last_message_preview: string | null; last_message_at: string | null; unread_count: number | null; wa_contacts: { name: string | null; wa_id: string } | { name: string | null; wa_id: string }[] | null }
   const queue = ((queueRows.data ?? []) as QRow[]).map(q => {
     const c = Array.isArray(q.wa_contacts) ? q.wa_contacts[0] : q.wa_contacts
-    return { name: c?.name || c?.wa_id || 'Pelanggan', waId: c?.wa_id ?? '', preview: q.last_message_preview ?? '', at: q.last_message_at, unread: q.unread_count ?? 0 }
+    return { name: c?.name || c?.wa_id || 'Customer', waId: c?.wa_id ?? '', preview: q.last_message_preview ?? '', at: q.last_message_at, unread: q.unread_count ?? 0 }
   })
 
   const approvals = [
-    { key: 'cod_store', label: 'COD pesanan pertama ahli', count: codStore.count ?? 0, href: '/admin/orders' },
-    { key: 'cod_lp', label: 'COD landing page', count: codLp.count ?? 0, href: '/admin/fulfillment' },
-    { key: 'withdrawals', label: 'Pengeluaran affiliate', count: wdPending.count ?? 0, href: '/admin/affiliates' },
-    { key: 'applications', label: 'Permohonan affiliate', count: appPending.count ?? 0, href: '/admin/affiliates' },
-    { key: 'refunds', label: 'Refund belum selesai', count: refundsOpen.count ?? 0, href: '/admin/refunds' },
+    { key: 'cod_store', label: 'COD first orders (members)', count: codStore.count ?? 0, href: '/admin/orders' },
+    { key: 'cod_lp', label: 'COD landing page orders', count: codLp.count ?? 0, href: '/admin/fulfillment' },
+    { key: 'withdrawals', label: 'Affiliate withdrawals', count: wdPending.count ?? 0, href: '/admin/affiliates' },
+    { key: 'applications', label: 'Affiliate applications', count: appPending.count ?? 0, href: '/admin/affiliates' },
+    { key: 'refunds', label: 'Open refunds', count: refundsOpen.count ?? 0, href: '/admin/refunds' },
   ]
 
   const sessions = (lines.sessions ?? []).filter(s => s.status === 'connected' || s.status === 'disconnected').map(s => ({

@@ -19,13 +19,13 @@ export interface RosterEntry {
 /** Staf tetap — susunan = susunan meja di pejabat. Kunci team Hermes = nama folder (hook lapor ikut cwd).
  *  Agen lain yang lapor diri (cth subagen `waba-team--waba-auditor`) ditambah di hujung. */
 export const OFFICE_ROSTER: RosterEntry[] = [
-  { key: 'hermes', name: 'Hermes', role: 'Pembantu am', where: 'Claude Code · Hermes/' },
+  { key: 'hermes', name: 'Hermes', role: 'General assistant', where: 'Claude Code · Hermes/' },
   { key: 'amaa-team', name: 'Maya', role: 'Meta Ads', where: 'Claude Code · Hermes/amaa-team' },
   { key: 'waba-team', name: 'Zara', role: 'WhatsApp blast', where: 'Claude Code · Hermes/waba-team' },
-  { key: 'lp-team', name: 'Rayyan', role: 'Landing page', where: 'Claude Code · Hermes/lp-team' },
-  { key: 'tiktok-team', name: 'Iman', role: 'Analisa video TikTok', where: 'Claude Code · Hermes/tiktok-team' },
-  { key: 'aina', name: 'Aina', role: 'Sokongan pelanggan', where: 'Chat bantuan web' },
-  { key: 'nurul', name: 'Nurul', role: 'Laporan & amaran', where: 'Routine & cron' },
+  { key: 'lp-team', name: 'Rayyan', role: 'Landing pages', where: 'Claude Code · Hermes/lp-team' },
+  { key: 'tiktok-team', name: 'Iman', role: 'TikTok video analysis', where: 'Claude Code · Hermes/tiktok-team' },
+  { key: 'aina', name: 'Aina', role: 'Customer support', where: 'Web help chat' },
+  { key: 'nurul', name: 'Nurul', role: 'Reports & alerts', where: 'Routines & cron' },
 ]
 
 export const AGENT_KEY_RE = /^[a-z0-9][a-z0-9_-]{1,39}$/
