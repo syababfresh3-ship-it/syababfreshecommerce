@@ -7,7 +7,7 @@ import { Search, X, ShoppingBasket, RefreshCw, ScanLine, Store } from 'lucide-re
 import { useHidScanner } from '@/components/pos/use-hid-scanner'
 import { CameraScanner } from '@/components/pos/camera-scanner'
 import { usePosCatalog } from '@/components/pos/use-pos-catalog'
-import { CategoryChips, CategoryGrid, ProductGrid, VariantSheet, CAT_BROWSE, CAT_QUICK, filterCatalog, type PosProductGroup } from '@/components/pos/sell/product-grid'
+import { CategoryChips, CategoryGrid, ProductGrid, VariantSheet, CAT_BROWSE, CAT_QUICK, filterCatalog, groupByProduct, type PosProductGroup } from '@/components/pos/sell/product-grid'
 import { TicketPanel } from '@/components/pos/sell/ticket-panel'
 import { WeightKeypad } from '@/components/pos/sell/weight-keypad'
 import { LineSheet } from '@/components/pos/sell/line-sheet'
@@ -84,11 +84,14 @@ export function SellClient() {
   // (preventDefault) dan tak "mengklik" butang pad yang kebetulan berfokus (kotak carian berfokus dikendalikan onSearchKey)
   useHidScanner(view === 'grid' && !!catalog && !storeClosed, onScan)
 
-  // Enter dalam carian: satu padanan tepat (barcode/sku/nama) → terus tambah (scanner HID yang menaip ke kotak ini juga)
+  // Enter dalam carian: satu padanan tepat (barcode/sku/nama) → terus tambah (scanner HID yang menaip ke kotak ini juga);
+  // semua padanan dari SATU produk berbilang saiz → buka sheet pilih saiz (selaras dengan jubin carian berkumpul).
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !catalog) return
     const hits = filterCatalog(catalog, query, cat)
-    if (hits.length === 1) { pick(hits[0]); setQuery(''); e.preventDefault() }
+    if (hits.length === 1) { pick(hits[0]); setQuery(''); e.preventDefault(); return }
+    const groups = groupByProduct(hits)
+    if (groups.length === 1 && groups[0].items.length > 1) { setSheet({ type: 'variants', group: groups[0] }); e.preventDefault() }
   }
 
   const charge = () => {

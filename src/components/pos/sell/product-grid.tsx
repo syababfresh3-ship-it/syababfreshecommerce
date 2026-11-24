@@ -10,7 +10,9 @@ import type { PosCatalog, PosCatalogItem } from '@/lib/pos/types'
 // • Tab "Kategori" = paparan SEMUA kategori sebagai jubin DALAM kawasan grid (bukan popup).
 // • Dalam kategori / Semua: SATU jubin = SATU produk (variety) dengan julat harga & bilangan saiz;
 //   ketuk → sheet pilih saiz (gram). Produk satu saiz terus masuk tiket.
-// • Kegemaran & carian: jubin peringkat varian (satu ketukan; imbas barcode perlu varian tepat).
+// • Kegemaran: jubin peringkat varian (kekunci pantas, satu ketukan).
+// • Carian (pemilik 25 Nov 2026): dikumpul ikut produk juga — taip "limau madu" → satu jubin "4 sizes" → sheet saiz,
+//   sama macam grid. Kecuali padanan barcode/SKU TEPAT → jubin varian itu terus (aliran imbasan tak berubah).
 // Habis stok dipudarkan tetapi TIDAK disekat (barang ada di tangan pelanggan; angka stok kedai mungkin lapuk).
 
 export const CAT_QUICK = 'quick'
@@ -142,8 +144,11 @@ export function ProductGrid({ catalog, query, categoryId, onPick, onPickGroup }:
   catalog: PosCatalog; query: string; categoryId: string; onPick: (item: PosCatalogItem) => void; onPickGroup: (g: PosProductGroup) => void
 }) {
   const items = useMemo(() => filterCatalog(catalog, query, categoryId), [catalog, query, categoryId])
-  // Peringkat varian untuk Kegemaran & carian; peringkat produk untuk kategori / Semua.
-  const byVariant = !!query.trim() || categoryId === CAT_QUICK
+  // Peringkat varian hanya untuk Kegemaran dan padanan barcode/SKU tepat; carian nama & kategori / Semua
+  // dikumpul ikut produk (sheet pilih saiz) supaya paparan konsisten.
+  const q = query.trim()
+  const exactScan = !!q && catalog.items.some(i => i.barcode === q || (!!i.sku && i.sku.toLowerCase() === q.toLowerCase()))
+  const byVariant = q ? exactScan : categoryId === CAT_QUICK
   const groups = useMemo(() => (byVariant ? [] : groupByProduct(items)), [items, byVariant])
   if (items.length === 0) return <p className="text-center text-[13px] text-gray-400 py-12">No items{query ? ` for "${query}"` : ''}.</p>
   return (
