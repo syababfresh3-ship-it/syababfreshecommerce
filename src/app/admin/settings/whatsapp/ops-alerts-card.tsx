@@ -12,7 +12,7 @@ interface Kind { key: string; label: string; desc: string }
 interface SessionOpt { sessionId: string; label: string }
 interface GroupOpt { jid: string; name: string; size: number | null }
 interface Loaded {
-  config: { enabled: boolean; sessionId: string; groupJid: string; groupName: string; kinds: string[]; lowStock: number }
+  config: { enabled: boolean; sessionId: string; groupJid: string; groupName: string; kinds: string[]; lowStock: number; stockInCost: boolean }
   kinds: Kind[]
   sessions: SessionOpt[]
   groups: GroupOpt[]
@@ -37,6 +37,7 @@ export function OpsAlertsCard() {
   const [groupName, setGroupName] = useState('')
   const [picked, setPicked] = useState<string[]>([])
   const [lowStock, setLowStock] = useState('5')
+  const [stockInCost, setStockInCost] = useState(true)
 
   const load = useCallback(async (session?: string) => {
     const url = session ? `/api/admin/ops-alerts?session=${encodeURIComponent(session)}` : '/api/admin/ops-alerts'
@@ -50,7 +51,7 @@ export function OpsAlertsCard() {
       .then(d => {
         setKinds(d.kinds); setSessions(d.sessions); setGroups(d.groups); setGroupsError(d.groupsError)
         setEnabled(d.config.enabled); setSessionId(d.config.sessionId); setGroupJid(d.config.groupJid)
-        setGroupName(d.config.groupName); setPicked(d.config.kinds); setLowStock(String(d.config.lowStock))
+        setGroupName(d.config.groupName); setPicked(d.config.kinds); setLowStock(String(d.config.lowStock)); setStockInCost(d.config.stockInCost !== false)
       })
       .catch(e => toast.error(`Gagal muat tetapan amaran: ${e.message}`))
       .finally(() => setLoading(false))
@@ -82,7 +83,7 @@ export function OpsAlertsCard() {
     try {
       const res = await fetch('/api/admin/ops-alerts', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, sessionId, groupJid, groupName, kinds: picked, lowStock }),
+        body: JSON.stringify({ enabled, sessionId, groupJid, groupName, kinds: picked, lowStock, stockInCost }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(j.error || 'Gagal simpan'); return }
@@ -180,6 +181,11 @@ export function OpsAlertsCard() {
             </div>
             <p className="text-[11px] text-gray-400 pb-2">Stok rendah diulang setiap 24 jam bagi setiap produk; cron senyap setiap 6 jam bagi setiap job.</p>
           </div>
+
+          <label className="flex items-start gap-2.5 text-sm text-gray-800 cursor-pointer">
+            <input type="checkbox" className="mt-0.5 accent-gray-800" checked={stockInCost} onChange={e => setStockInCost(e.target.checked)} />
+            <span>Sertakan harga dan kos belian dalam mesej buah baru masuk<span className="block text-[11px] text-gray-500">Matikan kalau kumpulan ada orang yang tak patut nampak kos belian.</span></span>
+          </label>
 
           <div className="flex items-center gap-2 pt-1">
             <button onClick={save} disabled={saving}

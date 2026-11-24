@@ -22,6 +22,7 @@ dashboard admin papar **"CRON SENYAP"** bila stamp lewat > 3× selang jangkaan.
 | abandoned-checkout | `/api/cron/abandoned-checkout` | Email pemulihan troli terbengkalai (Sprint 3F, EMAIL sahaja): email 1 selepas 1j, email 2 selepas 24j, sekali per peringkat, hormat nyah-langgan | tiap 30 min | cron-job.org |
 | affiliate-credit | `/api/cron/affiliate-credit` | Kredit komisen affiliate yang cukup tempoh tahan (RPC `affiliate_credit_due`; void bila order batal/refund) | tiap jam (minit 20) | **Vercel** |
 | ops-alerts | `/api/cron/ops-alerts` | Amaran operasi ke kumpulan WA staf melalui nombor gateway: cron senyap (ulang 6j) + stok rendah (ulang 24j); COD menunggu kelulusan & bayaran gagal dihantar terus dari laluan order/webhook (lib/ops-alerts; tetapan /admin/settings/whatsapp) | tiap 15 min | **Vercel** |
+| hermes-stock-in | `/api/cron/hermes-stock-in` | Baca sheet Hermes (log invois pembekal, CSV awam); baris buah baharu → satu mesej "Buah baru masuk" setiap invois ke kumpulan WA staf melalui nombor gateway (jenis stock_in dalam lib/ops-alerts); larian pertama = garis dasar tanpa hantar; `?reset=1` bina semula garis dasar | tiap 10 min | **Vercel** |
 
 ## Bila dashboard tunjuk "CRON SENYAP"
 

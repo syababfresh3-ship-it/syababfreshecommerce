@@ -7,7 +7,7 @@
 // bukan putaran MURPATI_SESSION_IDS. Pelanggan TIDAK terlibat — ini saluran dalaman.
 //
 // Jenis: cod (COD menunggu kelulusan) · payment (bayaran CHIP gagal/luput)
-//        · cron (cron senyap) · stock (stok rendah). Tetapan di app_settings
+//        · cron (cron senyap) · stock (stok rendah) · stock_in (buah baru masuk, sheet Hermes). Tetapan di app_settings
 //        (UI: /admin/settings/whatsapp → "Amaran operasi"):
 //   ops_alert_enabled     on|off (lalai off)
 //   ops_alert_session_id  sess_… (nombor gateway penghantar)
@@ -15,6 +15,7 @@
 //   ops_alert_group_name  label paparan sahaja
 //   ops_alert_kinds       cod,payment,cron,stock
 //   ops_alert_low_stock   ambang stok rendah (lalai 5)
+//   ops_alert_stock_in_cost on|off — sertakan harga/kos belian dalam mesej buah baru masuk (lalai on)
 //
 // Dedup: ikut order (wa_outbox.source + order_id) atau kunci masa
 // (app_settings `ops_alert_last:<jenis>:<kunci>`). Best-effort — TAK PERNAH
@@ -24,13 +25,14 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAppSettings } from '@/lib/app-settings'
 import { SHOP_ORIGIN } from '@/lib/kurma-host'
 
-export type OpsAlertKind = 'cod' | 'payment' | 'cron' | 'stock'
+export type OpsAlertKind = 'cod' | 'payment' | 'cron' | 'stock' | 'stock_in'
 
 export const OPS_ALERT_KINDS: { key: OpsAlertKind; label: string; desc: string }[] = [
   { key: 'cod', label: 'COD menunggu kelulusan', desc: 'Order COD (LP / pesanan pertama ahli) yang perlu diluluskan admin' },
   { key: 'payment', label: 'Bayaran gagal / luput', desc: 'Pembayaran CHIP dibatalkan atau tamat tempoh — order dibatalkan automatik' },
   { key: 'cron', label: 'Cron senyap', desc: 'Automasi berjadual tidak berjalan melebihi 3 kali selang jangkaan' },
   { key: 'stock', label: 'Stok rendah', desc: 'Produk aktif dengan stok pada atau di bawah ambang' },
+  { key: 'stock_in', label: 'Buah baru masuk (sheet Hermes)', desc: 'Baris invois pembekal baharu dalam sheet Hermes, satu mesej setiap invois, disemak setiap 10 minit' },
 ]
 const KIND_SET = new Set<string>(OPS_ALERT_KINDS.map(k => k.key))
 
@@ -41,9 +43,11 @@ export interface OpsAlertConfig {
   groupName: string
   kinds: Set<OpsAlertKind>
   lowStock: number
+  /** Sertakan harga/kos belian dalam mesej buah baru masuk (lalai ya). */
+  stockInCost: boolean
 }
 
-export const OPS_ALERT_KEYS = ['ops_alert_enabled', 'ops_alert_session_id', 'ops_alert_group_jid', 'ops_alert_group_name', 'ops_alert_kinds', 'ops_alert_low_stock'] as const
+export const OPS_ALERT_KEYS = ['ops_alert_enabled', 'ops_alert_session_id', 'ops_alert_group_jid', 'ops_alert_group_name', 'ops_alert_kinds', 'ops_alert_low_stock', 'ops_alert_stock_in_cost'] as const
 
 export function parseOpsAlertConfig(s: Record<string, string | null | undefined>): OpsAlertConfig {
   const kinds = String(s.ops_alert_kinds ?? 'cod,payment,cron,stock').split(',').map(k => k.trim()).filter(k => KIND_SET.has(k)) as OpsAlertKind[]
@@ -55,6 +59,7 @@ export function parseOpsAlertConfig(s: Record<string, string | null | undefined>
     groupName: String(s.ops_alert_group_name ?? '').trim(),
     kinds: new Set(kinds),
     lowStock: Number.isFinite(low) && low >= 0 && low <= 1000 ? low : 5,
+    stockInCost: s.ops_alert_stock_in_cost !== 'off',
   }
 }
 

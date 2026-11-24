@@ -56,7 +56,7 @@ export async function PATCH(req: Request) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const body = await req.json().catch(() => ({})) as {
-    enabled?: boolean; sessionId?: string; groupJid?: string; groupName?: string; kinds?: string[]; lowStock?: number | string
+    enabled?: boolean; sessionId?: string; groupJid?: string; groupName?: string; kinds?: string[]; lowStock?: number | string; stockInCost?: boolean
   }
   const sessionId = String(body.sessionId ?? '').trim()
   const groupJid = String(body.groupJid ?? '').trim()
@@ -74,6 +74,7 @@ export async function PATCH(req: Request) {
     { key: 'ops_alert_group_name', value: String(body.groupName ?? '').slice(0, 120) },
     { key: 'ops_alert_kinds', value: kinds.join(',') },
     { key: 'ops_alert_low_stock', value: String(Number.isFinite(low) && low >= 0 && low <= 1000 ? low : 5) },
+    { key: 'ops_alert_stock_in_cost', value: body.stockInCost === false ? 'off' : 'on' },
   ].map(r => ({ ...r, updated_at: new Date().toISOString() }))
   const { error } = await admin.from('app_settings').upsert(rows, { onConflict: 'key' })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
