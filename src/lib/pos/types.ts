@@ -119,6 +119,8 @@ export interface PosSalePayload {
   points?: PosTicketPoints | null
   /** Simpan sebagai order pickup belum bayar (migration 170) — server tetapkan bayaran placeholder 'pickup' pending. */
   pickup?: { date?: string | null } | null
+  /** Tiket Borong (171): server harga semula ikut senarai harga borong & tanda channel 'wholesale'. */
+  wholesale?: boolean
   payments: PosPaymentInput[]
   note?: string | null
   offline?: boolean
@@ -149,6 +151,8 @@ export interface PosSettings {
   autoPrintCash: boolean
   /** Butang Print cetak senyap (iframe tersembunyi) dan bukan buka tab resit — pelanggan tak nampak page resit. */
   silentPrint: boolean
+  /** Senarai harga Borong (migration 171) — dipakai bila tiket ditanda Borong; null = ciri dimatikan. */
+  wholesalePriceListId: string | null
   waReceiptMode: 'link' | 'murpati'
   /** Session gateway khusus e-resit auto (Hijau/Kuning) — kosong = penghantar global lib/murpati. */
   waReceiptSessions: string[]
@@ -187,6 +191,9 @@ export interface PosSaleRow {
   is_pickup?: boolean | null
   pickup_date?: string | null
   ordered_at?: string | null
+  /** 171 */
+  channel?: 'retail' | 'wholesale' | null
+  price_list_id?: string | null
   cashier_id: string | null
   register_id: string | null
   public_token: string

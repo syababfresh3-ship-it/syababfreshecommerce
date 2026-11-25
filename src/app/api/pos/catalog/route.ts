@@ -10,8 +10,10 @@ export async function GET(request: Request) {
   const auth = await requirePos()
   if (auth.forbidden) return auth.forbidden
   try {
-    const register = new URL(request.url).searchParams.get('register')
-    const catalog = await buildPosCatalog(auth.supabase!, { registerId: register && /^[0-9a-f-]{36}$/i.test(register) ? register : null })
+    const sp = new URL(request.url).searchParams
+    const register = sp.get('register')
+    const priceList = sp.get('price_list')   // 171: katalog harga Borong (senarai eksplisit, bukan ikut register)
+    const catalog = await buildPosCatalog(auth.supabase!, { registerId: register && /^[0-9a-f-]{36}$/i.test(register) ? register : null, priceListId: priceList && /^[0-9a-f-]{36}$/i.test(priceList) ? priceList : null })
     const etag = `"${catalog.version}"`
     if (request.headers.get('if-none-match') === etag) return new Response(null, { status: 304, headers: { ETag: etag } })
     return NextResponse.json(catalog, { headers: { ETag: etag, 'Cache-Control': 'private, no-cache' } })

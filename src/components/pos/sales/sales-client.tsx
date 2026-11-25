@@ -17,7 +17,7 @@ import { klDateStr, shiftDateStr } from '@/lib/pos/dates'
 // Jualan hari ini (atau tarikh lain) + laporan X ringkas. Ketuk baris → butiran: cetak semula,
 // WhatsApp e-resit, void (manager/admin; kasyer biasa perlu PIN manager). UI EN.
 
-interface Row { id: string; receipt_no: string | null; local_ref: string | null; status: string; total: number; change_given: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null ; is_pickup?: boolean | null; pickup_date?: string | null; credit_outstanding?: number }
+interface Row { id: string; receipt_no: string | null; local_ref: string | null; status: string; total: number; change_given: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null ; is_pickup?: boolean | null; pickup_date?: string | null; credit_outstanding?: number; channel?: string | null }
 
 export function SalesClient() {
   const { cashier, isAdmin, settings, registerId } = usePosSession()
@@ -115,6 +115,7 @@ export function SalesClient() {
           <Stat label="Sales" value={String(report.sales)} sub={report.voids ? `${report.voids} void` : undefined} />
           <Stat label="Revenue" value={rm(report.revenue)} sub={report.discount > 0 ? `discounts ${rm(report.discount)}` : undefined} />
           <Stat label="Cash" value={rm(report.byMethod.cash?.amount ?? 0)} sub={report.cashChange > 0 ? `change given ${rm(report.cashChange)}` : undefined} />
+          {report.wholesale && report.wholesale.sales > 0 && <Stat label="Borong" value={rm(report.wholesale.revenue)} sub={`${report.wholesale.sales} sales`} />}
           <Stat label="Non-cash" value={rm((report.byMethod.duitnow_qr?.amount ?? 0) + (report.byMethod.card_terminal?.amount ?? 0) + (report.byMethod.ewallet_terminal?.amount ?? 0) + (report.byMethod.chip_link?.amount ?? 0))} sub={report.weightKg > 0 ? `fruit ${fmtQty(report.weightKg, 'kg')}` : undefined} />
         </div>
       )}
@@ -129,7 +130,7 @@ export function SalesClient() {
             <button type="button" onClick={() => open(r.id)} className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-gray-50">
               <div className="w-[52px] text-[12px] font-bold text-gray-500 tabular-nums">{fmtKl(r.sold_at).slice(-5)}</div>
               <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-extrabold truncate">{r.receipt_no ?? r.local_ref ?? '—'} <span className="text-gray-400 font-semibold">· {methodLabel(r)}</span></p>
+                <p className="text-[13px] font-extrabold truncate">{r.receipt_no ?? r.local_ref ?? '—'} <span className="text-gray-400 font-semibold">· {methodLabel(r)}</span>{r.channel === 'wholesale' && <span className="ml-1.5 text-[10px] font-black uppercase text-gray-700 border border-gray-300 rounded px-1">Borong</span>}</p>
                 <p className="text-[12px] text-gray-500 truncate">{r.pos_cashiers?.name ?? 'No cashier'}{r.customer_name || r.customer_phone ? ` · ${r.customer_name ?? r.customer_phone}` : ''}{r.offline ? ' · offline' : ''}</p>
               </div>
               <div className="text-right">

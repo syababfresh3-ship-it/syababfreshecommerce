@@ -61,14 +61,15 @@ export async function GET(request: Request) {
   const register = sp.get('register')
   const { start, end } = klDayWindow(date)
 
-  let q = sb
-    .from('pos_sales')
-    .select('id, receipt_no, local_ref, status, total, paid_total, change_given, weight_kg_total, sold_at, customer_name, customer_phone, offline, void_reason, public_token, cashier_id, pos_cashiers!cashier_id(name), pos_payments(method, amount, status)')
-    .gte('sold_at', start).lt('sold_at', end)
-    .order('sold_at', { ascending: false })
-    .limit(400)
-  if (register) q = q.eq('register_id', register)
-  const { data, error } = await q
+  const COLS = 'id, receipt_no, local_ref, status, total, paid_total, change_given, weight_kg_total, sold_at, customer_name, customer_phone, offline, void_reason, public_token, cashier_id, pos_cashiers!cashier_id(name), pos_payments(method, amount, status)'
+  const dayQuery = (cols: string) => {
+    let q = sb.from('pos_sales').select(cols).gte('sold_at', start).lt('sold_at', end).order('sold_at', { ascending: false }).limit(400)
+    if (register) q = q.eq('register_id', register)
+    return q
+  }
+  // 171: channel (Borong) — fallback tanpa lajur bila migration belum dijalankan
+  let { data, error } = await dayQuery(`${COLS}, channel, is_pickup`)
+  if (error?.code === '42703') ({ data, error } = await dayQuery(COLS))
   if (error) return NextResponse.json({ error: error.message, sales: [] }, { status: error.code === '42P01' || error.code === 'PGRST205' ? 503 : 500 })
   return NextResponse.json({ date, sales: data ?? [] })
 }

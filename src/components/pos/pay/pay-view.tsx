@@ -49,7 +49,7 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
     try {
       const payload: PosSalePayload = {
         client_txn_id: t.clientTxnId, register_id: registerId, customer: t.customer, lines: t.lines, discount: t.discount, promo: t.promo, points: t.points,
-        payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false, pickup: pickup ?? null,
+        payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false, pickup: pickup ?? null, wholesale: t.wholesale,
         local_ref: nextLocalRef(), approval: t.approval,
       }
       const ctrl = new AbortController()

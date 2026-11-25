@@ -19,8 +19,9 @@ export function PosSettingsClient() {
   const [s, setS] = useState<PosSettings>(DEFAULT_POS_SETTINGS)
   const [saving, setSaving] = useState(false)
   const [gw, setGw] = useState<{ sessionId: string; label: string }[]>([])   // nombor gateway (Hijau/Kuning) untuk e-resit auto
+  const [lists, setLists] = useState<{ id: string; name: string }[]>([])     // senarai harga → pilihan Borong (171)
 
-  useEffect(() => { fetch('/api/admin/settings/pos').then(r => r.json()).then(j => { if (j.settings) setS(j.settings); if (Array.isArray(j.gatewayNumbers)) setGw(j.gatewayNumbers) }).catch(() => toast.error('Failed to load settings')) }, [])
+  useEffect(() => { fetch('/api/admin/settings/pos').then(r => r.json()).then(j => { if (j.settings) setS(j.settings); if (Array.isArray(j.gatewayNumbers)) setGw(j.gatewayNumbers); if (Array.isArray(j.priceLists)) setLists(j.priceLists) }).catch(() => toast.error('Failed to load settings')) }, [])
   const toggleSession = (id: string) => setS(prev => ({ ...prev, waReceiptSessions: prev.waReceiptSessions.includes(id) ? prev.waReceiptSessions.filter(x => x !== id) : [...prev.waReceiptSessions, id] }))
 
   const save = async () => {
@@ -52,6 +53,12 @@ export function PosSettingsClient() {
           <F label="Footer"><textarea value={s.receiptFooter ?? ''} onChange={e => setS({ ...s, receiptFooter: e.target.value || null })} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm" /></F>
           <F label="Paper width">
             <div className="flex gap-2">{([58, 80] as const).map(w => <button key={w} type="button" onClick={() => setS({ ...s, paperWidth: w })} className={`h-10 px-4 rounded-lg border text-sm font-semibold ${s.paperWidth === w ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300'}`}>{w}mm</button>)}</div>
+          </F>
+          <F label="Wholesale (Borong) price list" hint="When the cashier ticks 'Borong' on the ticket's customer (automatic for CRM customers flagged Borong), items are priced from this list and the sale is tagged wholesale in reports. Products missing from the list keep their normal price. None = feature off.">
+            <select value={s.wholesalePriceListId ?? ''} onChange={e => setS({ ...s, wholesalePriceListId: e.target.value || null })} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white">
+              <option value="">None (off)</option>
+              {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
           </F>
           <F label="Printing" hint="Background printing hides the receipt page from the customer; Chrome still shows its print dialog unless Chrome on the counter PC is started with --kiosk-printing (then it prints straight to the default printer). The cash drawer opens when the printer driver is set to 'open drawer before printing'.">
             <div className="space-y-2">

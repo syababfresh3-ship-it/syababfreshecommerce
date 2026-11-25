@@ -11,14 +11,16 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const { supabase, forbidden } = await requireAdmin()
   if (forbidden) return forbidden
-  const [{ data }, numbers] = await Promise.all([
+  const [{ data }, lists, numbers] = await Promise.all([
     supabase!.from('app_settings').select('value').eq('key', POS_SETTINGS_KEY).maybeSingle(),
+    // senarai harga aktif → pilihan "Wholesale (Borong) price list" (171)
+    supabase!.from('pos_price_lists').select('id, name').eq('is_active', true).order('name'),
     // nombor gateway aktif (wa_numbers gw:*) untuk pilihan e-resit auto — corak sama /api/admin/ops-alerts
     supabase!.from('wa_numbers').select('phone_number_id, display_name').like('phone_number_id', 'gw:%').eq('is_active', true).order('created_at'),
   ])
   const gatewayNumbers = ((numbers.data ?? []) as { phone_number_id: string; display_name: string | null }[])
     .map(n => ({ sessionId: gatewaySessionId(n.phone_number_id), label: n.display_name || gatewaySessionId(n.phone_number_id) }))
-  return NextResponse.json({ settings: parsePosSettings(data?.value ?? null), exists: !!data, gatewayNumbers })
+  return NextResponse.json({ settings: parsePosSettings(data?.value ?? null), exists: !!data, gatewayNumbers, priceLists: lists.data ?? [] })
 }
 
 export async function PATCH(request: Request) {

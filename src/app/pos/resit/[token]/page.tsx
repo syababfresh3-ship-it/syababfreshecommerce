@@ -68,6 +68,7 @@ export default async function PosReceiptPage({ params, searchParams }: { params:
         </ul>
         <hr className="my-3 border-dashed border-gray-300" />
         <div className="space-y-1 tabular-nums">
+          {sale.channel === 'wholesale' && <p className="text-gray-600 text-[11px] font-bold">Wholesale (Borong) prices</p>}
           <div className="flex justify-between"><span>Subtotal</span><span>{rm(Number(sale.subtotal))}</span></div>
           {Number(sale.discount_total) > 0 && <div className="flex justify-between"><span>Discount{sale.discount_note ? ` (${sale.discount_note})` : ''}</span><span>−{rm(Number(sale.discount_total))}</span></div>}
           {Number(sale.promo_discount) > 0 && <div className="flex justify-between"><span>Promo {sale.promo_code}</span><span>−{rm(Number(sale.promo_discount))}</span></div>}

@@ -28,6 +28,8 @@ export interface PosDayReport {
   topItems: { name: string; qty: number; unit: 'pcs' | 'kg'; revenue: number }[]
   cashTendered: number
   cashChange: number
+  /** 171: jualan Borong (channel wholesale) — tiada sebelum migration */
+  wholesale?: { sales: number; revenue: number }
 }
 
 const DAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -35,19 +37,24 @@ const DAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 export async function buildPosDayReport(sb: SB, date: string, registerId?: string | null): Promise<PosDayReport | null> {
   const { start, end } = klDayWindow(date)
   const reg = registerId && DAY_UUID.test(registerId) ? registerId : null
-  type SaleRow = { id: string; status: string; total: number | string; discount_total: number | string; promo_discount: number | string; weight_kg_total: number | string; cashier_id: string | null; pos_cashiers: { name: string } | null }
+  type SaleRow = { id: string; status: string; total: number | string; discount_total: number | string; promo_discount: number | string; weight_kg_total: number | string; cashier_id: string | null; channel?: string | null; pos_cashiers: { name: string } | null }
+  const loadSales = (cols: string) => fetchAll<SaleRow>((f, t) => {
+    let q = sb.from('pos_sales').select(cols).gte('sold_at', start).lt('sold_at', end).order('id').range(f, t)
+    if (reg) q = q.eq('register_id', reg)
+    return q
+  })
+  const SALE_COLS = 'id, status, total, discount_total, promo_discount, weight_kg_total, cashier_id, pos_cashiers!cashier_id(name)'
   let rows: SaleRow[]
+  let hasChannel = true
   try {
-    rows = await fetchAll<SaleRow>((f, t) => {
-      let q = sb.from('pos_sales').select('id, status, total, discount_total, promo_discount, weight_kg_total, cashier_id, pos_cashiers!cashier_id(name)').gte('sold_at', start).lt('sold_at', end).order('id').range(f, t)
-      if (reg) q = q.eq('register_id', reg)
-      return q
-    })
+    // 171: channel Borong — fallback tanpa lajur bila migration belum dijalankan
+    rows = await loadSales(`${SALE_COLS}, channel`).catch(e => { if (e instanceof Error && /channel/.test(e.message)) { hasChannel = false; return loadSales(SALE_COLS) } throw e })
   } catch (e) {
     if (e instanceof Error && /does not exist|Could not find/i.test(e.message)) return null
     throw e
   }
   const paid = rows.filter(r => r.status === 'paid')
+  const wholesaleRows = hasChannel ? paid.filter(r => r.channel === 'wholesale') : []
 
   const report: PosDayReport = {
     date, registerId: reg,
@@ -58,6 +65,7 @@ export async function buildPosDayReport(sb: SB, date: string, registerId?: strin
     voids: rows.filter(r => r.status === 'void').length,
     pending: rows.filter(r => r.status === 'pending').length,
     byMethod: {}, byCashier: [], topItems: [], cashTendered: 0, cashChange: 0,
+    wholesale: hasChannel ? { sales: wholesaleRows.length, revenue: round2(wholesaleRows.reduce((a, r) => a + Number(r.total), 0)) } : undefined,
   }
 
   const cashierMap = new Map<string, { cashierId: string | null; name: string; sales: number; revenue: number }>()

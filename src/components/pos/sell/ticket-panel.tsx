@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, PauseCircle, UserRound, PackagePlus, Tag, Scale, ChevronRight, Percent, Coins } from 'lucide-react'
+import { Minus, Plus, PauseCircle, UserRound, PackagePlus, Tag, Scale, ChevronRight, Percent, Coins, Store } from 'lucide-react'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { fmtQty, lineTotal, rm } from '@/lib/pos/money'
 import type { PosTicketLine } from '@/lib/pos/types'
@@ -69,6 +69,7 @@ export function TicketPanel({ onCharge, onEditLine, onDiscount, onCustomer, onHe
           <button type="button" onClick={applyPromo} disabled={promoBusy} className="h-10 px-3 rounded-xl bg-gray-100 text-[12px] font-bold inline-flex items-center gap-1"><Tag className="h-3.5 w-3.5" />{t.promo ? 'Re-check' : 'Apply'}</button>
         </div>
         <div className="text-[14px] tabular-nums space-y-1">
+          {t.wholesale && <div className="flex justify-between text-[12px] font-bold text-gray-700"><span className="inline-flex items-center gap-1"><Store className="h-3.5 w-3.5" /> Wholesale (Borong) prices</span><span /></div>}
           <div className="flex justify-between text-gray-600"><span>Subtotal ({totals.lineCount} {totals.lineCount === 1 ? 'line' : 'lines'}{totals.weightKg > 0 ? ` · ${fmtQty(totals.weightKg, 'kg')}` : ''})</span><span>{rm(totals.subtotal)}</span></div>
           <button type="button" onClick={onDiscount}
             className={`w-full h-11 px-3 -mx-1 rounded-xl flex items-center justify-between font-bold ${t.discount ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}>
@@ -87,7 +88,7 @@ export function TicketPanel({ onCharge, onEditLine, onDiscount, onCustomer, onHe
         </div>
         <div className="grid grid-cols-3 gap-2">
           <button type="button" onClick={onHeld} className="h-11 rounded-xl bg-gray-100 text-[12px] font-bold inline-flex items-center justify-center gap-1"><PauseCircle className="h-4 w-4" />Hold{t.held.length ? ` (${t.held.length})` : ''}</button>
-          <button type="button" onClick={onCustomer} className={`h-11 rounded-xl text-[12px] font-bold inline-flex items-center justify-center gap-1 truncate px-1 ${t.customer ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}><UserRound className="h-4 w-4 shrink-0" /><span className="truncate">{t.customer ? (t.customer.name || t.customer.phone || 'Customer') : 'Customer'}{t.customer?.memberUserId ? ` · ${Math.floor(t.customer.points ?? 0).toLocaleString('en-MY')} pts` : ''}</span></button>
+          <button type="button" onClick={onCustomer} className={`h-11 rounded-xl text-[12px] font-bold inline-flex items-center justify-center gap-1 truncate px-1 ${t.customer ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}><UserRound className="h-4 w-4 shrink-0" /><span className="truncate">{t.customer ? (t.customer.name || t.customer.phone || 'Customer') : 'Customer'}{t.customer?.memberUserId ? ` · ${Math.floor(t.customer.points ?? 0).toLocaleString('en-MY')} pts` : ''}{t.wholesale ? ' · BORONG' : ''}</span></button>
           <button type="button" onClick={onCustom} className="h-11 rounded-xl bg-gray-100 text-[12px] font-bold inline-flex items-center justify-center gap-1"><PackagePlus className="h-4 w-4" />Other item</button>
         </div>
         <button type="button" onClick={onCharge} disabled={t.lines.length === 0 || needsWeight}

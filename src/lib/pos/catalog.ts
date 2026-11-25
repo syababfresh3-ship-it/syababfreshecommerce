@@ -38,12 +38,19 @@ const MISSING_TABLE = new Set(['42P01', 'PGRST205'])
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 interface ListItemRow { product_id: string; variant_id: string | null; price: number | string | null; price_per_kg: number | string | null; updated_at: string }
 
-/** Senarai harga register (toleran: 156 belum run / register tiada → null). */
-async function loadRegisterPriceList(sb: SB, registerId: string | null | undefined): Promise<{ id: string; name: string; items: Map<string, ListItemRow>; maxUpdated: string } | null> {
-  if (!registerId || !UUID_RE.test(registerId)) return null
-  const reg = await sb.from('pos_registers').select('price_list_id, pos_price_lists(id, name, is_active)').eq('id', registerId).maybeSingle()
-  if (reg.error || !reg.data?.price_list_id) return null
-  const pl = (Array.isArray(reg.data.pos_price_lists) ? reg.data.pos_price_lists[0] : reg.data.pos_price_lists) as { id: string; name: string; is_active: boolean } | null
+/** Senarai harga: eksplisit (171, tiket Borong → opts.priceListId) atau ikut register (156). Toleran: tiada → null. */
+async function loadRegisterPriceList(sb: SB, registerId: string | null | undefined, priceListId?: string | null): Promise<{ id: string; name: string; items: Map<string, ListItemRow>; maxUpdated: string } | null> {
+  let pl: { id: string; name: string; is_active: boolean } | null = null
+  if (priceListId && UUID_RE.test(priceListId)) {
+    const r = await sb.from('pos_price_lists').select('id, name, is_active').eq('id', priceListId).maybeSingle()
+    if (r.error || !r.data) return null
+    pl = r.data as { id: string; name: string; is_active: boolean }
+  } else {
+    if (!registerId || !UUID_RE.test(registerId)) return null
+    const reg = await sb.from('pos_registers').select('price_list_id, pos_price_lists(id, name, is_active)').eq('id', registerId).maybeSingle()
+    if (reg.error || !reg.data?.price_list_id) return null
+    pl = (Array.isArray(reg.data.pos_price_lists) ? reg.data.pos_price_lists[0] : reg.data.pos_price_lists) as { id: string; name: string; is_active: boolean } | null
+  }
   if (!pl || pl.is_active === false) return null
   const rows = await sb.from('pos_price_list_items').select('product_id, variant_id, price, price_per_kg, updated_at').eq('price_list_id', pl.id)
   if (rows.error) return null
@@ -61,7 +68,7 @@ export function derivePricePerKg(variants: { name: string; price: number | strin
   return v ? n(v.price) : null
 }
 
-export async function buildPosCatalog(sb: SB, opts: { registerId?: string | null } = {}): Promise<PosCatalog> {
+export async function buildPosCatalog(sb: SB, opts: { registerId?: string | null; priceListId?: string | null } = {}): Promise<PosCatalog> {
   const [{ data: cats }, { data: prods, error: pErr }, settingsRes, posSettingsRes, priceList] = await Promise.all([
     sb.from('categories').select('id, name, sort_order').eq('is_active', true).order('sort_order'),
     sb.from('products')
@@ -70,7 +77,7 @@ export async function buildPosCatalog(sb: SB, opts: { registerId?: string | null
       .order('sort_order'),
     sb.from('pos_product_settings').select('*'),
     sb.from('app_settings').select('value').eq('key', POS_SETTINGS_KEY).maybeSingle(),
-    loadRegisterPriceList(sb, opts.registerId),
+    loadRegisterPriceList(sb, opts.registerId, opts.priceListId),
   ])
   if (pErr) throw new Error(pErr.message)
   const listPrice = (pid: string, vid: string | null): number | null => { const r = priceList?.items.get(`${pid}:${vid ?? ''}`); return r?.price != null ? n(r.price) : null }

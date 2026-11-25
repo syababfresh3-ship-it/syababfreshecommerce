@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { Search, X, ShoppingBasket, RefreshCw, ScanLine, Store } from 'lucide-react'
@@ -39,7 +39,7 @@ type Sheet =
   | { type: 'camera' }
 
 export function SellClient() {
-  const { catalog, loading, error, refresh } = usePosCatalog()
+  const { catalog, wholesaleActive, wholesaleReady, loading, error, refresh } = usePosCatalog()
   const ticket = usePosTicket()
   const { cashier, isAdmin, shift, shiftLoaded, settings } = usePosSession()
   // Kedai mesti dibuka (shift) sebelum jual — boleh dimatikan di Admin → POS Settings (requireShift)
@@ -52,6 +52,19 @@ export function SellClient() {
   const [lastScan, setLastScan] = useState<{ code: string; label: string | null } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const totals = ticket.totals(false)
+
+  // Tiket Borong (171): bila mod bertukar (dan katalog mod itu sedia), harga semula baris yang belum diubah kasyer.
+  // Muat pertama (lastMode null) TIDAK harga semula — tiket tersimpan kekal seperti ditinggalkan.
+  const lastMode = useRef<boolean | null>(null)
+  const repriceFromCatalog = ticket.repriceFromCatalog
+  useEffect(() => {
+    if (!catalog || !wholesaleReady) return
+    const mode = wholesaleActive
+    if (lastMode.current === null) { lastMode.current = mode; return }
+    if (lastMode.current === mode) return
+    lastMode.current = mode
+    repriceFromCatalog(catalog)
+  }, [catalog, wholesaleActive, wholesaleReady, repriceFromCatalog])
 
   // Auto pilih tab Favourites SEKALI bila katalog pertama tiba (corak 'adjust state during render', bukan effect)
   const [autoCatDone, setAutoCatDone] = useState(false)

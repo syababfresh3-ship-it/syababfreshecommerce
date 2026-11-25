@@ -176,15 +176,18 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
     : null
   if (pointsIn && (pointsIn.points <= 0 || pointsIn.points > 1_000_000)) throw new PosSaleError('Invalid points amount')
 
-  // Sumber kebenaran server: katalog register (harga senarai/override), tetapan POS, shift terbuka
+  // Sumber kebenaran server: katalog register (harga senarai/override), tetapan POS, shift terbuka.
+  // Tiket Borong (171): katalog dibina dengan senarai harga borong dari tetapan → harga baris disahkan terhadapnya.
   const registerId = optUuid(b.register_id)
-  const [catalog, settingsRes, openShift] = await Promise.all([
-    buildPosCatalog(sb, { registerId }).catch(() => null),
-    sb.from('app_settings').select('value').eq('key', POS_SETTINGS_KEY).maybeSingle(),
+  const wholesale = b.wholesale === true
+  const settingsRes = await sb.from('app_settings').select('value').eq('key', POS_SETTINGS_KEY).maybeSingle()
+  const settings = parsePosSettings(settingsRes.data?.value ?? null)
+  if (wholesale && !settings.wholesalePriceListId) throw new PosSaleError('Wholesale price list is not set in POS Settings', 400, 'WHOLESALE_UNSET')
+  const [catalog, openShift] = await Promise.all([
+    buildPosCatalog(sb, { registerId, priceListId: wholesale ? settings.wholesalePriceListId : null }).catch(() => null),
     loadOpenShift(sb, registerId).catch(() => null),
   ])
   if (!catalog) throw new PosSaleError('Could not load the catalog to verify prices — try again', 503, 'CATALOG_UNAVAILABLE')
-  const settings = parsePosSettings(settingsRes.data?.value ?? null)
   const privileged = !!ctx.privileged || !!readApproval(b.approval)
 
   if (settings.requireShift && !openShift && !pickupIn) {
@@ -269,6 +272,10 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   if (!r.duplicate && pickupIn) {
     const { error: pe } = await sb.from('pos_sales').update({ is_pickup: true, pickup_date: pickupIn.date, ordered_at: new Date().toISOString() }).eq('id', r.id)
     if (pe) console.error('[pos-sale] tanda pickup gagal', pe.message)
+  }
+  if (!r.duplicate && wholesale) {
+    const { error: we } = await sb.from('pos_sales').update({ channel: 'wholesale', price_list_id: catalog.priceList?.id ?? null }).eq('id', r.id)
+    if (we) console.error('[pos-sale] tanda saluran borong gagal (migration 171?)', we.message)
   }
   if (!r.duplicate && r.status === 'paid') r.loyalty = await afterSalePaid(sb, r.id, { phone: phoneNorm || null, name: payload.customer_name, promoId: promo?.id ?? null })
   return r
