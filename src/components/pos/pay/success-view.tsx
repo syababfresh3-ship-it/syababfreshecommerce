@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { CheckCircle2, Printer, MessageCircle, Plus, Coins } from 'lucide-react'
 import { usePosSession } from '@/lib/stores/pos-session'
 import { rm } from '@/lib/pos/money'
 import { POS_PAY_LABEL } from '@/lib/pos/types'
 import type { SaleDone } from '@/components/pos/pay/pay-view'
+import { printReceiptSilently } from '@/components/pos/silent-print'
 
 // Selepas bayar: baki besar, no. resit, kaedah bayar + nama pelanggan (supaya silap kaedah nampak segera),
 // Print (window.open resit ?print=), WhatsApp (wa.me pra-isi), New sale.
@@ -15,11 +16,21 @@ export function SuccessView({ sale, customerPhone, customerName = null, onNew }:
   const [phone, setPhone] = useState(customerPhone ?? '')
   const [busy, setBusy] = useState(false)
   const hasCash = sale.payments.some(p => p.method === 'cash')
+  const paper = settings?.paperWidth ?? 80
 
   const print = () => {
     if (!sale.public_token) { toast.error('Receipt token missing'); return }
-    window.open(`/pos/resit/${sale.public_token}?print=${settings?.paperWidth ?? 80}`, '_blank', 'noopener')
+    if (settings?.silentPrint) { printReceiptSilently(sale.public_token, paper); toast.success('Printing receipt…', { duration: 1500 }); return }
+    window.open(`/pos/resit/${sale.public_token}?print=${paper}`, '_blank', 'noopener')
   }
+  // Auto-print selepas jualan TUNAI (tetapan POS autoPrintCash) — sekali per jualan, senyap; pendua (jualan lama) tak dicetak lagi
+  const autoPrinted = useRef<string | null>(null)
+  useEffect(() => {
+    if (!settings?.autoPrintCash || !hasCash || sale.duplicate || !sale.public_token) return
+    if (autoPrinted.current === sale.id) return
+    autoPrinted.current = sale.id
+    printReceiptSilently(sale.public_token, paper)
+  }, [settings?.autoPrintCash, hasCash, sale.duplicate, sale.public_token, sale.id, paper])
   const whatsapp = async () => {
     setBusy(true)
     try {

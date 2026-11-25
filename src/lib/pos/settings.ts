@@ -12,6 +12,8 @@ export const DEFAULT_POS_SETTINGS: PosSettings = {
   paperWidth: 80,
   defaultFloat: 200,
   cashierMaxDiscountPct: 10,
+  autoPrintCash: false,
+  silentPrint: false,
   waReceiptMode: 'link',
   waReceiptSessions: [],
   openWeightAll: false,
@@ -40,6 +42,8 @@ export function normalizePosSettings(input: unknown): PosSettings {
     paperWidth: Number(o.paperWidth) === 58 ? 58 : 80,
     defaultFloat: num(o.defaultFloat, 0, 100_000, DEFAULT_POS_SETTINGS.defaultFloat),
     cashierMaxDiscountPct: num(o.cashierMaxDiscountPct, 0, 100, DEFAULT_POS_SETTINGS.cashierMaxDiscountPct),
+    autoPrintCash: o.autoPrintCash === true || o.autoPrintCash === 'true',
+    silentPrint: o.silentPrint === true || o.silentPrint === 'true',
     waReceiptMode: o.waReceiptMode === 'murpati' ? 'murpati' : 'link',
     // ≤5 session gateway (id sahaja, bukan rahsia); pendua dibuang
     waReceiptSessions: Array.isArray(o.waReceiptSessions)

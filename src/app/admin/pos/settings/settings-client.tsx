@@ -53,6 +53,12 @@ export function PosSettingsClient() {
           <F label="Paper width">
             <div className="flex gap-2">{([58, 80] as const).map(w => <button key={w} type="button" onClick={() => setS({ ...s, paperWidth: w })} className={`h-10 px-4 rounded-lg border text-sm font-semibold ${s.paperWidth === w ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300'}`}>{w}mm</button>)}</div>
           </F>
+          <F label="Printing" hint="Background printing hides the receipt page from the customer; Chrome still shows its print dialog unless Chrome on the counter PC is started with --kiosk-printing (then it prints straight to the default printer). The cash drawer opens when the printer driver is set to 'open drawer before printing'.">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.silentPrint} onChange={e => setS({ ...s, silentPrint: e.target.checked })} className="h-4 w-4 accent-gray-800" /> Print in the background (no receipt tab)</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.autoPrintCash} onChange={e => setS({ ...s, autoPrintCash: e.target.checked })} className="h-4 w-4 accent-gray-800" /> Auto-print receipt after a cash sale</label>
+            </div>
+          </F>
           <F label="WhatsApp e-receipt" hint="Link = opens wa.me on the cashier's device (default, safe). Auto-send = sent from the gateway numbers below (follows customer WA settings).">
             <select value={s.waReceiptMode} onChange={e => setS({ ...s, waReceiptMode: e.target.value as PosSettings['waReceiptMode'] })} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"><option value="link">wa.me link (cashier taps send)</option><option value="murpati">Auto-send via gateway</option></select>
             {s.waReceiptMode === 'murpati' && (

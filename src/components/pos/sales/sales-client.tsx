@@ -6,6 +6,7 @@ import { Printer, MessageCircle, Ban, RefreshCw, ChevronLeft, ChevronRight } fro
 import { PosSheet } from '@/components/pos/sheet'
 import { PinPad } from '@/components/pos/pin-pad'
 import { usePosSession } from '@/lib/stores/pos-session'
+import { printReceiptSilently } from '@/components/pos/silent-print'
 import { fmtQty, rm } from '@/lib/pos/money'
 import { fmtKl } from '@/lib/pos/receipt'
 import { POS_PAY_LABEL, type PosPayMethod, type PosSaleDetail } from '@/lib/pos/types'
@@ -44,7 +45,10 @@ export function SalesClient() {
     const res = await fetch(`/api/pos/sales/${id}`)
     if (res.ok) setDetail(await res.json()); else toast.error('Failed to open sale')
   }
-  const print = (token: string) => window.open(`/pos/resit/${token}?print=${settings?.paperWidth ?? 80}`, '_blank', 'noopener')
+  const print = (token: string) => {
+    if (settings?.silentPrint) { printReceiptSilently(token, settings.paperWidth); toast.success('Printing receipt…', { duration: 1500 }); return }
+    window.open(`/pos/resit/${token}?print=${settings?.paperWidth ?? 80}`, '_blank', 'noopener')
+  }
   const whatsapp = async (id: string) => {
     const res = await fetch(`/api/pos/sales/${id}/receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: settings?.waReceiptMode ?? 'link', mark_sent: true }) })
     const j = await res.json().catch(() => ({}))

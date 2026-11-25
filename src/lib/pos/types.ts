@@ -137,6 +137,10 @@ export interface PosSettings {
   paperWidth: 58 | 80
   defaultFloat: number
   cashierMaxDiscountPct: number
+  /** Cetak resit automatik selepas jualan TUNAI dibayar (senyap, iframe) — laci tunai terbuka ikut tetapan driver pencetak. */
+  autoPrintCash: boolean
+  /** Butang Print cetak senyap (iframe tersembunyi) dan bukan buka tab resit — pelanggan tak nampak page resit. */
+  silentPrint: boolean
   waReceiptMode: 'link' | 'murpati'
   /** Session gateway khusus e-resit auto (Hijau/Kuning) — kosong = penghantar global lib/murpati. */
   waReceiptSessions: string[]
