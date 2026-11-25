@@ -10,11 +10,18 @@ import type { PosSettings } from '@/lib/pos/types'
 // QR merchant memang untuk dipapar), lebar kertas, float lalai, had diskaun kasyer, mod e-resit WA.
 const MAX_QR_BYTES = 200 * 1024
 
+// Medan berlabel — di luar komponen (komponen yang dicipta semasa render reset state setiap render; lint react-hooks/static-components)
+const F = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (
+  <label className="block"><span className="block text-sm font-medium text-gray-700 mb-1">{label}</span>{children}{hint && <span className="block text-xs text-gray-400 mt-1">{hint}</span>}</label>
+)
+
 export function PosSettingsClient() {
   const [s, setS] = useState<PosSettings>(DEFAULT_POS_SETTINGS)
   const [saving, setSaving] = useState(false)
+  const [gw, setGw] = useState<{ sessionId: string; label: string }[]>([])   // nombor gateway (Hijau/Kuning) untuk e-resit auto
 
-  useEffect(() => { fetch('/api/admin/settings/pos').then(r => r.json()).then(j => j.settings && setS(j.settings)).catch(() => toast.error('Failed to load settings')) }, [])
+  useEffect(() => { fetch('/api/admin/settings/pos').then(r => r.json()).then(j => { if (j.settings) setS(j.settings); if (Array.isArray(j.gatewayNumbers)) setGw(j.gatewayNumbers) }).catch(() => toast.error('Failed to load settings')) }, [])
+  const toggleSession = (id: string) => setS(prev => ({ ...prev, waReceiptSessions: prev.waReceiptSessions.includes(id) ? prev.waReceiptSessions.filter(x => x !== id) : [...prev.waReceiptSessions, id] }))
 
   const save = async () => {
     setSaving(true)
@@ -35,10 +42,6 @@ export function PosSettingsClient() {
     fr.readAsDataURL(file)
   }
 
-  const F = ({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) => (
-    <label className="block"><span className="block text-sm font-medium text-gray-700 mb-1">{label}</span>{children}{hint && <span className="block text-xs text-gray-400 mt-1">{hint}</span>}</label>
-  )
-
   return (
     <div className="space-y-6">
       <div><h1 className="text-xl font-bold text-gray-900">POS Settings</h1><p className="text-sm text-gray-500">Receipt, DuitNow QR and cashier limits for all registers.</p></div>
@@ -50,8 +53,20 @@ export function PosSettingsClient() {
           <F label="Paper width">
             <div className="flex gap-2">{([58, 80] as const).map(w => <button key={w} type="button" onClick={() => setS({ ...s, paperWidth: w })} className={`h-10 px-4 rounded-lg border text-sm font-semibold ${s.paperWidth === w ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300'}`}>{w}mm</button>)}</div>
           </F>
-          <F label="WhatsApp e-receipt" hint="Link = opens wa.me on the cashier's device (default, safe). Auto-send = via Murpati (company number, follows customer WA settings).">
-            <select value={s.waReceiptMode} onChange={e => setS({ ...s, waReceiptMode: e.target.value as PosSettings['waReceiptMode'] })} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"><option value="link">wa.me link (cashier taps send)</option><option value="murpati">Auto-send (Murpati)</option></select>
+          <F label="WhatsApp e-receipt" hint="Link = opens wa.me on the cashier's device (default, safe). Auto-send = sent from the gateway numbers below (follows customer WA settings).">
+            <select value={s.waReceiptMode} onChange={e => setS({ ...s, waReceiptMode: e.target.value as PosSettings['waReceiptMode'] })} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"><option value="link">wa.me link (cashier taps send)</option><option value="murpati">Auto-send via gateway</option></select>
+            {s.waReceiptMode === 'murpati' && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-gray-500">Numbers used for receipts. Pick two (e.g. Hijau and Kuning) to spread the load: each customer always gets the same number, and the other is used if one fails. None selected = the global default sender.</p>
+                {gw.length === 0 && <p className="text-xs text-amber-700">No active gateway numbers found in WhatsApp settings.</p>}
+                {gw.map(n => (
+                  <label key={n.sessionId} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={s.waReceiptSessions.includes(n.sessionId)} onChange={() => toggleSession(n.sessionId)} className="h-4 w-4 accent-gray-800" />
+                    <span className="font-medium">{n.label}</span><span className="text-xs text-gray-400 font-mono">{n.sessionId.slice(0, 12)}…</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </F>
         </section>
         <section className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">

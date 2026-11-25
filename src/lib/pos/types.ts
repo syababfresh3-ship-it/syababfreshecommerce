@@ -138,6 +138,8 @@ export interface PosSettings {
   defaultFloat: number
   cashierMaxDiscountPct: number
   waReceiptMode: 'link' | 'murpati'
+  /** Session gateway khusus e-resit auto (Hijau/Kuning) — kosong = penghantar global lib/murpati. */
+  waReceiptSessions: string[]
   /** Tawarkan pilihan "By weight" pada SEMUA produk yang ada varian 1kg (harga/kg = harga varian 1kg). */
   openWeightAll: boolean
   /** Skrin Sell dikunci sehingga kedai dibuka (shift terbuka untuk register). Lalai hidup. */

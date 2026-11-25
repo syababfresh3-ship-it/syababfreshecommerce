@@ -13,6 +13,7 @@ export const DEFAULT_POS_SETTINGS: PosSettings = {
   defaultFloat: 200,
   cashierMaxDiscountPct: 10,
   waReceiptMode: 'link',
+  waReceiptSessions: [],
   openWeightAll: false,
   requireShift: true,
 }
@@ -40,6 +41,10 @@ export function normalizePosSettings(input: unknown): PosSettings {
     defaultFloat: num(o.defaultFloat, 0, 100_000, DEFAULT_POS_SETTINGS.defaultFloat),
     cashierMaxDiscountPct: num(o.cashierMaxDiscountPct, 0, 100, DEFAULT_POS_SETTINGS.cashierMaxDiscountPct),
     waReceiptMode: o.waReceiptMode === 'murpati' ? 'murpati' : 'link',
+    // ≤5 session gateway (id sahaja, bukan rahsia); pendua dibuang
+    waReceiptSessions: Array.isArray(o.waReceiptSessions)
+      ? [...new Set(o.waReceiptSessions.filter((v): v is string => typeof v === 'string' && /^[A-Za-z0-9_-]{4,80}$/.test(v)))].slice(0, 5)
+      : [],
     openWeightAll: o.openWeightAll === true || o.openWeightAll === 'true',
     // kunci tiada (JSON lama) → hidup; hanya false eksplisit mematikan
     requireShift: !(o.requireShift === false || o.requireShift === 'false'),

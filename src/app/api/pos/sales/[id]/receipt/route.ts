@@ -5,10 +5,11 @@ import { buildReceiptText, receiptUrl, waReceiptLink } from '@/lib/pos/receipt'
 import { getAppSettings, getWaCustomerTracking } from '@/lib/app-settings'
 import { POS_SETTINGS_KEY, parsePosSettings } from '@/lib/pos/settings'
 import { normalizePhone } from '@/lib/phone'
-import { sendWhatsApp } from '@/lib/murpati'
+import { sendPosReceiptWa } from '@/lib/pos/wa-receipt'
 
-// E-resit: teks BM + pautan wa.me (lalai, dibuka di peranti) atau hantar terus via Murpati bila
-// tetapan waReceiptMode='murpati' dan WA pelanggan tidak dimatikan.
+// E-resit: teks + pautan wa.me (lalai, dibuka di peranti) atau hantar terus bila tetapan waReceiptMode='murpati'
+// (label admin: Auto-send via gateway) dan WA pelanggan tidak dimatikan. Nombor: waReceiptSessions (Hijau/Kuning,
+// lekat ikut telefon pelanggan + failover — lib/pos/wa-receipt); kosong → penghantar global lib/murpati seperti dulu.
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,12 +26,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const phone = normalizePhone(typeof body.phone === 'string' ? body.phone : d.sale.customer_phone) || null
 
   let sent = false
+  let via: string | null = null
   if (body.mode === 'murpati' && settings.waReceiptMode === 'murpati' && phone) {
     if ((await getWaCustomerTracking()) !== 'off') {
-      try { await sendWhatsApp(phone, text); sent = true } catch (e) { console.error('[pos/receipt] murpati gagal', e) }
+      const r = await sendPosReceiptWa(phone, text, settings.waReceiptSessions)
+      sent = r.sent; via = r.sessionId
+      if (!r.sent) console.error('[pos/receipt] WA auto gagal', r.error)
     }
   }
   if (sent || body.mark_sent === true) await sb.from('pos_sales').update({ receipt_sent_at: new Date().toISOString() }).eq('id', id)
 
-  return NextResponse.json({ text, url: receiptUrl(d.sale.public_token), waUrl: waReceiptLink(phone, text), sent, phone })
+  return NextResponse.json({ text, url: receiptUrl(d.sale.public_token), waUrl: waReceiptLink(phone, text), sent, via, phone })
 }
