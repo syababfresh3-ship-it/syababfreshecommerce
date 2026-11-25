@@ -1,10 +1,14 @@
 // Jenis dikongsi klien + server untuk POS. Pure — tiada import DB.
 
 export type PosUnit = 'pcs' | 'kg'
-export type PosPayMethod = 'cash' | 'duitnow_qr' | 'card_terminal' | 'ewallet_terminal' | 'chip_link'
+export type PosPayMethod = 'cash' | 'duitnow_qr' | 'card_terminal' | 'ewallet_terminal' | 'chip_link' | 'pickup' | 'credit'
 export type PosCashierRole = 'cashier' | 'manager'
 
-export const POS_PAY_METHODS: PosPayMethod[] = ['cash', 'duitnow_qr', 'card_terminal', 'ewallet_terminal', 'chip_link']
+export const POS_PAY_METHODS: PosPayMethod[] = ['cash', 'duitnow_qr', 'card_terminal', 'ewallet_terminal', 'chip_link', 'pickup', 'credit']
+/** Kaedah yang boleh diambil di kaunter untuk jualan pending (pickup) — migration 170. */
+export const POS_TENDER_METHODS: PosPayMethod[] = ['cash', 'duitnow_qr', 'card_terminal', 'ewallet_terminal', 'credit']
+/** Kaedah untuk menyelesaikan hutang kredit (wang sebenar diterima). */
+export const POS_SETTLE_METHODS: PosPayMethod[] = ['cash', 'duitnow_qr', 'card_terminal', 'ewallet_terminal']
 /** Label kaedah bayaran — UI staf & resit pelanggan (kedua-dua Bahasa Inggeris, keputusan pemilik 9 Nov). */
 export const POS_PAY_LABEL: Record<PosPayMethod, string> = {
   cash: 'Cash',
@@ -12,6 +16,8 @@ export const POS_PAY_LABEL: Record<PosPayMethod, string> = {
   card_terminal: 'Card (terminal)',
   ewallet_terminal: 'E-wallet (terminal)',
   chip_link: 'Payment link',
+  pickup: 'Pay at pickup',
+  credit: 'Credit',
 }
 
 /** Kaedah bukan tunai yang staf mesti isytihar semasa tutup kedai (jumlah sebenar dari app bank / slip settlement).
@@ -111,6 +117,8 @@ export interface PosSalePayload {
   discount?: PosTicketDiscount | null
   promo?: PosTicketPromo | null
   points?: PosTicketPoints | null
+  /** Simpan sebagai order pickup belum bayar (migration 170) — server tetapkan bayaran placeholder 'pickup' pending. */
+  pickup?: { date?: string | null } | null
   payments: PosPaymentInput[]
   note?: string | null
   offline?: boolean
@@ -175,6 +183,10 @@ export interface PosSaleRow {
   points_discount?: number | null
   points_earned?: number | null
   points_pending?: number | null
+  /** Pickup/kredit (migration 170) — tiada sebelum migration. */
+  is_pickup?: boolean | null
+  pickup_date?: string | null
+  ordered_at?: string | null
   cashier_id: string | null
   register_id: string | null
   public_token: string
@@ -212,6 +224,10 @@ export interface PosPaymentRow {
   status: 'pending' | 'paid' | 'failed' | 'cancelled'
   checkout_url: string | null
   paid_at: string | null
+  /** migration 170 */
+  shift_id?: string | null
+  settles_payment_id?: string | null
+  settled_at?: string | null
 }
 
 export interface PosSaleDetail {

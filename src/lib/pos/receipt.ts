@@ -14,7 +14,7 @@ export function fmtKl(iso: string): string {
 export function buildReceiptText(d: PosSaleDetail, settings: PosSettings): string {
   const { sale, items, payments } = d
   const lines: string[] = []
-  lines.push(`${SELLER.brand} — Receipt`)
+  lines.push(`${SELLER.brand} — ${sale.status === 'pending' && sale.is_pickup ? 'Invoice (pay at pickup)' : 'Receipt'}`)
   lines.push(`No: ${sale.receipt_no ?? sale.local_ref ?? '-'}`)
   lines.push(`Date: ${fmtKl(sale.sold_at)}`)
   lines.push('')
@@ -32,8 +32,10 @@ export function buildReceiptText(d: PosSaleDetail, settings: PosSettings): strin
   lines.push(`TOTAL: ${rm(Number(sale.total))}`)
   for (const p of payments.filter(p => p.status === 'paid')) {
     const extra = p.method === 'cash' && p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : p.ref ? ` (ref ${p.ref})` : ''
-    lines.push(`Paid by ${POS_PAY_LABEL[p.method]}: ${rm(Number(p.amount))}${extra}`)
+    const credit = p.method === 'credit' ? (p.settled_at ? ' — settled' : ' — OUTSTANDING') : p.settles_payment_id ? ' (credit settlement)' : ''
+    lines.push(`Paid by ${POS_PAY_LABEL[p.method]}: ${rm(Number(p.amount))}${extra}${credit}`)
   }
+  if (sale.status === 'pending') lines.push(sale.is_pickup ? `TO PAY AT PICKUP: ${rm(Math.max(0, Number(sale.total) - Number(sale.paid_total ?? 0)))}${sale.pickup_date ? ` · pickup ${sale.pickup_date}` : ''}` : 'PAYMENT INCOMPLETE')
   if (Number(sale.points_earned ?? 0) > 0) lines.push(`Points earned: +${Number(sale.points_earned)} pts`)
   if (Number(sale.points_pending ?? 0) > 0) lines.push(`Points pending: ${Number(sale.points_pending)} pts — register at shop.syababfresh.my/daftar with this number to claim`)
   if (sale.status === 'void') lines.push('** RECEIPT VOIDED **')

@@ -88,7 +88,8 @@ export default async function PosReceiptPage({ params, searchParams }: { params:
           ))}
           {Number(sale.points_earned ?? 0) > 0 && <div className="flex justify-between text-gray-700"><span>Points earned</span><span>+{Number(sale.points_earned)} pts</span></div>}
           {Number(sale.points_pending ?? 0) > 0 && <p className="text-gray-700 text-[12px]">{Number(sale.points_pending)} pts pending — register at shop.syababfresh.my/daftar with this phone number to claim them.</p>}
-          {sale.status === 'pending' && <p className="font-bold text-amber-700">Payment incomplete.</p>}
+          {sale.status === 'pending' && <p className="font-bold text-amber-700">{sale.is_pickup ? `To pay at pickup: ${rm(Math.max(0, Number(sale.total) - Number(sale.paid_total ?? 0)))}${sale.pickup_date ? ` · pickup ${sale.pickup_date}` : ''}` : 'Payment incomplete.'}</p>}
+          {paid.some(p => p.method === 'credit' && !p.settled_at) && <p className="font-bold text-amber-700">Credit outstanding: {rm(paid.filter(p => p.method === 'credit' && !p.settled_at).reduce((s, p) => s + Number(p.amount), 0))}</p>}
           {sale.status === 'void' && <p className="font-black">** RECEIPT VOIDED **{sale.void_reason ? ` — ${sale.void_reason}` : ''}</p>}
         </div>
         {sale.weight_kg_total > 0 && <p className="mt-2 text-gray-500">Weighed items: {fmtQty(Number(sale.weight_kg_total), 'kg')}</p>}

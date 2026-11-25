@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Printer, MessageCircle, Ban, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Printer, MessageCircle, Ban, RefreshCw, ChevronLeft, ChevronRight, Clock, Handshake, Wallet } from 'lucide-react'
+import { TenderSheet } from '@/components/pos/sales/tender-sheet'
 import { PosSheet } from '@/components/pos/sheet'
 import { PinPad } from '@/components/pos/pin-pad'
 import { usePosSession } from '@/lib/stores/pos-session'
@@ -16,7 +17,7 @@ import { klDateStr, shiftDateStr } from '@/lib/pos/dates'
 // Jualan hari ini (atau tarikh lain) + laporan X ringkas. Ketuk baris → butiran: cetak semula,
 // WhatsApp e-resit, void (manager/admin; kasyer biasa perlu PIN manager). UI EN.
 
-interface Row { id: string; receipt_no: string | null; local_ref: string | null; status: string; total: number; change_given: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null }
+interface Row { id: string; receipt_no: string | null; local_ref: string | null; status: string; total: number; change_given: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null ; is_pickup?: boolean | null; pickup_date?: string | null; credit_outstanding?: number }
 
 export function SalesClient() {
   const { cashier, isAdmin, settings, registerId } = usePosSession()
@@ -25,6 +26,9 @@ export function SalesClient() {
   const [report, setReport] = useState<PosDayReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<PosSaleDetail | null>(null)
+  const [pickups, setPickups] = useState<Row[]>([])     // 170: order pickup belum bayar (semua register)
+  const [credits, setCredits] = useState<Row[]>([])     // 170: kredit belum diselesaikan
+  const [tender, setTender] = useState<null | 'pay' | 'settle'>(null)
   const [voidMode, setVoidMode] = useState<null | 'reason' | 'pin'>(null)
   const [reason, setReason] = useState('')
   const [allRegisters, setAllRegisters] = useState(false)
@@ -33,10 +37,12 @@ export function SalesClient() {
     setLoading(true)
     try {
       const reg = !allRegisters && registerId ? `&register=${registerId}` : ''
-      const [a, b] = await Promise.all([fetch(`/api/pos/sales?date=${date}${reg}`), fetch(`/api/pos/report?date=${date}${reg}`)])
+      const [a, b, c, d] = await Promise.all([fetch(`/api/pos/sales?date=${date}${reg}`), fetch(`/api/pos/report?date=${date}${reg}`), fetch('/api/pos/sales?pending=1'), fetch('/api/pos/sales?credit=1')])
       const ja = await a.json().catch(() => ({})); const jb = await b.json().catch(() => null)
+      const jc = await c.json().catch(() => ({})); const jd = await d.json().catch(() => ({}))
       if (!a.ok) toast.error(ja.error ?? 'Failed to load sales')
       setRows(ja.sales ?? []); setReport(b.ok ? jb : null)
+      setPickups(Array.isArray(jc.sales) ? jc.sales : []); setCredits(Array.isArray(jd.sales) ? jd.sales : [])
     } finally { setLoading(false) }
   }, [date, registerId, allRegisters])
   useEffect(() => { load() }, [load])
@@ -66,6 +72,33 @@ export function SalesClient() {
   }
 
   const methodLabel = (r: Row) => (r.pos_payments ?? []).filter(p => p.status === 'paid').map(p => POS_PAY_LABEL[p.method]).join(' + ') || '—'
+  const creditOutstanding = (d: PosSaleDetail) => d.payments.filter(p => p.method === 'credit' && p.status === 'paid' && !p.settled_at).reduce((s, p) => s + Number(p.amount), 0)
+  const balanceDue = (d: PosSaleDetail) => Math.max(0, Number(d.sale.total) - d.payments.filter(p => p.status === 'paid').reduce((s, p) => s + Number(p.amount), 0))
+  const afterTender = (method: PosPayMethod) => {
+    toast.success(tender === 'settle' ? 'Credit settled' : method === 'credit' ? 'Recorded on credit' : 'Payment taken')
+    if (detail && method === 'cash' && settings?.autoPrintCash) printReceiptSilently(detail.sale.public_token, settings.paperWidth)
+    const id = detail?.sale.id
+    setTender(null); load(); if (id) open(id)
+  }
+  // Senarai terbuka (pickup menunggu / kredit belum selesai) — semua register, bukan ikut tarikh
+  const openList = (title: string, list: Row[], kind: 'pickup' | 'credit') => (
+    <div className="rounded-2xl bg-white border border-gray-200 overflow-hidden">
+      <p className="px-4 py-2 text-[12px] font-extrabold text-gray-700 inline-flex items-center gap-1.5 border-b border-gray-100 w-full">{kind === 'pickup' ? <Clock className="h-4 w-4" /> : <Handshake className="h-4 w-4" />}{title}</p>
+      <ul className="divide-y divide-gray-100">
+        {list.map(r => (
+          <li key={r.id}>
+            <button type="button" onClick={() => open(r.id)} className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-gray-50">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-extrabold truncate">{r.customer_name ?? r.customer_phone ?? 'Walk-in'} <span className="text-gray-400 font-semibold">· {r.receipt_no ?? r.local_ref ?? '—'}</span></p>
+                <p className="text-[12px] text-gray-500 truncate">{kind === 'pickup' ? `Keyed ${fmtKl(r.sold_at)}${r.pickup_date ? ` · pickup ${r.pickup_date}` : ''}` : `Sold ${fmtKl(r.sold_at)}`} · {r.pos_cashiers?.name ?? 'No cashier'}</p>
+              </div>
+              <p className="text-[14px] font-black tabular-nums">{rm(Number(kind === 'credit' ? r.credit_outstanding ?? r.total : r.total))}</p>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto p-3 lg:p-5 max-w-5xl w-full mx-auto space-y-4">
@@ -86,6 +119,9 @@ export function SalesClient() {
         </div>
       )}
 
+      {pickups.length > 0 && openList(`Pickups waiting (${pickups.length})`, pickups, 'pickup')}
+      {credits.length > 0 && openList(`Credit outstanding (${credits.length})`, credits, 'credit')}
+
       <ul className="rounded-2xl bg-white border border-gray-200 divide-y divide-gray-100 overflow-hidden">
         {rows.length === 0 && !loading && <li className="p-8 text-center text-[13px] text-gray-400">No sales on this date.</li>}
         {rows.map(r => (
@@ -105,10 +141,19 @@ export function SalesClient() {
         ))}
       </ul>
 
-      <PosSheet open={!!detail} onClose={() => { setDetail(null); setVoidMode(null); setReason('') }} title={detail?.sale.receipt_no ?? detail?.sale.local_ref ?? 'Sale'} side="right">
-        {detail && voidMode === null && (
+      <PosSheet open={!!detail} onClose={() => { setDetail(null); setVoidMode(null); setReason(''); setTender(null) }} title={detail?.sale.receipt_no ?? detail?.sale.local_ref ?? 'Sale'} side="right">
+        {detail && tender && (
+          <TenderSheet saleId={detail.sale.id} kind={tender} amount={tender === 'settle' ? creditOutstanding(detail) : balanceDue(detail)} allowCredit={!!detail.sale.customer_phone} registerId={registerId} onCancel={() => setTender(null)} onDone={afterTender} />
+        )}
+        {detail && voidMode === null && tender === null && (
           <div className="space-y-4 text-[13px]">
             <p className="text-gray-500">{fmtKl(detail.sale.sold_at)} · {detail.registerCode ?? '—'} · {detail.cashierName ?? 'No cashier'}{detail.sale.status === 'void' ? ` · VOID (${detail.sale.void_reason})` : ''}</p>
+            {detail.sale.status === 'pending' && (
+              <div className="rounded-xl bg-amber-50 text-amber-900 p-3 font-semibold inline-flex items-start gap-2 w-full"><Clock className="h-4 w-4 mt-0.5 shrink-0" /><span>{detail.sale.is_pickup ? 'Pickup order — unpaid' : 'Payment pending'}{detail.sale.pickup_date ? ` · pickup ${detail.sale.pickup_date}` : ''}. Balance due {rm(balanceDue(detail))}.</span></div>
+            )}
+            {detail.sale.status === 'paid' && creditOutstanding(detail) > 0 && (
+              <div className="rounded-xl bg-amber-50 text-amber-900 p-3 font-semibold inline-flex items-start gap-2 w-full"><Handshake className="h-4 w-4 mt-0.5 shrink-0" /><span>On credit — {rm(creditOutstanding(detail))} still owed by {detail.sale.customer_name ?? detail.sale.customer_phone ?? 'customer'}.</span></div>
+            )}
             <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
               {detail.items.map(it => (
                 <li key={it.id} className="px-3 py-2 flex justify-between gap-2">
@@ -125,9 +170,15 @@ export function SalesClient() {
               <div className="flex justify-between text-[16px] font-black"><span>Total</span><span>{rm(Number(detail.sale.total))}</span></div>
               {Number(detail.sale.points_earned ?? 0) > 0 && <div className="flex justify-between text-gray-600"><span>Points earned</span><span>+{Number(detail.sale.points_earned)} pts</span></div>}
               {Number(detail.sale.points_pending ?? 0) > 0 && <div className="flex justify-between text-gray-600"><span>Points pending (not a member yet)</span><span>{Number(detail.sale.points_pending)} pts</span></div>}
-              {detail.payments.filter(p => p.status === 'paid').map(p => <div key={p.id} className="flex justify-between text-gray-600"><span>{POS_PAY_LABEL[p.method]}{p.ref ? ` · ${p.ref}` : ''}{p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : ''}</span><span>{rm(Number(p.amount))}</span></div>)}
+              {detail.payments.filter(p => p.status === 'paid').map(p => <div key={p.id} className="flex justify-between text-gray-600"><span>{POS_PAY_LABEL[p.method]}{p.method === 'credit' ? (p.settled_at ? ' · settled' : ' · outstanding') : p.settles_payment_id ? ' · credit settlement' : ''}{p.ref ? ` · ${p.ref}` : ''}{p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : ''}</span><span>{rm(Number(p.amount))}</span></div>)}
             </div>
             {detail.sale.stock_notes && <p className="rounded-xl bg-amber-50 text-amber-900 p-3 text-[12px] font-semibold whitespace-pre-line">{detail.sale.stock_notes}</p>}
+            {detail.sale.status === 'pending' && (
+              <button type="button" onClick={() => setTender('pay')} className="w-full h-14 rounded-2xl text-white text-[15px] font-extrabold inline-flex items-center justify-center gap-2" style={{ background: '#E11D2A' }}><Wallet className="h-5 w-5" /> Take payment {rm(balanceDue(detail))}</button>
+            )}
+            {detail.sale.status === 'paid' && creditOutstanding(detail) > 0 && (
+              <button type="button" onClick={() => setTender('settle')} className="w-full h-14 rounded-2xl text-white text-[15px] font-extrabold inline-flex items-center justify-center gap-2" style={{ background: '#111827' }}><Wallet className="h-5 w-5" /> Settle credit {rm(creditOutstanding(detail))}</button>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => print(detail.sale.public_token)} className="h-12 rounded-xl bg-white border border-gray-200 font-bold inline-flex items-center justify-center gap-1.5"><Printer className="h-4 w-4" /> Print</button>
               <button type="button" onClick={() => whatsapp(detail.sale.id)} className="h-12 rounded-xl bg-white border border-gray-200 font-bold inline-flex items-center justify-center gap-1.5"><MessageCircle className="h-4 w-4" /> WhatsApp</button>

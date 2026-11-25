@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowLeft, Banknote, QrCode, CreditCard, Smartphone, Link2, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Banknote, QrCode, CreditCard, Smartphone, Link2, Check, Loader2, Clock, Handshake } from 'lucide-react'
 import { PosNumpad } from '@/components/pos/numpad'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { usePosSession } from '@/lib/stores/pos-session'
@@ -17,13 +17,15 @@ import type { PosPayMethod, PosPaymentInput, PosSalePayload } from '@/lib/pos/ty
 // 409 STORE_CLOSED (peranti lain tutup kedai) → kunci skrin Sell semula.
 
 export interface SaleLoyaltyDone { member: boolean; earned: number; pending: number; balance: number | null; redeemed: number }
-export interface SaleDone { id: string; receipt_no: string | null; public_token: string | null; total: number; change: number; payments: PosPaymentInput[]; duplicate: boolean; loyalty?: SaleLoyaltyDone | null }
+export interface SaleDone { id: string; receipt_no: string | null; public_token: string | null; total: number; change: number; payments: PosPaymentInput[]; duplicate: boolean; loyalty?: SaleLoyaltyDone | null; status?: 'pending' | 'paid' }
 
 const TILES: { m: PosPayMethod; label: string; icon: React.ElementType; soon?: boolean }[] = [
   { m: 'cash', label: 'Cash', icon: Banknote },
   { m: 'duitnow_qr', label: 'DuitNow QR', icon: QrCode },
   { m: 'card_terminal', label: 'Card (terminal)', icon: CreditCard },
   { m: 'ewallet_terminal', label: 'E-wallet (terminal)', icon: Smartphone },
+  { m: 'pickup', label: 'Pay at pickup', icon: Clock },          // 170: simpan belum bayar, bayar di kaunter semasa ambil
+  { m: 'credit', label: 'Credit (pay later)', icon: Handshake },  // 170: barang dilepas, hutang pelanggan
   { m: 'chip_link', label: 'Payment link (Phase 2)', icon: Link2, soon: true },
 ]
 
@@ -35,18 +37,19 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
   const [tender, setTender] = useState('')
   const [ref, setRef] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pickupDate, setPickupDate] = useState('')
 
   const hasCash = method === 'cash' || payments.some(p => p.method === 'cash')
   const totals = useMemo(() => t.totals(hasCash), [t, hasCash])
   const paidSoFar = round2(payments.reduce((s, p) => s + p.amount, 0))
   const remaining = round2(Math.max(0, totals.total - paidSoFar))
 
-  const submit = async (all: PosPaymentInput[]) => {
+  const submit = async (all: PosPaymentInput[], pickup?: { date: string | null }) => {
     setBusy(true)
     try {
       const payload: PosSalePayload = {
         client_txn_id: t.clientTxnId, register_id: registerId, customer: t.customer, lines: t.lines, discount: t.discount, promo: t.promo, points: t.points,
-        payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false,
+        payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false, pickup: pickup ?? null,
         local_ref: nextLocalRef(), approval: t.approval,
       }
       const ctrl = new AbortController()
@@ -57,7 +60,7 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
       if (res.status === 409 && j.code === 'STORE_CLOSED') { toast.error(j.error ?? 'Store is closed'); setShift(null); onBack(); return }
       if (res.status === 409 && j.code === 'POINTS_CHANGED') { toast.error(j.error ?? 'Points changed — re-select the customer', { duration: 8000 }); t.setPoints(null); onBack(); return }
       if (!res.ok) { toast.error(j.error ?? 'Failed to save sale', { duration: 6000 }); return }
-      onDone({ id: j.id, receipt_no: j.receipt_no, public_token: j.public_token, total: j.total ?? totals.total, change: j.change_given ?? all.reduce((s, p) => s + (p.change_given ?? 0), 0), payments: all, duplicate: !!j.duplicate, loyalty: j.loyalty ?? null })
+      onDone({ id: j.id, receipt_no: j.receipt_no, public_token: j.public_token, total: j.total ?? totals.total, change: j.change_given ?? all.reduce((s, p) => s + (p.change_given ?? 0), 0), payments: all, duplicate: !!j.duplicate, loyalty: j.loyalty ?? null, status: j.status === 'pending' ? 'pending' : 'paid' })
     } catch {
       toast.error('No connection — this sale may or may not have been saved. Check Sales before ringing it again (offline mode arrives in Phase 2).', { duration: 10_000 })
     } finally { setBusy(false) }
@@ -146,6 +149,37 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
           <button type="button" disabled={busy} onClick={() => addPayment({ method, amount: remaining, ref: ref || null, status: 'paid' })} className="w-full h-14 lg:h-[76px] rounded-2xl text-white text-[16px] lg:text-[20px] font-extrabold inline-flex items-center justify-center gap-2 disabled:opacity-40" style={{ background: '#E11D2A' }}>
             {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} {method === 'card_terminal' ? 'Card' : 'E-wallet'} approved {rm(remaining)}
           </button>
+        </div>
+      )}
+
+      {method === 'pickup' && (
+        <div className="max-w-lg space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 text-white px-4 h-12 lg:h-14 text-[16px] lg:text-[19px] font-extrabold"><Clock className="h-5 w-5 lg:h-6 lg:w-6" /> Pay at pickup</div>
+          <p className="text-[15px] lg:text-[17px] text-gray-600">Saves this order <span className="font-black text-gray-900">unpaid</span>. The customer pays <span className="font-black text-gray-900">{rm(totals.total)}</span> at the counter when collecting — the counter finds it under Sales › Pickups waiting. Stock is deducted when it is paid.</p>
+          {!t.customer && <p className="text-[13px] font-semibold text-amber-800">Add a customer name or phone first so the counter can find this order.</p>}
+          <label className="block text-[13px] font-bold text-gray-600">Pickup date (optional)
+            <input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} className="mt-1 block h-12 lg:h-14 px-4 rounded-2xl border border-gray-200 text-[15px] bg-white" />
+          </label>
+          <button type="button" disabled={busy} onClick={() => submit([], { date: pickupDate || null })} className="w-full h-14 lg:h-[76px] rounded-2xl text-white text-[16px] lg:text-[20px] font-extrabold inline-flex items-center justify-center gap-2" style={{ background: '#111827' }}>
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />} Save for pickup · {rm(totals.total)}
+          </button>
+        </div>
+      )}
+
+      {method === 'credit' && (
+        <div className="max-w-lg space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 text-white px-4 h-12 lg:h-14 text-[16px] lg:text-[19px] font-extrabold"><Handshake className="h-5 w-5 lg:h-6 lg:w-6" /> Credit (pay later)</div>
+          {!t.customer?.phone ? (
+            <p className="text-[15px] lg:text-[17px] text-amber-800 font-semibold">Credit needs a customer with a phone number. Go back to the ticket and add the customer first.</p>
+          ) : (
+            <>
+              <p className="text-[15px] lg:text-[17px] text-gray-600">Goods are released now and <span className="font-black text-gray-900">{rm(remaining)}</span> is recorded as owed by <span className="font-black text-gray-900">{t.customer.name ?? t.customer.phone}</span>. Settle it later from Sales › Credit outstanding.</p>
+              <input value={ref} onChange={e => setRef(e.target.value)} placeholder="Note (optional, e.g. pay by Friday)" className="w-full h-12 lg:h-14 px-4 rounded-2xl border border-gray-200 text-[15px]" />
+              <button type="button" disabled={busy} onClick={() => addPayment({ method: 'credit', amount: remaining, ref: ref || null, status: 'paid' })} className="w-full h-14 lg:h-[76px] rounded-2xl text-white text-[16px] lg:text-[20px] font-extrabold inline-flex items-center justify-center gap-2" style={{ background: '#111827' }}>
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Handshake className="h-5 w-5" />} Record credit {rm(remaining)}
+              </button>
+            </>
+          )}
         </div>
       )}
 

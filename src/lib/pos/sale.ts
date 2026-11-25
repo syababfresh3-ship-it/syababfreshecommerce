@@ -158,7 +158,7 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   if (dup && dup.status !== 'void') return { id: dup.id, receipt_no: dup.receipt_no, status: dup.status as 'pending' | 'paid', duplicate: true }
 
   const lines = cleanLines(b.lines)
-  const payments = cleanPayments(b.payments)
+  let payments = cleanPayments(b.payments)
   const discount: PosTicketDiscount | null = b.discount && typeof b.discount === 'object'
     ? { type: (b.discount as { type?: string }).type === 'pct' ? 'pct' as const : 'rm' as const, value: money((b.discount as { value?: unknown }).value ?? 0), note: typeof (b.discount as { note?: unknown }).note === 'string' ? String((b.discount as { note?: unknown }).note).slice(0, 120) : null }
     : null
@@ -167,6 +167,10 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
     : null
   const customer = b.customer && typeof b.customer === 'object' ? (b.customer as { phone?: unknown; name?: unknown; id?: unknown }) : null
   const phoneNorm = (customer ? normalizePhone(typeof customer.phone === 'string' ? customer.phone : null) : '') ?? ''
+  // Pickup (170): simpan belum bayar — bayaran placeholder 'pickup' pending ditetapkan server; shift tak wajib (team sale keyin awal)
+  const pickupIn = b.pickup && typeof b.pickup === 'object'
+    ? { date: typeof (b.pickup as { date?: unknown }).date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test((b.pickup as { date: string }).date) ? (b.pickup as { date: string }).date : null }
+    : null
   const pointsIn: PosTicketPoints | null = b.points && typeof b.points === 'object' && isUuid((b.points as { userId?: unknown }).userId)
     ? { userId: (b.points as { userId: string }).userId, points: Math.floor(Number((b.points as { points?: unknown }).points) || 0) }
     : null
@@ -183,7 +187,7 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const settings = parsePosSettings(settingsRes.data?.value ?? null)
   const privileged = !!ctx.privileged || !!readApproval(b.approval)
 
-  if (settings.requireShift && !openShift) {
+  if (settings.requireShift && !openShift && !pickupIn) {
     throw new PosSaleError(registerId ? 'Store is closed — open the store before selling' : 'Choose a register before selling', 409, 'STORE_CLOSED')
   }
   const shiftId = openShift?.id ?? null
@@ -193,8 +197,15 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const promo = await verifyPromo(sb, promoIn, lines, discount, phoneNorm)
   const redeem = await verifyPoints(sb, pointsIn, lines, discount, promo?.discount ?? 0, phoneNorm)
 
-  const hasCash = payments.some(p => p.method === 'cash')
+  const hasCash = !pickupIn && payments.some(p => p.method === 'cash')
   const totals = computeTotals(lines, discount, promo?.discount ?? 0, { cashRounding: hasCash }, redeem?.rm ?? 0)
+  if (pickupIn) {
+    // order pickup: satu placeholder 'pickup' pending bernilai jumlah penuh; dibayar di Sales › Pickups waiting (route /pay)
+    payments = [{ method: 'pickup', amount: totals.total, status: 'pending' }]
+  } else {
+    if (payments.some(p => p.method === 'pickup')) throw new PosSaleError('Use "Pay at pickup" to save an unpaid pickup order')
+    if (payments.some(p => p.method === 'credit') && !phoneNorm) throw new PosSaleError('Credit needs a customer with a phone number — add the customer first', 400, 'CUSTOMER_REQUIRED')
+  }
 
   const paidTotal = round2(payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0))
   const pendingTotal = round2(payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0))
@@ -246,6 +257,7 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const { data, error } = await sb.rpc('pos_create_sale', { p: payload })
   if (error) {
     if (error.code === 'PGRST202' || error.code === '42883') throw new PosSaleError('Migration 155 (POS) has not been run', 503)
+    if (error.code === '23514' && payments.some(p => p.method === 'pickup' || p.method === 'credit')) throw new PosSaleError('Migration 170 (POS pickup/credit) has not been run', 503)
     if (/POINTS_INSUFFICIENT/.test(error.message)) throw new PosSaleError('Not enough points — the balance changed. Re-select the customer and try again', 409, 'POINTS_CHANGED')
     if (/POINTS_NO_MEMBER/.test(error.message)) throw new PosSaleError('Points can only be redeemed by a member', 409, 'POINTS_CHANGED')
     if (redeem && /loyalty_user_id|points_redeemed|points_discount/.test(error.message)) throw new PosSaleError('Migration 169 (POS loyalty) has not been run — remove the points redemption', 503)
@@ -254,6 +266,10 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const r: CreateSaleResult = data as { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
   // Konsainan (migration 158): snapshot pembekal + jumlah perlu dibayar pada baris. Gagal/tiada 158 → jualan tetap sah.
   if (!r.duplicate) await stampSaleConsign(sb, r.id).catch(e => console.error('[pos-sale] cop konsainan gagal', e instanceof Error ? e.message : e))
+  if (!r.duplicate && pickupIn) {
+    const { error: pe } = await sb.from('pos_sales').update({ is_pickup: true, pickup_date: pickupIn.date, ordered_at: new Date().toISOString() }).eq('id', r.id)
+    if (pe) console.error('[pos-sale] tanda pickup gagal', pe.message)
+  }
   if (!r.duplicate && r.status === 'paid') r.loyalty = await afterSalePaid(sb, r.id, { phone: phoneNorm || null, name: payload.customer_name, promoId: promo?.id ?? null })
   return r
 }
@@ -294,11 +310,17 @@ export async function afterSaleVoid(sb: SB, saleId: string) {
   await reverseSaleLoyalty(sb, saleId).catch(e => console.error('[pos-sale] balik mata gagal', e instanceof Error ? e.message : e))
 }
 
-/** Tandakan jualan pending → paid (CHIP / sahkan manual) lalu jalankan kesan sampingan. Sekali sahaja. */
-export async function markSalePaid(sb: SB, saleId: string): Promise<'paid' | 'already' | 'notfound'> {
+/** Tandakan jualan pending → paid (CHIP / bayar di kaunter semasa pickup / sahkan manual) lalu jalankan kesan sampingan. Sekali sahaja.
+ *  Jualan pickup (170): sold_at ditetapkan semula ke masa bayar (jualan direalisasi semasa ambil — laporan hari/shift konsisten)
+ *  dan shift_id = shift terbuka kaunter yang menerima bayaran (opts.shiftId). */
+export async function markSalePaid(sb: SB, saleId: string, opts: { shiftId?: string | null } = {}): Promise<'paid' | 'already' | 'notfound'> {
+  const now = new Date().toISOString()
+  const { data: cur } = await sb.from('pos_sales').select('*').eq('id', saleId).maybeSingle()
+  const patch: Record<string, unknown> = { status: 'paid', paid_at: now }
+  if (cur && (cur as { is_pickup?: boolean }).is_pickup) { patch.sold_at = now; if (opts.shiftId) patch.shift_id = opts.shiftId }
   const { data: rows, error } = await sb
     .from('pos_sales')
-    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .update(patch)
     .eq('id', saleId)
     .eq('status', 'pending')
     .select('id, customer_phone, customer_name, promo_code_id, paid_total, total')

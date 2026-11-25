@@ -71,20 +71,23 @@ export async function buildPosDayReport(sb: SB, date: string, registerId?: strin
 
   if (paid.length === 0) return report
 
-  type PayRow = { method: PosPayMethod; amount: number | string; tendered: number | string | null; change_given: number | string | null }
+  type PayRow = { method: PosPayMethod; amount: number | string; tendered: number | string | null; change_given: number | string | null; settles_payment_id?: string | null }
   type ItemRow = { name: string; variant_name: string | null; qty: number | string; unit: 'pcs' | 'kg'; line_total: number | string }
-  const [pays, items] = await Promise.all([
-    fetchAll<PayRow>((f, t) => {
-      let q = sb.from('pos_payments').select('method, amount, tendered, change_given, pos_sales!inner(status, sold_at, register_id)').eq('status', 'paid').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
-      if (reg) q = q.eq('pos_sales.register_id', reg)
-      return q
-    }),
+  // 170: baris penyelesaian kredit (settles_payment_id) dikecualikan — wang itu diterima pada hari lain (dikira dalam shift penerima)
+  const loadPays = (cols: string) => fetchAll<PayRow>((f, t) => {
+    let q = sb.from('pos_payments').select(`${cols}, pos_sales!inner(status, sold_at, register_id)`).eq('status', 'paid').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
+    if (reg) q = q.eq('pos_sales.register_id', reg)
+    return q
+  })
+  const [paysRaw, items] = await Promise.all([
+    loadPays('method, amount, tendered, change_given, settles_payment_id').catch(() => loadPays('method, amount, tendered, change_given')),
     fetchAll<ItemRow>((f, t) => {
       let q = sb.from('pos_sale_items').select('name, variant_name, qty, unit, line_total, pos_sales!inner(status, sold_at, register_id)').eq('pos_sales.status', 'paid').gte('pos_sales.sold_at', start).lt('pos_sales.sold_at', end).order('id').range(f, t)
       if (reg) q = q.eq('pos_sales.register_id', reg)
       return q
     }),
   ])
+  const pays = paysRaw.filter(p => !p.settles_payment_id)
   for (const p of pays) {
     const cur = report.byMethod[p.method] ?? { count: 0, amount: 0 }
     cur.count += 1; cur.amount = round2(cur.amount + Number(p.amount))

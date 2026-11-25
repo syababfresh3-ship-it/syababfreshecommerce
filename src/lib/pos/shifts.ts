@@ -23,6 +23,7 @@ export interface PosShiftSummary {
   byCashier: { name: string; sales: number; revenue: number }[]
   openingFloat: number
   cashSales: number            // bahagian jualan yang dibayar tunai (bersih baki)
+  creditSettled?: number       // 170: wang diterima dalam shift ini untuk kredit jualan terdahulu (sudah termasuk dalam byMethod)
   cashIn: number; cashOut: number
   expectedCash: number         // float + cashSales + cashIn − cashOut
   movements: { id: string; type: 'in' | 'out'; amount: number; reason: string | null; created_at: string; cashier: string | null }[]
@@ -76,14 +77,27 @@ export async function fetchAll<T>(build: (from: number, to: number) => PromiseLi
   return out
 }
 
+type ShiftPayRow = { method: PosPayMethod; amount: number | string; settles_payment_id?: string | null }
+/** Bayaran satu shift. 170: baris dengan shift_id = shift ini (order pickup dibayar di kaunter ini / penyelesaian kredit)
+ *  + baris tanpa shift_id milik jualan shift ini. Pra-170 (tiada lajur shift_id) → ikut shift jualan sahaja seperti dulu. */
+async function loadShiftPayments(sb: SB, shiftId: string): Promise<ShiftPayRow[]> {
+  try {
+    const [direct, inherited] = await Promise.all([
+      fetchAll<ShiftPayRow>((f, t) => sb.from('pos_payments').select('method, amount, settles_payment_id, pos_sales!inner(status)').eq('shift_id', shiftId).eq('status', 'paid').eq('pos_sales.status', 'paid').order('id').range(f, t)),
+      fetchAll<ShiftPayRow>((f, t) => sb.from('pos_payments').select('method, amount, settles_payment_id, pos_sales!inner(shift_id, status)').is('shift_id', null).eq('pos_sales.shift_id', shiftId).eq('pos_sales.status', 'paid').eq('status', 'paid').order('id').range(f, t)),
+    ])
+    return [...direct, ...inherited]
+  } catch {
+    return fetchAll<ShiftPayRow>((f, t) => sb.from('pos_payments').select('method, amount, pos_sales!inner(shift_id, status)').eq('pos_sales.shift_id', shiftId).eq('pos_sales.status', 'paid').eq('status', 'paid').order('id').range(f, t))
+  }
+}
+
 export async function buildShiftSummary(sb: SB, shift: PosShiftRow): Promise<PosShiftSummary> {
   type SaleRow = { id: string; status: string; total: number | string; discount_total: number | string; promo_discount: number | string; weight_kg_total: number | string; cashier_id: string | null; pos_cashiers: { name: string } | null }
-  type PayRow = { method: PosPayMethod; amount: number | string }
   type MoveRow = { id: string; type: 'in' | 'out'; amount: number | string; reason: string | null; created_at: string; pos_cashiers: { name: string } | null }
   const [sales, pays, moves] = await Promise.all([
     fetchAll<SaleRow>((f, t) => sb.from('pos_sales').select('id, status, total, discount_total, promo_discount, weight_kg_total, cashier_id, pos_cashiers!cashier_id(name)').eq('shift_id', shift.id).order('id').range(f, t)),
-    // inner join → tapis ikut shift & status jualan tanpa senarai id panjang dalam URL
-    fetchAll<PayRow>((f, t) => sb.from('pos_payments').select('method, amount, pos_sales!inner(shift_id, status)').eq('pos_sales.shift_id', shift.id).eq('pos_sales.status', 'paid').eq('status', 'paid').order('id').range(f, t)),
+    loadShiftPayments(sb, shift.id),
     fetchAll<MoveRow>((f, t) => sb.from('pos_cash_movements').select('id, type, amount, reason, created_at, pos_cashiers(name)').eq('shift_id', shift.id).order('created_at').range(f, t)),
   ])
   const paid = sales.filter(s => s.status === 'paid')
@@ -91,7 +105,8 @@ export async function buildShiftSummary(sb: SB, shift: PosShiftRow): Promise<Pos
   for (const p of pays) { const cur = byMethod[p.method] ?? { count: 0, amount: 0 }; cur.count += 1; cur.amount = round2(cur.amount + Number(p.amount)); byMethod[p.method] = cur }
   const cashierMap = new Map<string, { name: string; sales: number; revenue: number }>()
   for (const s of paid) { const k = s.cashier_id ?? '-'; const cur = cashierMap.get(k) ?? { name: s.pos_cashiers?.name ?? 'No cashier (admin)', sales: 0, revenue: 0 }; cur.sales += 1; cur.revenue = round2(cur.revenue + Number(s.total)); cashierMap.set(k, cur) }
-  const cashSales = round2(byMethod.cash?.amount ?? 0)
+  const cashSales = round2(byMethod.cash?.amount ?? 0)   // termasuk tunai penyelesaian kredit yang diterima dalam shift ini (170)
+  const creditSettled = round2(pays.filter(p => p.settles_payment_id).reduce((a, p) => a + Number(p.amount), 0))
   const cashIn = round2(moves.filter(m => m.type === 'in').reduce((a, m) => a + Number(m.amount), 0))
   const cashOut = round2(moves.filter(m => m.type === 'out').reduce((a, m) => a + Number(m.amount), 0))
   return {
@@ -104,7 +119,7 @@ export async function buildShiftSummary(sb: SB, shift: PosShiftRow): Promise<Pos
     byMethod,
     byCashier: Array.from(cashierMap.values()).sort((a, b) => b.revenue - a.revenue),
     openingFloat: Number(shift.opening_float),
-    cashSales, cashIn, cashOut,
+    cashSales, cashIn, cashOut, creditSettled,
     expectedCash: round2(Number(shift.opening_float) + cashSales + cashIn - cashOut),
     movements: moves.map(m => ({ id: m.id, type: m.type, amount: Number(m.amount), reason: m.reason, created_at: m.created_at, cashier: m.pos_cashiers?.name ?? null })),
     generatedAt: new Date().toISOString(),
