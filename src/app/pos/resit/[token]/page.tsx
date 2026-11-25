@@ -71,6 +71,7 @@ export default async function PosReceiptPage({ params, searchParams }: { params:
           <div className="flex justify-between"><span>Subtotal</span><span>{rm(Number(sale.subtotal))}</span></div>
           {Number(sale.discount_total) > 0 && <div className="flex justify-between"><span>Discount{sale.discount_note ? ` (${sale.discount_note})` : ''}</span><span>−{rm(Number(sale.discount_total))}</span></div>}
           {Number(sale.promo_discount) > 0 && <div className="flex justify-between"><span>Promo {sale.promo_code}</span><span>−{rm(Number(sale.promo_discount))}</span></div>}
+          {Number(sale.points_discount ?? 0) > 0 && <div className="flex justify-between"><span>Points redeemed ({Number(sale.points_redeemed ?? 0)} pts)</span><span>−{rm(Number(sale.points_discount))}</span></div>}
           {Number(sale.rounding_adj) !== 0 && <div className="flex justify-between"><span>Rounding</span><span>{Number(sale.rounding_adj) > 0 ? '+' : '−'}{rm(Math.abs(Number(sale.rounding_adj)))}</span></div>}
           <div className="flex justify-between text-[15px] font-black pt-1"><span>TOTAL</span><span>{rm(Number(sale.total))}</span></div>
           {hasFact('sstRegistered') && <p className="text-gray-500 text-[11px]">Prices include SST.</p>}
@@ -85,6 +86,8 @@ export default async function PosReceiptPage({ params, searchParams }: { params:
               )}
             </div>
           ))}
+          {Number(sale.points_earned ?? 0) > 0 && <div className="flex justify-between text-gray-700"><span>Points earned</span><span>+{Number(sale.points_earned)} pts</span></div>}
+          {Number(sale.points_pending ?? 0) > 0 && <p className="text-gray-700 text-[12px]">{Number(sale.points_pending)} pts pending — register at shop.syababfresh.my/daftar with this phone number to claim them.</p>}
           {sale.status === 'pending' && <p className="font-bold text-amber-700">Payment incomplete.</p>}
           {sale.status === 'void' && <p className="font-black">** RECEIPT VOIDED **{sale.void_reason ? ` — ${sale.void_reason}` : ''}</p>}
         </div>

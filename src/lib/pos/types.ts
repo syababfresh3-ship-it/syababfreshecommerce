@@ -83,7 +83,13 @@ export interface PosTicketLine {
 export interface PosTicketDiscount { type: 'rm' | 'pct'; value: number; note?: string | null }
 export interface PosTicketPromo { id: string; code: string; discount: number }
 /** Pelanggan pada tiket. phone '' = nama sahaja (walk-in, tiada rekod CRM). */
-export interface PosTicketCustomer { phone: string; name?: string | null; id?: string | null }
+export interface PosTicketCustomer {
+  phone: string; name?: string | null; id?: string | null
+  /** Ahli loyalty (migration 169): id profil, baki mata & mata menunggu — dari /api/pos/customers atau lookup. */
+  memberUserId?: string | null; points?: number | null; pendingPoints?: number | null; multiplier?: number | null
+}
+/** Tebusan mata pada tiket — server sahkan semula baki & had (lib/pos/loyalty). */
+export interface PosTicketPoints { userId: string; points: number }
 
 export interface PosPaymentInput {
   method: PosPayMethod
@@ -104,6 +110,7 @@ export interface PosSalePayload {
   lines: PosTicketLine[]
   discount?: PosTicketDiscount | null
   promo?: PosTicketPromo | null
+  points?: PosTicketPoints | null
   payments: PosPaymentInput[]
   note?: string | null
   offline?: boolean
@@ -116,6 +123,7 @@ export interface PosTotals {
   subtotal: number
   discountTotal: number
   promoDiscount: number
+  pointsDiscount: number
   roundingAdj: number
   total: number
   weightKg: number
@@ -155,6 +163,12 @@ export interface PosSaleRow {
   paid_at: string | null
   customer_phone: string | null
   customer_name: string | null
+  /** Mata loyalty (migration 169) — tiada sebelum migration. */
+  loyalty_user_id?: string | null
+  points_redeemed?: number | null
+  points_discount?: number | null
+  points_earned?: number | null
+  points_pending?: number | null
   cashier_id: string | null
   register_id: string | null
   public_token: string

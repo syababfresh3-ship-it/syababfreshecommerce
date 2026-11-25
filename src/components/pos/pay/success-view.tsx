@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, Printer, MessageCircle, Plus } from 'lucide-react'
+import { CheckCircle2, Printer, MessageCircle, Plus, Coins } from 'lucide-react'
 import { usePosSession } from '@/lib/stores/pos-session'
 import { rm } from '@/lib/pos/money'
 import { POS_PAY_LABEL } from '@/lib/pos/types'
@@ -47,6 +47,14 @@ export function SuccessView({ sale, customerPhone, customerName = null, onNew }:
           )}
           <p className="text-[14px] lg:text-[18px] font-bold text-gray-800 mt-4">Paid by {sale.payments.map(p => `${POS_PAY_LABEL[p.method]} ${rm(p.amount)}`).join(' + ')}</p>
           {customerName && <p className="text-[13px] lg:text-[16px] text-gray-500 mt-1">Customer: {customerName}</p>}
+          {sale.loyalty?.member && (
+            <p className="text-[13px] lg:text-[16px] font-bold text-gray-800 mt-2 inline-flex items-center gap-1.5"><Coins className="h-4 w-4" />
+              {sale.loyalty.redeemed > 0 ? `Redeemed ${sale.loyalty.redeemed.toLocaleString('en-MY')} pts · ` : ''}Earned +{sale.loyalty.earned.toLocaleString('en-MY')} pts{sale.loyalty.balance != null ? ` · Balance ${sale.loyalty.balance.toLocaleString('en-MY')} pts` : ''}
+            </p>
+          )}
+          {!sale.loyalty?.member && (sale.loyalty?.pending ?? 0) > 0 && (
+            <p className="text-[13px] lg:text-[15px] text-gray-600 mt-2">{sale.loyalty!.pending.toLocaleString('en-MY')} pts pending for {customerPhone} — tell the customer to register at shop.syababfresh.my/daftar with this number to claim them.</p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={print} className="h-14 lg:h-[72px] rounded-2xl bg-white border border-gray-200 text-[14px] lg:text-[18px] font-extrabold inline-flex items-center justify-center gap-2"><Printer className="h-5 w-5" /> Print receipt</button>

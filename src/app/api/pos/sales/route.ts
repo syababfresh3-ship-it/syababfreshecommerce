@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const r = await createSale(auth.supabase!, body, { userId: auth.user!.id, cashierId: auth.cashier?.id ?? null, privileged: auth.isAdmin || auth.cashier?.role === 'manager' })
     const { data } = await auth.supabase!.from('pos_sales').select('public_token, total, change_given').eq('id', r.id).maybeSingle()
-    return NextResponse.json({ ...r, public_token: data?.public_token ?? null, total: data ? Number(data.total) : null, change_given: data ? Number(data.change_given) : null }, { status: r.duplicate ? 200 : 201 })
+    return NextResponse.json({ ...r, loyalty: r.loyalty ?? null, public_token: data?.public_token ?? null, total: data ? Number(data.total) : null, change_given: data ? Number(data.change_given) : null }, { status: r.duplicate ? 200 : 201 })
   } catch (e) {
     if (e instanceof PosSaleError) return NextResponse.json({ error: e.message, code: e.code ?? undefined }, { status: e.status })
     console.error('[pos/sales] gagal', e)

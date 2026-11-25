@@ -10,7 +10,8 @@ import { POS_SETTINGS_KEY, parsePosSettings } from '@/lib/pos/settings'
 import { readApproval } from '@/lib/pos/pin'
 import { evaluatePromo, type PromoItem, type PromoRow } from '@/lib/promo-rules'
 import { countGuestPromoUses } from '@/lib/promo-usage'
-import { POS_PAY_METHODS, type PosCatalog, type PosPaymentInput, type PosSaleDetail, type PosSalePayload, type PosTicketDiscount, type PosTicketLine } from '@/lib/pos/types'
+import { POS_PAY_METHODS, type PosCatalog, type PosPaymentInput, type PosSaleDetail, type PosSalePayload, type PosTicketDiscount, type PosTicketLine, type PosTicketPoints } from '@/lib/pos/types'
+import { awardSaleLoyalty, lookupMember, maxRedeemablePoints, pointsToRm, reverseSaleLoyalty, type SaleLoyaltyResult } from '@/lib/pos/loyalty'
 
 // Cipta & lengkapkan jualan POS (server). Server SAHKAN bentuk data, KIRA SEMULA jumlah dengan peraturan
 // yang sama (lib/pos/money.ts) dan tolak kalau bayaran tak padan jumlah. Insert atomik + idempoten via RPC
@@ -21,6 +22,8 @@ import { POS_PAY_METHODS, type PosCatalog, type PosPaymentInput, type PosSaleDet
 //  • diskaun baris / tiket melebihi tetapan cashierMaxDiscountPct → perlu keistimewaan
 //  • promo dinilai semula (input sama seperti /api/pos/promo/validate); diskaun klien diabaikan
 //  • shift SENTIASA ditentukan server (shift_id klien diabaikan); requireShift & tiada shift terbuka → 409 STORE_CLOSED
+//  • mata loyalty (migration 169): tebusan disahkan semula — ahli ikut telefon tiket, baki & had (lib/pos/loyalty) di
+//    server, baki ditolak DALAM pos_create_sale (atomik); selepas paid ahli kumpul mata / bukan ahli → mata menunggu
 // Keistimewaan = admin, kasyer peranan manager, atau token kelulusan manager (body.approval, lib/pos/pin signApproval).
 // Item manual (productId null) kekal harga bebas — macam UI. Kecualian: jualan pendua (client_txn_id dah wujud)
 // dipulangkan AWAL tanpa semakan supaya ulangan selepas rangkaian putus tak ditolak oleh perubahan katalog/shift.
@@ -144,7 +147,7 @@ export interface CreateSaleCtx {
   /** admin atau kasyer peranan manager — bebas had diskaun & semakan harga bawah katalog (token kelulusan juga memberi ini). */
   privileged?: boolean
 }
-export interface CreateSaleResult { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
+export interface CreateSaleResult { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean; loyalty?: SaleLoyaltyResult | null }
 
 export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Promise<CreateSaleResult> {
   const b = (body ?? {}) as Partial<PosSalePayload> & Record<string, unknown>
@@ -164,6 +167,10 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
     : null
   const customer = b.customer && typeof b.customer === 'object' ? (b.customer as { phone?: unknown; name?: unknown; id?: unknown }) : null
   const phoneNorm = (customer ? normalizePhone(typeof customer.phone === 'string' ? customer.phone : null) : '') ?? ''
+  const pointsIn: PosTicketPoints | null = b.points && typeof b.points === 'object' && isUuid((b.points as { userId?: unknown }).userId)
+    ? { userId: (b.points as { userId: string }).userId, points: Math.floor(Number((b.points as { points?: unknown }).points) || 0) }
+    : null
+  if (pointsIn && (pointsIn.points <= 0 || pointsIn.points > 1_000_000)) throw new PosSaleError('Invalid points amount')
 
   // Sumber kebenaran server: katalog register (harga senarai/override), tetapan POS, shift terbuka
   const registerId = optUuid(b.register_id)
@@ -184,9 +191,10 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   enforceCatalogPrices(lines, catalog, privileged)
   enforceDiscountCaps(lines, discount, settings.cashierMaxDiscountPct, privileged)
   const promo = await verifyPromo(sb, promoIn, lines, discount, phoneNorm)
+  const redeem = await verifyPoints(sb, pointsIn, lines, discount, promo?.discount ?? 0, phoneNorm)
 
   const hasCash = payments.some(p => p.method === 'cash')
-  const totals = computeTotals(lines, discount, promo?.discount ?? 0, { cashRounding: hasCash })
+  const totals = computeTotals(lines, discount, promo?.discount ?? 0, { cashRounding: hasCash }, redeem?.rm ?? 0)
 
   const paidTotal = round2(payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0))
   const pendingTotal = round2(payments.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0))
@@ -224,6 +232,7 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
     promo_code_id: promo?.id ?? null, promo_code: promo?.code ?? null, promo_discount: totals.promoDiscount,
     rounding_adj: totals.roundingAdj, total: totals.total, paid_total: paidTotal, change_given: changeGiven,
     weight_kg_total: totals.weightKg,
+    loyalty_user_id: redeem?.userId ?? null, points_redeemed: redeem?.points ?? 0, points_discount: totals.pointsDiscount,
     sold_at: soldAt, offline: !!b.offline,
     note: typeof b.note === 'string' ? b.note.trim().slice(0, 300) || null : null,
     items: lines.map((l, i) => ({
@@ -237,17 +246,33 @@ export async function createSale(sb: SB, body: unknown, ctx: CreateSaleCtx): Pro
   const { data, error } = await sb.rpc('pos_create_sale', { p: payload })
   if (error) {
     if (error.code === 'PGRST202' || error.code === '42883') throw new PosSaleError('Migration 155 (POS) has not been run', 503)
+    if (/POINTS_INSUFFICIENT/.test(error.message)) throw new PosSaleError('Not enough points — the balance changed. Re-select the customer and try again', 409, 'POINTS_CHANGED')
+    if (/POINTS_NO_MEMBER/.test(error.message)) throw new PosSaleError('Points can only be redeemed by a member', 409, 'POINTS_CHANGED')
+    if (redeem && /loyalty_user_id|points_redeemed|points_discount/.test(error.message)) throw new PosSaleError('Migration 169 (POS loyalty) has not been run — remove the points redemption', 503)
     throw new PosSaleError(error.message, 500)
   }
-  const r = data as { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
+  const r: CreateSaleResult = data as { id: string; receipt_no: string | null; status: 'pending' | 'paid'; duplicate: boolean }
   // Konsainan (migration 158): snapshot pembekal + jumlah perlu dibayar pada baris. Gagal/tiada 158 → jualan tetap sah.
   if (!r.duplicate) await stampSaleConsign(sb, r.id).catch(e => console.error('[pos-sale] cop konsainan gagal', e instanceof Error ? e.message : e))
-  if (!r.duplicate && r.status === 'paid') await afterSalePaid(sb, r.id, { phone: phoneNorm || null, name: payload.customer_name, promoId: promo?.id ?? null })
+  if (!r.duplicate && r.status === 'paid') r.loyalty = await afterSalePaid(sb, r.id, { phone: phoneNorm || null, name: payload.customer_name, promoId: promo?.id ?? null })
   return r
 }
 
-/** Kesan sampingan selepas jualan dibayar penuh — setiap satu idempoten / best-effort. */
-export async function afterSalePaid(sb: SB, saleId: string, ctx: { phone: string | null; name: string | null; promoId: string | null }) {
+/** Tebusan mata: ahli mesti padan telefon tiket (atau userId sah bila tiada telefon), baki cukup, dalam had tiket. */
+async function verifyPoints(sb: SB, pts: PosTicketPoints | null, lines: PosTicketLine[], discount: PosTicketDiscount | null, promoDiscount: number, phone: string) {
+  if (!pts) return null
+  const { member, available } = await lookupMember(sb, phone || null)
+  if (!available) throw new PosSaleError('Migration 169 (POS loyalty) has not been run — remove the points redemption', 503)
+  if (!member || member.userId !== pts.userId) throw new PosSaleError('Points can only be redeemed by the member on this ticket — re-select the customer', 409, 'POINTS_CHANGED')
+  const subtotal = round2(lines.reduce((s, l) => s + lineTotal(l), 0))
+  const base = Math.max(0, round2(subtotal - cartDiscountAmount(subtotal, discount) - promoDiscount))
+  const max = maxRedeemablePoints(member.points, base)
+  if (pts.points > max) throw new PosSaleError(`Only ${max.toLocaleString('en-MY')} points can be redeemed on this ticket (balance ${member.points.toLocaleString('en-MY')}, limit 50% of the bill / RM50)`, 409, 'POINTS_CHANGED')
+  return { userId: member.userId, points: pts.points, rm: pointsToRm(pts.points) }
+}
+
+/** Kesan sampingan selepas jualan dibayar penuh — setiap satu idempoten / best-effort. Pulangkan hasil mata loyalty. */
+export async function afterSalePaid(sb: SB, saleId: string, ctx: { phone: string | null; name: string | null; promoId: string | null }): Promise<SaleLoyaltyResult | null> {
   await deductPosSaleStock(sb, saleId)
   if (ctx.phone) {
     await upsertCustomer({ phone: ctx.phone, source: 'pos', name: ctx.name, lastOrderAt: new Date().toISOString() })
@@ -258,6 +283,15 @@ export async function afterSalePaid(sb: SB, saleId: string, ctx: { phone: string
     const { error } = await sb.rpc('increment_promo_uses', { promo_id: ctx.promoId })
     if (error) console.error('[pos-sale] promo uses gagal', error.message)
   }
+  // Mata loyalty (169): ahli kumpul / bukan ahli menunggu. Jualan tanpa telefon & tanpa tebusan → tiada apa-apa.
+  const { data: s } = await sb.from('pos_sales').select('receipt_no, total, loyalty_user_id, points_redeemed').eq('id', saleId).maybeSingle()
+  if (!s || (!ctx.phone && !s.loyalty_user_id)) return null
+  return awardSaleLoyalty(sb, { id: saleId, receipt_no: s.receipt_no, total: Number(s.total) || 0, phone: ctx.phone, loyaltyUserId: s.loyalty_user_id ?? null, pointsRedeemed: Number(s.points_redeemed) || 0 })
+}
+
+/** Void → balikkan mata (diperoleh ditarik, ditebus dipulangkan, menunggu dipadam). Sekali sahaja. */
+export async function afterSaleVoid(sb: SB, saleId: string) {
+  await reverseSaleLoyalty(sb, saleId).catch(e => console.error('[pos-sale] balik mata gagal', e instanceof Error ? e.message : e))
 }
 
 /** Tandakan jualan pending → paid (CHIP / sahkan manual) lalu jalankan kesan sampingan. Sekali sahaja. */

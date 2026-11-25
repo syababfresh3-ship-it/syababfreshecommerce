@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { requirePos } from '@/lib/pos/require-pos'
 import { restorePosSaleStock } from '@/lib/pos/stock'
+import { afterSaleVoid } from '@/lib/pos/sale'
 import { checkCashierPin } from '@/lib/pos/cashier-pin'
 import { addCashMovement, loadOpenShift, loadShift } from '@/lib/pos/shifts'
 import { round2 } from '@/lib/pos/money'
@@ -85,6 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await sb.from('pos_payments').update({ status: 'cancelled' }).eq('sale_id', id).eq('status', 'pending')
   const stock = await restorePosSaleStock(sb, id)
+  await afterSaleVoid(sb, id)   // mata loyalty (169) dibalikkan
   if (refundShiftId) {
     await addCashMovement(sb, refundShiftId, { type: 'out', amount: cashNet, reason: `Refund ${sale.receipt_no ?? id.slice(0, 8)} (void after shift closed)`, cashierId: approvedBy })
       .catch(e => console.error('[pos-void] rekod tunai pulangan gagal', e instanceof Error ? e.message : e))

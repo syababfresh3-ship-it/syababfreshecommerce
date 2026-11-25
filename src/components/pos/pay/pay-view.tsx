@@ -16,7 +16,8 @@ import type { PosPayMethod, PosPaymentInput, PosSalePayload } from '@/lib/pos/ty
 // Rangkaian gagal = jualan MUNGKIN dah tersimpan (respons hilang) → mesej suruh semak Sales dulu.
 // 409 STORE_CLOSED (peranti lain tutup kedai) → kunci skrin Sell semula.
 
-export interface SaleDone { id: string; receipt_no: string | null; public_token: string | null; total: number; change: number; payments: PosPaymentInput[]; duplicate: boolean }
+export interface SaleLoyaltyDone { member: boolean; earned: number; pending: number; balance: number | null; redeemed: number }
+export interface SaleDone { id: string; receipt_no: string | null; public_token: string | null; total: number; change: number; payments: PosPaymentInput[]; duplicate: boolean; loyalty?: SaleLoyaltyDone | null }
 
 const TILES: { m: PosPayMethod; label: string; icon: React.ElementType; soon?: boolean }[] = [
   { m: 'cash', label: 'Cash', icon: Banknote },
@@ -44,7 +45,7 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
     setBusy(true)
     try {
       const payload: PosSalePayload = {
-        client_txn_id: t.clientTxnId, register_id: registerId, customer: t.customer, lines: t.lines, discount: t.discount, promo: t.promo,
+        client_txn_id: t.clientTxnId, register_id: registerId, customer: t.customer, lines: t.lines, discount: t.discount, promo: t.promo, points: t.points,
         payments: all, note: t.note, sold_at: new Date().toISOString(), offline: false,
         local_ref: nextLocalRef(), approval: t.approval,
       }
@@ -54,8 +55,9 @@ export function PayView({ onBack, onDone, onPinRequired }: { onBack: () => void;
       const j = await res.json().catch(() => ({}))
       if (res.status === 401 && j.code === 'PIN_REQUIRED') { toast.error('Enter the cashier PIN first'); onPinRequired(); return }
       if (res.status === 409 && j.code === 'STORE_CLOSED') { toast.error(j.error ?? 'Store is closed'); setShift(null); onBack(); return }
+      if (res.status === 409 && j.code === 'POINTS_CHANGED') { toast.error(j.error ?? 'Points changed — re-select the customer', { duration: 8000 }); t.setPoints(null); onBack(); return }
       if (!res.ok) { toast.error(j.error ?? 'Failed to save sale', { duration: 6000 }); return }
-      onDone({ id: j.id, receipt_no: j.receipt_no, public_token: j.public_token, total: j.total ?? totals.total, change: j.change_given ?? all.reduce((s, p) => s + (p.change_given ?? 0), 0), payments: all, duplicate: !!j.duplicate })
+      onDone({ id: j.id, receipt_no: j.receipt_no, public_token: j.public_token, total: j.total ?? totals.total, change: j.change_given ?? all.reduce((s, p) => s + (p.change_given ?? 0), 0), payments: all, duplicate: !!j.duplicate, loyalty: j.loyalty ?? null })
     } catch {
       toast.error('No connection — this sale may or may not have been saved. Check Sales before ringing it again (offline mode arrives in Phase 2).', { duration: 10_000 })
     } finally { setBusy(false) }

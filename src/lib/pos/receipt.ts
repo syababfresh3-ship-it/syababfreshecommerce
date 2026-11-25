@@ -27,12 +27,15 @@ export function buildReceiptText(d: PosSaleDetail, settings: PosSettings): strin
   lines.push('')
   if (Number(sale.discount_total) > 0) lines.push(`Discount: -${rm(Number(sale.discount_total))}`)
   if (Number(sale.promo_discount) > 0) lines.push(`Promo ${sale.promo_code ?? ''}: -${rm(Number(sale.promo_discount))}`)
+  if (Number(sale.points_discount ?? 0) > 0) lines.push(`Points redeemed (${Number(sale.points_redeemed ?? 0)} pts): -${rm(Number(sale.points_discount))}`)
   if (Number(sale.rounding_adj) !== 0) lines.push(`Rounding: ${Number(sale.rounding_adj) > 0 ? '+' : '-'}${rm(Math.abs(Number(sale.rounding_adj)))}`)   // -RM0.02, bukan RM-0.02 (sama dengan resit HTML)
   lines.push(`TOTAL: ${rm(Number(sale.total))}`)
   for (const p of payments.filter(p => p.status === 'paid')) {
     const extra = p.method === 'cash' && p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : p.ref ? ` (ref ${p.ref})` : ''
     lines.push(`Paid by ${POS_PAY_LABEL[p.method]}: ${rm(Number(p.amount))}${extra}`)
   }
+  if (Number(sale.points_earned ?? 0) > 0) lines.push(`Points earned: +${Number(sale.points_earned)} pts`)
+  if (Number(sale.points_pending ?? 0) > 0) lines.push(`Points pending: ${Number(sale.points_pending)} pts — register at shop.syababfresh.my/daftar with this number to claim`)
   if (sale.status === 'void') lines.push('** RECEIPT VOIDED **')
   lines.push('')
   lines.push(`Full receipt: ${receiptUrl(sale.public_token)}`)

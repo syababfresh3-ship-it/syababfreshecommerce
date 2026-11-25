@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UserRound, X } from 'lucide-react'
+import { Coins, UserRound, X } from 'lucide-react'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { normalizePhone } from '@/lib/phone'
 
@@ -10,7 +10,9 @@ import { normalizePhone } from '@/lib/phone'
 // dan e-resit WhatsApp dipra-isi. Cari CRM ikut telefon (≥3 digit) atau nama (≥3 huruf).
 // Sebelum 9 Nov: butang simpan hanya hidup bila telefon sah, dan medan pertama papan kekunci nombor —
 // nama sahaja tak boleh disimpan (pepijat dilaporkan pemilik).
-interface Hit { id: string; name: string | null; phone_norm: string; order_count: number | null; total_spend: number | null }
+// Mata loyalty (migration 169): hit bawa member/points/pending_points; pilih hit → tiket tahu ahli & baki (untuk tebus).
+interface Hit { id: string; name: string | null; phone_norm: string; order_count: number | null; total_spend: number | null; member?: boolean; member_user_id?: string | null; points?: number; pending_points?: number; multiplier?: number }
+const fmtPts = (n: number) => `${Math.floor(n).toLocaleString('en-MY')} pts`
 
 export function CustomerSheet({ onClose }: { onClose: () => void }) {
   const { customer, setCustomer } = usePosTicket()
@@ -39,7 +41,9 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
   const canSave = !phoneBad && (!!norm || nq !== '')
   const save = () => {
     if (!canSave) return
-    setCustomer({ phone: norm || '', name: nq || null, id: null })
+    // nombor ditaip penuh & padan hit ahli → bawa status ahli walaupun kasyer tak tekan hit itu
+    const m = norm ? hits.find(h => h.phone_norm === norm && h.member) : null
+    setCustomer({ phone: norm || '', name: nq || m?.name || null, id: m && !m.id.startsWith('member:') ? m.id : null, memberUserId: m?.member_user_id ?? null, points: m?.points ?? null, pendingPoints: m?.pending_points ?? null, multiplier: m?.multiplier ?? null })
     onClose()
   }
 
@@ -47,7 +51,7 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
     <div className="space-y-3">
       {customer && (
         <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-3">
-          <div className="min-w-0"><p className="text-[14px] font-bold truncate">{customer.name ?? 'Customer'}</p><p className="text-[12px] text-gray-500">{customer.phone || 'no phone'}</p></div>
+          <div className="min-w-0"><p className="text-[14px] font-bold truncate">{customer.name ?? 'Customer'}</p><p className="text-[12px] text-gray-500">{customer.phone || 'no phone'}{customer.memberUserId ? ` · Member · ${fmtPts(customer.points ?? 0)}` : customer.pendingPoints ? ` · ${fmtPts(customer.pendingPoints)} pending` : ''}</p></div>
           <button type="button" onClick={() => { setCustomer(null); onClose() }} className="h-10 px-3 rounded-xl bg-white border border-gray-200 text-[12px] font-bold inline-flex items-center gap-1"><X className="h-3.5 w-3.5" /> Remove</button>
         </div>
       )}
@@ -58,9 +62,12 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
         <ul className="divide-y divide-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
           {visible.map(h => (
             <li key={h.id}>
-              <button type="button" onClick={() => { setCustomer({ phone: h.phone_norm, name: h.name, id: h.id }); onClose() }} className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-gray-50">
-                <UserRound className="h-4 w-4 text-gray-400 shrink-0" />
+              <button type="button" onClick={() => { setCustomer({ phone: h.phone_norm, name: h.name, id: h.id.startsWith('member:') ? null : h.id, memberUserId: h.member_user_id ?? null, points: h.points ?? null, pendingPoints: h.pending_points ?? null, multiplier: h.multiplier ?? null }); onClose() }} className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-gray-50">
+                {h.member ? <Coins className="h-4 w-4 text-gray-700 shrink-0" /> : <UserRound className="h-4 w-4 text-gray-400 shrink-0" />}
                 <div className="min-w-0 flex-1"><p className="text-[14px] font-bold truncate">{h.name ?? '(no name)'}</p><p className="text-[12px] text-gray-500">{h.phone_norm}{h.order_count ? ` · ${h.order_count} orders` : ''}</p></div>
+                {h.member
+                  ? <span className="shrink-0 text-right"><span className="block text-[13px] font-black tabular-nums">{fmtPts(h.points ?? 0)}</span><span className="block text-[11px] text-gray-500">Member</span></span>
+                  : (h.pending_points ?? 0) > 0 ? <span className="shrink-0 text-[11px] font-semibold text-gray-500 text-right">{fmtPts(h.pending_points ?? 0)}<br />pending</span> : null}
               </button>
             </li>
           ))}
@@ -70,7 +77,7 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
       <button type="button" onClick={save} disabled={!canSave} className="w-full h-14 rounded-2xl text-white text-[16px] font-extrabold disabled:opacity-40" style={{ background: '#111827' }}>
         {norm ? `Use ${nq ? `${nq} · ` : ''}${norm}` : nq && !phoneBad ? `Use “${nq}” (no phone)` : 'Enter a name or phone number'}
       </button>
-      <p className="text-[12px] text-gray-500">A name alone is enough — it prints on the receipt and shows in Sales. Add a phone number to save the customer to your CRM and send a WhatsApp e-receipt.</p>
+      <p className="text-[12px] text-gray-500">A name alone is enough — it prints on the receipt and shows in Sales. Add a phone number to save the customer to your CRM and send a WhatsApp e-receipt. Members earn points on this sale; non-member points wait on their number until they register.</p>
     </div>
   )
 }

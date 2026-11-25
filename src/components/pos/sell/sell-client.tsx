@@ -13,6 +13,7 @@ import { WeightKeypad } from '@/components/pos/sell/weight-keypad'
 import { LineSheet } from '@/components/pos/sell/line-sheet'
 import { DiscountSheet } from '@/components/pos/sell/discount-sheet'
 import { CustomerSheet } from '@/components/pos/sell/customer-sheet'
+import { PointsSheet } from '@/components/pos/sell/points-sheet'
 import { HeldSheet, CustomItemSheet } from '@/components/pos/sell/misc-sheets'
 import { PayView, type SaleDone } from '@/components/pos/pay/pay-view'
 import { SuccessView } from '@/components/pos/pay/success-view'
@@ -33,7 +34,7 @@ type Sheet =
   | null
   | { type: 'weight'; item: PosCatalogItem }
   | { type: 'line'; line: PosTicketLine }
-  | { type: 'discount' } | { type: 'customer' } | { type: 'held' } | { type: 'custom' } | { type: 'ticket' } | { type: 'pin' }
+  | { type: 'discount' } | { type: 'customer' } | { type: 'held' } | { type: 'custom' } | { type: 'ticket' } | { type: 'pin' } | { type: 'points' }
   | { type: 'variants'; group: PosProductGroup }
   | { type: 'camera' }
 
@@ -117,7 +118,7 @@ export function SellClient() {
   }
 
   const panel = (
-    <TicketPanel onCharge={charge} onEditLine={l => setSheet({ type: 'line', line: l })} onDiscount={() => setSheet({ type: 'discount' })} onCustomer={() => setSheet({ type: 'customer' })} onHeld={() => setSheet({ type: 'held' })} onCustom={() => setSheet({ type: 'custom' })} />
+    <TicketPanel onCharge={charge} onEditLine={l => setSheet({ type: 'line', line: l })} onDiscount={() => setSheet({ type: 'discount' })} onCustomer={() => setSheet({ type: 'customer' })} onHeld={() => setSheet({ type: 'held' })} onCustom={() => setSheet({ type: 'custom' })} onPoints={() => setSheet({ type: 'points' })} />
   )
 
   return (
@@ -175,6 +176,7 @@ export function SellClient() {
       </PosSheet>
       <PosSheet open={sheet?.type === 'discount'} onClose={() => setSheet(null)} title="Ticket discount"><DiscountSheet onClose={() => setSheet(null)} /></PosSheet>
       <PosSheet open={sheet?.type === 'customer'} onClose={() => setSheet(null)} title="Customer"><CustomerSheet onClose={() => setSheet(null)} /></PosSheet>
+      <PosSheet open={sheet?.type === 'points'} onClose={() => setSheet(null)} title="Redeem points"><PointsSheet onClose={() => setSheet(null)} /></PosSheet>
       <PosSheet open={sheet?.type === 'held'} onClose={() => setSheet(null)} title="Held tickets"><HeldSheet onClose={() => setSheet(null)} /></PosSheet>
       <PosSheet open={sheet?.type === 'custom'} onClose={() => setSheet(null)} title="Other item"><CustomItemSheet onClose={() => setSheet(null)} /></PosSheet>
       <PosSheet open={sheet?.type === 'pin'} onClose={() => setSheet(null)} title="Enter cashier PIN to continue"><PinPad onDone={() => { setSheet(null); setView('pay') }} /></PosSheet>

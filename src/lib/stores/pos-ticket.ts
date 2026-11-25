@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { computeTotals } from '@/lib/pos/money'
-import type { PosCatalogItem, PosTicketCustomer, PosTicketDiscount, PosTicketLine, PosTicketPromo, PosTotals } from '@/lib/pos/types'
+import type { PosCatalogItem, PosTicketCustomer, PosTicketDiscount, PosTicketLine, PosTicketPoints, PosTicketPromo, PosTotals } from '@/lib/pos/types'
 
 // Tiket POS semasa (zustand + persist localStorage) — tahan tutup tab / reload tengah jualan.
 // Tiada pixel/tracking (berbeza dengan stores/cart.ts). Satu tiket aktif + senarai tiket tangguh.
@@ -19,6 +19,7 @@ export interface HeldTicket {
   lines: PosTicketLine[]
   discount: PosTicketDiscount | null
   promo: PosTicketPromo | null
+  points?: PosTicketPoints | null
   customer: PosTicketCustomer | null
   note: string | null
   approval?: string | null
@@ -29,6 +30,8 @@ interface PosTicketState {
   lines: PosTicketLine[]
   discount: PosTicketDiscount | null
   promo: PosTicketPromo | null
+  /** Tebusan mata loyalty (migration 169) — dibersihkan bila pelanggan ditukar/dibuang. */
+  points: PosTicketPoints | null
   customer: PosTicketCustomer | null
   note: string | null
   approval: string | null
@@ -42,6 +45,7 @@ interface PosTicketState {
   removeLine: (lineId: string) => void
   setDiscount: (d: PosTicketDiscount | null) => void
   setPromo: (p: PosTicketPromo | null) => void
+  setPoints: (p: PosTicketPoints | null) => void
   setCustomer: (c: PosTicketCustomer | null) => void
   setNote: (n: string | null) => void
   setApproval: (token: string | null) => void
@@ -56,7 +60,7 @@ const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? c
 // Setiap ubahan kandungan tiket = kunci idempoten baru
 const touch = () => ({ clientTxnId: newId() })
 
-const empty = () => ({ clientTxnId: newId(), lines: [] as PosTicketLine[], discount: null, promo: null, customer: null, note: null, approval: null })
+const empty = () => ({ clientTxnId: newId(), lines: [] as PosTicketLine[], discount: null, promo: null, points: null as PosTicketPoints | null, customer: null, note: null, approval: null })
 
 export const usePosTicket = create<PosTicketState>()(
   persist(
@@ -94,7 +98,9 @@ export const usePosTicket = create<PosTicketState>()(
       removeLine: (lineId) => set(s => ({ ...touch(), lines: s.lines.filter(l => l.lineId !== lineId) })),
       setDiscount: (discount) => set({ ...touch(), discount }),
       setPromo: (promo) => set({ ...touch(), promo }),
-      setCustomer: (customer) => set({ ...touch(), customer }),
+      setPoints: (points) => set({ ...touch(), points }),
+      // tukar/buang pelanggan → tebusan mata (milik ahli lama) dibersihkan
+      setCustomer: (customer) => set(s => ({ ...touch(), customer, points: s.points && customer?.memberUserId === s.points.userId ? s.points : null })),
       setNote: (note) => set({ ...touch(), note }),
       setApproval: (approval) => set({ approval }),
 
@@ -103,7 +109,7 @@ export const usePosTicket = create<PosTicketState>()(
         const h: HeldTicket = {
           id: newId(), heldAt: new Date().toISOString(),
           label: label?.trim() || s.customer?.name || s.customer?.phone || `${s.lines.length} item`,
-          clientTxnId: s.clientTxnId, lines: s.lines, discount: s.discount, promo: s.promo, customer: s.customer, note: s.note, approval: s.approval,
+          clientTxnId: s.clientTxnId, lines: s.lines, discount: s.discount, promo: s.promo, points: s.points, customer: s.customer, note: s.note, approval: s.approval,
         }
         return { ...empty(), held: [h, ...s.held].slice(0, 20) }
       }),
@@ -112,14 +118,14 @@ export const usePosTicket = create<PosTicketState>()(
         if (!h) return {}
         // tiket semasa (jika ada) ditangguh dulu supaya tak hilang
         const current: HeldTicket[] = s.lines.length > 0
-          ? [{ id: newId(), heldAt: new Date().toISOString(), label: s.customer?.name || s.customer?.phone || `${s.lines.length} item`, clientTxnId: s.clientTxnId, lines: s.lines, discount: s.discount, promo: s.promo, customer: s.customer, note: s.note, approval: s.approval }]
+          ? [{ id: newId(), heldAt: new Date().toISOString(), label: s.customer?.name || s.customer?.phone || `${s.lines.length} item`, clientTxnId: s.clientTxnId, lines: s.lines, discount: s.discount, promo: s.promo, points: s.points, customer: s.customer, note: s.note, approval: s.approval }]
           : []
-        return { clientTxnId: h.clientTxnId, lines: h.lines, discount: h.discount, promo: h.promo, customer: h.customer, note: h.note, approval: h.approval ?? null, held: [...current, ...s.held.filter(x => x.id !== heldId)] }
+        return { clientTxnId: h.clientTxnId, lines: h.lines, discount: h.discount, promo: h.promo, points: h.points ?? null, customer: h.customer, note: h.note, approval: h.approval ?? null, held: [...current, ...s.held.filter(x => x.id !== heldId)] }
       }),
       dropHeld: (heldId) => set(s => ({ held: s.held.filter(x => x.id !== heldId) })),
       reset: () => set(empty()),
 
-      totals: (cashRounding) => { const s = get(); return computeTotals(s.lines, s.discount, s.promo?.discount ?? 0, { cashRounding }) },
+      totals: (cashRounding) => { const s = get(); return computeTotals(s.lines, s.discount, s.promo?.discount ?? 0, { cashRounding }, s.points ? s.points.points / 100 : 0) },
     }),
     { name: 'sf-pos-ticket', version: 1 },
   ),

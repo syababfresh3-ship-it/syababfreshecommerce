@@ -32,14 +32,16 @@ export function computeTotals(
   discount: PosTicketDiscount | null | undefined,
   promoDiscount: number,
   opts: { cashRounding: boolean },
+  pointsDiscount = 0,   // tebusan mata loyalty (migration 169) — ditolak selepas diskaun & promo
 ): PosTotals {
   const subtotal = round2(lines.reduce((s, l) => s + lineTotal(l), 0))
   const discountTotal = cartDiscountAmount(subtotal, discount)
   const promo = Math.min(round2(promoDiscount || 0), Math.max(0, subtotal - discountTotal))
-  const beforeRound = Math.max(0, round2(subtotal - discountTotal - promo))
+  const points = Math.min(round2(pointsDiscount || 0), Math.max(0, round2(subtotal - discountTotal - promo)))
+  const beforeRound = Math.max(0, round2(subtotal - discountTotal - promo - points))
   const { rounded, adj } = opts.cashRounding ? roundCash05(beforeRound) : { rounded: beforeRound, adj: 0 }
   const weightKg = round3(lines.filter(l => l.unit === 'kg').reduce((s, l) => s + l.qty, 0))
-  return { subtotal, discountTotal, promoDiscount: promo, roundingAdj: adj, total: rounded, weightKg, lineCount: lines.length }
+  return { subtotal, discountTotal, promoDiscount: promo, pointsDiscount: points, roundingAdj: adj, total: rounded, weightKg, lineCount: lines.length }
 }
 
 /** Format kuantiti baris untuk resit/tiket: "0.750 kg" atau "2". */

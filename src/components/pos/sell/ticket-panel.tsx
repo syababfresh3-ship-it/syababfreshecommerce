@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Minus, Plus, PauseCircle, UserRound, PackagePlus, Tag, Scale, ChevronRight, Percent } from 'lucide-react'
+import { Minus, Plus, PauseCircle, UserRound, PackagePlus, Tag, Scale, ChevronRight, Percent, Coins } from 'lucide-react'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { fmtQty, lineTotal, rm } from '@/lib/pos/money'
 import type { PosTicketLine } from '@/lib/pos/types'
 
 // Panel tiket: baris (stepper pcs / berat kg), diskaun, promo, pelanggan, tangguh, item manual, Pay.
-export function TicketPanel({ onCharge, onEditLine, onDiscount, onCustomer, onHeld, onCustom }: {
-  onCharge: () => void; onEditLine: (line: PosTicketLine) => void; onDiscount: () => void; onCustomer: () => void; onHeld: () => void; onCustom: () => void
+// Mata loyalty (169): baris "Points" muncul bila pelanggan tiket ialah ahli — tebus terus (PointsSheet) / papar diskaun mata.
+export function TicketPanel({ onCharge, onEditLine, onDiscount, onCustomer, onHeld, onCustom, onPoints }: {
+  onCharge: () => void; onEditLine: (line: PosTicketLine) => void; onDiscount: () => void; onCustomer: () => void; onHeld: () => void; onCustom: () => void; onPoints?: () => void
 }) {
   const t = usePosTicket()
   const totals = t.totals(false)
@@ -75,11 +76,18 @@ export function TicketPanel({ onCharge, onEditLine, onDiscount, onCustomer, onHe
             <span className="text-[15px]">{totals.discountTotal > 0 ? `−${rm(totals.discountTotal)}` : 'Add'}</span>
           </button>
           {t.promo && <div className="flex justify-between text-gray-600"><span>Promo {t.promo.code}</span><span>−{rm(totals.promoDiscount)}</span></div>}
+          {t.customer?.memberUserId && onPoints && (
+            <button type="button" onClick={onPoints}
+              className={`w-full h-11 px-3 -mx-1 rounded-xl flex items-center justify-between font-bold ${t.points ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}>
+              <span className="inline-flex items-center gap-1.5"><Coins className="h-4 w-4" />Points{t.points ? ` · ${t.points.points.toLocaleString('en-MY')} pts` : ` · ${Math.floor(t.customer.points ?? 0).toLocaleString('en-MY')} available`}<ChevronRight className="h-4 w-4 text-gray-400" /></span>
+              <span className="text-[15px]">{totals.pointsDiscount > 0 ? `−${rm(totals.pointsDiscount)}` : 'Redeem'}</span>
+            </button>
+          )}
           <div className="flex justify-between text-[19px] font-black text-gray-900 pt-1"><span>Total</span><span>{rm(totals.total)}</span></div>
         </div>
         <div className="grid grid-cols-3 gap-2">
           <button type="button" onClick={onHeld} className="h-11 rounded-xl bg-gray-100 text-[12px] font-bold inline-flex items-center justify-center gap-1"><PauseCircle className="h-4 w-4" />Hold{t.held.length ? ` (${t.held.length})` : ''}</button>
-          <button type="button" onClick={onCustomer} className={`h-11 rounded-xl text-[12px] font-bold inline-flex items-center justify-center gap-1 truncate px-1 ${t.customer ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}><UserRound className="h-4 w-4 shrink-0" /><span className="truncate">{t.customer ? (t.customer.name || t.customer.phone || 'Customer') : 'Customer'}</span></button>
+          <button type="button" onClick={onCustomer} className={`h-11 rounded-xl text-[12px] font-bold inline-flex items-center justify-center gap-1 truncate px-1 ${t.customer ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}><UserRound className="h-4 w-4 shrink-0" /><span className="truncate">{t.customer ? (t.customer.name || t.customer.phone || 'Customer') : 'Customer'}{t.customer?.memberUserId ? ` · ${Math.floor(t.customer.points ?? 0).toLocaleString('en-MY')} pts` : ''}</span></button>
           <button type="button" onClick={onCustom} className="h-11 rounded-xl bg-gray-100 text-[12px] font-bold inline-flex items-center justify-center gap-1"><PackagePlus className="h-4 w-4" />Other item</button>
         </div>
         <button type="button" onClick={onCharge} disabled={t.lines.length === 0 || needsWeight}

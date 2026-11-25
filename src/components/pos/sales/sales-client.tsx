@@ -116,8 +116,11 @@ export function SalesClient() {
             <div className="space-y-1 tabular-nums">
               {Number(detail.sale.discount_total) > 0 && <div className="flex justify-between text-gray-600"><span>Discount</span><span>−{rm(Number(detail.sale.discount_total))}</span></div>}
               {Number(detail.sale.promo_discount) > 0 && <div className="flex justify-between text-gray-600"><span>Promo {detail.sale.promo_code}</span><span>−{rm(Number(detail.sale.promo_discount))}</span></div>}
+              {Number(detail.sale.points_discount ?? 0) > 0 && <div className="flex justify-between text-gray-600"><span>Points redeemed ({Number(detail.sale.points_redeemed ?? 0)} pts)</span><span>−{rm(Number(detail.sale.points_discount))}</span></div>}
               {Number(detail.sale.rounding_adj) !== 0 && <div className="flex justify-between text-gray-600"><span>Rounding</span><span>{rm(Number(detail.sale.rounding_adj))}</span></div>}
               <div className="flex justify-between text-[16px] font-black"><span>Total</span><span>{rm(Number(detail.sale.total))}</span></div>
+              {Number(detail.sale.points_earned ?? 0) > 0 && <div className="flex justify-between text-gray-600"><span>Points earned</span><span>+{Number(detail.sale.points_earned)} pts</span></div>}
+              {Number(detail.sale.points_pending ?? 0) > 0 && <div className="flex justify-between text-gray-600"><span>Points pending (not a member yet)</span><span>{Number(detail.sale.points_pending)} pts</span></div>}
               {detail.payments.filter(p => p.status === 'paid').map(p => <div key={p.id} className="flex justify-between text-gray-600"><span>{POS_PAY_LABEL[p.method]}{p.ref ? ` · ${p.ref}` : ''}{p.tendered != null ? ` (cash ${rm(Number(p.tendered))}, change ${rm(Number(p.change_given ?? 0))})` : ''}</span><span>{rm(Number(p.amount))}</span></div>)}
             </div>
             {detail.sale.stock_notes && <p className="rounded-xl bg-amber-50 text-amber-900 p-3 text-[12px] font-semibold whitespace-pre-line">{detail.sale.stock_notes}</p>}
