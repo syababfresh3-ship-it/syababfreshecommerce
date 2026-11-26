@@ -14,8 +14,43 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { SfShell } from '@/components/storev2/sf-shell'
 import { SfProductCard } from '@/components/storev2/sf-product-card'
 import { JsonLd, breadcrumbSchema, itemListSchema } from '@/components/seo/json-ld'
+import { kurmaPath } from '@/lib/kurma-host'
+import { ARTIKEL } from '@/app/panduan/artikel'
 
 export const revalidate = 300
+
+// Pautan kontekstual kurma (SEO dalaman) — HANYA kategori `kurma` / `kurma-*`.
+// Setiap jenis kurma → 2 artikel panduan paling berkaitan; semua kategori kurma juga paut
+// ke kedai kurma (/kurma/shop) & gift landing (/kurma) melalui kurmaPath supaya ke subdomain
+// kurma.syababfresh.my bila aktif (corak sama dengan src/app/page.tsx). Kategori lain tak terkesan.
+// Slug artikel disemak terhadap ARTIKEL supaya pautan tak mati bila artikel berubah
+// (corak GUIDE_MAP di sf-product.tsx).
+const KURMA_GUIDE_LINKS: Record<string, { slug: string; anchor: string }[]> = {
+  'kurma-ajwa': [
+    { slug: 'panduan-kurma-ajwa', anchor: 'panduan kurma Ajwa' },
+    { slug: 'kurma-medjool-vs-ajwa', anchor: 'perbandingan kurma Medjool vs Ajwa' },
+  ],
+  'kurma-medjoul': [
+    { slug: 'kurma-medjool-vs-ajwa', anchor: 'perbandingan kurma Medjool vs Ajwa' },
+    { slug: 'jenis-kurma-malaysia', anchor: 'jenis-jenis kurma di Malaysia' },
+  ],
+  'kurma-safawi': [
+    { slug: 'jenis-kurma-malaysia', anchor: 'jenis-jenis kurma di Malaysia' },
+    { slug: 'bila-order-kurma-ramadan-2027', anchor: 'bila patut order kurma untuk Ramadan 2027' },
+  ],
+  'kurma-mariami': [
+    { slug: 'jenis-kurma-malaysia', anchor: 'jenis-jenis kurma di Malaysia' },
+    { slug: 'bila-order-kurma-ramadan-2027', anchor: 'bila patut order kurma untuk Ramadan 2027' },
+  ],
+  'kurma-sukkari': [
+    { slug: 'jenis-kurma-malaysia', anchor: 'jenis-jenis kurma di Malaysia' },
+    { slug: 'bila-order-kurma-ramadan-2027', anchor: 'bila patut order kurma untuk Ramadan 2027' },
+  ],
+}
+function kurmaGuides(slug: string) {
+  return (KURMA_GUIDE_LINKS[slug] ?? []).filter((g) => ARTIKEL.some((a) => a.slug === g.slug))
+}
+const KURMA_LINK_CLASS = 'underline underline-offset-2 decoration-gray-300 hover:text-gray-900'
 
 // Fix 8: openGraph anak tak mewarisi `images` root (lihat products/[slug]) —
 // guna imej kategori jika ada, jika tiada fallback eksplisit ke imej root.
@@ -98,6 +133,10 @@ export default async function KategoriPage({
     (category.description ?? '').trim() ||
     `Semua pilihan ${category.name} yang ada di SyababFresh, dengan harga terkini dan stok dikemas kini setiap hari.`
 
+  // Pautan kontekstual hanya untuk kategori kurma (induk `kurma` + anak `kurma-*`).
+  const isKurma = category.slug.startsWith('kurma')
+  const guides = isKurma ? kurmaGuides(category.slug) : []
+
   return (
     <SfShell>
       <JsonLd
@@ -119,6 +158,26 @@ export default async function KategoriPage({
         <p className="text-[12px] text-gray-400 mt-2">
           {products.length} produk
         </p>
+
+        {isKurma && (
+          <p className="text-[12px] text-gray-500 leading-relaxed mt-3 max-w-2xl">
+            {guides.length > 0 && (
+              <>
+                Baca juga{' '}
+                {guides.map((g, i) => (
+                  <span key={g.slug}>
+                    {i > 0 && ' dan '}
+                    <Link href={`/panduan/${g.slug}`} className={KURMA_LINK_CLASS}>{g.anchor}</Link>
+                  </span>
+                ))}
+                .{' '}
+              </>
+            )}
+            Mahu pilihan lebih luas?{' '}
+            <Link href={kurmaPath('/shop')} className={KURMA_LINK_CLASS}>Beli kurma online di kedai kurma kami</Link>, atau tempah{' '}
+            <Link href={kurmaPath('/')} className={KURMA_LINK_CLASS}>gift box kurma custom</Link> untuk hadiah dan korporat.
+          </p>
+        )}
 
         {products.length === 0 ? (
           <div className="mt-8 text-center text-[13px] text-gray-400">

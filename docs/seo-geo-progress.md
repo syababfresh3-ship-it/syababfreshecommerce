@@ -12,14 +12,14 @@
 - URL sasaran kurma: subdomain **kurma.syababfresh.my** (canonical; pautan dari shop.syababfresh.my = "backlink" dalaman).
 
 ## 📊 Skor Semasa
-- **Mata:** 1220
+- **Mata:** 1240
 - **Level:** 4 — Juara Carian 🏆 *(naik 4 Nov 2026)*
-- **Streak:** 1 hari *(putus 28 Okt–1 Nov; sambung 2–5 Nov = 4 hari; putus 6–7 Nov → reset 0; 8 Nov = 1; putus 9 Nov → reset 0; mula semula 10 Nov = 1; putus 11–16 Nov → reset 0; 17 Nov = 1 — rekod jujur)*
+- **Streak:** 1 hari *(putus 28 Okt–1 Nov; sambung 2–5 Nov = 4 hari; putus 6–7 Nov → reset 0; 8 Nov = 1; putus 9 Nov → reset 0; mula semula 10 Nov = 1; putus 11–16 Nov → reset 0; 17 Nov = 1; putus 18–25 Nov → reset 0; 26 Nov = 1 — rekod jujur)*
 - **Pencapaian dibuka:** 14 / 20
-- **Kemaskini terakhir:** 17 Nov 2026
+- **Kemaskini terakhir:** 26 Nov 2026
 
 > Level: 0–200 mata = Lv1 Baru Bermula · 201–500 = Lv2 Membina · 501–1000 = Lv3 Naik Carta · 1001+ = Lv4 Juara Carian
-> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4) + 30 (C5) + 60 (C1), keempat-empat 3 Nov + 60 (C2) + 40 (C4) + 30 (B4), ketiga-tiga 4 Nov + 60 (C3) 5 Nov + 10 bonus luar senarai (feed MC kategori Google) 10 Nov + 20 bonus luar senarai (pautan funnel kurma → artikel) 17 Nov. **Trek A SIAP 5/5. Trek C SIAP 5/5. NAIK LEVEL 4 🏆 pada 4 Nov (1060 mata), kini 1220.** Seterusnya: B2 (sahkan produk gift set DB dengan pemilik), D2–D3 manual pemilik, Trek E ukur via GSC.
+> Nota skor: 720 mata dibawa dari papan "buah online" (sejarah penuh dalam Log Harian di bawah) + 30 (A5 GSC) + 80 (D1 Merchant Center), kedua-dua 2 Nov + 40 (B3) + 40 (A4) + 30 (C5) + 60 (C1), keempat-empat 3 Nov + 60 (C2) + 40 (C4) + 30 (B4), ketiga-tiga 4 Nov + 60 (C3) 5 Nov + 10 bonus luar senarai (feed MC kategori Google) 10 Nov + 20 bonus luar senarai (pautan funnel kurma → artikel) 17 Nov + 20 bonus luar senarai (pautan kontekstual kategori kurma → artikel & funnel) 26 Nov. **Trek A SIAP 5/5. Trek C SIAP 5/5. NAIK LEVEL 4 🏆 pada 4 Nov (1060 mata), kini 1240.** Seterusnya: B2 (sahkan produk gift set DB dengan pemilik), D2–D3 manual pemilik, Trek E ukur via GSC.
 
 ## 📅 Fasa Runway Ramadan 2027
 | Fasa | Tempoh | Fokus |
@@ -111,6 +111,7 @@
 | 8 Nov 2026 | Housekeeping papan — hash C3 (d0fe660) diisi; streak 4 putus 6–7 Nov → reset ke 0, commit ini jadi streak 1. Deploy production disahkan: /panduan/bila-order-kurma-ramadan-2027 HTTP 200, pautan balik & sitemap live | +0 | 1 |
 | 10 Nov 2026 | Feed MC: google_product_category ikut kategori (Dried Fruits + Food Gift Baskets) — merchant-feed.xml join `categories(slug)`; 25 produk aktif `kurma-*` → "… Fruits & Vegetables > Dried Fruits", `kurma-muda-segar` (2) & buah segar kekal, `kurma-set-bundle`/`gift-box*` → "Food, Beverages & Tobacco > Food Gift Baskets" (sedia untuk B2). Bonus luar senarai (preseden 13 Ogos); streak putus 9 Nov → reset, commit ini streak 1 — **1200 mata** | +10 | 1 |
 | 17 Nov 2026 | Pautan funnel kurma → artikel (bonus luar senarai) — GIFT_FAQ dapat medan `link` (corak ShopFaq) + render pautan dalam FAQ gift-landing: soalan Ramadan 2027 → /panduan/bila-order-kurma-ramadan-2027, soalan "Harga sudah termasuk kurma?" → /panduan/panduan-gift-kurma-hamper-korporat; SHOP_FAQ (/kurma/shop): soalan Ramadan → /panduan/bila-order-kurma-ramadan-2027, soalan simpan kurma (Medjoul/Ajwa) → /panduan/kurma-medjool-vs-ajwa (soalan "Apa beza…" kekal ke jenis-kurma-malaysia). Teks jawapan & FAQPage schema tak berubah. Streak putus 11–16 Nov → reset, commit ini streak 1 — **1220 mata** | +20 | 1 |
+| 26 Nov 2026 | Pautan kontekstual kategori kurma → artikel & funnel (bonus luar senarai) — `/kategori/[slug]` dapat blok "Baca juga" di bawah intro, HANYA slug `kurma`/`kurma-*`: kurma-ajwa → panduan-kurma-ajwa + kurma-medjool-vs-ajwa; kurma-medjoul → kurma-medjool-vs-ajwa + jenis-kurma-malaysia; kurma-safawi/mariami/sukkari → jenis-kurma-malaysia + bila-order-kurma-ramadan-2027; semua kategori kurma + 1 pautan kedai kurma (/kurma/shop via kurmaPath → subdomain) + 1 gift landing (/kurma, anchor "gift box kurma custom"). Anchor berkata kunci; slug artikel disemak terhadap ARTIKEL; UI lain & kategori bukan kurma tak disentuh. Streak putus 18–25 Nov → reset, commit ini streak 1 — **1240 mata** | +20 | 1 |
 
 ---
 
