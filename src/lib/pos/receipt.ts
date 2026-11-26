@@ -17,7 +17,7 @@ export function buildReceiptText(d: PosSaleDetail, settings: PosSettings): strin
   lines.push(`${SELLER.brand} — ${sale.status === 'pending' && sale.is_pickup ? 'Invoice (pay at pickup)' : 'Receipt'}`)
   lines.push(`No: ${sale.receipt_no ?? sale.local_ref ?? '-'}`)
   lines.push(`Date: ${fmtKl(sale.sold_at)}`)
-  if (sale.channel === 'wholesale') lines.push('Wholesale (Borong) prices')
+  if (sale.channel === 'wholesale') lines.push('Wholesale prices')
   lines.push('')
   for (const it of items) {
     const name = it.variant_name && it.variant_name !== 'ikut berat' ? `${it.name} ${it.variant_name}` : it.name

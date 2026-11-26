@@ -4,7 +4,7 @@ import { klDateStr, klDayWindow, isValidYmd } from '@/lib/daily-summary'
 import { buildPosDayReport } from '@/lib/pos/reports'
 import { fetchAll } from '@/lib/pos/shifts'
 
-// Jualan POS untuk admin: ?from=YYYY-MM-DD&to=YYYY-MM-DD (lalai hari ini) &register= &cashier= &status= &format=csv
+// Jualan POS untuk admin: ?from=YYYY-MM-DD&to=YYYY-MM-DD (lalai hari ini) &register= &cashier= &status= &channel=retail|wholesale (171) &format=csv
 // Juga pulangkan laporan hari (bila from===to) untuk dashboard.
 // JSON (senarai UI) dihadkan 2000 baris + `truncated` supaya UI boleh beri amaran; CSV (eksport perakaunan)
 // ambil SEMUA baris melalui fetchAll — dulu kedua-duanya terpotong 2000 secara senyap.
@@ -27,25 +27,32 @@ export async function GET(request: Request) {
   const register = UUID.test(sp.get('register') ?? '') ? sp.get('register') : null
   const cashier = UUID.test(sp.get('cashier') ?? '') ? sp.get('cashier') : null
   const status = ['pending', 'paid', 'void'].includes(sp.get('status') ?? '') ? sp.get('status') : null
+  const channel = ['retail', 'wholesale'].includes(sp.get('channel') ?? '') ? sp.get('channel') : null   // 171: saluran Borong
   const isCsv = sp.get('format') === 'csv'
-  const build = (f: number, t: number) => {
-    let q = supabase!.from('pos_sales').select(SELECT).gte('sold_at', start).lt('sold_at', end).order('sold_at', { ascending: false }).order('id').range(f, t)
+  const buildWith = (cols: string) => (f: number, t: number) => {
+    let q = supabase!.from('pos_sales').select(cols).gte('sold_at', start).lt('sold_at', end).order('sold_at', { ascending: false }).order('id').range(f, t)
     if (register) q = q.eq('register_id', register)
     if (cashier) q = q.eq('cashier_id', cashier)
     if (status) q = q.eq('status', status)
+    if (channel) q = q.eq('channel', channel)
     return q
   }
-  type Sale = { receipt_no: string | null; local_ref: string | null; status: string; subtotal: number; discount_total: number; promo_code: string | null; promo_discount: number; rounding_adj: number; total: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; pos_cashiers: { name: string } | null; pos_registers: { code: string } | null; pos_payments: { method: string; amount: number; status: string }[] | null }
-  let data: Sale[]
+  let build = buildWith(`${SELECT}, channel, is_pickup`)
+  type Sale = { channel?: string | null; is_pickup?: boolean | null; receipt_no: string | null; local_ref: string | null; status: string; subtotal: number; discount_total: number; promo_code: string | null; promo_discount: number; rounding_adj: number; total: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; pos_cashiers: { name: string } | null; pos_registers: { code: string } | null; pos_payments: { method: string; amount: number; status: string }[] | null }
+  let data: Sale[] = []
   let truncated = false
+  const run = async () => {
+    if (isCsv) { data = await fetchAll<Sale>(build); return }
+    const { data: d, error } = await build(0, LIST_LIMIT)   // satu lebih daripada had → tahu ada lagi
+    if (error) throw new Error(error.message)
+    data = (d ?? []) as unknown as Sale[]
+    truncated = data.length > LIST_LIMIT
+    if (truncated) data = data.slice(0, LIST_LIMIT)
+  }
   try {
-    if (isCsv) data = await fetchAll<Sale>(build)
-    else {
-      const { data: d, error } = await build(0, LIST_LIMIT)   // satu lebih daripada had → tahu ada lagi
-      if (error) throw new Error(error.message)
-      data = (d ?? []) as unknown as Sale[]
-      truncated = data.length > LIST_LIMIT
-      if (truncated) data = data.slice(0, LIST_LIMIT)
+    try { await run() } catch (e) {
+      // pra-171: lajur channel/is_pickup tiada → ulang tanpa lajur itu (penapis saluran diabaikan)
+      if (!channel && e instanceof Error && /channel|is_pickup/.test(e.message)) { build = buildWith(SELECT); await run() } else throw e
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Failed'
@@ -54,9 +61,9 @@ export async function GET(request: Request) {
 
   if (isCsv) {
     const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const head = ['receipt_no', 'local_ref', 'status', 'sold_at_kl', 'register', 'cashier', 'customer_name', 'customer_phone', 'subtotal', 'discount', 'promo_code', 'promo_discount', 'rounding', 'total', 'weight_kg', 'payments', 'offline', 'void_reason']
+    const head = ['receipt_no', 'local_ref', 'status', 'channel', 'sold_at_kl', 'register', 'cashier', 'customer_name', 'customer_phone', 'subtotal', 'discount', 'promo_code', 'promo_discount', 'rounding', 'total', 'weight_kg', 'payments', 'offline', 'void_reason']
     const rows = data.map(s => [
-      s.receipt_no, s.local_ref, s.status,
+      s.receipt_no, s.local_ref, s.status, s.channel ?? 'retail',
       new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kuala_Lumpur', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(s.sold_at)),
       s.pos_registers?.code, s.pos_cashiers?.name, s.customer_name, s.customer_phone,
       Number(s.subtotal).toFixed(2), Number(s.discount_total).toFixed(2), s.promo_code, Number(s.promo_discount).toFixed(2), Number(s.rounding_adj).toFixed(2), Number(s.total).toFixed(2), Number(s.weight_kg_total).toFixed(3),

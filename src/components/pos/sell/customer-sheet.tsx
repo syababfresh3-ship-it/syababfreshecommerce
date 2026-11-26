@@ -71,8 +71,8 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
       {wholesaleEnabled && (
         <label className={`flex items-center gap-3 rounded-2xl border px-4 h-14 cursor-pointer ${borong ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white'}`}>
           <input type="checkbox" checked={borong} onChange={e => setBorong(e.target.checked)} className="h-5 w-5 accent-gray-800" />
-          <span className="text-[15px] font-extrabold inline-flex items-center gap-1.5"><Store className="h-4 w-4" /> Borong — wholesale prices</span>
-          <span className={`ml-auto text-[11px] font-semibold ${borong ? 'text-gray-300' : 'text-gray-400'}`}>Ticks itself for CRM customers flagged Borong</span>
+          <span className="text-[15px] font-extrabold inline-flex items-center gap-1.5"><Store className="h-4 w-4" /> Wholesale prices</span>
+          <span className={`ml-auto text-[11px] font-semibold ${borong ? 'text-gray-300' : 'text-gray-400'}`}>Ticks itself for CRM wholesale customers</span>
         </label>
       )}
       {visible.length > 0 && (
@@ -81,7 +81,7 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
             <li key={h.id}>
               <button type="button" onClick={() => pickHit(h)} className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-gray-50">
                 {h.member ? <Coins className="h-4 w-4 text-gray-700 shrink-0" /> : <UserRound className="h-4 w-4 text-gray-400 shrink-0" />}
-                <div className="min-w-0 flex-1"><p className="text-[14px] font-bold truncate">{h.name ?? '(no name)'}</p><p className="text-[12px] text-gray-500">{h.phone_norm}{h.order_count ? ` · ${h.order_count} orders` : ''}{h.is_reseller ? ' · Borong' : ''}</p></div>
+                <div className="min-w-0 flex-1"><p className="text-[14px] font-bold truncate">{h.name ?? '(no name)'}</p><p className="text-[12px] text-gray-500">{h.phone_norm}{h.order_count ? ` · ${h.order_count} orders` : ''}{h.is_reseller ? ' · Wholesale' : ''}</p></div>
                 {h.member
                   ? <span className="shrink-0 text-right"><span className="block text-[13px] font-black tabular-nums">{fmtPts(h.points ?? 0)}</span><span className="block text-[11px] text-gray-500">Member</span></span>
                   : (h.pending_points ?? 0) > 0 ? <span className="shrink-0 text-[11px] font-semibold text-gray-500 text-right">{fmtPts(h.pending_points ?? 0)}<br />pending</span> : null}

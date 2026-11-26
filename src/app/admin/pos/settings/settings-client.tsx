@@ -54,7 +54,7 @@ export function PosSettingsClient() {
           <F label="Paper width">
             <div className="flex gap-2">{([58, 80] as const).map(w => <button key={w} type="button" onClick={() => setS({ ...s, paperWidth: w })} className={`h-10 px-4 rounded-lg border text-sm font-semibold ${s.paperWidth === w ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-300'}`}>{w}mm</button>)}</div>
           </F>
-          <F label="Wholesale (Borong) price list" hint="When the cashier ticks 'Borong' on the ticket's customer (automatic for CRM customers flagged Borong), items are priced from this list and the sale is tagged wholesale in reports. Products missing from the list keep their normal price. None = feature off.">
+          <F label="Wholesale price list" hint="When the cashier ticks 'Wholesale prices' on the ticket's customer (automatic for CRM customers flagged Borong), items are priced from this list and the sale is tagged wholesale in reports. Products missing from the list keep their normal price. None = feature off.">
             <select value={s.wholesalePriceListId ?? ''} onChange={e => setS({ ...s, wholesalePriceListId: e.target.value || null })} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white">
               <option value="">None (off)</option>
               {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}

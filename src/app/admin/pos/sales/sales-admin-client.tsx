@@ -9,20 +9,21 @@ import { POS_PAY_LABEL, type PosPayMethod } from '@/lib/pos/types'
 import { klDateStr } from '@/lib/pos/dates'
 
 interface Item { name: string; variant_name: string | null; qty: number; unit: 'pcs' | 'kg'; unit_price: number; catalog_price: number | null; line_total: number }
-interface Sale { id: string; receipt_no: string | null; local_ref: string | null; status: string; subtotal: number; discount_total: number; promo_code: string | null; promo_discount: number; rounding_adj: number; total: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; stock_notes: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_registers: { code: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null; pos_sale_items: Item[] | null }
+interface Sale { id: string; channel?: string | null; is_pickup?: boolean | null; receipt_no: string | null; local_ref: string | null; status: string; subtotal: number; discount_total: number; promo_code: string | null; promo_discount: number; rounding_adj: number; total: number; weight_kg_total: number; sold_at: string; customer_name: string | null; customer_phone: string | null; offline: boolean; void_reason: string | null; stock_notes: string | null; public_token: string; pos_cashiers: { name: string } | null; pos_registers: { code: string } | null; pos_payments: { method: PosPayMethod; amount: number; status: string }[] | null; pos_sale_items: Item[] | null }
 
 export function PosSalesAdminClient() {
   const today = klDateStr(new Date())
   const [from, setFrom] = useState(today)
   const [to, setTo] = useState(today)
   const [status, setStatus] = useState('')
+  const [channel, setChannel] = useState('')   // 171: '' semua · retail · wholesale (Borong)
   const [rows, setRows] = useState<Sale[]>([])
   const [truncated, setTruncated] = useState<number | null>(null)   // had senarai API dicapai (CSV tetap lengkap)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<string | null>(null)
 
   const [tick, setTick] = useState(0)
-  const qs = `from=${from}&to=${to}${status ? `&status=${status}` : ''}`
+  const qs = `from=${from}&to=${to}${status ? `&status=${status}` : ''}${channel ? `&channel=${channel}` : ''}`
   const load = () => { setLoading(true); setTick(t => t + 1) }
   useEffect(() => {
     let alive = true
@@ -59,6 +60,7 @@ export function PosSalesAdminClient() {
           <span className="text-gray-400">–</span>
           <input type="date" value={to} onChange={e => e.target.value && setTo(e.target.value)} className="h-10 px-3 rounded-lg border border-gray-300 text-sm" />
           <select value={status} onChange={e => setStatus(e.target.value)} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"><option value="">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="void">Void</option></select>
+          <select value={channel} onChange={e => setChannel(e.target.value)} className="h-10 px-3 rounded-lg border border-gray-300 text-sm bg-white"><option value="">Retail + wholesale</option><option value="wholesale">Wholesale only</option><option value="retail">Retail only</option></select>
           <a href={`/api/admin/pos/sales?${qs}&format=csv`} className="inline-flex items-center gap-1.5 h-10 px-3 rounded-lg border border-gray-300 text-sm font-semibold bg-white"><Download className="h-4 w-4" /> CSV</a>
         </div>
       </div>
@@ -87,7 +89,7 @@ function RowGroup({ s, open, onToggle, onVoid, drift }: { s: Sale; open: boolean
     <>
       <tr className="hover:bg-gray-50">
         <td className="px-3 py-2 whitespace-nowrap text-gray-600 tabular-nums">{fmtKl(s.sold_at)}</td>
-        <td className="px-3 py-2 font-semibold text-gray-900">{s.receipt_no ?? s.local_ref ?? '—'}{s.offline && <span className="ml-1 text-[10px] font-bold text-gray-400 uppercase">offline</span>}{drift && <span className="ml-1 text-[10px] font-bold text-amber-700 uppercase" title="Line price differs from the catalog price served to the device (price list / POS price)">drift</span>}</td>
+        <td className="px-3 py-2 font-semibold text-gray-900">{s.receipt_no ?? s.local_ref ?? '—'}{s.offline && <span className="ml-1 text-[10px] font-bold text-gray-400 uppercase">offline</span>}{s.channel === 'wholesale' && <span className="ml-1 text-[10px] font-black uppercase text-gray-700 border border-gray-300 rounded px-1">Wholesale</span>}{s.is_pickup && <span className="ml-1 text-[10px] font-bold text-gray-500 uppercase">pickup</span>}{drift && <span className="ml-1 text-[10px] font-bold text-amber-700 uppercase" title="Line price differs from the catalog price served to the device (price list / POS price)">drift</span>}</td>
         <td className="px-3 py-2 text-gray-600">{s.pos_registers?.code ?? '—'} · {s.pos_cashiers?.name ?? '—'}</td>
         <td className="px-3 py-2 text-gray-600">{s.customer_name ?? s.customer_phone ?? '—'}</td>
         <td className="px-3 py-2 text-gray-600">{pays.map(p => `${POS_PAY_LABEL[p.method]} ${rm(Number(p.amount))}`).join(' + ') || '—'}</td>
