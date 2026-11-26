@@ -43,8 +43,8 @@ export function BorongCatalog({ rows, terms, updated, anyPrice, promo = null }: 
                       )}
                       {r.wholesaleCtn != null ? (
                         <>
-                          <div className="font-black text-gray-900 tabular-nums"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>dari {rm(r.wholesaleCtn)}<span className="text-xs font-semibold text-gray-400">/karton{r.tiers.length > 0 ? ` · ${(r.tiers.find(t => t.price === r.wholesaleCtn) ?? r.tiers[r.tiers.length - 1]).label}` : ''}</span></div>
-                          <div className="text-[11px] text-gray-400 tabular-nums">≈ {rm(Math.round(kg! * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > r.wholesaleCtn ? ` · jimat ${Math.round((1 - r.wholesaleCtn / r.retailCtn) * 100)}%` : ''}</div>
+                          <div className="font-black text-gray-900 tabular-nums"><span className="text-[10px] font-bold uppercase tracking-wide mr-1" style={{ color: '#E11D2A' }}>Borong</span>dari {rm(r.wholesaleCtn)}<span className="text-xs font-semibold text-gray-400">/karton</span></div>
+                          <div className="text-[11px] text-gray-400 tabular-nums">≈ {rm(Math.round(kg! * 100) / 100)}/kg{r.retailCtn != null && r.retailCtn > r.wholesaleCtn ? ` · jimat ${Math.round((1 - r.wholesaleCtn / r.retailCtn) * 100)}%` : ''}{r.tiers.length > 0 ? ` · ${(r.tiers.find(t => t.price === r.wholesaleCtn) ?? r.tiers[r.tiers.length - 1]).label}` : ''}</div>
                           {r.tiers.length > 0 && (
                             <div className="mt-1.5 flex flex-wrap sm:justify-end gap-1" aria-label="Harga ikut kuantiti karton">
                               {r.tiers.map(t => (

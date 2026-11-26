@@ -76,9 +76,11 @@ export function ShopCard({ product }: { product: ShopProduct }) {
       <div className="p-2.5 flex flex-col flex-1">
         <p className="text-[12.5px] font-bold text-gray-900 leading-snug line-clamp-2 flex-1">{product.name}</p>
 
-        <div className="flex items-end justify-between gap-1.5 mt-1.5">
+        {/* Mobile 2 lajur (~165px): harga + butang "Pilih saiz" tak muat sebaris (harga terpotong — laporan pemilik 26 Nov)
+            → kad bervariasi disusun menegak: harga sebaris penuh, butang lebar penuh di bawah. Kad tanpa variasi (+/stepper) kekal sebaris. */}
+        <div className={hasVariants && !soldOut ? 'flex flex-col gap-2 mt-1.5' : 'flex items-end justify-between gap-1.5 mt-1.5'}>
           <div className="min-w-0">
-            <p className="text-[14px] font-extrabold leading-none" style={{ color: RED }}>
+            <p className="text-[14px] font-extrabold leading-none whitespace-nowrap" style={{ color: RED }}>
               {hasVariants && <span className="text-[10px] font-semibold text-gray-400 mr-0.5">Dari</span>}
               {rm2(minPrice)}
             </p>
@@ -89,13 +91,13 @@ export function ShopCard({ product }: { product: ShopProduct }) {
           </div>
 
           {soldOut ? null : hasDims ? (
-            <Link href={`/products/${product.slug}`} className="shrink-0 text-[11px] font-bold text-gray-700 border border-gray-300 rounded-full px-2.5 py-1.5">Pilih di kedai</Link>
+            <Link href={`/products/${product.slug}`} className="w-full sm:w-auto sm:self-end text-center text-[12px] font-bold text-gray-700 border border-gray-300 rounded-full px-3 py-2">Pilih di kedai</Link>
           ) : hasVariants ? (
             <button
               type="button"
               onClick={() => setOpen(o => !o)}
               aria-expanded={open}
-              className="shrink-0 inline-flex items-center gap-1 h-8 px-3 rounded-full text-[12px] font-bold text-white shadow-[0_4px_12px_rgba(225,29,42,0.32)] active:scale-95 transition"
+              className="w-full sm:w-auto sm:self-end inline-flex items-center justify-center gap-1 h-9 px-3 rounded-full text-[12px] font-bold text-white shadow-[0_4px_12px_rgba(225,29,42,0.32)] active:scale-95 transition"
               style={{ background: RED }}
             >
               {open ? 'Tutup' : 'Pilih saiz'} <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
