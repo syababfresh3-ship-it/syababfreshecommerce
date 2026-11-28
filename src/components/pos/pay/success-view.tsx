@@ -8,6 +8,7 @@ import { rm } from '@/lib/pos/money'
 import { POS_PAY_LABEL } from '@/lib/pos/types'
 import type { SaleDone } from '@/components/pos/pay/pay-view'
 import { printReceiptSilently } from '@/components/pos/silent-print'
+import { memberInviteLink } from '@/lib/pos/member-invite'
 
 // Selepas bayar: baki besar, no. resit, kaedah bayar + nama pelanggan (supaya silap kaedah nampak segera),
 // Print (window.open resit ?print=), WhatsApp (wa.me pra-isi), New sale.
@@ -71,8 +72,12 @@ export function SuccessView({ sale, customerPhone, customerName = null, onNew }:
               {sale.loyalty.redeemed > 0 ? `Redeemed ${sale.loyalty.redeemed.toLocaleString('en-MY')} pts · ` : ''}Earned +{sale.loyalty.earned.toLocaleString('en-MY')} pts{sale.loyalty.balance != null ? ` · Balance ${sale.loyalty.balance.toLocaleString('en-MY')} pts` : ''}
             </p>
           )}
-          {!sale.loyalty?.member && (sale.loyalty?.pending ?? 0) > 0 && (
+          {!sale.loyalty?.member && (sale.loyalty?.pending ?? 0) > 0 && !!customerPhone && (
+            <>
             <p className="text-[13px] lg:text-[15px] text-gray-600 mt-2">{sale.loyalty!.pending.toLocaleString('en-MY')} pts pending for {customerPhone} — tell the customer to register at shop.syababfresh.my/daftar with this number to claim them.</p>
+              <a href={memberInviteLink(customerPhone, sale.loyalty!.pending, customerName)} target="_blank" rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center justify-center gap-1.5 h-12 px-5 rounded-2xl bg-white border border-gray-200 text-[14px] lg:text-[16px] font-extrabold"><Coins className="h-4 w-4" /> Invite to register (WhatsApp)</a>
+            </>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">

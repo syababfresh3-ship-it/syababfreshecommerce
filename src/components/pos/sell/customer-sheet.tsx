@@ -5,6 +5,7 @@ import { Coins, Store, UserRound, X } from 'lucide-react'
 import { usePosTicket } from '@/lib/stores/pos-ticket'
 import { usePosSession } from '@/lib/stores/pos-session'
 import { normalizePhone } from '@/lib/phone'
+import { memberInviteLink } from '@/lib/pos/member-invite'
 
 // Pelanggan pilihan pada tiket: NAMA sahaja pun boleh (walk-in — nama tertera pada resit & senarai jualan),
 // atau telefon (+ nama) → pelanggan dicipta/dikemas kini di CRM selepas jualan (upsertCustomer sumber 'pos')
@@ -62,7 +63,12 @@ export function CustomerSheet({ onClose }: { onClose: () => void }) {
       {customer && (
         <div className="flex items-center justify-between rounded-2xl bg-gray-50 p-3">
           <div className="min-w-0"><p className="text-[14px] font-bold truncate">{customer.name ?? 'Customer'}</p><p className="text-[12px] text-gray-500">{customer.phone || 'no phone'}{customer.memberUserId ? ` · Member · ${fmtPts(customer.points ?? 0)}` : customer.pendingPoints ? ` · ${fmtPts(customer.pendingPoints)} pending` : ''}</p></div>
+          <div className="flex items-center shrink-0">
+          {!customer.memberUserId && customer.phone && (
+            <a href={memberInviteLink(customer.phone, customer.pendingPoints ?? 0, customer.name)} target="_blank" rel="noopener noreferrer" className="h-10 px-3 rounded-xl bg-white border border-gray-200 text-[12px] font-bold inline-flex items-center gap-1 mr-2"><Coins className="h-3.5 w-3.5" /> Invite to register</a>
+          )}
           <button type="button" onClick={() => { setCustomer(null); setWholesale(false); onClose() }} className="h-10 px-3 rounded-xl bg-white border border-gray-200 text-[12px] font-bold inline-flex items-center gap-1"><X className="h-3.5 w-3.5" /> Remove</button>
+          </div>
         </div>
       )}
       <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Customer name" autoComplete="off" className="w-full h-14 px-4 rounded-2xl border border-gray-300 text-[17px] font-semibold" />
